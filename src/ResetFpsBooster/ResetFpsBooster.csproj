@@ -12,7 +12,7 @@
     <Platforms>x64</Platforms>
     <Company>Lukas Reschke</Company>
     <Product>RESET FPS BOOSTER</Product>
-    <Version>1.2.0</Version>
+    <Version>1.1.2</Version>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>

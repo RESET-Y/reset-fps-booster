@@ -4,5 +4,5 @@ namespace ResetFpsBooster.Core.Utilities;
 /// update-checker never drift apart from each other or from the .csproj/installer version.</summary>
 public static class AppVersionInfo
 {
-    public const string Current = "1.2.0";
+    public const string Current = "1.1.2";
 }
