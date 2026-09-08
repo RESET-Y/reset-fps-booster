@@ -6,6 +6,11 @@ public interface IUpdateService
 {
     string CurrentVersion { get; }
 
+    /// <summary>The result of the most recent <see cref="CheckForUpdateAsync"/> call, if any — lets a
+    /// view model hydrate itself with an already-known result instead of forcing a fresh check
+    /// (e.g. after the silent startup check already ran).</summary>
+    UpdateCheckResult? LastResult { get; }
+
     /// <summary>Queries the configured GitHub repository's latest release. Never throws —
     /// any failure (no repository configured, no internet, rate limit, malformed release)
     /// comes back as a normal, honestly-labeled result rather than a crash.</summary>

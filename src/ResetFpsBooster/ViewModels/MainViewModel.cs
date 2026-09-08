@@ -34,6 +34,24 @@ public sealed partial class MainViewModel : ObservableObject
         };
 
         NavigateTo(NavigationSection.Dashboard);
+
+        if (_services.Settings.Current.AutoCheckForUpdates && !string.IsNullOrWhiteSpace(_services.Settings.Current.UpdateRepository))
+            _ = CheckForUpdatesSilentlyAsync();
+    }
+
+    // Runs once at startup so an update is already known by the time the user opens Settings —
+    // no manual "Check for Updates" click needed. Never surfaces errors (offline, rate-limited,
+    // etc.) since this is a background, best-effort check, not a user-initiated action.
+    private async Task CheckForUpdatesSilentlyAsync()
+    {
+        try
+        {
+            await _services.Update.CheckForUpdateAsync();
+        }
+        catch
+        {
+            // Best-effort — the user can always retry manually from Settings.
+        }
     }
 
     [RelayCommand]

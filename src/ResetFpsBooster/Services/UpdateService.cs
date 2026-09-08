@@ -21,12 +21,21 @@ public sealed class UpdateService : IUpdateService
 
     public string CurrentVersion => AppVersionInfo.Current;
 
+    public UpdateCheckResult? LastResult { get; private set; }
+
     public UpdateService(ISettingsService settingsService)
     {
         _settingsService = settingsService;
     }
 
     public async Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken ct = default)
+    {
+        var result = await CheckForUpdateCoreAsync(ct);
+        LastResult = result;
+        return result;
+    }
+
+    private async Task<UpdateCheckResult> CheckForUpdateCoreAsync(CancellationToken ct)
     {
         var repository = _settingsService.Current.UpdateRepository?.Trim();
 

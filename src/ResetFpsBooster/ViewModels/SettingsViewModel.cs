@@ -38,6 +38,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _updateService = updateService;
         _startWithWindows = Settings.StartWithWindows;
         _updateRepositoryInput = Settings.UpdateRepository;
+
+        // A silent check already ran at app startup (MainViewModel) — reuse that result instead of
+        // forcing the user to click "Check for Updates" again just to see what it already found.
+        if (_updateService.LastResult is { } cached)
+            ApplyResult(cached);
     }
 
     partial void OnStartWithWindowsChanged(bool value)
@@ -84,31 +89,35 @@ public sealed partial class SettingsViewModel : ViewModelBase
         try
         {
             var result = await _updateService.CheckForUpdateAsync();
-
-            if (!result.Success)
-            {
-                UpdateStatusMessage = result.ErrorMessage;
-                return;
-            }
-
-            if (result.IsUpdateAvailable)
-            {
-                IsUpdateAvailable = true;
-                LatestVersionText = result.LatestVersion;
-                ReleaseNotes = string.IsNullOrWhiteSpace(result.ReleaseNotes) ? null : result.ReleaseNotes;
-                PendingDownloadUrl = result.DownloadUrl;
-                UpdateStatusMessage = string.IsNullOrEmpty(result.DownloadUrl)
-                    ? $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}), but this release has no installer (.exe) attached."
-                    : $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}).";
-            }
-            else
-            {
-                UpdateStatusMessage = $"You're up to date (version {result.CurrentVersion}).";
-            }
+            ApplyResult(result);
         }
         finally
         {
             IsCheckingForUpdate = false;
+        }
+    }
+
+    private void ApplyResult(UpdateCheckResult result)
+    {
+        if (!result.Success)
+        {
+            UpdateStatusMessage = result.ErrorMessage;
+            return;
+        }
+
+        if (result.IsUpdateAvailable)
+        {
+            IsUpdateAvailable = true;
+            LatestVersionText = result.LatestVersion;
+            ReleaseNotes = string.IsNullOrWhiteSpace(result.ReleaseNotes) ? null : result.ReleaseNotes;
+            PendingDownloadUrl = result.DownloadUrl;
+            UpdateStatusMessage = string.IsNullOrEmpty(result.DownloadUrl)
+                ? $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}), but this release has no installer (.exe) attached."
+                : $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}).";
+        }
+        else
+        {
+            UpdateStatusMessage = $"You're up to date (version {result.CurrentVersion}).";
         }
     }
 
