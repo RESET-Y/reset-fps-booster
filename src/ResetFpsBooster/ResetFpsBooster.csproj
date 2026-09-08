@@ -33,6 +33,10 @@
          resource), so the intro video ships as a loose file next to the exe instead. -->
     <Content Include="Assets\intro.mp4">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <!-- Single-file publish otherwise bundles this into the exe blob instead of leaving it as
+           a loose file — but MediaElement needs a real file path on disk to play from. -->
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
   </ItemGroup>
 
