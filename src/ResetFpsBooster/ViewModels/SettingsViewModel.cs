@@ -12,6 +12,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
 {
     private readonly ISettingsService _settingsService;
     private readonly IUpdateService _updateService;
+    private readonly IGameBoostService _gameBoostService;
 
     public AppSettings Settings => _settingsService.Current;
 
@@ -23,6 +24,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private bool _startWithWindows;
     [ObservableProperty] private bool _startWithWindowsAsAdmin;
     [ObservableProperty] private string? _startupModeMessage;
+    [ObservableProperty] private bool _enableGameBoost;
     [ObservableProperty] private string _updateRepositoryInput;
 
     [ObservableProperty] private string _selectedAccentColorHex;
@@ -41,12 +43,14 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string? _pendingInstallerPath;
     [ObservableProperty] private string? _pendingDownloadUrl;
 
-    public SettingsViewModel(ISettingsService settingsService, IUpdateService updateService)
+    public SettingsViewModel(ISettingsService settingsService, IUpdateService updateService, IGameBoostService gameBoostService)
     {
         _settingsService = settingsService;
         _updateService = updateService;
+        _gameBoostService = gameBoostService;
         _startWithWindows = Settings.StartWithWindows;
         _startWithWindowsAsAdmin = Settings.StartWithWindowsAsAdmin;
+        _enableGameBoost = Settings.EnableGameBoost;
         _updateRepositoryInput = Settings.UpdateRepository;
         _selectedAccentColorHex = Settings.AccentColorHex;
 
@@ -76,6 +80,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
         }
 
         if (value) StartWithWindows = false;
+    }
+
+    partial void OnEnableGameBoostChanged(bool value)
+    {
+        Settings.EnableGameBoost = value;
+        _settingsService.Save();
+
+        if (value) _gameBoostService.Start();
+        else _gameBoostService.Stop();
     }
 
     [RelayCommand]

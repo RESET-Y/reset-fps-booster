@@ -80,6 +80,18 @@
                         </StackPanel>
                         <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.EnableExperimentalOptimizations}"/>
                     </Grid>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Game Boost Mode" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="While a detected game is running, other background apps are temporarily deprioritized (never closed) and restored the instant the game exits. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato tools) and voice chat (Discord, Teams, TeamSpeak) are always left untouched, so streaming stays smooth." Style="{StaticResource Text.Caption}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding EnableGameBoost}" VerticalAlignment="Top"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 

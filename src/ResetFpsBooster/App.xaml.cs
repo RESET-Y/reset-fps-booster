@@ -52,6 +52,14 @@ public partial class App : Application
         splash.Close();
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        // Restores any deprioritized background processes if the app is closed mid-boost —
+        // otherwise they'd stay at BelowNormal priority until their own next restart.
+        _services?.GameBoost.Stop();
+        base.OnExit(e);
+    }
+
     private void ShowMainWindow()
     {
         _services = new AppServices();

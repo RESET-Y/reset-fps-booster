@@ -24,4 +24,10 @@ public sealed class AppSettings
     /// entry with "Run with highest privileges") instead of the plain, non-admin Run key —
     /// so there's no UAC prompt to click through every boot.</summary>
     public bool StartWithWindowsAsAdmin { get; set; }
+
+    /// <summary>When true, a background watcher deprioritizes other processes while a detected
+    /// game is running and restores them the moment it exits. Streaming/broadcast and voice-chat
+    /// software is always left untouched. Off by default — this runs continuously in the
+    /// background, so it's opt-in rather than a one-time tweak.</summary>
+    public bool EnableGameBoost { get; set; }
 }

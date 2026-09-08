@@ -37,6 +37,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (_services.Settings.Current.AutoCheckForUpdates && !string.IsNullOrWhiteSpace(_services.Settings.Current.UpdateRepository))
             _ = CheckForUpdatesSilentlyAsync();
+
+        if (_services.Settings.Current.EnableGameBoost)
+            _services.GameBoost.Start();
     }
 
     // Runs once at startup so an update is already known by the time the user opens Settings —
@@ -88,7 +91,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),
-            NavigationSection.Settings => new SettingsViewModel(_services.Settings, _services.Update),
+            NavigationSection.Settings => new SettingsViewModel(_services.Settings, _services.Update, _services.GameBoost),
             _ => throw new ArgumentOutOfRangeException(nameof(section))
         };
 
