@@ -28,4 +28,12 @@
     <Resource Include="Assets\logo_square.png" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- MediaElement plays from a real file on disk (it can't stream from an embedded pack
+         resource), so the intro video ships as a loose file next to the exe instead. -->
+    <Content Include="Assets\intro.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
