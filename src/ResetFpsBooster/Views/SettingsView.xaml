@@ -1,0 +1,168 @@
+<UserControl x:Class="ResetFpsBooster.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
+             d:DataContext="{d:DesignInstance vm:SettingsViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="36,32" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="General preferences for RESET FPS BOOSTER." Style="{StaticResource Text.Body}" Margin="0,4,0,24"/>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="General" Style="{StaticResource Text.SectionTitle}"/>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Start RESET FPS BOOSTER with Windows" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="Launches minimized in the background at sign-in." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding StartWithWindows}"/>
+                    </Grid>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Toast notifications" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="Show a notification after Optimize Now finishes." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.ShowToastNotifications}"/>
+                    </Grid>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Confirm before applying changes" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="Always review the exact change list before it's applied." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.ConfirmBeforeApplyingChanges}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Optimization" Style="{StaticResource Text.SectionTitle}"/>
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Enable experimental optimizations" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="Shows optimizations flagged Experimental in the Optimizer. Off by default." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.EnableExperimentalOptimizations}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Administrator Access" Style="{StaticResource Text.SectionTitle}"/>
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource Text.Body}">
+                        <Run Text="Current status: "/><Run Text="{Binding IsAdministrator, Mode=OneWay, Converter={StaticResource BoolToYesNo}}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
+                    </TextBlock>
+                    <Button Content="Restart as Administrator" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                            Command="{Binding RelaunchElevatedCommand}"
+                            Visibility="{Binding IsAdministrator, Converter={StaticResource InverseBoolToVis}}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Updates" Style="{StaticResource Text.SectionTitle}"/>
+
+                    <TextBlock Text="GitHub repository (owner/repo)" Style="{StaticResource Text.Caption}" Margin="0,16,0,6"/>
+                    <TextBox Text="{Binding UpdateRepositoryInput, UpdateSourceTrigger=LostFocus}"
+                             Background="{StaticResource Brush.SurfaceHover}" Foreground="{StaticResource Brush.TextPrimary}"
+                             BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" Padding="10,8"
+                             FontFamily="Consolas" FontSize="12.5"/>
+                    <TextBlock Text="Checks this repository's GitHub Releases for a newer version. Leave empty to disable update checks." Style="{StaticResource Text.Caption}" Margin="0,6,0,0" TextWrapping="Wrap"/>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Check automatically on startup" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="A quick, silent check — never downloads anything without your say-so." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.AutoCheckForUpdates}"/>
+                    </Grid>
+
+                    <Button Content="Check for Updates" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,18,0,0"
+                            Command="{Binding CheckForUpdatesCommand}" IsEnabled="{Binding IsCheckingForUpdate, Converter={StaticResource InverseBool}}"/>
+
+                    <TextBlock Text="{Binding UpdateStatusMessage}" Style="{StaticResource Text.Body}" Margin="0,10,0,0"
+                               Visibility="{Binding UpdateStatusMessage, Converter={StaticResource NullToVis}}"/>
+
+                    <StackPanel Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}" Margin="0,14,0,0">
+                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="14" BorderBrush="{StaticResource Brush.Accent}" BorderThickness="1,0,0,0">
+                            <StackPanel>
+                                <TextBlock FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.AccentBright}" FontSize="13">
+                                    <Run Text="Version "/><Run Text="{Binding LatestVersionText, Mode=OneWay}"/><Run Text=" available"/>
+                                </TextBlock>
+                                <TextBlock Text="{Binding ReleaseNotes}" Style="{StaticResource Text.Body}" Margin="0,8,0,0" MaxHeight="120"
+                                           Visibility="{Binding ReleaseNotes, Converter={StaticResource NullToVis}}"/>
+
+                                <ProgressBar Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="100" Value="{Binding DownloadProgressPercent, Mode=OneWay}"
+                                             Margin="0,12,0,0" Visibility="{Binding IsDownloadingUpdate, Converter={StaticResource BoolToVis}}"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button Content="Download"
+                                            Command="{Binding DownloadAndInstallUpdateCommand}"
+                                            IsEnabled="{Binding IsDownloadingUpdate, Converter={StaticResource InverseBool}}">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding PendingInstallerPath}" Value="{x:Null}"/>
+                                                            <Condition Binding="{Binding HasDownloadUrl}" Value="True"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </MultiDataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="Install &amp; Restart" Style="{StaticResource Button.Primary}"
+                                            Command="{Binding InstallDownloadedUpdateCommand}"
+                                            Visibility="{Binding PendingInstallerPath, Converter={StaticResource NullToVis}}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="About" Style="{StaticResource Text.SectionTitle}"/>
+                    <Image Source="/Assets/logo_wide.png" Height="40" HorizontalAlignment="Left" Stretch="Uniform" Margin="0,16,0,0" RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Effect>
+                            <DropShadowEffect Color="#E8121F" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
+                        </Image.Effect>
+                    </Image>
+                    <TextBlock Text="{Binding Source={x:Static vm:SettingsViewModel.AppVersion}, StringFormat='Version {0}'}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0"/>
+                    <TextBlock Text="Made by Lukas Reschke" Style="{StaticResource Text.Body}" Margin="0,14,0,0"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

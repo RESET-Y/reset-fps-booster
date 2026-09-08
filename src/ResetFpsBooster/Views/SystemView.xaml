@@ -1,0 +1,129 @@
+<UserControl x:Class="ResetFpsBooster.Views.SystemView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
+             d:DataContext="{d:DesignInstance vm:SystemViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="36,32" MaxWidth="1000" HorizontalAlignment="Left">
+            <TextBlock Text="System" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="Detailed hardware and OS information, plus a full diagnostic scan." Style="{StaticResource Text.Body}" Margin="0,4,0,20"/>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Hardware" Style="{StaticResource Text.SectionTitle}"/>
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="CPU" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.Cpu.Name, Mode=OneWay}"/><Run Text=" — "/><Run Text="{Binding Snapshot.Cpu.Cores, Mode=OneWay}"/><Run Text=" cores, "/><Run Text="{Binding Snapshot.Cpu.LogicalProcessors, Mode=OneWay}"/><Run Text=" threads, "/><Run Text="{Binding Snapshot.Cpu.MaxClockSpeedGhz, Mode=OneWay, StringFormat='{}{0:0.0} GHz'}"/>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="GPU" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.PrimaryGpu.Name, Mode=OneWay}"/><Run Text=" — driver "/><Run Text="{Binding Snapshot.PrimaryGpu.DriverVersion, Mode=OneWay}"/>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Memory" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.Memory.TotalBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/><Run Text=" total, "/><Run Text="{Binding Snapshot.Memory.ModuleCount, Mode=OneWay}"/><Run Text=" module(s), "/><Run Text="{Binding Snapshot.Memory.SpeedMhz, Mode=OneWay, StringFormat='{}{0:0} MHz'}"/>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Motherboard" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.Motherboard.Manufacturer, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding Snapshot.Motherboard.Product, Mode=OneWay}"/>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Windows" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.OperatingSystem.ProductName, Mode=OneWay}"/><Run Text=" (build "/><Run Text="{Binding Snapshot.OperatingSystem.Build, Mode=OneWay}"/><Run Text=")"/>
+                        </TextBlock>
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Architecture" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Snapshot.OperatingSystem.Architecture, Mode=OneWay}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8"/>
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Device type" Style="{StaticResource Text.Caption}" Margin="0,8"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
+                            <Run Text="{Binding Snapshot.IsLaptop, Mode=OneWay, Converter={StaticResource BoolToLaptopDesktop}}"/>
+                        </TextBlock>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Storage" Style="{StaticResource Text.SectionTitle}"/>
+                    <ItemsControl ItemsSource="{Binding Snapshot.Drives}" Margin="0,12,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="140"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}">
+                                        <Run Text="{Binding DriveLetter, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding VolumeLabel, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <ProgressBar Grid.Column="1" Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="{Binding TotalBytes}" Value="{Binding UsedBytes, Mode=OneWay}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource Text.Caption}" HorizontalAlignment="Right">
+                                        <Run Text="{Binding FreeBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/><Run Text=" free · "/><Run Text="{Binding MediaType, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Deep System Scan" Style="{StaticResource Text.SectionTitle}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="Run Deep Scan" Style="{StaticResource Button.Primary}" Command="{Binding RunDeepScanCommand}"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"/>
+                    </Grid>
+
+                    <ProgressBar Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="100" Value="{Binding ScanProgressPercent, Mode=OneWay}" Margin="0,16,0,0"
+                                 Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+
+                    <ItemsControl ItemsSource="{Binding ScanSteps}" Margin="0,16,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition Width="260"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Foreground="{StaticResource Brush.Success}" FontFamily="Segoe UI Semibold"
+                                               Text="{Binding Completed, Converter={StaticResource BoolToCheckmark}}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Summary}" Style="{StaticResource Text.Caption}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

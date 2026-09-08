@@ -1,0 +1,19 @@
+<UserControl x:Class="ResetFpsBooster.Controls.RadialGauge"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Grid Width="{Binding Diameter, ElementName=Root}" Height="{Binding Diameter, ElementName=Root}">
+        <Path x:Name="TrackPath" Stroke="{StaticResource Brush.SurfaceHover}" StrokeThickness="{Binding Thickness, ElementName=Root}" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+        <Path x:Name="FillPath" Stroke="{Binding AccentBrush, ElementName=Root}" StrokeThickness="{Binding Thickness, ElementName=Root}" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+            <Path.Effect>
+                <DropShadowEffect Color="#E8121F" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/>
+            </Path.Effect>
+        </Path>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock x:Name="CenterText" Text="{Binding CenterLabel, ElementName=Root}" FontFamily="Segoe UI Semibold"
+                       FontSize="{Binding CenterFontSize, ElementName=Root}" Foreground="{StaticResource Brush.TextPrimary}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding Unit, ElementName=Root}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,-2,0,0"
+                       Visibility="{Binding ShowUnit, ElementName=Root, Converter={StaticResource BoolToVis}}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

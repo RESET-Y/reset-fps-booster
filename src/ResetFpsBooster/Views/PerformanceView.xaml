@@ -1,0 +1,74 @@
+<UserControl x:Class="ResetFpsBooster.Views.PerformanceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
+             d:DataContext="{d:DesignInstance vm:PerformanceViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <StackPanel Margin="36,32" MaxWidth="900" HorizontalAlignment="Left">
+        <Grid Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Performance Monitor" Style="{StaticResource Text.Title}"/>
+                <TextBlock Text="Live system metrics from Windows performance counters." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Start Monitoring" Style="{StaticResource Button.Primary}" Command="{Binding StartMonitoringCommand}" VerticalAlignment="Center"
+                    Visibility="{Binding IsMonitoring, Converter={StaticResource InverseBoolToVis}}"/>
+            <Button Grid.Column="1" Content="Stop Monitoring" Style="{StaticResource Button.Secondary}" Command="{Binding StopMonitoringCommand}" VerticalAlignment="Center"
+                    Visibility="{Binding IsMonitoring, Converter={StaticResource BoolToVis}}"/>
+        </Grid>
+
+        <UniformGrid Columns="2" Rows="2" Visibility="{Binding IsMonitoring, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource Card}" Margin="0,0,10,10">
+                <StackPanel>
+                    <TextBlock Text="CPU USAGE" Style="{StaticResource Text.Caption}"/>
+                    <TextBlock Style="{StaticResource Text.Title}" FontSize="34" Margin="0,8,0,0">
+                        <Run Text="{Binding CurrentSample.CpuUsagePercent, Mode=OneWay, StringFormat='{}{0:0.#}'}"/><Run Text="%"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="RAM USAGE" Style="{StaticResource Text.Caption}"/>
+                    <TextBlock Style="{StaticResource Text.Title}" FontSize="34" Margin="0,8,0,0">
+                        <Run Text="{Binding CurrentSample.RamUsedPercent, Mode=OneWay, StringFormat='{}{0:0.#}'}"/><Run Text="%"/>
+                    </TextBlock>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0">
+                        <Run Text="{Binding CurrentSample.RamUsedBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/><Run Text=" / "/><Run Text="{Binding CurrentSample.RamTotalBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,10,0">
+                <StackPanel>
+                    <TextBlock Text="GPU USAGE" Style="{StaticResource Text.Caption}"/>
+                    <TextBlock Style="{StaticResource Text.Title}" FontSize="34" Margin="0,8,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource BoolToVis}}">
+                        <Run Text="{Binding CurrentSample.GpuUsagePercent, Mode=OneWay, StringFormat='{}{0:0.#}'}"/><Run Text="%"/>
+                    </TextBlock>
+                    <TextBlock Text="Not available on this system" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource InverseBoolToVis}}"/>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource BoolToVis}}">
+                        <Run Text="VRAM: "/><Run Text="{Binding CurrentSample.GpuMemoryUsedBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="GPU TEMPERATURE" Style="{StaticResource Text.Caption}"/>
+                    <TextBlock Style="{StaticResource Text.Title}" FontSize="34" Margin="0,8,0,0" Visibility="{Binding IsGpuTemperatureAvailable, Converter={StaticResource BoolToVis}}">
+                        <Run Text="{Binding CurrentSample.GpuTemperatureCelsius, Mode=OneWay, StringFormat='{}{0:0}'}"/><Run Text="°C"/>
+                    </TextBlock>
+                    <TextBlock Text="Not available (NVIDIA-only via nvidia-smi)" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuTemperatureAvailable, Converter={StaticResource InverseBoolToVis}}"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+            <StackPanel>
+                <TextBlock Text="In-Game FPS" Style="{StaticResource Text.SectionTitle}"/>
+                <TextBlock Text="{Binding FpsNote}" Style="{StaticResource Text.Body}" Margin="0,10,0,0"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

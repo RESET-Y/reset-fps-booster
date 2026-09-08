@@ -1,0 +1,53 @@
+<UserControl x:Class="ResetFpsBooster.Views.BackupsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
+             d:DataContext="{d:DesignInstance vm:BackupsViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <Grid Margin="36,32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Backups &amp; Restore" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="Every optimization creates a snapshot of the values it changed before touching them. Restore any of them at any time." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.Success}" Margin="0,10,0,0"
+                       Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="No backups yet. They appear automatically after you apply an optimization." Style="{StaticResource Text.Body}"
+                           Visibility="{Binding Snapshots.Count, Converter={StaticResource CountToVisWhenZero}}"/>
+
+                <ItemsControl ItemsSource="{Binding Snapshots}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Description}" FontFamily="Segoe UI Semibold" FontSize="14.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                        <TextBlock Text="{Binding CreatedAt, StringFormat='Created {0:g}'}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
+                                        <TextBlock Text="{Binding RegistryEntries.Count, StringFormat='{}{0} setting(s) captured'}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="Restored" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0"
+                                                   Visibility="{Binding Restored, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Restore Previous Configuration" Style="{StaticResource Button.Secondary}" VerticalAlignment="Center"
+                                            Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

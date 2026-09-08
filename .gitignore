@@ -1,0 +1,18 @@
+# Build outputs
+[Bb]in/
+[Oo]bj/
+publish/
+dist/
+*.user
+
+# Installer build tool output (rebuilt from installer/ResetFpsBooster.iss, not part of source)
+installer/Output/
+
+# IDE
+.vs/
+.vscode/
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store
