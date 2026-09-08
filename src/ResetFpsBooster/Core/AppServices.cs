@@ -24,6 +24,7 @@ public sealed class AppServices
     public IGameLibraryService GameLibrary { get; }
     public IGameOptimizationService GameOptimization { get; }
     public IGameAutoexecService GameAutoexec { get; }
+    public ISystemRestoreService SystemRestore { get; }
     public IUpdateService Update { get; }
 
     public AppServices()
@@ -57,6 +58,7 @@ public sealed class AppServices
         GameLibrary = new GameLibraryService(GameDetection);
         GameOptimization = new GameOptimizationService(Backup, GameLibrary);
         GameAutoexec = new GameAutoexecService(Backup, GameLibrary);
+        SystemRestore = new SystemRestoreService();
         Update = new UpdateService(Settings);
     }
 }

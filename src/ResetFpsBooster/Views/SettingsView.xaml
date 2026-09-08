@@ -32,6 +32,20 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
+                            <TextBlock Text="Launch elevated automatically" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
+                            <TextBlock Text="Starts as Administrator at logon with no UAC prompt (uses a Task Scheduler entry instead of the Run key)." Style="{StaticResource Text.Caption}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding StartWithWindowsAsAdmin}"/>
+                    </Grid>
+                    <TextBlock Text="{Binding StartupModeMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,8,0,0" TextWrapping="Wrap"
+                               Visibility="{Binding StartupModeMessage, Converter={StaticResource NullToVis}}"/>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
                             <TextBlock Text="Toast notifications" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>
                             <TextBlock Text="Show a notification after Optimize Now finishes." Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
                         </StackPanel>
@@ -66,6 +80,41 @@
                         </StackPanel>
                         <CheckBox Grid.Column="1" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Settings.EnableExperimentalOptimizations}"/>
                     </Grid>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Appearance" Style="{StaticResource Text.SectionTitle}"/>
+                    <TextBlock Text="Accent color" Style="{StaticResource Text.Caption}" Margin="0,16,0,8"/>
+
+                    <ItemsControl ItemsSource="{Binding AccentPresets}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Width="36" Height="36" Margin="0,0,10,10" Padding="0"
+                                        Command="{Binding DataContext.SelectAccentColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding Hex}"
+                                        ToolTip="{Binding Name}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="18" Background="{Binding Swatch}"
+                                                    BorderThickness="2" BorderBrush="{StaticResource Brush.Border}"/>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="Applied on next app start." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
+                    <Button Content="Restart Now" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,10,0,0"
+                            Command="{Binding RestartAppCommand}"
+                            Visibility="{Binding AccentColorChanged, Converter={StaticResource BoolToVis}}"/>
                 </StackPanel>
             </Border>
 

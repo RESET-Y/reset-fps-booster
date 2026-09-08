@@ -16,4 +16,12 @@ public sealed class AppSettings
     public string UpdateRepository { get; set; } = "RESET-Y/reset-fps-booster";
     public bool AutoCheckForUpdates { get; set; } = true;
     public DateTime? LastUpdateCheckUtc { get; set; }
+
+    /// <summary>Accent color as "#RRGGBB". Applied on the next app start (see ThemeColorHelper).</summary>
+    public string AccentColorHex { get; set; } = "#E8121F";
+
+    /// <summary>When true, the app launches at logon already elevated (via a Task Scheduler
+    /// entry with "Run with highest privileges") instead of the plain, non-admin Run key —
+    /// so there's no UAC prompt to click through every boot.</summary>
+    public bool StartWithWindowsAsAdmin { get; set; }
 }

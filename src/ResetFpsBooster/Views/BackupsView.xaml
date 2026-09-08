@@ -11,12 +11,21 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="Backups &amp; Restore" Style="{StaticResource Text.Title}"/>
-            <TextBlock Text="Every optimization creates a snapshot of the values it changed before touching them. Restore any of them at any time." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
-            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.Success}" Margin="0,10,0,0"
-                       Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Backups &amp; Restore" Style="{StaticResource Text.Title}"/>
+                <TextBlock Text="Every optimization creates a snapshot of the values it changed before touching them. Restore any of them at any time." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.Success}" Margin="0,10,0,0"
+                           Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Create System Restore Point" Style="{StaticResource Button.Secondary}" VerticalAlignment="Top"
+                    Command="{Binding CreateRestorePointCommand}" IsEnabled="{Binding IsCreatingRestorePoint, Converter={StaticResource InverseBool}}"
+                    ToolTip="Creates a full Windows System Restore point — covers the whole system, not just RESET FPS BOOSTER's own changes. Requires Administrator."/>
+        </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>

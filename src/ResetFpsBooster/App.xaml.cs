@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media.Animation;
 using ResetFpsBooster.Core;
 using ResetFpsBooster.Core.Utilities;
+using ResetFpsBooster.Services;
 using ResetFpsBooster.ViewModels;
 
 namespace ResetFpsBooster;
@@ -16,6 +17,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         AppPaths.EnsureFoldersExist();
+        ThemeColorHelper.ApplyAccentColor(new SettingsService().Current.AccentColorHex);
 
         DispatcherUnhandledException += (_, args) =>
         {

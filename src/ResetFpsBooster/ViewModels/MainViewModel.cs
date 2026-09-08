@@ -86,7 +86,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.GameProfiles => new GameProfilesViewModel(_services.GameLibrary, _services.GameOptimization, _services.GameAutoexec),
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
-            NavigationSection.Backups => new BackupsViewModel(_services.Backup),
+            NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),
             NavigationSection.Settings => new SettingsViewModel(_services.Settings, _services.Update),
             _ => throw new ArgumentOutOfRangeException(nameof(section))

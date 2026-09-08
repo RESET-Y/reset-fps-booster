@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -20,7 +21,15 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public const string AuthorName = "Lukas Reschke";
 
     [ObservableProperty] private bool _startWithWindows;
+    [ObservableProperty] private bool _startWithWindowsAsAdmin;
+    [ObservableProperty] private string? _startupModeMessage;
     [ObservableProperty] private string _updateRepositoryInput;
+
+    [ObservableProperty] private string _selectedAccentColorHex;
+    [ObservableProperty] private bool _accentColorChanged;
+
+    public ObservableCollection<AccentColorOption> AccentPresets { get; } =
+        new(ThemeColorHelper.Presets.Select(p => new AccentColorOption(p.Name, p.Hex)));
 
     [ObservableProperty] private bool _isCheckingForUpdate;
     [ObservableProperty] private bool _isDownloadingUpdate;
@@ -37,7 +46,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _settingsService = settingsService;
         _updateService = updateService;
         _startWithWindows = Settings.StartWithWindows;
+        _startWithWindowsAsAdmin = Settings.StartWithWindowsAsAdmin;
         _updateRepositoryInput = Settings.UpdateRepository;
+        _selectedAccentColorHex = Settings.AccentColorHex;
 
         // A silent check already ran at app startup (MainViewModel) — reuse that result instead of
         // forcing the user to click "Check for Updates" again just to see what it already found.
@@ -48,6 +59,42 @@ public sealed partial class SettingsViewModel : ViewModelBase
     partial void OnStartWithWindowsChanged(bool value)
     {
         _settingsService.ApplyStartWithWindows(value);
+        if (value) StartWithWindowsAsAdmin = false;
+    }
+
+    partial void OnStartWithWindowsAsAdminChanged(bool value)
+    {
+        var (success, message) = _settingsService.ApplyStartWithWindowsAsAdmin(value);
+        StartupModeMessage = message;
+
+        if (!success)
+        {
+            // Revert the toggle without re-triggering this handler.
+            _startWithWindowsAsAdmin = !value;
+            OnPropertyChanged(nameof(StartWithWindowsAsAdmin));
+            return;
+        }
+
+        if (value) StartWithWindows = false;
+    }
+
+    [RelayCommand]
+    public void SelectAccentColor(string hex)
+    {
+        SelectedAccentColorHex = hex;
+        Settings.AccentColorHex = hex;
+        _settingsService.Save();
+        AccentColorChanged = true;
+    }
+
+    [RelayCommand]
+    public void RestartApp()
+    {
+        var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.IsNullOrEmpty(exePath)) return;
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exePath) { UseShellExecute = true });
+        Environment.Exit(0);
     }
 
     public bool HasDownloadUrl => !string.IsNullOrEmpty(PendingDownloadUrl);
