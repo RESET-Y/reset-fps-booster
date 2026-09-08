@@ -33,18 +33,18 @@ public sealed class BackupService : IBackupService
         return snapshots.OrderByDescending(s => s.CreatedAt).ToList();
     }
 
-    public BackupSnapshot CommitSnapshot(RegistryChangeRecorder recorder, string description, PowerPlanBackup? powerPlanBackup = null)
+    public BackupSnapshot CommitSnapshot(RegistryChangeRecorder recorder, string description, PowerPlanBackup? powerPlanBackup = null, IReadOnlyList<FileContentBackup>? fileEntries = null)
     {
         var snapshot = new BackupSnapshot
         {
             Description = description,
             ModuleIds = new List<string> { recorder.ModuleName },
             RegistryEntries = recorder.BackupEntries,
+            FileEntries = fileEntries?.ToList() ?? new List<FileContentBackup>(),
             PowerPlan = powerPlanBackup
         };
 
-        var path = Path.Combine(AppPaths.BackupsFolder, $"{snapshot.CreatedAt:yyyyMMdd_HHmmss}_{snapshot.Id}.json");
-        JsonStore.Save(path, snapshot);
+        Persist(snapshot);
 
         foreach (var entry in recorder.ChangeLog)
             entry.SnapshotId = snapshot.Id;
@@ -52,6 +52,37 @@ public sealed class BackupService : IBackupService
         _changeLog.Append(recorder.ChangeLog);
 
         return snapshot;
+    }
+
+    public BackupSnapshot CommitFileSnapshot(string moduleName, string description, IReadOnlyList<FileContentBackup> fileEntries)
+    {
+        var snapshot = new BackupSnapshot
+        {
+            Description = description,
+            ModuleIds = new List<string> { moduleName },
+            FileEntries = fileEntries.ToList()
+        };
+
+        Persist(snapshot);
+
+        var changeLogEntries = fileEntries.Select(f => new ChangeLogEntry
+        {
+            ModuleName = moduleName,
+            SettingName = Path.GetFileName(f.TargetPath),
+            OldValue = f.FileExisted ? "(previous file content)" : "(did not exist)",
+            NewValue = "(written)",
+            SnapshotId = snapshot.Id
+        }).ToList();
+
+        _changeLog.Append(changeLogEntries);
+
+        return snapshot;
+    }
+
+    private static void Persist(BackupSnapshot snapshot)
+    {
+        var path = Path.Combine(AppPaths.BackupsFolder, $"{snapshot.CreatedAt:yyyyMMdd_HHmmss}_{snapshot.Id}.json");
+        JsonStore.Save(path, snapshot);
     }
 
     public (bool Success, string Message) RestoreSnapshot(string snapshotId)
@@ -102,6 +133,35 @@ public sealed class BackupService : IBackupService
             {
                 failures++;
                 Debug.WriteLine($"Failed to restore {entry.SubKey}\\{entry.ValueName}: {ex.Message}");
+            }
+        }
+
+        foreach (var fileEntry in snapshot.FileEntries)
+        {
+            try
+            {
+                if (fileEntry.FileExisted && fileEntry.PreviousContentBase64 is not null)
+                {
+                    File.WriteAllBytes(fileEntry.TargetPath, System.Convert.FromBase64String(fileEntry.PreviousContentBase64));
+                }
+                else if (File.Exists(fileEntry.TargetPath))
+                {
+                    File.Delete(fileEntry.TargetPath);
+                }
+
+                restoredEntries.Add(new ChangeLogEntry
+                {
+                    ModuleName = "Restore",
+                    SettingName = Path.GetFileName(fileEntry.TargetPath),
+                    OldValue = "(applied)",
+                    NewValue = "(restored)",
+                    SnapshotId = snapshot.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                failures++;
+                Debug.WriteLine($"Failed to restore file {fileEntry.TargetPath}: {ex.Message}");
             }
         }
 

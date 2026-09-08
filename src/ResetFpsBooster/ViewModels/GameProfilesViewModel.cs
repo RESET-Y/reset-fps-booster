@@ -11,21 +11,23 @@ public sealed partial class GameProfilesViewModel : ViewModelBase
 {
     private readonly IGameLibraryService _libraryService;
     private readonly IGameOptimizationService _gameOptimizationService;
+    private readonly IGameAutoexecService _gameAutoexecService;
 
     [ObservableProperty] private ObservableCollection<GameProfileItemViewModel> _games = new();
     [ObservableProperty] private bool _isScanning;
 
-    public GameProfilesViewModel(IGameLibraryService libraryService, IGameOptimizationService gameOptimizationService)
+    public GameProfilesViewModel(IGameLibraryService libraryService, IGameOptimizationService gameOptimizationService, IGameAutoexecService gameAutoexecService)
     {
         _libraryService = libraryService;
         _gameOptimizationService = gameOptimizationService;
+        _gameAutoexecService = gameAutoexecService;
     }
 
     [RelayCommand]
     public void Load()
     {
         Games = new ObservableCollection<GameProfileItemViewModel>(
-            _libraryService.GetGames().Select(g => new GameProfileItemViewModel(g)));
+            _libraryService.GetGames().Select(g => new GameProfileItemViewModel(g, _gameAutoexecService)));
     }
 
     [RelayCommand]
@@ -61,6 +63,42 @@ public sealed partial class GameProfilesViewModel : ViewModelBase
         item.Refresh();
         StatusMessage = message;
         _ = success;
+    }
+
+    [RelayCommand]
+    public async Task InstallAutoexecAsync(GameProfileItemViewModel item)
+    {
+        var (success, message) = await _gameAutoexecService.ApplyAsync(item.Profile);
+        item.AutoexecActionMessage = message;
+        item.Refresh();
+        StatusMessage = message;
+        _ = success;
+    }
+
+    [RelayCommand]
+    public void RestoreAutoexec(GameProfileItemViewModel item)
+    {
+        var (success, message) = _gameAutoexecService.Restore(item.Profile);
+        item.AutoexecActionMessage = message;
+        item.Refresh();
+        StatusMessage = message;
+        _ = success;
+    }
+
+    [RelayCommand]
+    public void CopySteamLaunchOption(GameProfileItemViewModel item)
+    {
+        if (string.IsNullOrEmpty(item.SteamLaunchOption)) return;
+
+        try
+        {
+            System.Windows.Clipboard.SetText(item.SteamLaunchOption);
+            item.AutoexecActionMessage = $"Launch option copied — paste it into {item.Name}'s Steam launch options.";
+        }
+        catch (Exception ex)
+        {
+            item.AutoexecActionMessage = $"Could not copy to clipboard: {ex.Message}";
+        }
     }
 
     [RelayCommand]

@@ -51,6 +51,30 @@
                                         <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Text.Body}" Margin="0,8,0,0"/>
                                         <TextBlock Text="{Binding LastActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0"
                                                    Visibility="{Binding LastActionMessage, Converter={StaticResource NullToVis}}"/>
+
+                                        <Border Background="{StaticResource Brush.SurfaceHover}" CornerRadius="6" Padding="12" Margin="0,14,0,0"
+                                                Visibility="{Binding SupportsAutoexec, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding AutoexecHeaderLabel}" FontFamily="Segoe UI Semibold" FontSize="12.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                                <TextBlock Text="Installs a performance-only autoexec.cfg (uncapped FPS, reduced rendering cost). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding AutoexecStatusLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
+                                                <TextBlock Text="{Binding AutoexecActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                           Visibility="{Binding AutoexecActionMessage, Converter={StaticResource NullToVis}}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                                    <Button Content="Install Autoexec" Style="{StaticResource Button.Secondary}"
+                                                            Command="{Binding DataContext.InstallAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" Margin="0,0,8,0"
+                                                            Visibility="{Binding IsAutoexecApplied, Converter={StaticResource InverseBoolToVis}}"/>
+                                                    <Button Content="Remove Autoexec" Style="{StaticResource Button.Secondary}"
+                                                            Command="{Binding DataContext.RestoreAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}" Margin="0,0,8,0"
+                                                            Visibility="{Binding IsAutoexecApplied, Converter={StaticResource BoolToVis}}"/>
+                                                    <Button Content="Copy Steam Launch Option" Style="{StaticResource Button.Ghost}"
+                                                            Command="{Binding DataContext.CopySteamLaunchOptionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">

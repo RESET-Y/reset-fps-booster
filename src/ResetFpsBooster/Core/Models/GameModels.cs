@@ -17,4 +17,8 @@ public sealed class GameProfile
     public bool IsOptimized { get; set; }
     public DateTime? LastOptimizedAt { get; set; }
     public string? LastBackupSnapshotId { get; set; }
+
+    public bool IsAutoexecApplied { get; set; }
+    public DateTime? AutoexecAppliedAt { get; set; }
+    public string? AutoexecSnapshotId { get; set; }
 }

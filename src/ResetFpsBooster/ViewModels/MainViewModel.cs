@@ -65,7 +65,7 @@ public sealed partial class MainViewModel : ObservableObject
                 NavigateRequested = NavigateTo
             },
             NavigationSection.Optimizer => new OptimizerViewModel(_services.Optimization),
-            NavigationSection.GameProfiles => new GameProfilesViewModel(_services.GameLibrary, _services.GameOptimization),
+            NavigationSection.GameProfiles => new GameProfilesViewModel(_services.GameLibrary, _services.GameOptimization, _services.GameAutoexec),
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup),
