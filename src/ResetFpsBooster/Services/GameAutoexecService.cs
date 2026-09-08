@@ -125,11 +125,7 @@ public sealed class GameAutoexecService : IGameAutoexecService
         // ============================================================
 
         bind_US_standard "F12" "exec autoexec"
-        fps_max 141
-        mat_letterbox_aspect_goal 1.6
-        mat_letterbox_aspect_threshold 1.6
         building_cubemaps "1"
-        cl_fovScale "1.7"
         ai_expression_frametime "0"
         anim_3wayblend "0"
         bink_materials_enabled "0"
@@ -511,8 +507,6 @@ public sealed class GameAutoexecService : IGameAutoexecService
         r_particle_timescale "3"
         r_fullscreen "1"
         stream_memory "0"
-        mp_usehwmmodels "-1"
-        mp_usehwmvcds "-1"
         """;
 
     // CS2 runs on Source 2, whose exposed client cvars are far more limited than the old Source 1
