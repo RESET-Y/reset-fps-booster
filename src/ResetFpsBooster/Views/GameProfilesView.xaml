@@ -56,7 +56,7 @@
                                                 Visibility="{Binding SupportsAutoexec, Converter={StaticResource BoolToVis}}">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding AutoexecHeaderLabel}" FontFamily="Segoe UI Semibold" FontSize="12.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                                <TextBlock Text="Installs a performance-only autoexec.cfg (uncapped FPS, reduced rendering cost). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                <TextBlock Text="Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                                 <TextBlock Text="{Binding AutoexecStatusLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
                                                 <TextBlock Text="{Binding AutoexecActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                            Visibility="{Binding AutoexecActionMessage, Converter={StaticResource NullToVis}}"/>
