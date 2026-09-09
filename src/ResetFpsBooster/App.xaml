@@ -38,6 +38,9 @@
             <DataTemplate DataType="{x:Type vm:PerformanceViewModel}">
                 <views:PerformanceView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:BottleneckEngineViewModel}">
+                <views:BottleneckEngineView/>
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SystemViewModel}">
                 <views:SystemView/>
             </DataTemplate>

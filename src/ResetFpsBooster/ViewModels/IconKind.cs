@@ -6,6 +6,7 @@ public enum IconKind
     Optimizer,
     Games,
     Performance,
+    BottleneckEngine,
     System,
     Backups,
     Logs,

@@ -17,6 +17,7 @@ public static class IconGeometries
         IconKind.Optimizer => Optimizer(),
         IconKind.Games => Games(),
         IconKind.Performance => Performance(),
+        IconKind.BottleneckEngine => BottleneckEngineIcon(),
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
@@ -64,6 +65,23 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(2, 8, 3, 6)));
         group.Children.Add(new RectangleGeometry(new Rect(6.5, 5, 3, 9)));
         group.Children.Add(new RectangleGeometry(new Rect(11, 2, 3, 12)));
+        return group;
+    }
+
+    private static Geometry BottleneckEngineIcon()
+    {
+        var center = new Point(8, 8);
+        var ring = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        ring.Children.Add(new EllipseGeometry(center, 6.4, 6.4));
+        ring.Children.Add(new EllipseGeometry(center, 4.8, 4.8));
+
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(ring);
+        group.Children.Add(new EllipseGeometry(center, 1.6, 1.6));
+        group.Children.Add(new RectangleGeometry(new Rect(7.4, 0.4, 1.2, 3)));
+        group.Children.Add(new RectangleGeometry(new Rect(7.4, 12.6, 1.2, 3)));
+        group.Children.Add(new RectangleGeometry(new Rect(0.4, 7.4, 3, 1.2)));
+        group.Children.Add(new RectangleGeometry(new Rect(12.6, 7.4, 3, 1.2)));
         return group;
     }
 

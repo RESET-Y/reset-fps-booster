@@ -6,6 +6,7 @@ public enum NavigationSection
     Optimizer,
     GameProfiles,
     Performance,
+    BottleneckEngine,
     System,
     Backups,
     Logs,
