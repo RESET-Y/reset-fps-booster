@@ -4,6 +4,7 @@ using System.Linq;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 using Microsoft.Win32;
+using NvAPIWrapper.DRS;
 
 namespace ResetFpsBooster.Services;
 
@@ -41,6 +42,7 @@ public sealed class BackupService : IBackupService
             ModuleIds = new List<string> { recorder.ModuleName },
             RegistryEntries = recorder.BackupEntries,
             FileEntries = fileEntries?.ToList() ?? new List<FileContentBackup>(),
+            NvidiaEntries = recorder.NvidiaEntries,
             PowerPlan = powerPlanBackup
         };
 
@@ -165,6 +167,12 @@ public sealed class BackupService : IBackupService
             }
         }
 
+        if (snapshot.NvidiaEntries.Count > 0)
+        {
+            restoredEntries.AddRange(RestoreNvidiaSettings(snapshot.NvidiaEntries, snapshot.Id, out var nvidiaFailures));
+            failures += nvidiaFailures;
+        }
+
         if (snapshot.PowerPlan is not null)
         {
             TryRestorePowerPlan(snapshot.PowerPlan.PreviousActiveSchemeGuid);
@@ -180,6 +188,57 @@ public sealed class BackupService : IBackupService
             return (true, $"Restored {restoredEntries.Count} setting(s) from backup created on {snapshot.CreatedAt:g}.");
 
         return (true, $"Restored {restoredEntries.Count} setting(s), but {failures} could not be reverted (they may already be at their default value).");
+    }
+
+    private static List<ChangeLogEntry> RestoreNvidiaSettings(List<NvidiaSettingBackup> entries, string snapshotId, out int failures)
+    {
+        var restored = new List<ChangeLogEntry>();
+        failures = 0;
+
+        try
+        {
+            using var session = DriverSettingsSession.CreateAndLoad();
+            var profile = session.BaseProfile;
+            if (profile is null)
+            {
+                failures = entries.Count;
+                return restored;
+            }
+
+            foreach (var entry in entries)
+            {
+                try
+                {
+                    if (entry.WasCustomValue && entry.OldValue.HasValue)
+                        profile.SetSetting(entry.SettingId, entry.OldValue.Value);
+                    else
+                        profile.RestoreSettingToDefault(entry.SettingId);
+
+                    restored.Add(new ChangeLogEntry
+                    {
+                        ModuleName = "Restore",
+                        SettingName = entry.SettingName,
+                        OldValue = "(applied)",
+                        NewValue = "(restored)",
+                        SnapshotId = snapshotId
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failures++;
+                    Debug.WriteLine($"Failed to restore NVIDIA setting {entry.SettingName}: {ex.Message}");
+                }
+            }
+
+            session.Save();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to open NVIDIA driver settings session for restore: {ex.Message}");
+            failures = entries.Count;
+        }
+
+        return restored;
     }
 
     private static void TryRestorePowerPlan(Guid schemeGuid)

@@ -26,6 +26,18 @@ public sealed class FileContentBackup
     public string? PreviousContentBase64 { get; set; }
 }
 
+/// <summary>Captures an NVIDIA driver (DRS) global setting's previous state. Unlike the registry,
+/// NVIDIA's driver settings database has no generic "old value" readback for arbitrary types, so
+/// <see cref="WasCustomValue"/> distinguishes "restore to this exact value" from "this had no
+/// custom override before — restore to the driver's own default".</summary>
+public sealed class NvidiaSettingBackup
+{
+    public uint SettingId { get; set; }
+    public string SettingName { get; set; } = string.Empty;
+    public bool WasCustomValue { get; set; }
+    public uint? OldValue { get; set; }
+}
+
 public sealed class BackupSnapshot
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
@@ -34,6 +46,7 @@ public sealed class BackupSnapshot
     public List<string> ModuleIds { get; set; } = new();
     public List<RegistryValueBackup> RegistryEntries { get; set; } = new();
     public List<FileContentBackup> FileEntries { get; set; } = new();
+    public List<NvidiaSettingBackup> NvidiaEntries { get; set; } = new();
     public PowerPlanBackup? PowerPlan { get; set; }
     public bool Restored { get; set; }
     public DateTime? RestoredAt { get; set; }

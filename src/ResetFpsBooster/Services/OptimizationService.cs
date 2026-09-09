@@ -61,13 +61,10 @@ public sealed class OptimizationService : IOptimizationService
             return OptimizationApplyResult.Fail($"Could not apply this optimization: {ex.Message}. No changes were made.");
         }
 
-        if (result.Success && recorder.BackupEntries.Count > 0)
+        if (result.Success && recorder.ChangeLog.Count > 0)
         {
-            _backupService.CommitSnapshot(recorder, $"{module.Name}", result.PowerPlanBackup);
-        }
-        else if (result.Success && recorder.ChangeLog.Count > 0)
-        {
-            // Non-registry effects (e.g. temp cleanup) still get logged even without a backup snapshot.
+            // Covers registry changes, NVIDIA driver settings, and non-reversible effects (e.g.
+            // temp cleanup) alike — CommitSnapshot picks up whatever the recorder captured.
             _backupService.CommitSnapshot(recorder, $"{module.Name}", result.PowerPlanBackup);
         }
 

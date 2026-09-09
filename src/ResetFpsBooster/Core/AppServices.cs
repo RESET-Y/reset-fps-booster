@@ -50,6 +50,7 @@ public sealed class AppServices
             new StartupCleanupModule(StartupApps),
             new TempFileCleanupModule(),
             new RamCleanerModule(),
+            new NvidiaMaxPerformanceModule(),
         };
 
         Optimization = new OptimizationService(modules, Backup);

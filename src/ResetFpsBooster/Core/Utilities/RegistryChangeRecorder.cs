@@ -14,6 +14,7 @@ public sealed class RegistryChangeRecorder
     private const string MultiStringSeparator = "␟";
 
     public List<RegistryValueBackup> BackupEntries { get; } = new();
+    public List<NvidiaSettingBackup> NvidiaEntries { get; } = new();
     public List<ChangeLogEntry> ChangeLog { get; } = new();
     public string ModuleName { get; }
 
@@ -74,6 +75,34 @@ public sealed class RegistryChangeRecorder
         });
 
         key.SetValue(valueName, newValue, kind);
+    }
+
+    /// <summary>Records an NVIDIA driver (DRS) setting change for later restore. The caller is
+    /// responsible for actually applying the new value via NVAPI — this only tracks what to
+    /// revert to.</summary>
+    public void RecordNvidiaSetting(
+        uint settingId,
+        string friendlySettingName,
+        bool wasCustomValue,
+        uint? oldValue,
+        string oldValueDisplay,
+        string newValueDisplay)
+    {
+        NvidiaEntries.Add(new NvidiaSettingBackup
+        {
+            SettingId = settingId,
+            SettingName = friendlySettingName,
+            WasCustomValue = wasCustomValue,
+            OldValue = oldValue
+        });
+
+        ChangeLog.Add(new ChangeLogEntry
+        {
+            ModuleName = ModuleName,
+            SettingName = friendlySettingName,
+            OldValue = oldValueDisplay,
+            NewValue = newValueDisplay
+        });
     }
 
     public void DeleteValue(RegistryHive hive, string subKey, string valueName, string friendlySettingName)
