@@ -57,7 +57,36 @@ Hotkeys: **F8** refresh lock, **F9** generation on/off, **F10** vsync,
   perceives therefore does not come from uneven output spacing - so the
   remaining suspects are interpolation quality and added latency.
 
-## Next step (the promising one)
+## Next step (do this one first - cheap and low-risk)
+
+Adaptive generation factor instead of a fixed 2x.
+
+Measure the incoming real frame rate, compare it against the display refresh
+rate, and generate exactly as many intermediate frames as are missing:
+
+| Native FPS (144 Hz display) | Factor | Output |
+| --- | --- | --- |
+| 144+ | none | native, untouched |
+| 72 | 2x | 144 |
+| 60 | 2x | 120 |
+| 48 | 3x | 144 |
+| 30 | 4x | 120 |
+
+The first row matters most: when the source already saturates the display,
+generation disables itself. No quality loss, no added latency, no GPU cost -
+exactly where there was nothing to gain anyway. It is also the honest
+behaviour: never manufacture frames that are not missing.
+
+Only real change needed: `frame_interpolation.hlsl` currently interpolates
+the fixed midpoint. Factors above 2x need a time parameter t so it can
+produce frames at 1/3, 2/3 etc. instead of only 1/2 - roughly ten lines,
+not a rewrite. Everything else is bookkeeping in the pacing loop.
+
+Hysteresis is required around the switch points, otherwise a source hovering
+near a threshold will flip factors every second and that change is itself
+visible.
+
+## Next step after that (the promising but risky one)
 
 Show the generated frames ONLY, and let the real desktop show through
 untouched in between.
