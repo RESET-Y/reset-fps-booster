@@ -1,0 +1,9 @@
+; Re-exports matching the real dxgi.dll. Forwards straight through; the
+; proxy only adds behavior via the IDXGIFactory::CreateSwapChain hook
+; installed right after a real factory is created.
+LIBRARY dxgi
+
+EXPORTS
+    CreateDXGIFactory
+    CreateDXGIFactory1
+    CreateDXGIFactory2

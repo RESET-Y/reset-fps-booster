@@ -8,6 +8,11 @@ dist/
 # Installer build tool output (rebuilt from installer/ResetFpsBooster.iss, not part of source)
 installer/Output/
 
+# Native engine build trees (CMake/Ninja caches + compiled output).
+# The shader byte-array headers under build/generated ARE reproducible from
+# the .hlsl sources via fxc, so nothing here needs to be tracked.
+native/*/build/
+
 # IDE
 .vs/
 .vscode/

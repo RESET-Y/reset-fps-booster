@@ -7,6 +7,9 @@ public enum NavigationSection
     GameProfiles,
     Performance,
     BottleneckEngine,
+#if RFB_BETA
+    FrameBoostBeta,
+#endif
     System,
     Backups,
     Logs,

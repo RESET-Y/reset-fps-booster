@@ -28,6 +28,9 @@ public sealed partial class MainViewModel : ObservableObject
             new(NavigationSection.GameProfiles, "Game Profiles", IconKind.Games),
             new(NavigationSection.Performance, "Performance", IconKind.Performance),
             new(NavigationSection.BottleneckEngine, "Bottleneck Engine", IconKind.BottleneckEngine),
+#if RFB_BETA
+            new(NavigationSection.FrameBoostBeta, "FrameBoost", IconKind.FrameBoostBeta),
+#endif
             new(NavigationSection.System, "System", IconKind.System),
             new(NavigationSection.Backups, "Backups", IconKind.Backups),
             new(NavigationSection.Logs, "Logs", IconKind.Logs),
@@ -90,6 +93,9 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.GameProfiles => new GameProfilesViewModel(_services.GameLibrary, _services.GameOptimization, _services.GameAutoexec),
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.BottleneckEngine => new BottleneckEngineViewModel(_services.GameLibrary),
+#if RFB_BETA
+            NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta),
+#endif
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),

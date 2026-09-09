@@ -1,0 +1,16 @@
+; Re-exports matching the real d3d11.dll. Both forward straight through to
+; the system DLL - the proxy only adds behavior via the IDXGISwapChain::
+; Present hook installed inside D3D11CreateDevice(AndSwapChain).
+;
+; Deliberately NOT re-exported: D3D11CoreCreateDevice, D3D11CoreCreateLayered-
+; Device, D3D11CoreGetLayeredDeviceSize, D3D11CoreRegisterLayers,
+; D3D11On12CreateDevice. These are undocumented internal exports used by the
+; OS driver stack (D3D11on12, layered drivers), essentially never called
+; directly by games, and have no public prototype to wrap correctly. Games -
+; including Watch Dogs (2014) - call D3D11CreateDevice/D3D11CreateDeviceAnd-
+; SwapChain, which are the two that matter for this prototype.
+LIBRARY d3d11
+
+EXPORTS
+    D3D11CreateDevice
+    D3D11CreateDeviceAndSwapChain

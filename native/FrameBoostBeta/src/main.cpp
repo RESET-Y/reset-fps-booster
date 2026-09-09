@@ -1,0 +1,614 @@
+// RESET FRAMEBOOST BETA - system-level engine (Windows Graphics Capture
+// based). Launched by the RFB Beta UI with a target window handle as its
+// only argument. Captures that window via the public WGC API (no injection,
+// no game-memory access), runs the SAME motion estimation + interpolation
+// GPU pipeline built for the Watch Dogs prototype, and displays the result
+// in its own window with its own modern flip-model swapchain.
+//
+// Failsafe by construction: this process never touches the target
+// application at all beyond reading a copy of its already-composited
+// image via WGC. If anything here fails, this process logs it and exits -
+// the target application is completely unaffected either way.
+#include <windows.h>
+#include <d3d11.h>
+#include <winrt/base.h>
+#include <sstream>
+#include <utility>
+#include <string>
+
+#include "logger.h"
+#include "capture_engine.h"
+#include "beta_presenter.h"
+#include "duplicate_detector.h"
+#include "../../FrameBoost/src/motion_estimation.h"
+#include "../../FrameBoost/src/interpolation.h"
+
+namespace {
+
+HWND ParseTargetWindow(int argc, wchar_t** argv) {
+    if (argc < 2) return nullptr;
+    uintptr_t value = wcstoull(argv[1], nullptr, 0); // accepts "0x..." or decimal
+    return reinterpret_cast<HWND>(value);
+}
+
+// Finds a monitor other than the given one, so the boosted output can be
+// shown without covering (and thereby stalling) the captured source.
+// Measured the hard way tonight: every configuration where our output
+// covered the source - window overlay AND fullscreen monitor overlay -
+// made Windows stop compositing the source, which starved the capture.
+BOOL CALLBACK PickOtherMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM data) {
+    auto* out = reinterpret_cast<std::pair<HMONITOR, HMONITOR>*>(data);
+    if (monitor != out->first && !out->second) out->second = monitor;
+    return TRUE;
+}
+
+HMONITOR FindSecondaryMonitor(HMONITOR captured) {
+    std::pair<HMONITOR, HMONITOR> data{ captured, nullptr };
+    EnumDisplayMonitors(nullptr, nullptr, PickOtherMonitor, reinterpret_cast<LPARAM>(&data));
+    return data.second;
+}
+
+// The display's actual refresh rate, which is what output pacing has to be
+// built on. Measured live: presenting ~80 evenly-intended frames per second
+// to a 144 Hz panel means every frame is held for either one or two refresh
+// intervals (6.94 ms / 13.89 ms) in an irregular pattern - visible judder,
+// even though the FPS number looks good. Only an output rate that divides
+// the refresh rate exactly gives every frame the same on-screen duration.
+double MonitorRefreshHz(HMONITOR monitor) {
+    MONITORINFOEXW mi{};
+    mi.cbSize = sizeof(mi);
+    if (monitor && GetMonitorInfoW(monitor, &mi)) {
+        DEVMODEW dm{};
+        dm.dmSize = sizeof(dm);
+        if (EnumDisplaySettingsW(mi.szDevice, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency > 1)
+            return static_cast<double>(dm.dmDisplayFrequency);
+    }
+    DEVMODEW dm{};
+    dm.dmSize = sizeof(dm);
+    if (EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &dm) && dm.dmDisplayFrequency > 1)
+        return static_cast<double>(dm.dmDisplayFrequency);
+    return 0.0; // unknown - callers fall back to unlocked pacing
+}
+
+bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3D11DeviceContext>& context) {
+    UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT; // required for Windows Graphics Capture interop
+#ifdef _DEBUG
+    flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+    D3D_FEATURE_LEVEL obtained{};
+    HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags,
+        nullptr, 0, D3D11_SDK_VERSION, device.put(), &obtained, context.put());
+    return SUCCEEDED(hr);
+}
+
+} // namespace
+
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
+    int argc = 0;
+    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    HWND targetWindow = ParseTargetWindow(argc, argv);
+    std::wstring argv2Storage = (argc >= 3 && argv) ? argv[2] : L"";
+    if (argv) LocalFree(argv);
+
+    FrameBoostBeta::Logger::Init();
+
+    if (!targetWindow) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: no target window handle provided on the command line.");
+        return 1;
+    }
+
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+
+    winrt::com_ptr<ID3D11Device> device;
+    winrt::com_ptr<ID3D11DeviceContext> context;
+    if (!CreateSharedDevice(device, context)) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: could not create a BGRA-capable D3D11 device.");
+        return 2;
+    }
+
+    // "monitor" as the second argument captures the whole monitor the target
+    // window sits on, instead of the window itself. Window capture stalls
+    // when the window is covered (Windows stops redrawing hidden windows);
+    // a monitor is always composited, so this mode keeps receiving frames
+    // even with our own output displayed on top of everything.
+    bool monitorMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"monitor") == 0);
+    // "monitor2": capture the monitor the target sits on, but display the
+    // boosted result on a DIFFERENT monitor. This is the only tested
+    // configuration where nothing gets covered, so the source keeps
+    // rendering at full speed and the capture never starves.
+    bool secondScreenMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"monitor2") == 0);
+    if (secondScreenMode) monitorMode = true;
+    HMONITOR targetMonitor = MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST);
+    HMONITOR outputMonitor = targetMonitor;
+
+    if (secondScreenMode) {
+        HMONITOR other = FindSecondaryMonitor(targetMonitor);
+        if (!other) {
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: second-screen mode requested but no other monitor was found.");
+            return 5;
+        }
+        outputMonitor = other;
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] Second-screen mode: capturing one monitor, displaying on the other - nothing is covered.");
+    }
+
+    FrameBoostBeta::CaptureEngine capture;
+    bool captureStarted = monitorMode
+        ? capture.StartMonitor(targetMonitor, device.get())
+        : capture.Start(targetWindow, device.get());
+    if (!captureStarted) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: capture failed to start - target window may be unsupported or closed. Falling back safely (no display, exiting).");
+        return 3;
+    }
+
+    RECT targetRect{};
+    GetClientRect(targetWindow, &targetRect);
+    UINT initialWidth = static_cast<UINT>(targetRect.right - targetRect.left);
+    UINT initialHeight = static_cast<UINT>(targetRect.bottom - targetRect.top);
+    if (initialWidth == 0 || initialHeight == 0) { initialWidth = 1280; initialHeight = 720; }
+
+    FrameBoostBeta::Presenter presenter;
+    if (monitorMode) {
+        presenter.SetOverlayMonitor(outputMonitor);
+        MONITORINFO mi{ sizeof(MONITORINFO) };
+        if (GetMonitorInfoW(outputMonitor, &mi)) {
+            initialWidth = static_cast<UINT>(mi.rcMonitor.right - mi.rcMonitor.left);
+            initialHeight = static_cast<UINT>(mi.rcMonitor.bottom - mi.rcMonitor.top);
+        }
+    }
+    if (!presenter.Create(device.get(), initialWidth, initialHeight, L"RESET FRAMEBOOST - BETA", monitorMode ? nullptr : targetWindow)) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: could not create the presentation window/swapchain.");
+        return 4;
+    }
+    presenter.SetTitleSuffix(L"GENERATING (F9 to toggle)");
+
+    FrameBoost::MotionEstimation::Estimator estimator;
+    FrameBoost::Interpolation::Interpolator interpolator;
+    FrameBoostBeta::DuplicateDetector duplicateDetector;
+    uint64_t duplicateFramesSinceReport = 0;
+
+    LARGE_INTEGER qpcFreq{};
+    QueryPerformanceFrequency(&qpcFreq);
+    LARGE_INTEGER lastReport{};
+    QueryPerformanceCounter(&lastReport);
+    uint64_t nativeFramesSinceReport = 0;
+    uint64_t generatedFramesSinceReport = 0;
+    double lastCaptureMs = -1.0;
+    double lastCaptureLatencyMs = -1.0;
+    double latencySumMs = 0.0;
+    uint64_t latencySamples = 0;
+
+    // GPU-contention circuit breaker: the first live Watch Dogs test showed
+    // real, measured multi-hundred-ms GPU stalls (motion estimation jumping
+    // from ~12ms to ~340ms) that self-recovered after a few seconds - most
+    // likely two processes contending for the same physical GPU during a
+    // heavy load/streaming burst in the game. We cannot prevent that
+    // contention from a separate process, but we CAN stop compounding it:
+    // once GPU time spikes well above its recent rolling average, skip the
+    // extra interpolation + double-present work for a few ticks and just
+    // pass the real frame through, so FrameBoost's own overhead doesn't
+    // pile onto an already-stressed GPU. Never a crash risk - purely skips
+    // optional generation.
+    double gpuTimeEmaMs = -1.0;
+    constexpr double kEmaAlpha = 0.1;
+    bool inDegradedMode = false;
+    int degradedFrameCounter = 0;
+    constexpr int kDegradedRetryIntervalFrames = 30; // ~once every 0.5-1s at typical passthrough rates
+
+    // A/B comparison toggle (F9): the first live test made the boosted
+    // window feel WORSE than the real game despite a higher reported
+    // output FPS. Real, plausible causes are added end-to-end latency and
+    // interpolation-quality artifacts - separate problems needing separate
+    // fixes. F9 forces pure passthrough (real captured frame only, no
+    // generation) so the two can be compared directly without restarting.
+    bool forcePassthroughOnly = false;
+    bool f9WasDown = false;
+
+    // F10: vsync on/off. Phase timing proved ~99.5% of every iteration is
+    // spent inside Present (34.2 of 34.4 ms), i.e. blocked on presentation,
+    // not on our own GPU work (0.012 ms to submit). This toggle separates
+    // "blocked waiting for the display/compositor" from "the per-present
+    // copy+rescale itself is expensive" in a single live run.
+    UINT presentSyncInterval = 0; // measured: syncInterval 1 blocked ~34ms/present and capped output at 29 FPS
+    bool f10WasDown = false;
+
+    // F11: tint generated frames red. Answers "are generated frames actually
+    // reaching the screen?" instantly and unambiguously - a question that
+    // could not be settled by screenshots, because the overlay shows a copy
+    // of the captured window and therefore looks identical either way.
+    bool debugTint = false;
+    bool f11WasDown = false;
+
+    // Frame pacing. Measured: presenting with syncInterval 1 blocked ~34ms
+    // per present (two 60Hz vblanks), capping output at ~29 FPS, while
+    // syncInterval 0 cost only ~6.5ms and reached 144 output FPS. So vsync
+    // blocking - not our shaders (0.08ms + 0.12ms) - was the entire
+    // bottleneck. But presenting both frames back-to-back unpaced is what
+    // made generated frames invisible in the earlier Watch Dogs prototype:
+    // without spacing, the compositor simply shows the newest one. So we
+    // present unblocked AND place the generated frame at the measured
+    // temporal midpoint between two real frames ourselves.
+    bool pacingEnabled = true;
+
+    // Refresh-locked output cadence. Free-running pacing produced ~80 output
+    // FPS on a 144 Hz panel - not a divisor of 144, so frames alternated
+    // between one and two refresh intervals on screen and the result juddered
+    // despite the healthy FPS figure. Locking the cadence to refresh/2
+    // (72 Hz here) gives every frame an identical 13.89 ms on-screen
+    // duration, which is what actually reads as smooth.
+    const double outputRefreshHz = MonitorRefreshHz(outputMonitor);
+    const int kRefreshDivisor = 2;   // one output frame per 2 refreshes: real, generated, real, ...
+    double outputSlotMs = outputRefreshHz > 0.0 ? 1000.0 / (outputRefreshHz / kRefreshDivisor) : 0.0;
+    double nextPresentDueMs = 0.0;   // absolute deadline for the next present
+    bool refreshLockEnabled = outputSlotMs > 0.0;
+    {
+        std::ostringstream oss;
+        oss << "[FrameBoostBeta] Display refresh: "
+            << (outputRefreshHz > 0 ? std::to_string(outputRefreshHz) + " Hz" : "unknown")
+            << " | Refresh-locked output cadence: "
+            << (refreshLockEnabled ? std::to_string(outputRefreshHz / kRefreshDivisor) + " FPS (slot " + std::to_string(outputSlotMs) + " ms)" : "disabled")
+            << " | F8 toggles the lock.";
+        FrameBoostBeta::Logger::Log(oss.str());
+    }
+    bool f8WasDown = false;
+
+    double lastRealPresentMs = 0.0;
+    double realFrameIntervalEmaMs = -1.0;
+    double generatedFrameDueAtMs = 0.0;
+    int64_t lastFrameTimestamp100ns = 0;
+    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Press F9 (while this window is focused) to toggle pure passthrough vs. frame generation for A/B comparison.");
+
+    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Engine running. Native/Generated/Output FPS reported once per second below.");
+
+    // True while a generated frame has been shown and its real partner frame
+    // still has to follow on the next iteration (see the alternating
+    // present scheme below).
+    bool realFramePending = false;
+
+    // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
+    // out to be ambiguous under cross-process GPU contention (whichever
+    // dispatch happened to be measured absorbed the scheduling wait, so the
+    // "cost" appeared to jump between motion estimation and interpolation
+    // without either shader actually changing). These CPU-side numbers say
+    // unambiguously where the ~34ms per iteration really goes.
+    double phaseComputeMsSum = 0.0;   // submitting estimation + interpolation
+    double phasePresentMsSum = 0.0;   // CopyResource + Present, incl. any vsync block
+    double phaseIterationMsSum = 0.0; // whole iteration
+    uint64_t phaseSamples = 0;
+
+    auto NowMs = [&]() {
+        LARGE_INTEGER t{};
+        QueryPerformanceCounter(&t);
+        return static_cast<double>(t.QuadPart) / qpcFreq.QuadPart * 1000.0;
+    };
+
+    // Holds until this frame's slot on the refresh-locked grid comes up, then
+    // advances the grid by exactly one slot. Coarse Sleep for the bulk of the
+    // wait (cheap, but only millisecond-accurate) plus a short spin for the
+    // remainder, because a slot is only 13.89 ms and being 1 ms late means
+    // missing a whole refresh interval. If we have already fallen behind by
+    // more than a slot, the grid is re-anchored to now rather than trying to
+    // catch up with a burst of presents that would themselves judder.
+    auto WaitForOutputSlot = [&]() {
+        if (!refreshLockEnabled || !pacingEnabled) return;
+        double nowMs = NowMs();
+        if (nextPresentDueMs <= 0.0 || nowMs > nextPresentDueMs + outputSlotMs) {
+            nextPresentDueMs = nowMs; // first frame, or recovering from a stall
+        } else if (nowMs < nextPresentDueMs) {
+            double remainingMs = nextPresentDueMs - nowMs;
+            if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0));
+            while (NowMs() < nextPresentDueMs) { /* spin out the last fraction */ }
+        }
+        nextPresentDueMs += outputSlotMs;
+    };
+
+    auto ReportTelemetryIfDue = [&]() {
+        LARGE_INTEGER now{};
+        QueryPerformanceCounter(&now);
+        double elapsed = static_cast<double>(now.QuadPart - lastReport.QuadPart) / qpcFreq.QuadPart;
+        if (elapsed < 1.0) return;
+
+        double nativeFps = nativeFramesSinceReport / elapsed;
+        double generatedFps = generatedFramesSinceReport / elapsed;
+        double outputFps = nativeFps + generatedFps;
+        double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
+
+        std::ostringstream oss;
+        oss << "[FrameBoostBeta] Native FPS: " << nativeFps
+            << " | Generated FPS: " << generatedFps
+            << " | Output FPS: " << outputFps
+            << " | Poll time: " << lastCaptureMs << " ms"
+            << " | Capture latency (real, avg): " << (avgLatencyMs >= 0 ? std::to_string(avgLatencyMs) + " ms" : "N/A")
+            << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
+            << " | Duplicate frames skipped/s: " << (duplicateFramesSinceReport / elapsed)
+            << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
+            << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
+            << " | Refresh lock: " << (refreshLockEnabled ? (std::to_string(outputRefreshHz / kRefreshDivisor) + " FPS target") : "off")
+            << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
+            << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
+        if (phaseSamples > 0) {
+            oss << " || CPU per iteration: " << (phaseIterationMsSum / phaseSamples) << " ms"
+                << " (compute submit " << (phaseComputeMsSum / phaseSamples) << " ms"
+                << ", present " << (phasePresentMsSum / phaseSamples) << " ms)";
+        }
+        FrameBoostBeta::Logger::Log(oss.str());
+
+        nativeFramesSinceReport = 0;
+        generatedFramesSinceReport = 0;
+        duplicateFramesSinceReport = 0;
+        latencySumMs = 0.0;
+        latencySamples = 0;
+        phaseComputeMsSum = 0.0;
+        phasePresentMsSum = 0.0;
+        phaseIterationMsSum = 0.0;
+        phaseSamples = 0;
+        lastReport = now;
+    };
+
+    while (!presenter.ShouldClose()) {
+        double iterationStartMs = NowMs();
+        presenter.PumpMessages();
+        if (presenter.ShouldClose()) break;
+
+        bool f9IsDown = (GetAsyncKeyState(VK_F9) & 0x8000) != 0;
+        if (f9IsDown && !f9WasDown) {
+            forcePassthroughOnly = !forcePassthroughOnly;
+            FrameBoostBeta::Logger::Log(forcePassthroughOnly
+                ? "[FrameBoostBeta] F9: forcing PURE PASSTHROUGH (no generation) for A/B comparison."
+                : "[FrameBoostBeta] F9: frame generation re-enabled.");
+            presenter.SetTitleSuffix(forcePassthroughOnly ? L"PASSTHROUGH ONLY (F9 to toggle)" : L"GENERATING (F9 to toggle)");
+        }
+        f9WasDown = f9IsDown;
+
+        // F8: refresh-lock on/off. The whole point of the lock is that it is
+        // meant to look smoother at a LOWER frame count than free-running
+        // pacing, which is counterintuitive enough that it has to be
+        // A/B-comparable live rather than argued about.
+        bool f8IsDown = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+        if (f8IsDown && !f8WasDown && outputSlotMs > 0.0) {
+            refreshLockEnabled = !refreshLockEnabled;
+            nextPresentDueMs = 0.0; // re-anchor the grid on the next present
+            FrameBoostBeta::Logger::Log(refreshLockEnabled
+                ? "[FrameBoostBeta] F8: refresh-locked cadence ON (evenly spaced frames)."
+                : "[FrameBoostBeta] F8: refresh-locked cadence OFF (free-running).");
+        }
+        f8WasDown = f8IsDown;
+
+        bool f10IsDown = (GetAsyncKeyState(VK_F10) & 0x8000) != 0;
+        if (f10IsDown && !f10WasDown) {
+            presentSyncInterval = presentSyncInterval == 0 ? 1 : 0;
+            FrameBoostBeta::Logger::Log(presentSyncInterval == 0
+                ? "[FrameBoostBeta] F10: VSYNC OFF (present syncInterval 0)."
+                : "[FrameBoostBeta] F10: VSYNC ON (present syncInterval 1).");
+        }
+        f10WasDown = f10IsDown;
+
+        bool f11IsDown = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+        if (f11IsDown && !f11WasDown) {
+            debugTint = !debugTint;
+            interpolator.SetDebugTint(debugTint);
+            FrameBoostBeta::Logger::Log(debugTint
+                ? "[FrameBoostBeta] F11: DEBUG TINT ON - generated frames are tinted red."
+                : "[FrameBoostBeta] F11: debug tint off.");
+            presenter.SetTitleSuffix(debugTint ? L"DEBUG TINT ON (generated frames red)" : L"GENERATING (F9 to toggle)");
+        }
+        f11WasDown = f11IsDown;
+
+        // One present per loop iteration, alternating generated -> real.
+        // Presenting BOTH in a single iteration meant submitting two frames
+        // per iteration while the display can only retire roughly one per
+        // refresh, which throttled the whole loop to half speed: measured
+        // live, the loop ran at ~14.5 Hz against a game rendering at ~29 Hz,
+        // discarding every second real frame ("Stale frames dropped/poll: 1")
+        // and interpolating across a two-frame gap instead of neighbouring
+        // frames. This iteration just flushes the real frame that the
+        // previous iteration's generated frame belongs in front of.
+        if (realFramePending) {
+            // Hold the real frame until half a measured frame interval after
+            // its generated partner was shown, so the two land evenly spaced
+            // instead of back-to-back (unpaced, the compositor would simply
+            // drop the generated one and nothing would be gained).
+            if (refreshLockEnabled) {
+                // Refresh-locked: the grid already places this frame exactly
+                // one slot after its generated partner, so no separate
+                // midpoint calculation is needed.
+                WaitForOutputSlot();
+            } else {
+                double nowMs = NowMs();
+                if (pacingEnabled && realFrameIntervalEmaMs > 0.0 && nowMs < generatedFrameDueAtMs) {
+                    double remainingMs = generatedFrameDueAtMs - nowMs;
+                    if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0)); // coarse wait
+                    while (NowMs() < generatedFrameDueAtMs) { /* short spin for the last fraction */ }
+                }
+            }
+
+            double presentStartMs = NowMs();
+            presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+            double presentEndMs = NowMs();
+
+            realFramePending = false;
+            lastRealPresentMs = presentEndMs;
+            ++nativeFramesSinceReport;
+
+            phasePresentMsSum += presentEndMs - presentStartMs;
+            phaseIterationMsSum += presentEndMs - iterationStartMs;
+            ++phaseSamples;
+
+            ReportTelemetryIfDue();
+            continue;
+        }
+
+        LARGE_INTEGER captureStart{};
+        QueryPerformanceCounter(&captureStart);
+
+        UINT frameW = 0, frameH = 0;
+        int64_t frameTimestamp100ns = 0;
+        bool isNewFrame = false;
+        ID3D11Texture2D* capturedTex = capture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame);
+
+        LARGE_INTEGER captureEnd{};
+        QueryPerformanceCounter(&captureEnd);
+        // Poll/retrieval time - how long the (usually already-ready) frame
+        // took to fetch, not the true capture latency (see below).
+        lastCaptureMs = static_cast<double>(captureEnd.QuadPart - captureStart.QuadPart) / qpcFreq.QuadPart * 1000.0;
+
+        // Real additional latency: how old the frame WGC handed us actually
+        // is, measured against the same 100ns-since-boot clock WGC itself
+        // uses for SystemRelativeTime - this is the honest number, not the
+        // poll time above.
+        if (frameTimestamp100ns > 0) {
+            // WGC's SystemRelativeTime uses the QueryPerformanceCounter
+            // clock domain (confirmed empirically - QueryInterruptTimePrecise
+            // was consistently ~14ms off, a different clock entirely), so
+            // "now" must be computed the same way for a correct comparison.
+            LARGE_INTEGER qpcNow{};
+            QueryPerformanceCounter(&qpcNow);
+            double now100ns = static_cast<double>(qpcNow.QuadPart) / qpcFreq.QuadPart * 10000000.0;
+            double latency100ns = now100ns - static_cast<double>(frameTimestamp100ns);
+            // Sub-millisecond cross-timestamp jitter can occasionally make
+            // this very slightly negative for an unchanged/duplicate frame -
+            // clamp rather than discard, so the metric doesn't go missing
+            // for genuinely near-zero-latency frames.
+            if (latency100ns < 0) latency100ns = 0;
+
+            lastCaptureLatencyMs = latency100ns / 10000.0;
+            latencySumMs += lastCaptureLatencyMs;
+            ++latencySamples;
+
+            // Real frame interval, measured from the target application's own
+            // capture timestamps rather than from our loop's timing - this is
+            // the interval the generated frame has to be placed in the middle
+            // of. Outliers (loading hitches, alt-tab) are rejected so one
+            // stall doesn't poison the pacing for the following seconds.
+            if (lastFrameTimestamp100ns > 0) {
+                double intervalMs = (frameTimestamp100ns - lastFrameTimestamp100ns) / 10000.0;
+                if (intervalMs > 1.0 && intervalMs < 100.0) {
+                    realFrameIntervalEmaMs = realFrameIntervalEmaMs < 0.0
+                        ? intervalMs
+                        : realFrameIntervalEmaMs * 0.8 + intervalMs * 0.2;
+                }
+            }
+            lastFrameTimestamp100ns = frameTimestamp100ns;
+        }
+
+        if (!capturedTex || !isNewFrame) {
+            // No NEW frame from the target application yet. Critically, do
+            // not run motion estimation or present anything here: feeding
+            // the same frame in again produces a zero motion field, poisons
+            // the estimator's previous-frame reference with a duplicate and
+            // pushes duplicate frames to the screen - measured as severe
+            // judder in the first overlay test. Just wait for real new
+            // content instead.
+            Sleep(1);
+            continue;
+        }
+
+        presenter.Resize(frameW, frameH);
+        presenter.TrackOverlayTarget(); // follow the game window if it moves/resizes
+
+        // A recomposited-but-unchanged frame carries no new information.
+        // Interpolating against it yields a zero motion field and a
+        // byte-identical "generated" frame - the output counter rises while
+        // nothing gets smoother. Skip it entirely and wait for content that
+        // actually changed, so interpolation always runs between two
+        // genuinely different frames.
+        if (duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
+            ++duplicateFramesSinceReport;
+            // Skip the GENERATION work, but still present the real frame.
+            // Skipping the present as well made the output look frozen
+            // whenever the screen went static (reported live: "sobald meine
+            // Maus still bleibt ... bleibt es stehen") - and a frozen
+            // overlay is far worse than a redundant present, because the
+            // viewer cannot tell it apart from a crash.
+            WaitForOutputSlot();
+            presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
+            ++nativeFramesSinceReport;
+            ReportTelemetryIfDue();
+            continue;
+        }
+
+        // While degraded, DON'T run motion estimation at all except a
+        // periodic retry - the first live test showed that once GPU
+        // contention pushes motion estimation's own cost into the hundreds
+        // of milliseconds, simply skipping the (cheap) interpolation step
+        // was not enough: this heavy GPU dispatch itself was still running
+        // every single tick and single-handedly capping the whole loop at
+        // ~3 FPS. Skipping the dispatch entirely during degradation is what
+        // actually restores a responsive passthrough framerate.
+        double computeStartMs = NowMs();
+
+        bool haveMotionField = false;
+        bool ranEstimationThisTick = false;
+        ++degradedFrameCounter;
+
+        if (!forcePassthroughOnly && (!inDegradedMode || degradedFrameCounter >= kDegradedRetryIntervalFrames)) {
+            degradedFrameCounter = 0;
+            haveMotionField = estimator.ProcessFrame(device.get(), context.get(), capturedTex);
+            ranEstimationThisTick = true;
+        }
+
+        if (ranEstimationThisTick) {
+            double meGpuMs = estimator.LastGpuTimeMs();
+            if (meGpuMs >= 0.0) {
+                if (gpuTimeEmaMs < 0.0) {
+                    gpuTimeEmaMs = meGpuMs; // seed on first real reading
+                } else {
+                    bool isSpike = meGpuMs > 50.0 && meGpuMs > gpuTimeEmaMs * 5.0;
+                    if (isSpike && !inDegradedMode) {
+                        inDegradedMode = true;
+                        FrameBoostBeta::Logger::Log("[FrameBoostBeta] GPU contention spike detected ("
+                            + std::to_string(meGpuMs) + " ms vs ~" + std::to_string(gpuTimeEmaMs)
+                            + " ms average) - pausing frame generation entirely, passing real frames through until it recovers.");
+                    } else if (!isSpike && inDegradedMode && meGpuMs < gpuTimeEmaMs * 2.0) {
+                        inDegradedMode = false;
+                        FrameBoostBeta::Logger::Log("[FrameBoostBeta] GPU contention recovered - resuming frame generation.");
+                    } else if (isSpike && inDegradedMode) {
+                        // Still bad - stay degraded, and don't let this
+                        // probe sample pollute the rolling average.
+                    }
+                    if (!isSpike) gpuTimeEmaMs = gpuTimeEmaMs * (1.0 - kEmaAlpha) + meGpuMs * kEmaAlpha;
+                }
+            }
+        }
+
+        bool generated = false;
+        if (haveMotionField && !inDegradedMode) {
+            D3D11_TEXTURE2D_DESC desc{};
+            capturedTex->GetDesc(&desc);
+            generated = interpolator.GenerateFrame(device.get(), context.get(),
+                estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM);
+        }
+
+        double computeEndMs = NowMs();
+
+        if (generated) {
+            // Show ONLY the generated frame now; its real partner follows on
+            // the next iteration, paced half a real-frame interval later.
+            WaitForOutputSlot();
+            presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+            ++generatedFramesSinceReport;
+            realFramePending = true;
+            generatedFrameDueAtMs = NowMs() + (realFrameIntervalEmaMs > 0.0 ? realFrameIntervalEmaMs * 0.5 : 0.0);
+        } else {
+            // Failsafe: no motion field yet (first frame), generation
+            // disabled, or interpolation failed this tick - just show the
+            // real captured frame.
+            WaitForOutputSlot();
+            presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
+            ++nativeFramesSinceReport;
+        }
+
+        double presentEndMs = NowMs();
+        phaseComputeMsSum += computeEndMs - computeStartMs;
+        phasePresentMsSum += presentEndMs - computeEndMs;
+        phaseIterationMsSum += presentEndMs - iterationStartMs;
+        ++phaseSamples;
+
+        ReportTelemetryIfDue();
+    }
+
+    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window closed - shutting down cleanly.");
+    capture.Stop();
+    return 0;
+}

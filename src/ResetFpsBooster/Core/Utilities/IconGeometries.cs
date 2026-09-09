@@ -18,6 +18,9 @@ public static class IconGeometries
         IconKind.Games => Games(),
         IconKind.Performance => Performance(),
         IconKind.BottleneckEngine => BottleneckEngineIcon(),
+#if RFB_BETA
+        IconKind.FrameBoostBeta => FrameBoostBetaIcon(),
+#endif
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
@@ -84,6 +87,19 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(12.6, 7.4, 3, 1.2)));
         return group;
     }
+
+#if RFB_BETA
+    private static Geometry FrameBoostBetaIcon()
+    {
+        // Two overlapping window frames - the real capture-window relationship.
+        var group = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        group.Children.Add(new RectangleGeometry(new Rect(1, 1, 10, 8), 1, 1));
+        group.Children.Add(new RectangleGeometry(new Rect(2.4, 2.4, 7.2, 5.2)));
+        group.Children.Add(new RectangleGeometry(new Rect(5, 7, 10, 8), 1, 1));
+        group.Children.Add(new RectangleGeometry(new Rect(6.4, 8.4, 7.2, 5.2)));
+        return group;
+    }
+#endif
 
     private static Geometry SystemIcon()
     {

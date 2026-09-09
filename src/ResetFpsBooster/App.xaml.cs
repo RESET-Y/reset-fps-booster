@@ -19,6 +19,13 @@ public partial class App : Application
         AppPaths.EnsureFoldersExist();
         ThemeColorHelper.ApplyAccentColor(new SettingsService().Current.AccentColorHex);
 
+#if RFB_BETA
+        Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("Themes/FrameBoostBetaTemplate.xaml", UriKind.Relative)
+        });
+#endif
+
         DispatcherUnhandledException += (_, args) =>
         {
             args.Handled = true;

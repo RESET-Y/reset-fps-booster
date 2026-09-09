@@ -27,6 +27,9 @@ public sealed class AppServices
     public IGameBoostService GameBoost { get; }
     public ISystemRestoreService SystemRestore { get; }
     public IUpdateService Update { get; }
+#if RFB_BETA
+    public IFrameBoostBetaService FrameBoostBeta { get; }
+#endif
 
     public AppServices()
     {
@@ -63,5 +66,8 @@ public sealed class AppServices
         GameBoost = new GameBoostService(GameLibrary, ChangeLog);
         SystemRestore = new SystemRestoreService();
         Update = new UpdateService(Settings);
+#if RFB_BETA
+        FrameBoostBeta = new FrameBoostBetaService();
+#endif
     }
 }

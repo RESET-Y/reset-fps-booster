@@ -10,6 +10,7 @@
     <RootNamespace>ResetFpsBooster</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
+    <Configurations>Debug;Release;Beta</Configurations>
     <Company>Lukas Reschke</Company>
     <Product>RESET FPS BOOSTER</Product>
     <Version>1.2.5</Version>
@@ -17,6 +18,29 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <!-- Beta-only configuration: this is the ONLY place RFB_BETA is defined.
+       Debug and Release (what Stable is always built/published from) never
+       see this symbol, so every #if RFB_BETA block below is completely
+       compiled out of the Stable build - not hidden at runtime, genuinely
+       absent from the binary. This is the isolation mechanism requested for
+       RESET FRAMEBOOST. -->
+  <PropertyGroup Condition="'$(Configuration)'=='Beta'">
+    <DefineConstants>$(DefineConstants);RFB_BETA</DefineConstants>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <!-- The real isolation mechanism for the Stable build: every RESET
+       FRAMEBOOST BETA file follows the "*FrameBoostBeta*" naming
+       convention, so outside the Beta configuration those files are
+       entirely removed from compilation - not just excluded via #if in the
+       .cs files (which XAML can't use), but genuinely absent from Stable's
+       build graph. -->
+  <ItemGroup Condition="'$(Configuration)' != 'Beta'">
+    <Compile Remove="**\*FrameBoostBeta*.cs" />
+    <Page Remove="**\*FrameBoostBeta*.xaml" />
+    <None Include="**\*FrameBoostBeta*.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
@@ -30,6 +54,17 @@
   <ItemGroup>
     <Resource Include="Assets\logo_wide.png" />
     <Resource Include="Assets\logo_square.png" />
+  </ItemGroup>
+
+  <!-- Beta-only: ship the native FrameBoost engine (built separately via
+       native/FrameBoostBeta/build.ps1 + CMake, not by this csproj) next to
+       the app's own exe, in its own subfolder. -->
+  <ItemGroup Condition="'$(Configuration)'=='Beta'">
+    <Content Include="..\..\native\FrameBoostBeta\build\bin\FrameBoostBeta.exe" Condition="Exists('..\..\native\FrameBoostBeta\build\bin\FrameBoostBeta.exe')">
+      <Link>FrameBoostBeta\FrameBoostBeta.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

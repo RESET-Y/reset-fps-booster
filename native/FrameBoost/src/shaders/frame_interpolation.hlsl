@@ -1,0 +1,108 @@
+// Real motion-compensated bidirectional interpolation - explicitly NOT a
+// 50/50 crossfade. For each output pixel, the block's real motion vector
+// (from motion_estimation.hlsl, smoothed by motion_smooth.hlsl) tells us
+// where that content came from in the previous frame. We sample BOTH source
+// frames at positions shifted halfway along that real motion path toward
+// the midpoint, then blend those motion-compensated samples - not the
+// pixel at the same fixed (x,y) in both frames.
+//
+// v0.3 quality pass, driven by live feedback that motion was visibly
+// smoother but quality was visibly worse:
+//   1. The motion field is bilinearly interpolated between neighbouring
+//      blocks instead of read per-block. A single vector shared by a whole
+//      32x32 block makes motion snap at block borders - textbook blocking.
+//   2. Occlusion/mismatch rejection: where the two motion-compensated
+//      samples disagree strongly the motion vector is simply wrong (newly
+//      revealed background, thin fast-moving objects). Averaging two
+//      unrelated pixels there is exactly what produced the ghosting and
+//      washed-out contrast reported earlier, so those pixels fall back to
+//      the real current frame instead of being blended.
+
+Texture2D<float4> PrevFrame : register(t0);
+Texture2D<float4> CurrFrame : register(t1);
+Texture2D<float2> MotionVectors : register(t2); // block-resolution, from motion estimation
+RWTexture2D<float4> GeneratedFrame : register(u0);
+
+SamplerState LinearClamp : register(s0);
+
+cbuffer InterpolationParams : register(b0)
+{
+    uint FrameWidth;
+    uint FrameHeight;
+    uint BlockSize;
+    uint DebugTintGenerated; // 1 = tint generated frames red (developer aid)
+};
+
+// How quickly disagreement between the two motion-compensated samples turns
+// into distrust of the motion vector. Tuned so ordinary lighting/noise
+// differences still blend normally, while genuinely mismatched content
+// (occlusion) falls back to the real frame.
+static const float kMismatchSensitivity = 6.0;
+
+// Bilinear read of the low-resolution motion field. Done with four explicit
+// Loads rather than a sampler so it does not depend on linear-filtering
+// support for 32-bit float formats.
+float2 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
+{
+    // Position within the block grid, offset by half a block so that a
+    // block's vector is anchored at the block's CENTRE.
+    float2 gridPos = pixelCenter / BlockSize - 0.5;
+    float2 baseF = floor(gridPos);
+    float2 frac = gridPos - baseF;
+
+    int2 b00 = clamp(int2(baseF), int2(0, 0), int2(blockCount) - 1);
+    int2 b11 = clamp(b00 + int2(1, 1), int2(0, 0), int2(blockCount) - 1);
+    int2 b10 = int2(b11.x, b00.y);
+    int2 b01 = int2(b00.x, b11.y);
+
+    float2 m00 = MotionVectors.Load(int3(b00, 0));
+    float2 m10 = MotionVectors.Load(int3(b10, 0));
+    float2 m01 = MotionVectors.Load(int3(b01, 0));
+    float2 m11 = MotionVectors.Load(int3(b11, 0));
+
+    return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
+}
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= FrameWidth || id.y >= FrameHeight)
+        return;
+
+    uint2 blockCount = (uint2(FrameWidth, FrameHeight) + BlockSize - 1) / BlockSize;
+    float2 pixelCenter = float2(id.xy) + 0.5;
+    float2 dims = float2(FrameWidth, FrameHeight);
+
+    // mv is defined (see motion_estimation.hlsl) such that
+    // CurrFrame(p) approx= PrevFrame(p + mv) - i.e. mv points from this
+    // pixel's current position back to where that content was previously.
+    float2 mv = SampleMotionBilinear(pixelCenter, blockCount);
+
+    // Halfway motion-compensated sample positions - THIS is what makes this
+    // real interpolation rather than a static blend: both samples are
+    // pulled along the actual estimated motion path toward the midpoint,
+    // not read from the same (x,y) in both frames.
+    float2 prevSamplePos = pixelCenter + 0.5 * mv;
+    float2 currSamplePos = pixelCenter - 0.5 * mv;
+
+    float4 prevColor = PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0);
+    float4 currColor = CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0);
+
+    // Confidence in this pixel's motion vector: if the two samples the
+    // vector claims are "the same content, half a frame apart" do not
+    // actually look alike, the vector is wrong here.
+    float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
+    float confidence = saturate(1.0 - mismatch * kMismatchSensitivity);
+
+    float4 blended = 0.5 * (prevColor + currColor);
+    float4 safeFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+
+    float4 result = lerp(safeFallback, blended, confidence);
+
+    // Developer aid: makes it unambiguous on screen whether generated frames
+    // are actually reaching the display, and which ones they are.
+    if (DebugTintGenerated != 0)
+        result.rgb = lerp(result.rgb, float3(1.0, 0.0, 0.0), 0.45);
+
+    GeneratedFrame[id.xy] = result;
+}
