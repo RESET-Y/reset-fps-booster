@@ -171,7 +171,10 @@ public sealed class GameBoostService : IGameBoostService
 
         try
         {
-            gameProcess.PriorityClass = ProcessPriorityClass.AboveNormal;
+            // High (not Realtime — that class also preempts input/mouse handling and can freeze
+            // the whole system if the game hangs) keeps the game itself fully in focus on top of
+            // every other process already being deprioritized.
+            gameProcess.PriorityClass = ProcessPriorityClass.High;
         }
         catch
         {
