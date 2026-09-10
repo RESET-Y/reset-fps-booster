@@ -27,6 +27,7 @@
 #include "frame_dump.h"
 #include "../../FrameBoost/src/motion_estimation.h"
 #include "../../FrameBoost/src/interpolation.h"
+#include "pipeline_audit.h"
 
 namespace {
 
@@ -173,6 +174,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // the game and the compositor for the same GPU, so the only way to know
     // what the source looks like undisturbed is to stop disturbing it.
     bool measureOnlyMode = HasArg(L"measure");
+
+    // "audit": measure the whole pipeline and exit. Both capture paths, every
+    // stage counted separately, nothing generated and nothing displayed - so
+    // the numbers describe the source and the capture, not what our own load
+    // does to them.
+    if (HasArg(L"audit")) {
+        HMONITOR auditMonitor = targetWindow
+            ? MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST)
+            : MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
+
+        int auditSeconds = 20;
+        for (const auto& a : args) {
+            if (a.rfind(L"seconds=", 0) == 0) {
+                const int parsed = _wtoi(a.c_str() + 8);
+                if (parsed >= 3 && parsed <= 600) auditSeconds = parsed;
+            }
+        }
+
+        FrameBoostBeta::Logger::Log("[Audit] Starting pipeline audit for " + std::to_string(auditSeconds)
+            + " s per capture path. Nothing is generated or displayed during the audit.");
+        FrameBoostBeta::RunCaptureAudit(auditMonitor, device.get(), context.get(), auditSeconds);
+        FrameBoostBeta::RunDesktopDuplicationAudit(auditMonitor, device.get(), auditSeconds);
+        FrameBoostBeta::Logger::Log("[Audit] Pipeline audit complete.");
+        return 0;
+    }
 
     bool secondScreenMode = HasArg(L"monitor2");
     if (secondScreenMode) monitorMode = true;

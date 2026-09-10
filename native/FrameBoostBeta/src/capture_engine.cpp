@@ -5,6 +5,7 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <winrt/Windows.Foundation.h>
 #include <string>
+#include <cmath>
 
 using namespace winrt::Windows::Graphics::Capture;
 using namespace winrt::Windows::Graphics::DirectX;
@@ -97,6 +98,26 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
             // WGC handed us 52, spaced 19.2 ms, with no dropped-frame count to
             // show for it.
             wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, size);
+        m_poolBufferCount = 6;
+
+        // Counter only - deliberately does NOT call TryGetNextFrame, so the
+        // polling path behaves exactly as it did before this was added.
+        m_frameArrivedRevoker = m_framePool.FrameArrived(winrt::auto_revoke,
+            [this](auto&&, auto&&) {
+                m_framesProduced.fetch_add(1, std::memory_order_relaxed);
+
+                LARGE_INTEGER now{}, freq{};
+                QueryPerformanceCounter(&now);
+                QueryPerformanceFrequency(&freq);
+                const int64_t nowTicks = now.QuadPart;
+
+                std::lock_guard<std::mutex> lock(m_producedIntervalMutex);
+                if (m_lastProducedTimestamp100ns != 0 && m_producedIntervalsMs.size() < 4096) {
+                    m_producedIntervalsMs.push_back(
+                        1000.0 * static_cast<double>(nowTicks - m_lastProducedTimestamp100ns) / freq.QuadPart);
+                }
+                m_lastProducedTimestamp100ns = nowTicks;
+            });
 
         m_session = m_framePool.CreateCaptureSession(m_item);
 
@@ -158,8 +179,15 @@ ID3D11Texture2D* CaptureEngine::PollLatestFrame(UINT& outWidth, UINT& outHeight,
                 + std::to_string(contentSize.Width) + "x" + std::to_string(contentSize.Height)
                 + " - recreating frame pool.");
             auto wrappedDevice = WrapD3DDevice(m_device.get());
-            m_framePool.Recreate(wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, contentSize);
+            // Six buffers here too. This path used to recreate the pool with
+            // TWO, silently undoing the depth chosen at startup - and it runs
+            // on exactly the transitions worth measuring: a resolution change,
+            // or a game moving between windowed, borderless and exclusive
+            // fullscreen. Every measurement taken after such a switch was
+            // therefore taken on a two-buffer pool.
+            m_framePool.Recreate(wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, contentSize);
             m_poolSize = contentSize;
+            m_poolBufferCount = 6;
         }
 
         auto surface = frame.Surface();
@@ -176,6 +204,10 @@ ID3D11Texture2D* CaptureEngine::PollLatestFrame(UINT& outWidth, UINT& outHeight,
 
         m_lastFrameTex = tex;
         outIsNewFrame = true;
+        // Everything the drain loop above pulled out counts as retrieved, not
+        // just the newest one: the stale ones were read by us and thrown away
+        // by us, which is a different loss from the pool overwriting them.
+        m_framesRetrieved.fetch_add(static_cast<uint64_t>(discardedStaleFrames) + 1, std::memory_order_relaxed);
         return m_lastFrameTex.get();
     } catch (const winrt::hresult_error& ex) {
         Logger::Log("[FrameBoostBeta] PollLatestFrame failed: " + winrt::to_string(ex.message()));
@@ -185,8 +217,37 @@ ID3D11Texture2D* CaptureEngine::PollLatestFrame(UINT& outWidth, UINT& outHeight,
     }
 }
 
+CaptureEngine::IntervalStats CaptureEngine::ProducedIntervalStats() const {
+    IntervalStats stats;
+    std::lock_guard<std::mutex> lock(m_producedIntervalMutex);
+    if (m_producedIntervalsMs.empty()) return stats;
+
+    stats.samples = static_cast<int>(m_producedIntervalsMs.size());
+    stats.minMs = stats.maxMs = m_producedIntervalsMs.front();
+    double sum = 0.0;
+    for (double v : m_producedIntervalsMs) {
+        sum += v;
+        if (v < stats.minMs) stats.minMs = v;
+        if (v > stats.maxMs) stats.maxMs = v;
+    }
+    stats.meanMs = sum / stats.samples;
+
+    double variance = 0.0;
+    for (double v : m_producedIntervalsMs) variance += (v - stats.meanMs) * (v - stats.meanMs);
+    stats.stdDevMs = std::sqrt(variance / stats.samples);
+    return stats;
+}
+
+void CaptureEngine::ResetAuditCounters() {
+    m_framesProduced.store(0, std::memory_order_relaxed);
+    m_framesRetrieved.store(0, std::memory_order_relaxed);
+    std::lock_guard<std::mutex> lock(m_producedIntervalMutex);
+    m_producedIntervalsMs.clear();
+}
+
 void CaptureEngine::Stop() {
     if (m_session) { try { m_session.Close(); } catch (...) {} }
+    m_frameArrivedRevoker.revoke();
     if (m_framePool) { try { m_framePool.Close(); } catch (...) {} }
     m_capturing = false;
 }

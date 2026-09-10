@@ -4,6 +4,10 @@
 #include <winrt/Windows.Graphics.h>
 #include <winrt/Windows.Graphics.Capture.h>
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
+#include <atomic>
+#include <mutex>
+#include <vector>
+#include <cstdint>
 
 namespace FrameBoostBeta {
 
@@ -63,6 +67,46 @@ public:
     // evidence of where added latency is coming from, not a guess.
     int LastDiscardedStaleFrames() const { return m_lastDiscardedStaleFrames; }
 
+    // --- Pipeline audit counters -------------------------------------------
+    //
+    // The one number the engine never had: how many frames Windows Graphics
+    // Capture actually PRODUCED. Everything downstream was measured against
+    // what we managed to read, so a frame the pool overwrote before we got to
+    // it was indistinguishable from a frame the game never rendered - and the
+    // difference between those two decides whether the bottleneck is ours or
+    // the source's.
+    //
+    // FrameArrived is subscribed purely as a counter here; it never consumes
+    // a frame, so polling behaves exactly as before. Free-threaded pool, so
+    // the handler runs on a WGC worker thread - hence the atomics.
+    uint64_t FramesProduced() const { return m_framesProduced.load(std::memory_order_relaxed); }
+    uint64_t FramesRetrieved() const { return m_framesRetrieved.load(std::memory_order_relaxed); }
+
+    // Produced minus retrieved: frames that existed in the pool and were
+    // recycled before we read them. This is the direct measurement of "are we
+    // too slow to drain the pool", which no WGC API reports.
+    uint64_t FramesLostInPool() const {
+        const uint64_t produced = FramesProduced(), retrieved = FramesRetrieved();
+        return produced > retrieved ? produced - retrieved : 0;
+    }
+
+    // Interval statistics over the FrameArrived signals themselves: the
+    // spacing at which WGC announced frames, not the spacing at which we got
+    // around to reading them. Timed with QPC in the handler, because the
+    // frame's own SystemRelativeTime can only be read by taking the frame out
+    // of the pool - which the audit must not do, or it would change the very
+    // behaviour it is measuring. Read timestamps carry SystemRelativeTime;
+    // these two together bracket where spacing is introduced.
+    struct IntervalStats {
+        int samples = 0;
+        double meanMs = 0.0, minMs = 0.0, maxMs = 0.0, stdDevMs = 0.0;
+    };
+    IntervalStats ProducedIntervalStats() const;
+    void ResetAuditCounters();
+
+    // Number of buffers the frame pool currently holds.
+    int PoolBufferCount() const { return m_poolBufferCount; }
+
     ~CaptureEngine();
 
 private:
@@ -83,6 +127,17 @@ private:
     // propagating into the motion-estimation resource allocator downstream.
     winrt::Windows::Graphics::SizeInt32 m_poolSize{};
     int m_lastDiscardedStaleFrames = 0;
+    int m_poolBufferCount = 0;
+
+    // Audit state. The FrameArrived handler writes m_framesProduced and the
+    // produced-interval accumulators from a WGC worker thread; the polling
+    // thread reads them.
+    winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::FrameArrived_revoker m_frameArrivedRevoker;
+    std::atomic<uint64_t> m_framesProduced{ 0 };
+    std::atomic<uint64_t> m_framesRetrieved{ 0 };
+    mutable std::mutex m_producedIntervalMutex;
+    int64_t m_lastProducedTimestamp100ns = 0;
+    std::vector<double> m_producedIntervalsMs;
 };
 
 } // namespace FrameBoostBeta
