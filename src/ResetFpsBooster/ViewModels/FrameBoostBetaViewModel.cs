@@ -47,17 +47,15 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         {
             if (!IsRunning) return null;
 
-            // Nothing to add: the game already fills the display, so the engine
-            // passes it through untouched. Worth saying plainly - the panel would
-            // otherwise show an output number that is simply the game.s own.
-            if (Telemetry.DoublingActive is 0 && Telemetry.SourceFps is > 1)
-                return Telemetry.NoGpuRoom is 1
-                    ? "This game is using all of your graphics card, so generating frames would slow it"
-                      + " down instead of helping. FrameBoost is passing it through untouched and starts"
-                      + " again by itself when there is room."
-                    : "The game already fills your display, so there is nothing to double right now."
-                      + " FrameBoost is passing it through untouched and starts doubling by itself"
-                      + " as soon as the frame rate drops below half your refresh rate.";
+            // Only one reason is worth interrupting for: the game needs the whole
+            // graphics card, so generating would cost it frames. The other case -
+            // a source too fast to double on this display - is no longer reported,
+            // and no longer switched on and off, because a source hovering near
+            // that threshold produced a notice that came and went constantly.
+            if (Telemetry.NoGpuRoom is 1 && Telemetry.SourceFps is > 1)
+                return "This game is using all of your graphics card, so generating frames would slow it"
+                     + " down instead of helping. FrameBoost is passing it through untouched and starts"
+                     + " again by itself when there is room.";
 
             bool noNewContent = (Telemetry.SourceFps ?? Telemetry.NativeFps) is null or < 1;
             if (!noNewContent) return null;
