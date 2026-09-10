@@ -16,6 +16,7 @@
 #include <utility>
 #include <string>
 #include <cmath>
+#include <functional>
 
 #include "logger.h"
 #include "capture_engine.h"
@@ -329,6 +330,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // display can only retire roughly one frame per refresh.
     int pairFactor = 0;   // 0 = no pair in flight
     int pairStep = 0;     // which slot of the pair comes next
+    // Set when the pair`s real frame still owes its slot, which is presented
+    // at the END of the iteration that captures and estimates the next pair.
+    bool pendingRealPresent = false;
 
     // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
     // out to be ambiguous under cross-process GPU contention (whichever
@@ -370,6 +374,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         QueryPerformanceCounter(&t);
         return static_cast<double>(t.QuadPart) / qpcFreq.QuadPart * 1000.0;
     };
+
+    // Presents the real frame whose slot is still owed, if any. Returns true
+    // when it did.
+    //
+    // Every path that leaves the iteration early has to call this: the real
+    // frame's slot is claimed the moment the pair reaches it, and dropping it
+    // because no new frame happened to arrive left output slots empty and
+    // produced gaps of up to 277 ms.
+    std::function<bool()> FlushPendingRealFrame;
 
     // Holds until this frame's slot on the refresh-locked grid comes up, then
     // advances the grid by exactly one slot. Coarse Sleep for the bulk of the
@@ -451,6 +464,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     UINT lastStatsPresentCount = 0, lastStatsRefreshCount = 0;
     bool statsAvailable = false, statsUnsupportedLogged = false;
     double submittedPerSecond = -1.0, displayedPerSecond = -1.0;
+
+    FlushPendingRealFrame = [&]() -> bool {
+        if (!pendingRealPresent) return false;
+        pendingRealPresent = false;
+
+        const double iterationStartMs = NowMs();
+        WaitForOutputSlot();
+        const double tStart = NowMs();
+        if (transparentRealFrames && presenter.SupportsTransparency()) {
+            // Nothing of ours: the real screen underneath is what shows.
+            presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+        } else {
+            // The estimator's PREVIOUS frame is exactly the real frame this
+            // slot belongs to - preparing the next pair has already moved the
+            // newly captured one into CurrFrame. Presenting Curr here would
+            // skip a real frame entirely and break the motion sequence.
+            presenter.PresentFrame(context.get(), estimator.PrevFrameTexture(), presentSyncInterval);
+        }
+        const double tEnd = NowMs();
+
+        lastRealPresentMs = tEnd;
+        ++nativeFramesSinceReport;
+        RecordPresentGap(tEnd);
+        RecordPresentAge();
+        phasePresentMsSum += tEnd - tStart;
+        phaseIterationMsSum += tEnd - iterationStartMs;
+        ++phaseSamples;
+        return true;
+    };
 
     auto ReportTelemetryIfDue = [&]() {
         LARGE_INTEGER now{};
@@ -616,34 +658,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (pairFactor > 0 && pairStep <= pairFactor) {
             const bool isRealFrame = (pairStep == pairFactor);
 
-            // Transparency mode: for a real frame, show nothing of our own and
-            // let the actual screen underneath be seen. Only the generated
-            // frames come from us. Two wins at once - the real frames are seen
-            // at native quality rather than as our copy of them, and the
-            // window below is never continuously covered, which is what made
-            // Windows stop drawing it (measured: 32-35 duplicates/s covered
-            // versus 0 uncovered).
-            if (isRealFrame && transparentRealFrames && presenter.SupportsTransparency()) {
-                WaitForOutputSlot();
-                double tStart = NowMs();
-                presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
-                double tEnd = NowMs();
-                RecordPresentGap(tEnd);
-                RecordPresentAge();
-                lastRealPresentMs = tEnd;
+            // The real frame's slot is NOT presented here. Instead the loop
+            // falls through to capture and estimate the next pair first, and
+            // presents this frame at the end of that same iteration - so that
+            // work happens during the slot's idle wait rather than after it.
+            // See the comment at the capture block for the measurements.
+            if (isRealFrame) {
+                pendingRealPresent = true;
                 pairFactor = 0;
                 ++pairStep;
-                ++nativeFramesSinceReport;
-                phasePresentMsSum += tEnd - tStart;
-                phaseIterationMsSum += tEnd - iterationStartMs;
-                ++phaseSamples;
-                ReportTelemetryIfDue();
-                continue;
-            }
+                // deliberately no `continue`
+            } else {
 
             ID3D11Texture2D* frameToShow = estimator.CurrFrameTexture();
 
-            if (!isRealFrame) {
+            {
                 // Generated frame number `pairStep` of this pair, placed at
                 // its own point in time between the two real frames. The
                 // motion field is estimated once per pair and reused for all
@@ -699,7 +728,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (frameToShow == interpolator.GeneratedFrameTexture()) ++generatedFramesSinceReport;
             else ++nativeFramesSinceReport;
 
-            if (isRealFrame) { lastRealPresentMs = presentEndMs; pairFactor = 0; }
             ++pairStep;
 
             RecordPresentGap(presentEndMs);
@@ -710,8 +738,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
             ReportTelemetryIfDue();
             continue;
+            } // end of the generated-frame branch
         }
 
+        // Capture and prepare the next pair. Reached either from the bottom of
+        // the loop, or - the point of making it callable - from the real-frame
+        // slot above, so this work happens WHILE waiting for that slot instead
+        // of after it.
+        //
+        // Why that matters, measured: at factor 3 the three output slots of
+        // 6.94 ms exactly fill the 20.83 ms real frame interval, leaving no
+        // slack. Doing capture plus estimation afterwards pushed every pair
+        // late until the pipeline settled a full interval behind - 20.8 ms
+        // average on-screen age, where the scheme itself only requires 13.9.
+        // The slot wait idles for ~6 ms; this work needs ~1.7 ms and fits
+        // inside it.
+        //
+        // While pendingRealPresent is set, the slot this iteration belongs to
+        // is already spoken for by the real frame presented at the end, so the
+        // paths below that would present a frame of their own (a duplicate
+        // frame, or factor 1) must not also fill it.
         LARGE_INTEGER captureStart{};
         QueryPerformanceCounter(&captureStart);
 
@@ -781,6 +827,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // pushes duplicate frames to the screen - measured as severe
             // judder in the first overlay test. Just wait for real new
             // content instead.
+            // The real frame's slot is still owed - it must not be dropped
+            // just because no NEW frame arrived to prepare the next pair with.
+            // Skipping it here left whole output slots empty and produced gaps
+            // of up to 277 ms.
+            FlushPendingRealFrame();
             Sleep(1);
             continue;
         }
@@ -802,9 +853,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // Maus still bleibt ... bleibt es stehen") - and a frozen
             // overlay is far worse than a redundant present, because the
             // viewer cannot tell it apart from a crash.
-            WaitForOutputSlot();
-            presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
-            ++nativeFramesSinceReport;
+            // If the real frame still owes its slot, that IS this slot - show
+            // it rather than a second copy of the same picture.
+            if (!FlushPendingRealFrame()) {
+                WaitForOutputSlot();
+                presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
+                ++nativeFramesSinceReport;
+            }
             ReportTelemetryIfDue();
             continue;
         }
@@ -867,7 +922,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // iteration on the refresh-locked grid. Nothing is presented here.
             pairFactor = generationFactor;
             pairStep = 1;
-        } else {
+        } else if (!pendingRealPresent) {
             // Factor 1 (source already saturates the display), no motion
             // field yet, or degraded mode: show the real frame unchanged.
             WaitForOutputSlot();
@@ -881,6 +936,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // actual frames - which looked like a pacing bug that was not
             // there.
             RecordPresentGap(NowMs());
+        }
+
+        // The real frame's slot, presented AFTER the work above so that work
+        // overlapped the slot's idle wait instead of delaying the next pair.
+        if (FlushPendingRealFrame()) {
+            ReportTelemetryIfDue();
+            continue;
         }
 
         double presentEndMs = NowMs();

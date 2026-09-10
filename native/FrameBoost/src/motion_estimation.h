@@ -39,6 +39,7 @@ public:
     // needed to restore the swapchain back buffer after presenting the
     // generated frame, so the real frame still gets displayed right after it.
     ID3D11Texture2D* CurrFrameTexture() const { return m_currFrameTex; }
+    ID3D11Texture2D* PrevFrameTexture() const { return m_prevFrameTex; }
     ID3D11ShaderResourceView* MotionVectorSRV() const { return m_motionVectorSmoothSRV; }
     static constexpr UINT BlockSizePixels() { return 16; }
 
