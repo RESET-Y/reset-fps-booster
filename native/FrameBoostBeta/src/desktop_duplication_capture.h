@@ -104,6 +104,22 @@ public:
     // The duplication is rebuilt automatically; this counts how often.
     uint64_t Reconnects() const { return m_reconnects.load(std::memory_order_relaxed); }
 
+    // Average interval between PUBLISHED frames, in milliseconds - the source.s
+    // real rate, seen where every frame passes.
+    //
+    // The engine used to derive this from the frames it had processed, which
+    // turns into a feedback loop the moment it cannot keep up: skipping every
+    // second frame makes the measured interval twice as long, so the output
+    // waits twice as long for its real frame, which guarantees it skips every
+    // second frame again. Measured in Apex: capture publishing 74 frames a
+    // second, the loop consuming 37, the source reported as 36.5, and the
+    // doubled output landing at 73 - the game.s own rate, so the boost was
+    // worth nothing. It is stable in that state and cannot climb out on its own.
+    double PublishedIntervalMs() const {
+        std::lock_guard<std::mutex> lock(m_slotMutex);
+        return m_publishIntervalEmaMs;
+    }
+
     ~DesktopDuplicationCapture();
 
 private:
@@ -136,6 +152,8 @@ private:
     std::atomic<uint64_t> m_reconnects{ 0 };
     std::atomic<uint64_t> m_framesPublished{ 0 };
     uint64_t m_framesConsumed = 0;
+    double m_publishIntervalEmaMs = -1.0;
+    double m_lastPublishTimestampMs = 0.0;
     double m_nextReconnectAttemptMs = 0.0;
 };
 

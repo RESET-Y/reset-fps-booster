@@ -1326,6 +1326,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         : realFrameIntervalEmaMs * 0.8 + intervalMs * 0.2;
                 }
             }
+            // The source rate is taken from the CAPTURE, where every published
+            // frame is seen, rather than from the frames this loop had time to
+            // process.
+            //
+            // Measuring it downstream is a feedback loop the moment the loop
+            // falls behind: skip every second frame and the measured interval
+            // doubles, so the output waits twice as long for its real frame,
+            // which guarantees the next one is skipped as well. Measured in
+            // Apex: 74 frames per second published, 37 consumed, the source
+            // reported as 36.5, and the doubled output landing at 73 - the
+            // game's own rate, so the doubling was worth nothing. That state is
+            // stable; the engine cannot climb out of it by itself.
+            if (useDesktopDuplication) {
+                const double published = ddCapture.PublishedIntervalMs();
+                if (published > 0.5 && published < 100.0) realFrameIntervalEmaMs = published;
+            }
+
             lastFrameTimestamp100ns = frameTimestamp100ns;
             currentPairTimestamp100ns = frameTimestamp100ns;
 

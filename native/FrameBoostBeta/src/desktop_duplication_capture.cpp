@@ -224,6 +224,20 @@ void DesktopDuplicationCapture::Pump() {
 
         {
             std::lock_guard<std::mutex> lock(m_slotMutex);
+            const double presentMs = QpcTicksTo100ns(info.LastPresentTime.QuadPart) / 10000.0;
+            // The source.s rate, measured where every frame is seen. Outliers
+            // (alt-tab, a loading pause) are rejected rather than smeared into
+            // the average.
+            if (m_lastPublishTimestampMs > 0.0) {
+                const double delta = presentMs - m_lastPublishTimestampMs;
+                if (delta > 0.5 && delta < 100.0) {
+                    m_publishIntervalEmaMs = m_publishIntervalEmaMs < 0.0
+                        ? delta
+                        : m_publishIntervalEmaMs * 0.85 + delta * 0.15;
+                }
+            }
+            m_lastPublishTimestampMs = presentMs;
+
             m_slotTimestamp100ns[slot] = QpcTicksTo100ns(info.LastPresentTime.QuadPart);
             m_newestSlot = slot;
             ++m_newestSerial;
