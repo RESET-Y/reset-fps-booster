@@ -404,6 +404,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool simpleDoubleMode = true;
     bool f4WasDown = false;
     bool realFramePendingSimple = false;
+    // Fixed anchor for the refresh grid the 2x mode snaps its presents to.
+    double refreshAnchorMs = 0.0;
     double realFrameDueAtMs = 0.0;
 
     bool bufferOneFrame = false;
@@ -1030,6 +1032,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // partner has somewhere to sit. That half interval IS the added
         // latency, and it is the least any interpolator can manage.
         if (simpleDoubleMode) {
+            // Every present is snapped to a refresh boundary.
+            //
+            // Presenting the moment a frame is ready leaves the display to
+            // round it up to its own next refresh, and how long that takes
+            // depends on where the frame happened to land - so a frame stands
+            // for one refresh or for two, at random. Measured: intervals
+            // scattered between 6.76 and 15.73 ms with 2.91 ms of jitter. The
+            // eye reads that unevenness as judder even though the frame count
+            // is right.
+            //
+            // Snapping makes the alternation regular instead of random. It
+            // costs up to one refresh interval of latency (3.5 ms on average),
+            // which is cheap against 2.7 ms of total added latency today.
+            auto WaitForRefreshBoundary = [&]() {
+                if (outputSlotMs <= 0.0) return;
+                if (refreshAnchorMs <= 0.0) refreshAnchorMs = NowMs();
+                const double t = NowMs();
+                const double elapsed = t - refreshAnchorMs;
+                const double boundary = refreshAnchorMs + std::ceil(elapsed / outputSlotMs) * outputSlotMs;
+                const double waitMs = boundary - t;
+                if (waitMs > 1.5) Sleep(static_cast<DWORD>(waitMs - 1.0));
+                while (NowMs() < boundary) { /* spin out the last fraction */ }
+            };
+
             const double nowMs = NowMs();
 
             if (haveNewContent && haveMotionField && !forcePassthroughOnly && !inDegradedMode
@@ -1046,6 +1072,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (interpolator.GenerateFrame(device.get(), context.get(),
                         estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                         desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                    WaitForRefreshBoundary();
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                     else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                     ++generatedFramesSinceReport;
@@ -1058,6 +1085,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
 
             if (realFramePendingSimple && nowMs >= realFrameDueAtMs) {
+                WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
                     presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
                 } else if (estimator.CurrFrameTexture()) {
