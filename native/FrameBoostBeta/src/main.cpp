@@ -644,9 +644,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             nextPresentDueMs += std::ceil(behindMs / outputSlotMs) * outputSlotMs;
         }
 
-        const double remainingMs = nextPresentDueMs - NowMs();
-        if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0)); // coarse, cheap
-        while (NowMs() < nextPresentDueMs) { /* spin out the last fraction */ }
+        double remainingMs = nextPresentDueMs - NowMs();
+        // Acquire while waiting, rather than sleeping through frames the
+        // compositor is presenting right now. Measured before this: 60-70
+        // coalesced updates per second - two thirds of a 90 FPS source read
+        // as one frame, because the loop only asked once per output slot.
+        while (remainingMs > 1.5) {
+            ddCapture.Pump();
+            Sleep(1);
+            remainingMs = nextPresentDueMs - NowMs();
+        }
+        while (NowMs() < nextPresentDueMs) { ddCapture.Pump(); }
 
         nextPresentDueMs += outputSlotMs;
     };
@@ -735,6 +743,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Capture path: " << (useDesktopDuplication ? "Desktop Duplication" : "Windows Graphics Capture")
             << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
             << " | Coalesced by us: " << ddCapture.CoalescedFrames()
+            << " | Capture published/consumed: " << ddCapture.FramesPublished() << "/" << ddCapture.FramesConsumed()
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
             << " | Capture reconnects: " << ddCapture.Reconnects()
             << " | Duplicate frames skipped/s: " << (duplicateFramesSinceReport / elapsed)
@@ -947,6 +956,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // overlaps the idle time rather than delaying the next slot.
         LARGE_INTEGER captureStart{};
         QueryPerformanceCounter(&captureStart);
+
+        // Pump here as well as inside the pacing waits: on the simple 2x path the
+        // loop may never reach a wait until it has a frame to work with, and
+        // pumping only from the waits left the engine with no frames at all.
+        if (useDesktopDuplication) ddCapture.Pump();
 
         UINT frameW = 0, frameH = 0;
         int64_t frameTimestamp100ns = 0;
@@ -1222,8 +1236,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 const double elapsed = t - refreshAnchorMs;
                 const double boundary = refreshAnchorMs + std::ceil(elapsed / outputSlotMs) * outputSlotMs;
                 const double waitMs = boundary - t;
-                if (waitMs > 1.5) Sleep(static_cast<DWORD>(waitMs - 1.0));
-                while (NowMs() < boundary) { /* spin out the last fraction */ }
+                double remaining = waitMs;
+                while (remaining > 1.5) { ddCapture.Pump(); Sleep(1); remaining = boundary - NowMs(); }
+                while (NowMs() < boundary) { ddCapture.Pump(); }
             };
 
             const double nowMs = NowMs();

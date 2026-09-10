@@ -1,9 +1,13 @@
 #pragma once
 #include <windows.h>
 #include <d3d11.h>
+#include <d3d11_4.h>
 #include <dxgi1_2.h>
 #include <winrt/base.h>
+
+#include <atomic>
 #include <cstdint>
+#include <mutex>
 
 namespace FrameBoostBeta {
 
@@ -18,9 +22,7 @@ namespace FrameBoostBeta {
 // reported 90.20 desktop presents per second, spaced 11.09 ms. The WGC
 // numbers were not a case of us reading too slowly - its own audit showed
 // 892 frames announced, 892 retrieved, 0 lost in the pool. Windows Graphics
-// Capture simply hands out about half of what the compositor presents, and
-// half the source frame rate is half of what the interpolator has to work
-// with.
+// Capture simply hands out about half of what the compositor presents.
 //
 // Desktop Duplication is a public, documented, user-mode API - the same one
 // every screen recorder and remote-desktop tool uses. Nothing here reads or
@@ -30,14 +32,35 @@ namespace FrameBoostBeta {
 // the engine does not capture its own output. Verified with a control run:
 // an unexcluded probe window came back on 64 of 64 sampled points, the same
 // window with the flag set on 0 of 64.
+//
+// ACQUISITION IS PUMPED FROM THE MAIN LOOP'S IDLE TIME, and the reason is
+// measured. Reading once per output slot let AccumulatedFrames climb to 60-70
+// coalesced updates per second - two thirds of a 90 FPS source arriving as one
+// frame, because the loop spends most of each slot waiting for a refresh
+// boundary. Moving acquisition onto its own thread fixed that (coalescing fell
+// to zero) and broke something worse: sharing one D3D11 immediate context
+// across two threads needs SetMultithreadProtected, and the full-screen copies
+// then serialised against the render work - output collapsed to 3-7 FPS with
+// 100% missed slots and 86-153 ms on-screen age.
+//
+// So the capture is pumped instead: the loop already spends milliseconds doing
+// nothing but waiting for its next refresh boundary, and Pump() spends that
+// time acquiring. Same thread, same context, no lock contention, and the
+// compositor is asked several times per output slot instead of once.
 class DesktopDuplicationCapture {
 public:
     bool StartMonitor(HMONITOR monitor, ID3D11Device* device, ID3D11DeviceContext* context);
     void Stop();
     bool IsCapturing() const { return m_duplication != nullptr; }
 
+    // Acquires everything the compositor has ready, without blocking. Call it
+    // from anywhere the loop would otherwise be idle - the more often it runs,
+    // the less the compositor has to coalesce.
+    void Pump();
+
     // Same contract as CaptureEngine::PollLatestFrame: non-blocking, returns
-    // the newest frame, outIsNewFrame false when nothing new arrived.
+    // the newest frame acquired so far, outIsNewFrame false
+    // when nothing new arrived since the last call.
     //
     // outFrameTimestamp100ns is LastPresentTime converted to the same
     // 100ns-since-boot QPC domain the rest of the engine measures in, so
@@ -48,37 +71,55 @@ public:
                                      int64_t& outFrameTimestamp100ns, bool& outIsNewFrame);
 
     // Frames the compositor presented that were folded into one acquire
-    // because we did not ask in time. The direct "are we too slow" number;
-    // Desktop Duplication reports it, WGC has no equivalent.
-    uint64_t CoalescedFrames() const { return m_coalescedFrames; }
-    uint64_t FramesRetrieved() const { return m_framesRetrieved; }
+    // because nobody asked in time. Desktop Duplication reports this directly
+    // (AccumulatedFrames); WGC has no equivalent. Near zero means the pump is
+    // keeping up with the compositor; a climbing count means it is not.
+    uint64_t CoalescedFrames() const { return m_coalescedFrames.load(std::memory_order_relaxed); }
+
+    // Frames acquired versus frames the output side actually took. A gap is
+    // not a capture loss - it means the output is consuming slower than the
+    // source produces, which is normal for a pair-based interpolator.
+    uint64_t FramesPublished() const { return m_framesPublished.load(std::memory_order_relaxed); }
+    uint64_t FramesConsumed() const { return m_framesConsumed; }
 
     // Cursor-only updates, which carry no new game content and must not be
     // counted as frames.
-    uint64_t CursorOnlyUpdates() const { return m_cursorOnlyUpdates; }
+    uint64_t CursorOnlyUpdates() const { return m_cursorOnlyUpdates.load(std::memory_order_relaxed); }
 
     // The display mode changed, or something took the output away (a game
     // entering exclusive fullscreen, a resolution change, a driver reset).
     // The duplication is rebuilt automatically; this counts how often.
-    uint64_t Reconnects() const { return m_reconnects; }
+    uint64_t Reconnects() const { return m_reconnects.load(std::memory_order_relaxed); }
 
     ~DesktopDuplicationCapture();
 
 private:
     bool CreateDuplication();
 
+    // Four slots, so a frame the loop is still reading is never overwritten by
+    // the next acquire.
+    static constexpr int kSlotCount = 4;
+
     winrt::com_ptr<ID3D11Device> m_device;
     winrt::com_ptr<ID3D11DeviceContext> m_context;
     winrt::com_ptr<IDXGIOutput1> m_output;
     winrt::com_ptr<IDXGIOutputDuplication> m_duplication;
-    winrt::com_ptr<ID3D11Texture2D> m_frameTex; // our own copy, valid past ReleaseFrame
     HMONITOR m_monitor = nullptr;
+
+    winrt::com_ptr<ID3D11Texture2D> m_slotTex[kSlotCount];
+    int64_t m_slotTimestamp100ns[kSlotCount]{};
     UINT m_width = 0, m_height = 0;
 
-    uint64_t m_framesRetrieved = 0;
-    uint64_t m_coalescedFrames = 0;
-    uint64_t m_cursorOnlyUpdates = 0;
-    uint64_t m_reconnects = 0;
+    mutable std::mutex m_slotMutex;
+    int m_newestSlot = -1;
+    int m_inUseSlot = -1;    // held by the main loop, never overwritten
+    uint64_t m_newestSerial = 0, m_consumedSerial = 0;
+
+    std::atomic<uint64_t> m_coalescedFrames{ 0 };
+    std::atomic<uint64_t> m_cursorOnlyUpdates{ 0 };
+    std::atomic<uint64_t> m_reconnects{ 0 };
+    std::atomic<uint64_t> m_framesPublished{ 0 };
+    uint64_t m_framesConsumed = 0;
     double m_nextReconnectAttemptMs = 0.0;
 };
 

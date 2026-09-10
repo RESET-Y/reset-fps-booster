@@ -52,7 +52,11 @@ bool DesktopDuplicationCapture::StartMonitor(HMONITOR monitor, ID3D11Device* dev
         return false;
     }
 
-    return CreateDuplication();
+    if (!CreateDuplication()) return false;
+
+    Logger::Log("[FrameBoostBeta] Desktop Duplication: capture is pumped from the output loop's idle time,"
+                " so waiting for a refresh boundary no longer means missing frames.");
+    return true;
 }
 
 bool DesktopDuplicationCapture::CreateDuplication() {
@@ -83,41 +87,38 @@ bool DesktopDuplicationCapture::CreateDuplication() {
     Logger::Log(oss.str());
 
     // A new duplication hands back differently sized frames after a mode
-    // change, so the copy target has to be rebuilt with it.
-    m_frameTex = nullptr;
+    // change, so the slots have to be rebuilt with it.
+    {
+        std::lock_guard<std::mutex> lock(m_slotMutex);
+        for (auto& tex : m_slotTex) tex = nullptr;
+        m_newestSlot = -1;
+        m_inUseSlot = -1;
+    }
     return true;
 }
 
-ID3D11Texture2D* DesktopDuplicationCapture::PollLatestFrame(UINT& outWidth, UINT& outHeight,
-                                                            int64_t& outFrameTimestamp100ns, bool& outIsNewFrame) {
-    outIsNewFrame = false;
-    outWidth = m_width;
-    outHeight = m_height;
-    outFrameTimestamp100ns = 0;
-
-    if (!m_duplication) {
-        // Lost - a game going exclusive fullscreen does this, and so does a
-        // resolution change. Retry on a timer rather than every tick, so a
-        // permanently unavailable output cannot turn the loop into a spin.
-        if (NowMs() >= m_nextReconnectAttemptMs) {
-            m_nextReconnectAttemptMs = NowMs() + 500.0;
-            if (CreateDuplication()) ++m_reconnects;
+void DesktopDuplicationCapture::Pump() {
+    // Drain everything that is ready, then return - never block, because the
+    // caller is in the middle of pacing its next present.
+    for (int guard = 0; guard < 16; ++guard) {
+        if (!m_duplication) {
+            if (NowMs() < m_nextReconnectAttemptMs) return;
+            m_nextReconnectAttemptMs = NowMs() + 200.0;
+            if (CreateDuplication()) m_reconnects.fetch_add(1, std::memory_order_relaxed);
+            if (!m_duplication) return;
         }
-        return m_frameTex.get();
-    }
 
-    for (;;) {
         DXGI_OUTDUPL_FRAME_INFO info{};
         winrt::com_ptr<IDXGIResource> resource;
         const HRESULT hr = m_duplication->AcquireNextFrame(0, &info, resource.put());
 
-        if (hr == DXGI_ERROR_WAIT_TIMEOUT) break; // nothing new
+        if (hr == DXGI_ERROR_WAIT_TIMEOUT) return; // nothing ready, back to pacing
         if (hr == DXGI_ERROR_ACCESS_LOST) {
             Logger::Log("[FrameBoostBeta] Desktop Duplication access lost (mode change, or the display was"
                         " taken over) - rebuilding.");
             m_duplication = nullptr;
             m_nextReconnectAttemptMs = NowMs() + 100.0;
-            break;
+            return;
         }
         if (FAILED(hr)) {
             std::ostringstream oss;
@@ -126,19 +127,19 @@ ID3D11Texture2D* DesktopDuplicationCapture::PollLatestFrame(UINT& outWidth, UINT
             Logger::Log(oss.str());
             m_duplication = nullptr;
             m_nextReconnectAttemptMs = NowMs() + 500.0;
-            break;
+            return;
         }
 
         // LastPresentTime == 0 means only the cursor moved. That is not a new
         // frame, and counting it as one would feed the motion estimator two
         // identical images.
         if (info.LastPresentTime.QuadPart == 0) {
-            ++m_cursorOnlyUpdates;
+            m_cursorOnlyUpdates.fetch_add(1, std::memory_order_relaxed);
             m_duplication->ReleaseFrame();
             continue;
         }
-
-        if (info.AccumulatedFrames > 1) m_coalescedFrames += info.AccumulatedFrames - 1;
+        if (info.AccumulatedFrames > 1)
+            m_coalescedFrames.fetch_add(info.AccumulatedFrames - 1, std::memory_order_relaxed);
 
         auto surface = resource.try_as<ID3D11Texture2D>();
         if (!surface) { m_duplication->ReleaseFrame(); continue; }
@@ -146,10 +147,19 @@ ID3D11Texture2D* DesktopDuplicationCapture::PollLatestFrame(UINT& outWidth, UINT
         D3D11_TEXTURE2D_DESC desc{};
         surface->GetDesc(&desc);
 
-        // The duplication surface is only valid until ReleaseFrame, and it is
-        // read-only, so the frame is copied into a texture of our own that the
-        // rest of the pipeline can bind as a shader resource.
-        if (!m_frameTex || m_width != desc.Width || m_height != desc.Height) {
+        // Pick a slot that is neither the one the main loop is reading nor the
+        // newest published one, so a consumer holding a frame never has it
+        // overwritten underneath.
+        int slot = -1;
+        {
+            std::lock_guard<std::mutex> lock(m_slotMutex);
+            for (int i = 0; i < kSlotCount; ++i) {
+                if (i != m_inUseSlot && i != m_newestSlot) { slot = i; break; }
+            }
+            if (slot < 0) slot = (m_newestSlot + 1) % kSlotCount;
+        }
+
+        if (!m_slotTex[slot] || m_width != desc.Width || m_height != desc.Height) {
             D3D11_TEXTURE2D_DESC copyDesc = desc;
             copyDesc.Usage = D3D11_USAGE_DEFAULT;
             copyDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -159,33 +169,54 @@ ID3D11Texture2D* DesktopDuplicationCapture::PollLatestFrame(UINT& outWidth, UINT
             winrt::com_ptr<ID3D11Texture2D> tex;
             if (FAILED(m_device->CreateTexture2D(&copyDesc, nullptr, tex.put()))) {
                 m_duplication->ReleaseFrame();
-                break;
+                continue;
             }
-            m_frameTex = tex;
+            m_slotTex[slot] = tex;
             m_width = desc.Width;
             m_height = desc.Height;
         }
 
-        m_context->CopyResource(m_frameTex.get(), surface.get());
+        // The duplication surface is only valid until ReleaseFrame, and it is
+        // read-only, so the frame is copied into a texture of our own that the
+        // rest of the pipeline can bind as a shader resource.
+        m_context->CopyResource(m_slotTex[slot].get(), surface.get());
         m_duplication->ReleaseFrame();
 
-        ++m_framesRetrieved;
-        outWidth = m_width;
-        outHeight = m_height;
-        outFrameTimestamp100ns = QpcTicksTo100ns(info.LastPresentTime.QuadPart);
-        outIsNewFrame = true;
-
-        // Keep draining: if more frames are already waiting, the newest one is
-        // the one worth showing. Each pass overwrites the copy, so only the
-        // newest survives - the same policy the WGC path uses.
+        {
+            std::lock_guard<std::mutex> lock(m_slotMutex);
+            m_slotTimestamp100ns[slot] = QpcTicksTo100ns(info.LastPresentTime.QuadPart);
+            m_newestSlot = slot;
+            ++m_newestSerial;
+        }
+        m_framesPublished.fetch_add(1, std::memory_order_relaxed);
     }
+}
 
-    return m_frameTex.get();
+ID3D11Texture2D* DesktopDuplicationCapture::PollLatestFrame(UINT& outWidth, UINT& outHeight,
+                                                            int64_t& outFrameTimestamp100ns, bool& outIsNewFrame) {
+    outIsNewFrame = false;
+    outWidth = m_width;
+    outHeight = m_height;
+    outFrameTimestamp100ns = 0;
+
+    std::lock_guard<std::mutex> lock(m_slotMutex);
+    if (m_newestSlot < 0) return nullptr;
+
+    ID3D11Texture2D* tex = m_slotTex[m_newestSlot].get();
+    outFrameTimestamp100ns = m_slotTimestamp100ns[m_newestSlot];
+
+    if (m_newestSerial != m_consumedSerial) {
+        m_consumedSerial = m_newestSerial;
+        m_inUseSlot = m_newestSlot;
+        outIsNewFrame = true;
+        ++m_framesConsumed;
+    }
+    return tex;
 }
 
 void DesktopDuplicationCapture::Stop() {
     m_duplication = nullptr;
-    m_frameTex = nullptr;
+    for (auto& tex : m_slotTex) tex = nullptr;
     m_output = nullptr;
 }
 
