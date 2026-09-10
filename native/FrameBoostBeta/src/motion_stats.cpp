@@ -62,10 +62,18 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
                 magnitudeSum += magnitude;
                 if (magnitude > magnitudeMax) magnitudeMax = magnitude;
 
-                // Either component sitting on the search window's edge means
-                // the true match may well lie outside it.
-                if (std::abs(static_cast<double>(mx)) >= kSearchRadiusPixels ||
-                    std::abs(static_cast<double>(my)) >= kSearchRadiusPixels) {
+                // Either component sitting at the COARSEST stage.s per-axis limit
+                // means the true match may well lie outside the search entirely.
+                //
+                // Comparing against the pyramid.s total reach was wrong and hid
+                // exactly what this metric exists to find: the refinement stages
+                // can only add their few pixels around wherever the coarsest
+                // stage pointed, so once that stage is pinned at its own edge,
+                // the block is lost no matter what the finer stages do. It
+                // reported 0% saturation while the maximum measured motion sat
+                // at 239.7 px - a vector of (192, 144) - in every single line.
+                if (std::abs(static_cast<double>(mx)) >= kCoarsestAxisReachPixels * 0.98 ||
+                    std::abs(static_cast<double>(my)) >= kCoarsestAxisReachPixels * 0.98) {
                     ++saturatedBlocks;
                 }
             }

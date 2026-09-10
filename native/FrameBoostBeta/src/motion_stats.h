@@ -67,7 +67,25 @@ private:
     // Total reach of the three-level pyramid: 192 px from the coarsest level
     // (radius 12 on a sixteenth-resolution mip), plus 24 px of refinement at
     // quarter resolution and 6 px at full resolution.
-    static constexpr double kSearchRadiusPixels = 222.0;
+    //
+    // It read 222 while the fine stage searched at full resolution, and was not
+    // updated when that stage moved to mip 1. So the saturation figure - the one
+    // number that says whether the search is running out of room - reported 0%
+    // while the measured maximum motion sat at exactly 239.7 px in every single
+    // reporting line. A constant maximum is a search hitting its limit, and the
+    // metric watching for precisely that could not see it.
+    //
+    //   coarsest  radius 12 on mip 4  ->  12 * 16 = 192 px
+    //   coarse    radius  6 on mip 2  ->   6 *  4 =  24 px
+    //   fine      radius  6 on mip 1  ->   6 *  2 =  12 px
+    //                                               -------
+    //                                               228 px
+    static constexpr double kSearchRadiusPixels = 228.0;
+
+    // Per-axis reach of the COARSEST stage alone, which is the real ceiling:
+    // the finer stages only refine around wherever it pointed. Radius 15 on
+    // mip 4 = 15 * 16 = 240 px.
+    static constexpr double kCoarsestAxisReachPixels = 240.0;
 };
 
 } // namespace FrameBoostBeta

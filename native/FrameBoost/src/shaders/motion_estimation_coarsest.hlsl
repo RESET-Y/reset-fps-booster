@@ -35,8 +35,19 @@ static const int kMipLevel = 4;
 static const int kMipScale = 16;        // 1 texel here = 16 full-res pixels
 static const int kBlockSize = 16;            // = 64 full-resolution pixels
 static const int kBlockSampleStride = 4;     // 4x4 = 16 samples per candidate
-static const int kSearchRadius = 12;         // = 48 full-resolution pixels
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 25
+// Radius 15, not 12: the maximum measured motion pegged at exactly 239.7 px in
+// every reporting line - a vector of (192, 144), which is this stage.s own edge
+// at radius 12. Everything moving faster than that got a wrong vector, and the
+// finer stages could not help, because they only refine a few pixels around
+// wherever this stage pointed. That is what "parts of the picture shift" looks
+// like from the inside.
+//
+// 15 is the ceiling here: one GPU thread per candidate, and 31 x 31 = 961 fits
+// under D3D11.s limit of 1024 threads per group where 33 x 33 = 1089 does not.
+// This stage runs on a sixteenth-resolution image, so its cost is the smallest
+// of the three.
+static const int kSearchRadius = 15;         // = 240 full-resolution pixels
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 31
 static const int kCandidateCount = kSearchWindow * kSearchWindow; // 625
 
 cbuffer FrameDims : register(b0)
