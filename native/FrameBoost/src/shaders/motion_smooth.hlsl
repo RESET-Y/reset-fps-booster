@@ -48,6 +48,12 @@ static const float kNewFieldWeight = 0.7;
 // about a tenth of the weight of a clean one.
 static const float kMatchErrorSensitivity = 30.0;
 
+// How sharply a changed motion cancels the carry-over from the previous field.
+// At 0.5 a block whose vector moved by 2 px still keeps most of the damping,
+// while one that jumped by 20 px - an object arriving or leaving - keeps
+// almost none of it.
+static const float kMotionChangeSensitivity = 0.5;
+
 // How sharply a neighbour.s weight falls off when it is moving somewhere else.
 // At 0.25 a neighbour differing by 4 px still carries half the weight - noise
 // inside one object is smoothed as before - while one differing by 40 px, which
@@ -124,7 +130,27 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     if (HavePreviousField != 0)
     {
         float2 previous = PreviousMotionVectors.Load(int3(id.xy, 0)).xy;
-        spatial = lerp(previous, spatial, kNewFieldWeight);
+
+        // Carrying the previous field over is what leaves a trail.
+        //
+        // At 0.7 a block keeps 30% of the vector it had last frame, and 9% the
+        // frame after that. Where a moving object has just passed, the
+        // background it uncovered goes on carrying a fading remnant of that
+        // object.s motion for several frames - which is exactly a trail behind
+        // it, and exactly why finer blocks, edge-aware smoothing and a
+        // stricter blend threshold all left it untouched: none of them are in
+        // the time domain.
+        //
+        // So the carry-over applies only where the two fields agree about the
+        // motion. Where this frame says something clearly different from the
+        // last one, the new answer is taken whole: damping flicker is worth a
+        // lot inside a steadily moving area and nothing at all where the
+        // motion has genuinely changed.
+        const float2 change = spatial - previous;
+        const float changeDistance = sqrt(dot(change, change));
+        const float carryOver = (1.0 - kNewFieldWeight)
+            / (1.0 + kMotionChangeSensitivity * changeDistance);
+        spatial = lerp(spatial, previous, carryOver);
     }
 
     // .z (the match error) is carried through unsmoothed: it describes this
