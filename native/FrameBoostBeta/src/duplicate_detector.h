@@ -66,7 +66,14 @@ private:
     // video re-encodes essentially identical content with tiny per-pixel
     // differences, so an exact comparison reported every recomposition as
     // "new content" and defeated the whole check.
-    static constexpr double kDuplicateThreshold = 1.2; // mean abs difference per channel (0-255)
+    // Lowered from 1.2 when the comparison moved from full-resolution patches
+    // to a thumbnail. The number means something quite different there: each
+    // thumbnail texel averages a 64x64 block of real pixels, which shrinks
+    // differences by roughly that factor. Carrying 1.2 over discarded frames
+    // that plainly were not duplicates - measured live at 0.44 and 0.80 on a
+    // playing video with 89% of blocks in motion, costing 12-47 real frames
+    // per second.
+    static constexpr double kDuplicateThreshold = 0.3; // mean abs difference per channel (0-255)
 
     // Full-size intermediate carrying a mip chain: the frame is copied into
     // mip 0 and GenerateMips does the reduction on the GPU, which is both
