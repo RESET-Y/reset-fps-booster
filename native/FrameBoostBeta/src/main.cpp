@@ -15,6 +15,7 @@
 #include <sstream>
 #include <utility>
 #include <string>
+#include <cmath>
 
 #include "logger.h"
 #include "capture_engine.h"
@@ -236,8 +237,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // (72 Hz here) gives every frame an identical 13.89 ms on-screen
     // duration, which is what actually reads as smooth.
     const double outputRefreshHz = MonitorRefreshHz(outputMonitor);
-    const int kRefreshDivisor = 2;   // one output frame per 2 refreshes: real, generated, real, ...
-    double outputSlotMs = outputRefreshHz > 0.0 ? 1000.0 / (outputRefreshHz / kRefreshDivisor) : 0.0;
+    // One output slot per refresh interval. How many of those slots get
+    // filled is now decided per real frame by the adaptive factor below,
+    // instead of being fixed at "every second slot" (a hardcoded 2x).
+    double outputSlotMs = outputRefreshHz > 0.0 ? 1000.0 / outputRefreshHz : 0.0;
     double nextPresentDueMs = 0.0;   // absolute deadline for the next present
     bool refreshLockEnabled = outputSlotMs > 0.0;
     {
@@ -245,11 +248,34 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         oss << "[FrameBoostBeta] Display refresh: "
             << (outputRefreshHz > 0 ? std::to_string(outputRefreshHz) + " Hz" : "unknown")
             << " | Refresh-locked output cadence: "
-            << (refreshLockEnabled ? std::to_string(outputRefreshHz / kRefreshDivisor) + " FPS (slot " + std::to_string(outputSlotMs) + " ms)" : "disabled")
+            << (refreshLockEnabled ? std::to_string(outputSlotMs) + " ms per slot" : "disabled")
             << " | F8 toggles the lock.";
         FrameBoostBeta::Logger::Log(oss.str());
     }
     bool f8WasDown = false;
+
+    // Adaptive generation factor. A fixed 2x is wrong in both directions: it
+    // wastes the display when the source is slow (30 FPS doubled is 60 on a
+    // 144 Hz panel, leaving 84 Hz unused) and it manufactures frames that
+    // are not missing when the source is already fast. So: measure the real
+    // frame rate, and produce only the frames needed to reach the refresh
+    // rate - which at factor 1 means generating nothing at all.
+    //
+    // Capped at 4x because every generated frame past the first sits further
+    // from a real reference, and interpolation error grows with that
+    // distance. Beyond 4x the artefacts cost more than the smoothness gains.
+    constexpr int kMaxFactor = 4;
+    int generationFactor = 1; // 1 = pure passthrough, nothing generated
+
+    // Hysteresis. Without it a source hovering near a switch point (say 47-49
+    // FPS against a 144 Hz display) flips between 3x and 2x every second -
+    // and the switch itself is visible, so the cure would be worse than the
+    // disease. A new factor must be the better fit by a clear margin AND
+    // stay that way for several consecutive evaluations before it is taken.
+    constexpr double kFactorSwitchMargin = 0.18; // ~18% better fit required
+    constexpr int kFactorSwitchHoldFrames = 30;  // and sustained this long
+    int candidateFactor = 1;
+    int candidateFactorHeldFrames = 0;
 
     double lastRealPresentMs = 0.0;
     double realFrameIntervalEmaMs = -1.0;
@@ -259,10 +285,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Engine running. Native/Generated/Output FPS reported once per second below.");
 
-    // True while a generated frame has been shown and its real partner frame
-    // still has to follow on the next iteration (see the alternating
-    // present scheme below).
-    bool realFramePending = false;
+    // Presentation state for the current pair of real frames. The pair is
+    // shown as `pairFactor` slots: steps 1..pairFactor-1 are generated frames
+    // at t = step/pairFactor, and the final step is the real frame itself.
+    // One present per loop iteration - presenting several in one iteration
+    // was measured to throttle the whole loop to half speed, because the
+    // display can only retire roughly one frame per refresh.
+    int pairFactor = 0;   // 0 = no pair in flight
+    int pairStep = 0;     // which slot of the pair comes next
 
     // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
     // out to be ambiguous under cross-process GPU contention (whichever
@@ -301,6 +331,44 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nextPresentDueMs += outputSlotMs;
     };
 
+    // Picks the factor whose resulting output rate lands closest to the
+    // display's refresh rate, and only switches when the new choice is
+    // clearly better and has stayed better (see the hysteresis constants).
+    auto EvaluateGenerationFactor = [&]() {
+        if (!refreshLockEnabled || realFrameIntervalEmaMs <= 0.0) return;
+        const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
+
+        auto relativeError = [&](int factor) {
+            return std::abs(factor * nativeFps - outputRefreshHz) / outputRefreshHz;
+        };
+
+        int best = 1;
+        for (int f = 2; f <= kMaxFactor; ++f)
+            if (relativeError(f) < relativeError(best)) best = f;
+
+        // The source already saturates the display: generate nothing. No
+        // added latency, no quality loss, no GPU cost - there are no missing
+        // frames to supply, and inventing them anyway would be dishonest.
+        if (nativeFps >= outputRefreshHz * 0.95) best = 1;
+
+        if (best == generationFactor) { candidateFactor = best; candidateFactorHeldFrames = 0; return; }
+
+        if (best != candidateFactor) { candidateFactor = best; candidateFactorHeldFrames = 0; }
+        ++candidateFactorHeldFrames;
+
+        const bool clearlyBetter = relativeError(candidateFactor) + kFactorSwitchMargin < relativeError(generationFactor);
+        if (clearlyBetter && candidateFactorHeldFrames >= kFactorSwitchHoldFrames) {
+            std::ostringstream oss;
+            oss << "[FrameBoostBeta] Generation factor " << generationFactor << "x -> " << candidateFactor
+                << "x (native " << nativeFps << " FPS, display " << outputRefreshHz
+                << " Hz, target output " << (candidateFactor * nativeFps) << " FPS)";
+            if (candidateFactor == 1) oss << " - source saturates the display, generating nothing.";
+            FrameBoostBeta::Logger::Log(oss.str());
+            generationFactor = candidateFactor;
+            candidateFactorHeldFrames = 0;
+        }
+    };
+
     auto ReportTelemetryIfDue = [&]() {
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
@@ -323,7 +391,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
-            << " | Refresh lock: " << (refreshLockEnabled ? (std::to_string(outputRefreshHz / kRefreshDivisor) + " FPS target") : "off")
+            << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
+            << " | Generation factor: " << generationFactor << "x"
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
         if (phaseSamples > 0) {
@@ -403,15 +472,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // and interpolating across a two-frame gap instead of neighbouring
         // frames. This iteration just flushes the real frame that the
         // previous iteration's generated frame belongs in front of.
-        if (realFramePending) {
-            // Hold the real frame until half a measured frame interval after
-            // its generated partner was shown, so the two land evenly spaced
-            // instead of back-to-back (unpaced, the compositor would simply
-            // drop the generated one and nothing would be gained).
+        if (pairFactor > 0 && pairStep <= pairFactor) {
+            const bool isRealFrame = (pairStep == pairFactor);
+            ID3D11Texture2D* frameToShow = estimator.CurrFrameTexture();
+
+            if (!isRealFrame) {
+                // Generated frame number `pairStep` of this pair, placed at
+                // its own point in time between the two real frames. The
+                // motion field is estimated once per pair and reused for all
+                // of them, which is why a higher factor costs only one extra
+                // interpolation dispatch (0.15 ms) per frame.
+                interpolator.SetPhase(static_cast<float>(pairStep) / static_cast<float>(pairFactor));
+                D3D11_TEXTURE2D_DESC desc{};
+                estimator.CurrFrameTexture()->GetDesc(&desc);
+                if (interpolator.GenerateFrame(device.get(), context.get(),
+                        estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                        desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM)) {
+                    frameToShow = interpolator.GeneratedFrameTexture();
+                }
+                // If generation failed we fall through with the real frame -
+                // a duplicate real frame is always preferable to a gap.
+            }
+
             if (refreshLockEnabled) {
-                // Refresh-locked: the grid already places this frame exactly
-                // one slot after its generated partner, so no separate
-                // midpoint calculation is needed.
                 WaitForOutputSlot();
             } else {
                 double nowMs = NowMs();
@@ -420,15 +503,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0)); // coarse wait
                     while (NowMs() < generatedFrameDueAtMs) { /* short spin for the last fraction */ }
                 }
+                generatedFrameDueAtMs = NowMs() + (realFrameIntervalEmaMs > 0.0 ? realFrameIntervalEmaMs / pairFactor : 0.0);
             }
 
             double presentStartMs = NowMs();
-            presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+            presenter.PresentFrame(context.get(), frameToShow, presentSyncInterval);
             double presentEndMs = NowMs();
 
-            realFramePending = false;
-            lastRealPresentMs = presentEndMs;
-            ++nativeFramesSinceReport;
+            if (frameToShow == interpolator.GeneratedFrameTexture()) ++generatedFramesSinceReport;
+            else ++nativeFramesSinceReport;
+
+            if (isRealFrame) { lastRealPresentMs = presentEndMs; pairFactor = 0; }
+            ++pairStep;
 
             phasePresentMsSum += presentEndMs - presentStartMs;
             phaseIterationMsSum += presentEndMs - iterationStartMs;
@@ -489,6 +575,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
             }
             lastFrameTimestamp100ns = frameTimestamp100ns;
+
+            // Re-evaluated here, as soon as the measured interval updates,
+            // rather than further down the loop: the duplicate-frame path
+            // below returns early, so on a static screen the factor would
+            // otherwise never be reconsidered and would still read 1x when
+            // motion resumes.
+            EvaluateGenerationFactor();
         }
 
         if (!capturedTex || !isNewFrame) {
@@ -571,29 +664,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
 
-        bool generated = false;
-        if (haveMotionField && !inDegradedMode) {
-            D3D11_TEXTURE2D_DESC desc{};
-            capturedTex->GetDesc(&desc);
-            generated = interpolator.GenerateFrame(device.get(), context.get(),
-                estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
-                desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM);
-        }
-
         double computeEndMs = NowMs();
 
-        if (generated) {
-            // Show ONLY the generated frame now; its real partner follows on
-            // the next iteration, paced half a real-frame interval later.
-            WaitForOutputSlot();
-            presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
-            ++generatedFramesSinceReport;
-            realFramePending = true;
-            generatedFrameDueAtMs = NowMs() + (realFrameIntervalEmaMs > 0.0 ? realFrameIntervalEmaMs * 0.5 : 0.0);
+        const bool canGenerate = haveMotionField && !inDegradedMode
+            && generationFactor > 1 && !forcePassthroughOnly;
+        if (canGenerate) {
+            // Hand this pair to the presentation state machine above, which
+            // emits the generated frames and then the real one, one per
+            // iteration on the refresh-locked grid. Nothing is presented here.
+            pairFactor = generationFactor;
+            pairStep = 1;
         } else {
-            // Failsafe: no motion field yet (first frame), generation
-            // disabled, or interpolation failed this tick - just show the
-            // real captured frame.
+            // Factor 1 (source already saturates the display), no motion
+            // field yet, or degraded mode: show the real frame unchanged.
             WaitForOutputSlot();
             presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
             ++nativeFramesSinceReport;

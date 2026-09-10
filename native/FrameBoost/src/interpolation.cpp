@@ -105,9 +105,10 @@ bool Interpolator::EnsureResources(ID3D11Device* device, UINT width, UINT height
         device->CreateSamplerState(&sampDesc, &m_linearClampSampler);
     }
 
-    struct ParamsCB { UINT width, height, blockSize, debugTint; };
-    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u };
+    struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; float pad[3]; };
+    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, {} };
     m_debugTintInBuffer = m_debugTint;
+    m_phaseTInBuffer = m_phaseT;
     D3D11_BUFFER_DESC cbDesc{};
     cbDesc.ByteWidth = sizeof(ParamsCB);
     cbDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -154,14 +155,18 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
     if (!prevSRV || !currSRV || !motionSRV) return false;
     if (!EnsureResources(device, width, height, format)) return false;
 
-    // The debug tint lives in the same constant buffer as the frame
-    // dimensions, so toggling it needs a buffer update rather than a full
-    // resource rebuild.
-    if (m_debugTint != m_debugTintInBuffer && m_paramsCB) {
-        struct ParamsCB { UINT width, height, blockSize, debugTint; };
-        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u };
+    // The debug tint and the phase both live in the same constant buffer as
+    // the frame dimensions, so changing either needs a buffer update rather
+    // than a full resource rebuild. The phase changes for every generated
+    // frame at factors above 2x, so this is on the hot path - but it is a
+    // 32-byte upload, which is why the whole multi-frame scheme costs
+    // essentially nothing beyond the extra dispatches themselves.
+    if ((m_debugTint != m_debugTintInBuffer || m_phaseT != m_phaseTInBuffer) && m_paramsCB) {
+        struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; float pad[3]; };
+        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, {} };
         context->UpdateSubresource(m_paramsCB, 0, nullptr, &params, 0, 0);
         m_debugTintInBuffer = m_debugTint;
+        m_phaseTInBuffer = m_phaseT;
     }
 
     QuerySet& q = m_queries[m_queryWriteIndex];

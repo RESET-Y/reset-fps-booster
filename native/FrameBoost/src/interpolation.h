@@ -22,6 +22,13 @@ public:
     // which frames on screen are generated (and whether they arrive at all).
     void SetDebugTint(bool enabled) { m_debugTint = enabled; }
 
+    // Where the next generated frame sits between the two real source
+    // frames: 0 = the previous frame, 1 = the current one. 0.5 gives the
+    // single midpoint frame of a 2x factor; a 3x factor calls this with
+    // 1/3 and 2/3 before each real frame, a 4x factor with 1/4, 1/2, 3/4.
+    // Clamped to keep the shader's sampling well behaved.
+    void SetPhase(float t) { m_phaseT = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t); }
+
     ID3D11Texture2D* GeneratedFrameTexture() const { return m_generatedTex; }
     double LastGpuTimeMs() const { return m_lastGpuTimeMs; }
 
@@ -42,6 +49,8 @@ private:
     ID3D11Buffer* m_paramsCB = nullptr;
     bool m_debugTint = false;
     bool m_debugTintInBuffer = false;
+    float m_phaseT = 0.5f;          // midpoint - the 2x case
+    float m_phaseTInBuffer = -1.0f; // forces the first upload
 
     static constexpr int kQueryRingSize = 4;
     struct QuerySet {

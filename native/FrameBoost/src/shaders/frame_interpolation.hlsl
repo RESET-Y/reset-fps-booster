@@ -31,6 +31,15 @@ cbuffer InterpolationParams : register(b0)
     uint FrameHeight;
     uint BlockSize;
     uint DebugTintGenerated; // 1 = tint generated frames red (developer aid)
+
+    // Where on the timeline between the two real frames this generated
+    // frame sits: 0 = exactly the previous frame, 1 = exactly the current
+    // one. A hardcoded 0.5 can only ever produce ONE intermediate frame,
+    // i.e. a fixed 2x factor. Making it a parameter is what allows 3x
+    // (t = 1/3, 2/3), 4x (t = 1/4, 1/2, 3/4) and so on from the very same
+    // motion field, estimated once per real frame pair.
+    float PhaseT;
+    float3 _padTo32Bytes;
 };
 
 // How quickly disagreement between the two motion-compensated samples turns
@@ -78,12 +87,15 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // pixel's current position back to where that content was previously.
     float2 mv = SampleMotionBilinear(pixelCenter, blockCount);
 
-    // Halfway motion-compensated sample positions - THIS is what makes this
-    // real interpolation rather than a static blend: both samples are
-    // pulled along the actual estimated motion path toward the midpoint,
-    // not read from the same (x,y) in both frames.
-    float2 prevSamplePos = pixelCenter + 0.5 * mv;
-    float2 currSamplePos = pixelCenter - 0.5 * mv;
+    // Motion-compensated sample positions - THIS is what makes this real
+    // interpolation rather than a static blend: both samples are pulled
+    // along the actual estimated motion path toward this frame's point in
+    // time, not read from the same (x,y) in both frames. Each source is
+    // shifted by its own temporal distance to that point, so both land on
+    // the same content: the previous frame is (1 - t) away, the current
+    // frame t. At t = 0.5 this reduces to the original halfway case.
+    float2 prevSamplePos = pixelCenter + (1.0 - PhaseT) * mv;
+    float2 currSamplePos = pixelCenter - PhaseT * mv;
 
     float4 prevColor = PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0);
     float4 currColor = CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0);
@@ -94,7 +106,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
     float confidence = saturate(1.0 - mismatch * kMismatchSensitivity);
 
-    float4 blended = 0.5 * (prevColor + currColor);
+    // Weighted toward whichever real frame this generated frame sits closer
+    // to in time, so a t = 1/3 frame resembles the previous frame rather
+    // than the midpoint of the pair.
+    float4 blended = lerp(prevColor, currColor, PhaseT);
     float4 safeFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
 
     float4 result = lerp(safeFallback, blended, confidence);
