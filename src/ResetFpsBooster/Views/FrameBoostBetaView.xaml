@@ -101,6 +101,16 @@
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="On-screen age (avg)" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
+                                <Run Text="{Binding Telemetry.OnScreenAgeMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>
+                            </TextBlock>
+                        </Grid>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="220"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Motion estimation GPU time" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
                                 <Run Text="{Binding Telemetry.MotionEstimationGpuMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>

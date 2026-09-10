@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 
@@ -20,10 +19,6 @@ namespace ResetFpsBooster.Services;
 /// </summary>
 public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 {
-    private static readonly Regex TelemetryLineRegex = new(
-        @"Native FPS: (?<native>[\d.]+) \| Generated FPS: (?<generated>[\d.]+) \| Output FPS: (?<output>[\d.]+) \| Poll time: (?<poll>[\d.]+) ms \| Capture latency \(real, avg\): (?:(?<latency>[\d.]+) ms|N/A) \| Motion estimation GPU: (?<me>[\d.]+) ms \| Interpolation GPU: (?<interp>[\d.]+) ms",
-        RegexOptions.Compiled);
-
     private Process? _process;
 
     public bool IsRunning => _process is { HasExited: false };
@@ -76,7 +71,18 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = exePath,
-                Arguments = target.Handle.ToString(CultureInfo.InvariantCulture),
+                // "monitor": capture the whole display the target sits on,
+                // rather than the window itself.
+                //
+                // Window capture stalls as soon as the overlay covers the
+                // window - Windows stops drawing what it believes is hidden,
+                // which starves the very frames FrameBoost needs. Measured on
+                // the same game and machine: 32-35 duplicate frames per second
+                // and gaps up to 485 ms with window capture, against 0 and
+                // ~7 ms capturing the monitor. A display is always composited,
+                // so it keeps delivering with the overlay on top of it.
+                Arguments = string.Create(CultureInfo.InvariantCulture,
+                    $"{target.Handle} monitor"),
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
@@ -118,18 +124,16 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
             if (lastMatchLine is null) return new FrameBoostBetaTelemetry();
 
-            var match = TelemetryLineRegex.Match(lastMatchLine);
-            if (!match.Success) return new FrameBoostBetaTelemetry();
-
             return new FrameBoostBetaTelemetry
             {
-                NativeFps = ParseDouble(match.Groups["native"]),
-                GeneratedFps = ParseDouble(match.Groups["generated"]),
-                OutputFps = ParseDouble(match.Groups["output"]),
-                PollTimeMs = ParseDouble(match.Groups["poll"]),
-                CaptureLatencyMs = match.Groups["latency"].Success ? ParseDouble(match.Groups["latency"]) : null,
-                MotionEstimationGpuMs = ParseDouble(match.Groups["me"]),
-                InterpolationGpuMs = ParseDouble(match.Groups["interp"]),
+                NativeFps = ReadField(lastMatchLine, "Native FPS"),
+                GeneratedFps = ReadField(lastMatchLine, "Generated FPS"),
+                OutputFps = ReadField(lastMatchLine, "Output FPS"),
+                PollTimeMs = ReadField(lastMatchLine, "Poll time"),
+                CaptureLatencyMs = ReadField(lastMatchLine, "Capture latency (real, avg)"),
+                OnScreenAgeMs = ReadField(lastMatchLine, "On-screen age"),
+                MotionEstimationGpuMs = ReadField(lastMatchLine, "Motion estimation GPU"),
+                InterpolationGpuMs = ReadField(lastMatchLine, "Interpolation GPU"),
                 LastUpdatedUtc = DateTime.UtcNow,
             };
         }
@@ -140,8 +144,35 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
         }
     }
 
-    private static double? ParseDouble(System.Text.RegularExpressions.Group group) =>
-        group.Success && double.TryParse(group.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : null;
+    /// Reads one "Name: value" field out of a telemetry line, wherever it sits.
+    ///
+    /// Deliberately not one big regex over the whole line: the engine's
+    /// telemetry gained a dozen fields in a single day of measurement work, and
+    /// a pattern that pins the order silently stops matching every time one is
+    /// inserted - showing an empty panel rather than an error. Reading each
+    /// field by name survives that, and a field that genuinely is not reported
+    /// (the engine writes "N/A") stays null rather than becoming a made-up zero.
+    private static double? ReadField(string line, string name)
+    {
+        int keyIndex = line.IndexOf(name + ":", StringComparison.Ordinal);
+        if (keyIndex < 0) return null;
+
+        int valueStart = keyIndex + name.Length + 1;
+        int valueEnd = line.IndexOf('|', valueStart);
+        if (valueEnd < 0) valueEnd = line.Length;
+
+        // The value may carry a unit or further detail ("6.94 ms", "6.6 ms avg,
+        // 13.4 ms max") - the leading number is the one meant.
+        var span = line.AsSpan(valueStart, valueEnd - valueStart).Trim();
+        int length = 0;
+        while (length < span.Length && (char.IsDigit(span[length]) || span[length] == '.' || span[length] == '-'))
+            length++;
+        if (length == 0) return null; // "N/A" and anything else non-numeric
+
+        return double.TryParse(span[..length], NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
 
     public void Dispose() => Stop();
 

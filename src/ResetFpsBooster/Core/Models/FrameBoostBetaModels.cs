@@ -12,6 +12,12 @@ public sealed class FrameBoostBetaTelemetry
     public double? OutputFps { get; init; }
     public double? PollTimeMs { get; init; }
     public double? CaptureLatencyMs { get; init; }
+
+    // How old the newest real frame is by the time it is actually on screen -
+    // capture latency plus everything the engine adds after it. This is the
+    // number a player feels, so it is reported separately rather than folded
+    // into CaptureLatencyMs.
+    public double? OnScreenAgeMs { get; init; }
     public double? MotionEstimationGpuMs { get; init; }
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }
