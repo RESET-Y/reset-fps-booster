@@ -198,6 +198,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // stage counted separately, nothing generated and nothing displayed - so
     // the numbers describe the source and the capture, not what our own load
     // does to them.
+    // "modes": list the refresh rates this display actually offers at its
+    // current resolution, and exit. Which rates exist decides whether doubling
+    // can ever land on the refresh grid: 60 doubled is 120, which divides a
+    // 120 Hz panel exactly and a 144 Hz one not at all.
+    if (HasArg(L"modes")) {
+        DEVMODEW current{}; current.dmSize = sizeof(current);
+        EnumDisplaySettingsW(nullptr, ENUM_CURRENT_SETTINGS, &current);
+        std::ostringstream oss;
+        oss << "[FrameBoostBeta] Current mode: " << current.dmPelsWidth << "x" << current.dmPelsHeight
+            << " @ " << current.dmDisplayFrequency << " Hz. Available at this resolution:";
+        DEVMODEW mode{}; mode.dmSize = sizeof(mode);
+        for (DWORD i = 0; EnumDisplaySettingsW(nullptr, i, &mode); ++i) {
+            if (mode.dmPelsWidth == current.dmPelsWidth && mode.dmPelsHeight == current.dmPelsHeight)
+                oss << " " << mode.dmDisplayFrequency;
+        }
+        FrameBoostBeta::Logger::Log(oss.str());
+        return 0;
+    }
+
     if (HasArg(L"audit")) {
         HMONITOR auditMonitor = targetWindow
             ? MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST)
@@ -1508,22 +1527,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 continue;
             }
 
-            // A real frame from the previous pair that never got shown. It is
-            // overdue by definition - its slot was before this new arrival -
-            // so show it now rather than dropping it, which is what used to
-            // happen silently: the line below would overwrite the pending
-            // frame and the picture skipped a real step. This is the other
-            // half of why only ~50 of ~70 real frames per second reached the
-            // screen.
-            if (haveNewContent && realFramePendingSimple) {
-                if (estimator.CurrFrameTexture())
-                    presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
-                ++nativeFramesSinceReport;
-                realFramePendingSimple = false;
-                RecordPresentGap(NowMs());
-                RecordPresentAge();
-            }
-
             if (haveNewContent && haveMotionField && doublingFitsDisplay
                     && !forcePassthroughOnly && !inDegradedMode
                     && realFrameIntervalEmaMs > 1.0) {
@@ -1569,14 +1572,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 realFramePendingSimple = true;
             }
 
-            // Fresh clock, not the one read before the generated frames were made
-            // and paced. Using the stale "nowMs" here meant this test almost
-            // always failed - the time spent generating and waiting is exactly
-            // the time after which the real frame becomes due - so the real
-            // frame was left pending, and the next arrival overwrote it.
-            // Measured: ~50 real frames per second reaching the screen out of
-            // ~70 arriving.
-            if (realFramePendingSimple && NowMs() >= realFrameDueAtMs) {
+            // Deliberately the timestamp read BEFORE the generated frame was
+            // made and paced, not a fresh one.
+            //
+            // Reading it fresh looks obviously more correct, and it does put
+            // more real frames on screen - measured 50 -> 64 per second, output
+            // 105 -> 128. It also made the picture worse to watch, twice tested:
+            // a real frame shown the moment its slot passes lands wherever the
+            // loop happens to be, so the spacing follows our own timing noise
+            // instead of the source.s rhythm. The stale timestamp effectively
+            // defers such a frame to the next pass, which is a coarser but far
+            // steadier grid. Smoothness beat the frame count by eye, and the eye
+            // is what this is for.
+            if (realFramePendingSimple && nowMs >= realFrameDueAtMs) {
                 WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
                     presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
