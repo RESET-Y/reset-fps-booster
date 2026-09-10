@@ -550,6 +550,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double contentStepSum = 0.0, contentStepSumSq = 0.0;
     double contentStepMin = 1e9, contentStepMax = -1e9;
     uint64_t contentStepCount = 0, contentStepBackwards = 0;
+
+    // Records how far the displayed CONTENT moved since the last shown frame.
+    // Called from every present, on both output paths, with the moment in the
+    // source.s own timeline that the frame represents.
+    auto RecordContentStep = [&](double shownContentMs) {
+        if (lastShownContentMs > 0.0) {
+            const double step = shownContentMs - lastShownContentMs;
+            if (step > -50.0 && step < 100.0) {
+                contentStepSum += step;
+                contentStepSumSq += step * step;
+                ++contentStepCount;
+                if (step < contentStepMin) contentStepMin = step;
+                if (step > contentStepMax) contentStepMax = step;
+                if (step < 0.0) ++contentStepBackwards;
+            }
+        }
+        lastShownContentMs = shownContentMs;
+    };
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
@@ -584,14 +602,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // refresh with the phase taken from the clock, fed by the frame queue. It
     // was switched off back when capture delivered half the source rate and the
     // queue was starved; that reason is gone.
-    // The clock-driven path is the default: judged smoother side by side, and
-    // it is the one that adapts. The spacing between output frames is not a
-    // fixed step - the phase comes from the wall clock against the two real
-    // frames.s own capture timestamps, so an uneven source is replayed evenly
-    // instead of being handed on unevenly. Measured against the simple path on
-    // the same scene: output 139-140 of 144 possible, against 108-128.
-    // "simple" selects the pair-paced path.
-    bool simpleDoubleMode = HasArg(L"simple");
+    // EXACTLY DOUBLE, always: one generated frame per real frame, whatever the
+    // display refresh rate is.
+    //
+    // The clock-driven path fills every refresh instead, which means a 60 FPS
+    // source on a 144 Hz panel gets 2.4 output frames per real frame - more
+    // generated frames than real ones, at phases that shift from pair to pair.
+    // It measured better (139-140 output of 144) and it is the more general
+    // design, but generating until the refresh rate is full is not what this
+    // feature promises, and every extra generated frame is another guess
+    // between the same two known ones. "timedriven" selects it.
+    bool simpleDoubleMode = !HasArg(L"timedriven");
     bool f4WasDown = false;
     bool f12WasDown = false;
     bool autoDumpDone = false;
@@ -1563,6 +1584,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                     else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                     ++generatedFramesSinceReport;
+                    // Half way between the two real frames of this pair, in the
+                    // source.s own timeline.
+                    RecordContentStep(motionPrevTimestampMs + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs));
                     RecordPresentGap(NowMs());
                     RecordPresentAge();
                 }
@@ -1593,6 +1617,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
                 ++nativeFramesSinceReport;
                 realFramePendingSimple = false;
+                // The newer real frame of the pair: content time is its own
+                // capture timestamp.
+                RecordContentStep(motionCurrTimestampMs);
                 RecordPresentGap(NowMs());
                 RecordPresentAge();
             }
@@ -1702,29 +1729,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly && !(sourceIsIrregular && !bufferOneFrame) // the buffer is what makes an uneven source usable
             && phase > kRealFrameEpsilon && phase < 1.0 - kRealFrameEpsilon;
 
-        // How evenly the content actually advances, which is what the eye reads
-        // as smoothness - not the frame count.
-        //
-        // Content time is the pair.s own timeline: phase 0 is the older real
-        // frame, 1 the newer, so (prev + phase * interval) is the moment being
-        // shown. If that moment advances by the same amount every output frame,
-        // motion is even however the source arrived. If it jumps, motion speeds
-        // up and slows down - visible as judder while every counter looks right.
-        if (haveTimeline) {
-            const double shownContentMs = motionPrevTimestampMs + phase * realIntervalMs;
-            if (lastShownContentMs > 0.0) {
-                const double step = shownContentMs - lastShownContentMs;
-                if (step > -50.0 && step < 100.0) {
-                    contentStepSum += step;
-                    contentStepSumSq += step * step;
-                    ++contentStepCount;
-                    if (step < contentStepMin) contentStepMin = step;
-                    if (step > contentStepMax) contentStepMax = step;
-                    if (step < 0.0) ++contentStepBackwards;
-                }
-            }
-            lastShownContentMs = shownContentMs;
-        }
+        if (haveTimeline) RecordContentStep(motionPrevTimestampMs + phase * realIntervalMs);
 
         phaseSumForReport += phase;
         ++phaseCountForReport;
