@@ -89,7 +89,14 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
         // keeps this a plain Win32 app with no UI-thread/COM apartment
         // ceremony beyond winrt::init_apartment() at process start.
         m_framePool = Direct3D11CaptureFramePool::CreateFreeThreaded(
-            wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, size);
+            // Six buffers, not two. With two, a source producing frames faster
+            // than we poll silently loses the ones that do not fit - and
+            // silently is the problem: nothing in the API reports it, so the
+            // frames we DO get look evenly spaced and the source looks slower
+            // than it is. Measured in a game reporting 75 FPS internally:
+            // WGC handed us 52, spaced 19.2 ms, with no dropped-frame count to
+            // show for it.
+            wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, size);
 
         m_session = m_framePool.CreateCaptureSession(m_item);
 

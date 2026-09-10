@@ -304,6 +304,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // says nothing about the delay the interpolation scheme itself adds by
     // holding a real frame back so its generated partners can be shown first.
     int64_t currentPairTimestamp100ns = 0;
+    // Diagnostic: how many frames WGC actually hands over per second when we
+    // poll at the full output rate, as opposed to once per pair. If this is
+    // higher than Native FPS, the surplus was being discarded unseen.
+    int64_t pendingCaptureTimestamp100ns = 0;
+    bool havePendingCapture = false;
+    uint64_t captureArrivalsSinceReport = 0;
     double presentAgeSumMs = 0.0, presentAgeMaxMs = 0.0;
     uint64_t presentAgeSamples = 0;
 
@@ -539,6 +545,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Capture arrivals/s: " << (captureArrivalsSinceReport / elapsed)
             << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
@@ -568,6 +575,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         latencySamples = 0;
         phaseComputeMsSum = 0.0;
         presentAgeSumMs = 0.0; presentAgeMaxMs = 0.0; presentAgeSamples = 0;
+        captureArrivalsSinceReport = 0;
         gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
@@ -669,6 +677,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 ++pairStep;
                 // deliberately no `continue`
             } else {
+
+            // Keep the capture drained even while presenting this pair's
+            // generated frames. Polling only once per pair meant asking WGC
+            // for frames ~52 times a second while a game was producing 75 -
+            // and a full frame pool discards the surplus silently, with no
+            // count to show for it, so the source merely looked slower than
+            // it was. The newest frame here is kept for the next pair rather
+            // than dropped.
+            {
+                UINT pw = 0, ph = 0;
+                int64_t pts = 0;
+                bool isNew = false;
+                ID3D11Texture2D* drained = capture.PollLatestFrame(pw, ph, pts, isNew);
+                if (drained && isNew && pts > 0) {
+                    pendingCaptureTimestamp100ns = pts;
+                    havePendingCapture = true;
+                    ++captureArrivalsSinceReport;
+                }
+            }
 
             ID3D11Texture2D* frameToShow = estimator.CurrFrameTexture();
 
