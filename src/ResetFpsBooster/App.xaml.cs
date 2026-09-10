@@ -64,6 +64,13 @@ public partial class App : Application
         // Restores any deprioritized background processes if the app is closed mid-boost —
         // otherwise they'd stay at BelowNormal priority until their own next restart.
         _services?.GameBoost.Stop();
+#if RFB_BETA
+        // The FrameBoost engine is a separate process holding a full-screen
+        // overlay. Closing this window used to leave it running, and it has no
+        // window of its own to close - the overlay simply stayed on the display
+        // with no way left to remove it. Shutting it down is the app's job.
+        _services?.FrameBoostBeta.Stop();
+#endif
         base.OnExit(e);
     }
 
