@@ -32,8 +32,17 @@ RWTexture2D<float2> MotionVectors : register(u0);
 // Finer blocks matter because a block shares ONE motion vector: at 32px,
 // a moving object and the static background behind it are forced into the
 // same vector wherever they meet, and one of the two is always wrong.
-static const int kBlockSize = 16;
-static const int kBlockSampleStride = 4;
+// Halved to 8px after live testing in a game: during fast turning the whole
+// image moves 90 px between real frames, with peaks over 200. A block shares
+// one motion vector, so at 16px the boundary between a moving object and its
+// background was 16 px of content forced into one wrong answer. At 8px that
+// error zone is a quarter the area.
+//
+// Four times as many blocks, but motion estimation runs once per REAL frame -
+// about 50 times a second, with a 20 ms budget each - and it was costing
+// 0.3-2.3 ms.
+static const int kBlockSize = 8;
+static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
 // FINE stage of the pyramid. The search no longer starts from zero: it
 // starts from the coarse stage's result (motion_estimation_coarse.hlsl,
 // which searches +-48 px on a quarter-resolution mip) and only refines it
@@ -52,7 +61,9 @@ static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 
 // One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
 // vectors are stored in mip-2 texels.
-static const int kCoarseBlockRatio = 4;
+// One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
+// it now covers 8 of them per axis rather than 4.
+static const int kCoarseBlockRatio = 8;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float2> CoarseMotionVectors : register(t2);

@@ -41,7 +41,7 @@ public:
     ID3D11Texture2D* CurrFrameTexture() const { return m_currFrameTex; }
     ID3D11Texture2D* PrevFrameTexture() const { return m_prevFrameTex; }
     ID3D11ShaderResourceView* MotionVectorSRV() const { return m_motionVectorSmoothSRV; }
-    static constexpr UINT BlockSizePixels() { return 16; }
+    static constexpr UINT BlockSizePixels() { return 8; }
 
     ~Estimator();
 

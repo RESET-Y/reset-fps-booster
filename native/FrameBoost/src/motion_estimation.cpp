@@ -14,13 +14,13 @@ namespace {
 // Estimator::BlockSizePixels() - the dispatch grid, the shader's block
 // origin maths and the interpolation shader's block lookup all depend on
 // these agreeing.
-constexpr UINT kBlockSize = 16;
+constexpr UINT kBlockSize = 8;
 
 // Pyramid: the coarse stage searches mip 2 (quarter resolution) with 16-texel
 // blocks, so one coarse block covers 64 full-resolution pixels = 4x4 fine
 // blocks. MUST stay in sync with motion_estimation_coarse.hlsl.
 constexpr UINT kMipLevels = 5; // full, 1/2, 1/4, 1/8, 1/16 - the pyramid needs mip 4
-constexpr UINT kCoarseBlockRatio = 4;
+constexpr UINT kCoarseBlockRatio = 8; // 64px coarse block / 8px fine block
 constexpr UINT kCoarsestBlockRatio = 4; // coarsest blocks per coarse block, each axis
 
 void SafeRelease(IUnknown* obj) {
