@@ -329,8 +329,17 @@ void Presenter::TrackOverlayTarget() {
     if (m_overlayMonitor) {
         MONITORINFO mi{ sizeof(MONITORINFO) };
         if (GetMonitorInfoW(m_overlayMonitor, &mi)) {
-            SetWindowPos(m_hwnd, HWND_TOPMOST, mi.rcMonitor.left, mi.rcMonitor.top,
-                mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
+            // Leave one pixel column uncovered, the same trick already used
+            // for window mode. A window Windows considers FULLY occluded stops
+            // being drawn, which starves the capture this overlay exists to
+            // improve - measured as gaps of 82-166 ms every few seconds with
+            // the monitor fully covered. Covering all but one pixel column is
+            // invisible and keeps the content below being drawn.
+            constexpr int kAntiOcclusionInsetPx = 1;
+            SetWindowPos(m_hwnd, HWND_TOPMOST,
+                mi.rcMonitor.left + kAntiOcclusionInsetPx, mi.rcMonitor.top,
+                (mi.rcMonitor.right - mi.rcMonitor.left) - kAntiOcclusionInsetPx,
+                mi.rcMonitor.bottom - mi.rcMonitor.top,
                 SWP_NOACTIVATE | SWP_NOOWNERZORDER);
         }
         return;
