@@ -879,7 +879,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (generationFactor > maxFactor) generationFactor = maxFactor;
             FrameBoostBeta::Logger::Log(maxFactor == 2
                 ? "[FrameBoostBeta] F6: 2x - one generated frame per real frame, at the symmetric midpoint."
-                : "[FrameBoostBeta] F6: 3x - two generated frames per real frame, which is what lands exactly on a 144 Hz refresh at ~48 real FPS.");
+                : "[FrameBoostBeta] F6: 3x - two generated frames per real frame, for sources running at about a third of the display's refresh rate.");
         }
         f6WasDown = f6IsDown;
 
