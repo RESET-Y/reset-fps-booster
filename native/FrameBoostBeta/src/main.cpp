@@ -300,7 +300,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // 3-6 ms average on-screen age at factor 3, 12-20 ms worst case, against
     // ~1.4 ms for pure passthrough. F6 caps the factor at 2 to halve the
     // hold, trading output frames for responsiveness.
-    int maxFactor = 4;
+    int maxFactor = 2;
     bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
@@ -400,8 +400,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // three times longer than it should.
     //
     // A queue keeps them in order, and the clock consumes them one at a time.
-    // Simple 2x is the default: one generated frame per real frame at the
-    // midpoint, paced off the source. Toggled with CTRL+ALT+F4.
+    // Time-driven output is the default: one frame per refresh, so every
+    // refresh shows something new.
+    //
+    // Simple 2x (CTRL+ALT+F4) doubles the source instead, which at ~50 real
+    // FPS means 100 output on a 144 Hz panel - and 100 does not divide 144.
+    // Its content steps evenly every 10 ms while the display holds each frame
+    // for either 7 or 14 ms, alternating. That is the same mismatch that makes
+    // 24 fps film judder on a 60 Hz television, it is visible however clean
+    // each individual frame is, and no amount of interpolation quality touches
+    // it - which is exactly what was reported: a dumped frame with no visible
+    // artefacts, and judder unchanged.
     bool simpleDoubleMode = true;
     bool f4WasDown = false;
     bool f12WasDown = false;
@@ -411,7 +420,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double refreshAnchorMs = 0.0;
     double realFrameDueAtMs = 0.0;
 
-    bool bufferOneFrame = false;
+    // On for the time-driven output: the queue is what lets a clock-paced
+    // output survive a source that delivers unevenly, and without it the
+    // regularity gate switches generation off entirely in a game.
+    bool bufferOneFrame = true;
     bool f5WasDown = false;
     constexpr int kFrameQueueSize = 4;
     ID3D11Texture2D* queueTex[kFrameQueueSize] = {};
@@ -755,12 +767,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // frame is held one output slot instead of two before being shown.
         bool f6IsDown = HotkeyDown(VK_F6);
         if (f6IsDown && !f6WasDown) {
-            maxFactor = (maxFactor == 2) ? 4 : 2;
+            maxFactor = (maxFactor == 2) ? 3 : 2;
             candidateFactorHeldFrames = 0;
             if (generationFactor > maxFactor) generationFactor = maxFactor;
             FrameBoostBeta::Logger::Log(maxFactor == 2
-                ? "[FrameBoostBeta] F6: LOW LATENCY - factor capped at 2x, real frames held one slot instead of two."
-                : "[FrameBoostBeta] F6: latency cap released - factor free up to 4x.");
+                ? "[FrameBoostBeta] F6: 2x - one generated frame per real frame, at the symmetric midpoint."
+                : "[FrameBoostBeta] F6: 3x - two generated frames per real frame, which is what lands exactly on a 144 Hz refresh at ~48 real FPS.");
         }
         f6WasDown = f6IsDown;
 
@@ -990,7 +1002,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // fully in the past: its duration is known exactly, and the frame
             // that ends it is already in hand. Costs one frame of latency,
             // which is why it is a toggle (F5).
-            if (bufferOneFrame && EnsureFrameQueue(capturedTex)) {
+            // The queue belongs to the time-driven output only. Simple 2x skips
+            // that section entirely, so with the queue in the way its frames
+            // were parked and never handed to the estimator: the motion field
+            // stopped updating and the same intermediate frame was generated
+            // over and over. Measured: 121 generated frames per second, zero
+            // real frames presented, and content stepping only ~50 times a
+            // second - reported as "no judder at all, but it looks like 30 fps".
+            if (bufferOneFrame && !simpleDoubleMode && EnsureFrameQueue(capturedTex)) {
                 // Buffered: the frame is only parked here. Whether it becomes
                 // the next pair is decided by the presentation CLOCK further
                 // down, not by its arrival.
@@ -1100,21 +1119,65 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
             const double nowMs = NowMs();
 
+            // How many output frames per real frame, chosen so the result
+            // lands on the refresh rate.
+            //
+            // Doubling a ~48 FPS source gives 96 on a 144 Hz panel, and 96
+            // does not divide 144: the content steps evenly while the display
+            // holds each frame for either one or two refreshes, alternating.
+            // That is the same mismatch that makes 24 fps film judder on a
+            // 60 Hz television - visible however clean each frame is, which
+            // is exactly what was reported after the artefacts were fixed.
+            // Three output frames per real frame gives 144 on the nose.
+            int outputPerReal = 2;
+            if (outputRefreshHz > 0.0 && realFrameIntervalEmaMs > 1.0) {
+                const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
+                const int ideal = static_cast<int>(outputRefreshHz / nativeFps + 0.5);
+                outputPerReal = ideal < 2 ? 2 : (ideal > 4 ? 4 : ideal);
+                // Capped by the F6 setting, so the choice stays with the user.
+                // 2x is the default because it was judged best by eye;
+                // CTRL+ALT+F6 releases the cap to whatever lands on the
+                // refresh rate - 3x at ~48 real FPS on a 144 Hz panel.
+                if (outputPerReal > maxFactor) outputPerReal = maxFactor;
+                // Capped by the F6 setting, so the choice stays with the user:
+                // 2x is the default because it was judged best by eye, and
+                // CTRL+ALT+F6 releases the cap to whatever lands on the
+                // refresh rate (3x at ~48 real FPS on a 144 Hz panel).
+                if (outputPerReal > maxFactor) outputPerReal = maxFactor;
+            }
+
             if (haveNewContent && haveMotionField && !forcePassthroughOnly && !inDegradedMode
                     && realFrameIntervalEmaMs > 1.0) {
-                // A new real frame just landed: show the midpoint between it
-                // and the one before, then queue the real frame itself for
-                // half an interval later.
-                interpolator.SetPhase(0.5f);
-                interpolator.SetStatusFlags(1u | (transparentRealFrames && presenter.SupportsTransparency() ? 2u : 0u));
-
+                // A new real frame just landed. Emit the intermediate frames
+                // that belong before it, evenly spaced across the interval,
+                // then queue the real frame for the end of it.
+                //
+                // At outputPerReal = 3 the phases are 1/3 and 2/3, presented
+                // one third and two thirds of an interval apart, so with the
+                // real frame the display gets three evenly spaced frames per
+                // source frame - 144 on a 144 Hz panel.
                 D3D11_TEXTURE2D_DESC desc{};
                 estimator.CurrFrameTexture()->GetDesc(&desc);
-                ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
-                if (interpolator.GenerateFrame(device.get(), context.get(),
-                        estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
-                        desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+
+                for (int step = 1; step < outputPerReal; ++step) {
+                    const float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
+                    interpolator.SetPhase(phaseForStep);
+                    interpolator.SetStatusFlags((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u);
+
+                    ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
+                    if (!interpolator.GenerateFrame(device.get(), context.get(),
+                            estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                            desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                        break;
+                    }
+
+                    // Hold each one until its own point in the interval before
+                    // presenting, so the spacing follows the content rather
+                    // than however fast the GPU happened to finish.
+                    const double dueAtMs = nowMs + realFrameIntervalEmaMs * (static_cast<double>(step - 1) / outputPerReal);
+                    while (NowMs() < dueAtMs) { /* short wait; steps are ~7 ms apart */ }
                     WaitForRefreshBoundary();
+
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                     else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                     ++generatedFramesSinceReport;
@@ -1122,7 +1185,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     RecordPresentAge();
                 }
 
-                realFrameDueAtMs = nowMs + realFrameIntervalEmaMs * 0.5;
+                realFrameDueAtMs = nowMs + realFrameIntervalEmaMs
+                    * (static_cast<double>(outputPerReal - 1) / outputPerReal);
                 realFramePendingSimple = true;
             }
 
