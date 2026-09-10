@@ -559,6 +559,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // the same as the rate the game produces new pictures (see where it is set).
     double pacingIntervalMs = -1.0;
 
+    // Fixed delay between a frame.s capture timestamp and the moment it is
+    // shown. Everything the 2x path presents is scheduled against this, so the
+    // spacing on screen mirrors the spacing the source produced. Seeded on the
+    // first pair and then only nudged.
+    double simplePresentOffsetMs = -1.0;
+    // How long a frame takes to reach us after the compositor timestamped it.
+    double arrivalLagEmaMs = -1.0;
+    // Content time of the predicted frame waiting to be shown.
+    double generatedContentMs = 0.0;
+
     // The interval the OUTPUT is paced on: the arrival rate where it is known,
     // the processed rate otherwise.
     auto OutputInterval = [&]() {
@@ -1669,14 +1679,58 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // background, because no later frame exists to copy it from. That
             // is the trade, and it is for the eye to judge, not the numbers.
             if (extrapolateMode) {
-                // The predicted frame goes out FIRST when its moment has come -
-                // and a newly arrived real frame means that moment has passed,
-                // because the prediction belongs to the interval before it.
-                // Emitting it after the new real frame would step backwards in
-                // time; leaving it pending drops it, which cost half of them:
-                // measured at 34 generated against 64 real frames per second.
-                if (generatedPendingSimple && (haveNewContent || NowMs() >= generatedDueAtMs)
-                        && estimator.CurrFrameTexture()) {
+                // PREDICT FORWARD, so the real frame is never held back.
+                //
+                // Interpolation has to wait: a frame placed between N and N+1
+                // needs N+1 in hand, so N+1 is shown half an interval late -
+                // 6.8 ms at 73 FPS, and the only part of the delay that belongs
+                // to us rather than to the game. Predicting forward from the
+                // newest real frame pays none of it: the real frame goes out as
+                // soon as it arrives, and the generated one follows it.
+                //
+                // What it cannot know is what a moving object uncovers, because
+                // there is no later frame to copy that from - the block match
+                // error decides how far the prediction is trusted, and where it
+                // is weak the pixel stays put instead of smearing.
+                if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
+                        && gpuHasRoom && realFrameIntervalEmaMs > 1.0) {
+                    const double pairIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+                    const double arrivalLagMs = NowMs() - motionCurrTimestampMs;
+                    arrivalLagEmaMs = arrivalLagEmaMs < 0.0
+                        ? arrivalLagMs
+                        : arrivalLagEmaMs * 0.9 + arrivalLagMs * 0.1;
+
+                    // No half-interval term here, and that IS the latency win:
+                    // the offset only has to cover the trip from the compositor
+                    // to us, not the wait for a frame that comes after.
+                    const double offsetMs = arrivalLagEmaMs + 1.0;
+
+                    const double realDueAtMs = motionCurrTimestampMs + offsetMs;
+                    const double realCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                    while (NowMs() < realDueAtMs && NowMs() < realCeilingMs) { ddCapture.Pump(); }
+
+                    if (transparentRealFrames && presenter.SupportsTransparency()) {
+                        presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+                    } else if (estimator.CurrFrameTexture()) {
+                        presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+                    }
+                    ++nativeFramesSinceReport;
+                    RecordContentStep(motionCurrTimestampMs);
+                    RecordPresentGap(NowMs());
+                    RecordPresentAge();
+
+                    // The prediction belongs half an interval AFTER the frame it
+                    // was made from - it is the future, not an in-between.
+                    generatedDueAtMs = motionCurrTimestampMs + pairIntervalMs * 0.5 + offsetMs;
+                    generatedContentMs = motionCurrTimestampMs + pairIntervalMs * 0.5;
+                    generatedPendingSimple = haveMotionField;
+                }
+
+                // The predicted frame, once its moment comes - or at once if a
+                // new real frame has arrived, because then its moment has passed
+                // and holding it back would only delay the real one behind it.
+                if (generatedPendingSimple && estimator.CurrFrameTexture()
+                        && (haveNewContent || NowMs() >= generatedDueAtMs)) {
                     D3D11_TEXTURE2D_DESC desc{};
                     estimator.CurrFrameTexture()->GetDesc(&desc);
 
@@ -1689,83 +1743,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                             estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                             desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
                         lastInterpolationRunMs = NowMs();
-                        WaitForRefreshBoundary();
+
+                        const double genCeilingMs = NowMs() + 20.0;
+                        while (NowMs() < generatedDueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
+
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                         else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                         ++generatedFramesSinceReport;
+                        RecordContentStep(generatedContentMs);
                         RecordPresentGap(NowMs());
                         RecordPresentAge();
                     }
                     generatedPendingSimple = false;
-                }
-
-                if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
-                        && realFrameIntervalEmaMs > 1.0 && doublingFitsDisplay) {
-                    // A PACING BUFFER, not the algorithmic hold interpolation needs.
-                    //
-                    // Showing each real frame the instant it arrives makes the
-                    // output inherit the source.s own unevenness - and this
-                    // source measures 30-45% deviation between frame intervals.
-                    // Interpolation.s half-interval hold was hiding that: it ran
-                    // every frame off an even clock. Removing it bought 3 ms of
-                    // latency and cost the smoothness, which is exactly what was
-                    // reported - "it lagged a fraction of a second before, but it
-                    // was smoother".
-                    //
-                    // So the frame is placed on an even clock derived from the
-                    // measured interval, and the buffer is only as large as the
-                    // jitter it has to absorb - a quarter interval, ~3.5 ms at 70
-                    // FPS, against the 7.8 ms interpolation could not avoid. A
-                    // frame that arrives later than its slot is shown at once and
-                    // the clock resynchronises, so a real stall never accumulates.
-                    // The wait is NOT taken here. Blocking until the slot came due
-                    // stretched every pass of the loop by a quarter interval on
-                    // top of its own work, so a pass took longer than the source
-                    // interval and the engine settled at half the source rate -
-                    // seen immediately as 35 native FPS against a 70 FPS game.
-                    // The frame is marked pending instead, and the loop keeps
-                    // capturing and estimating until its moment arrives.
-                    const double pacingBufferMs = realFrameIntervalEmaMs * 0.25;
-                    if (nextRealPresentDueMs <= 0.0 || NowMs() > nextRealPresentDueMs + realFrameIntervalEmaMs)
-                        nextRealPresentDueMs = NowMs() + pacingBufferMs; // (re)synchronise
-                    realFramePendingSimple = true;
-                }
-
-                if (realFramePendingSimple && NowMs() >= nextRealPresentDueMs) {
-                    realFramePendingSimple = false;
-                    lastRealPresentMs = NowMs();
-                    // The clock advances in fixed steps from the PREVIOUS slot, not
-                    // from the moment this frame actually went out. Measuring from
-                    // the actual present adds that pass.s overshoot to every
-                    // interval, and the overshoot compounds: the engine settled at
-                    // 38 real frames per second against a 64 FPS source, with
-                    // on-screen age climbing to 20-24 ms.
-                    nextRealPresentDueMs += realFrameIntervalEmaMs;
-                    if (nextRealPresentDueMs < NowMs()) {
-                        // Behind the grid: the next frame is shown as soon as it
-                        // exists, NOT one interval from now.
-                        //
-                        // Pushing the slot a full interval into the future while
-                        // already late is what produced the recurring hitch: output
-                        // intervals of exactly 41.6 ms - six refresh periods with
-                        // nothing new on screen - in almost every second, against a
-                        // mean of 8.3-9.9 ms. Described from the sofa as "smooth for
-                        // a moment, then it feels like 50 FPS, then smooth again".
-                        nextRealPresentDueMs = NowMs();
-                    }
-
-                    WaitForRefreshBoundary();
-                    if (transparentRealFrames && presenter.SupportsTransparency()) {
-                        presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
-                    } else if (estimator.CurrFrameTexture()) {
-                        presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
-                    }
-                    ++nativeFramesSinceReport;
-                    RecordPresentGap(NowMs());
-                    RecordPresentAge();
-
-                    generatedDueAtMs = lastRealPresentMs + realFrameIntervalEmaMs * 0.5;
-                    generatedPendingSimple = haveMotionField;
                 }
 
                 Sleep(0);
@@ -1787,6 +1776,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 D3D11_TEXTURE2D_DESC desc{};
                 estimator.CurrFrameTexture()->GetDesc(&desc);
 
+                // The offset is COMPUTED from what it has to cover, never
+                // accumulated.
+                //
+                // It was integrated at first - a fifth of a millisecond added
+                // whenever a frame arrived late - which at 75 frames a second
+                // grows by 15 ms every second with no way back down. Within
+                // seconds the output was waiting hundreds of milliseconds and
+                // the picture froze on a single frame. Reported as exactly
+                // that: "it is always the same frame, non stop".
+                //
+                // Two things have to fit inside it: how long a frame takes to
+                // reach us after the compositor timestamped it, and half an
+                // interval, because the generated frame belongs BEFORE the real
+                // frame it was made from and can only be shown once that frame
+                // exists. Both are measured, so the offset tracks them instead
+                // of drifting away from them.
+                const double pairIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+                const double arrivalLagMs = NowMs() - motionCurrTimestampMs;
+                arrivalLagEmaMs = arrivalLagEmaMs < 0.0
+                    ? arrivalLagMs
+                    : arrivalLagEmaMs * 0.9 + arrivalLagMs * 0.1;
+                simplePresentOffsetMs = arrivalLagEmaMs + pairIntervalMs * 0.5 + 1.0;
+
                 for (int step = 1; step < outputPerReal; ++step) {
                     const float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
                     interpolator.SetPhase(phaseForStep);
@@ -1800,11 +1812,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     }
                     lastInterpolationRunMs = NowMs();
 
-                    // Hold each one until its own point in the interval before
-                    // presenting, so the spacing follows the content rather
-                    // than however fast the GPU happened to finish.
-                    const double dueAtMs = nowMs + OutputInterval() * (static_cast<double>(step - 1) / outputPerReal);
-                    while (NowMs() < dueAtMs) { /* short wait; steps are ~7 ms apart */ }
+                    // Shown at the moment its CONTENT belongs to, plus a fixed
+                    // offset - not at "now plus a fraction of an interval".
+                    //
+                    // Pacing from the moment we happened to finish processing
+                    // writes every hiccup of our own loop straight into the
+                    // spacing: measured content steps between 0.5 and 17 ms
+                    // around a mean of 6.8, a standard deviation of 30-40%.
+                    // Anchoring to the frame's own capture timestamp shows an
+                    // uneven source exactly as unevenly as it was produced -
+                    // which is what smooth motion actually requires - and drops
+                    // our own scheduling noise out of the result.
+                    const double contentMs = motionPrevTimestampMs
+                        + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs);
+                    const double dueAtMs = contentMs + simplePresentOffsetMs;
+                    // Same backstop as below: never wait longer than one source
+                    // interval, so no arithmetic mistake can freeze the picture.
+                    const double genCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                    while (NowMs() < dueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
                     WaitForRefreshBoundary();
 
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
@@ -1833,9 +1858,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 //
                 // The wait is bounded by half a source interval - about 7 ms -
                 // and capture keeps running through it.
-                const double realDueAtMs = nowMs + OutputInterval()
-                    * (static_cast<double>(outputPerReal - 1) / outputPerReal);
-                while (NowMs() < realDueAtMs) { ddCapture.Pump(); }
+                // Same anchor for the real frame: its own capture timestamp
+                // plus the offset.
+                const double realDueAtMs = motionCurrTimestampMs + simplePresentOffsetMs;
+
+                // Never wait longer than one source interval, whatever the
+                // arithmetic says. A wait that can grow without bound is how the
+                // picture froze; this is the backstop that makes that
+                // impossible rather than merely unlikely.
+                const double waitCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                while (NowMs() < realDueAtMs && NowMs() < waitCeilingMs) { ddCapture.Pump(); }
 
                 WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
