@@ -751,7 +751,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
 
         std::ostringstream oss;
-        oss << "[FrameBoostBeta] Native FPS: " << nativeFps
+        // Two different numbers that were conflated until now: how fast the
+        // source actually delivers frames, and how many of those reach the
+        // screen as real (non-generated) frames. The first is the game.s frame
+        // rate; the second is what our pacing manages to place. Reporting only
+        // the second under the name "Native FPS" made a pacing problem look
+        // like a capture problem for most of a day.
+        const double sourceFps = realFrameIntervalEmaMs > 0.0 ? 1000.0 / realFrameIntervalEmaMs : -1.0;
+        oss << "[FrameBoostBeta] Source FPS: " << sourceFps
+            << " | Native FPS: " << nativeFps
             << " | Generated FPS: " << generatedFps
             << " | Output FPS: " << outputFps
             << " | Poll time: " << lastCaptureMs << " ms"
@@ -1357,6 +1365,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
             }
 
+            // A real frame from the previous pair that never got shown. It is
+            // overdue by definition - its slot was before this new arrival -
+            // so show it now rather than dropping it, which is what used to
+            // happen silently: the line below would overwrite the pending
+            // frame and the picture skipped a real step. This is the other
+            // half of why only ~50 of ~70 real frames per second reached the
+            // screen.
+            if (haveNewContent && realFramePendingSimple) {
+                if (estimator.CurrFrameTexture())
+                    presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+                ++nativeFramesSinceReport;
+                realFramePendingSimple = false;
+                RecordPresentGap(NowMs());
+                RecordPresentAge();
+            }
+
             if (haveNewContent && haveMotionField && doublingFitsDisplay
                     && !forcePassthroughOnly && !inDegradedMode
                     && realFrameIntervalEmaMs > 1.0) {
@@ -1402,7 +1426,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 realFramePendingSimple = true;
             }
 
-            if (realFramePendingSimple && nowMs >= realFrameDueAtMs) {
+            // Fresh clock, not the one read before the generated frames were made
+            // and paced. Using the stale "nowMs" here meant this test almost
+            // always failed - the time spent generating and waiting is exactly
+            // the time after which the real frame becomes due - so the real
+            // frame was left pending, and the next arrival overwrote it.
+            // Measured: ~50 real frames per second reaching the screen out of
+            // ~70 arriving.
+            if (realFramePendingSimple && NowMs() >= realFrameDueAtMs) {
                 WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
                     presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
