@@ -152,7 +152,8 @@ void Interpolator::ResolvePendingGpuTiming(ID3D11DeviceContext* context) {
 
 bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* context,
                                   ID3D11ShaderResourceView* prevSRV, ID3D11ShaderResourceView* currSRV,
-                                  ID3D11ShaderResourceView* motionSRV, UINT width, UINT height, DXGI_FORMAT format) {
+                                  ID3D11ShaderResourceView* motionSRV, UINT width, UINT height, DXGI_FORMAT format,
+                                  ID3D11UnorderedAccessView* targetUAV) {
     if (!prevSRV || !currSRV || !motionSRV) return false;
     if (!EnsureResources(device, width, height, format)) return false;
 
@@ -178,7 +179,8 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
 
     ID3D11ShaderResourceView* srvs[3] = { prevSRV, currSRV, motionSRV };
     context->CSSetShaderResources(0, 3, srvs);
-    context->CSSetUnorderedAccessViews(0, 1, &m_generatedUAV, nullptr);
+    ID3D11UnorderedAccessView* outputUAV = targetUAV ? targetUAV : m_generatedUAV;
+    context->CSSetUnorderedAccessViews(0, 1, &outputUAV, nullptr);
     context->CSSetSamplers(0, 1, &m_linearClampSampler);
     context->CSSetConstantBuffers(0, 1, &m_paramsCB);
     context->CSSetShader(m_computeShader, nullptr, 0);

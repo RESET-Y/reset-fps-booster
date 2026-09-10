@@ -1113,10 +1113,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
+            // Straight into the back buffer where possible: writing to our own
+            // texture and copying it costs a full-frame copy per presented
+            // frame - 14 MB at 2560x1440, at up to 144 frames a second.
+            ID3D11UnorderedAccessView* backBufferUAV = presenter.AcquireBackBufferUAV(device.get());
+
             if (interpolator.GenerateFrame(device.get(), context.get(),
                     estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
-                    desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM)) {
-                presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                    desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, backBufferUAV)) {
+                if (backBufferUAV) {
+                    presenter.PresentBackBuffer(presentSyncInterval);
+                } else {
+                    presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                }
                 presentedGenerated = true;
             }
         }

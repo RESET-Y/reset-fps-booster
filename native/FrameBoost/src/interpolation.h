@@ -16,7 +16,11 @@ public:
     // can later be copied into a real swapchain back buffer (Milestone 5).
     bool GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* context,
                         ID3D11ShaderResourceView* prevSRV, ID3D11ShaderResourceView* currSRV,
-                        ID3D11ShaderResourceView* motionSRV, UINT width, UINT height, DXGI_FORMAT format);
+                        ID3D11ShaderResourceView* motionSRV, UINT width, UINT height, DXGI_FORMAT format,
+                        // When given, the shader writes straight into this view instead of the
+                        // interpolator`s own texture, which saves copying a full frame into the
+                        // swapchain afterwards - 14 MB at 2560x1440, once per presented frame.
+                        ID3D11UnorderedAccessView* targetUAV = nullptr);
 
     // Developer aid: tints generated frames so it is visually unambiguous
     // which frames on screen are generated (and whether they arrive at all).

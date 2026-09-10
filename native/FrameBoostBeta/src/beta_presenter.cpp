@@ -190,7 +190,11 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     scDesc.Height = height;
     scDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // flip model does not support the _SRGB variants directly
     scDesc.SampleDesc.Count = 1;
-    scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    // UNORDERED_ACCESS so the interpolation shader can write STRAIGHT into
+    // the back buffer. Without it every generated frame had to be written to
+    // an intermediate texture and then copied - 14 MB per frame, 144 times a
+    // second, for nothing.
+    scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS;
     scDesc.BufferCount = 3; // extra slack so the immediate (syncInterval 0) generated-frame present never stalls waiting for a free buffer
 
     IDXGISwapChain1* swapChain = nullptr;
@@ -243,6 +247,42 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
         ? "[FrameBoostBeta] Presenter: DirectComposition flip-model swapchain (per-refresh delivery, frame statistics available, per-pixel alpha capable)."
         : "[FrameBoostBeta] Presenter: layered-window BitBlt swapchain (legacy path - no per-refresh guarantee).");
     return true;
+}
+
+ID3D11UnorderedAccessView* Presenter::AcquireBackBufferUAV(ID3D11Device* device) {
+    if (!m_swapChain || !device) return nullptr;
+
+    ID3D11Texture2D* backBuffer = nullptr;
+    if (FAILED(m_swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer)))) return nullptr;
+
+    // The flip model rotates through several buffers, so cache the view per
+    // buffer rather than recreating it every frame.
+    if (m_backBufferUAV && backBuffer == m_uavBackBuffer) {
+        backBuffer->Release();
+        return m_backBufferUAV;
+    }
+
+    if (m_backBufferUAV) { m_backBufferUAV->Release(); m_backBufferUAV = nullptr; }
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+    uavDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Texture2D.MipSlice = 0;
+
+    if (FAILED(device->CreateUnorderedAccessView(backBuffer, &uavDesc, &m_backBufferUAV))) {
+        m_backBufferUAV = nullptr;
+        backBuffer->Release();
+        return nullptr;
+    }
+
+    m_uavBackBuffer = backBuffer; // borrowed pointer, used only for identity
+    backBuffer->Release();
+    return m_backBufferUAV;
+}
+
+HRESULT Presenter::PresentBackBuffer(UINT syncInterval) {
+    if (!m_swapChain) return E_FAIL;
+    return m_swapChain->Present(syncInterval, 0);
 }
 
 HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval) {
@@ -382,6 +422,7 @@ void Presenter::PumpMessages() {
 
 Presenter::~Presenter() {
     if (m_clearRTV) m_clearRTV->Release();
+    if (m_backBufferUAV) m_backBufferUAV->Release();
     if (m_dcompVisual) m_dcompVisual->Release();
     if (m_dcompTarget) m_dcompTarget->Release();
     if (m_dcompDevice) m_dcompDevice->Release();

@@ -54,6 +54,16 @@ public:
     // swapchain has no per-pixel alpha.
     HRESULT PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval);
 
+    // An unordered-access view of the CURRENT back buffer, so a compute shader
+    // can write its result straight into it. Removes a full-frame copy per
+    // presented frame - 14 MB at 2560x1440, 144 times a second.
+    // Returns nullptr when the swapchain cannot provide one; the caller then
+    // falls back to rendering into its own texture and copying.
+    ID3D11UnorderedAccessView* AcquireBackBufferUAV(ID3D11Device* device);
+
+    // Presents whatever is already in the back buffer (see AcquireBackBufferUAV).
+    HRESULT PresentBackBuffer(UINT syncInterval);
+
     bool SupportsTransparency() const { return m_usingComposition; }
 
     // How many of our presents the DISPLAY actually showed, as opposed to how
@@ -104,6 +114,8 @@ private:
     bool m_compositionDisabled = false;
     // Cached view used only to clear the back buffer to full transparency.
     ID3D11RenderTargetView* m_clearRTV = nullptr;
+    ID3D11Texture2D* m_uavBackBuffer = nullptr;      // which buffer m_backBufferUAV belongs to
+    ID3D11UnorderedAccessView* m_backBufferUAV = nullptr;
 
     bool TryCreateCompositionWindow(ID3D11Device* device, UINT width, UINT height, const wchar_t* title);
     bool AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapChain);
