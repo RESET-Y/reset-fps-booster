@@ -74,9 +74,23 @@ static const float kMismatchSensitivity = 6.0;
 
 // How quickly a block`s own match error turns into distrust. Measured in a
 // game: a clean match scores 0.002-0.015, while a block that found nothing
-// resembling itself scores above 0.06. At 15 the first group is left
-// untouched and the second is pushed onto the single-source fallback.
-static const float kBlockErrorSensitivity = 15.0;
+// resembling itself scores above 0.06.
+//
+// RAISED FROM 15 TO 30 on a live report of patches of the picture visibly
+// shifting - "as if the generated frames move some areas". At 15 a block is
+// only fully distrusted at an error of 0.067, so the middling cases - a wrong
+// vector that still half-matches - were displaced by more than half their
+// distance. Measured at the same moment: 0.26% of blocks find no real match
+// when little is moving, 6.34% during fast motion, which over 14,400 blocks is
+// some 870 scattered patches per frame, each one moving content that did not
+// move.
+//
+// At 30 the same full distrust arrives at 0.033, so those middling blocks now
+// show the real frame at that spot instead. The cost is that genuinely
+// difficult areas stop being interpolated and simply hold - a small judder in
+// a corner of the picture rather than a wrong shift, which is the better
+// failure of the two.
+static const float kBlockErrorSensitivity = 30.0;
 
 // Blending has to happen in LINEAR light, not in the gamma-encoded values
 // the frame is stored in. This was the cause of the contrast loss and
