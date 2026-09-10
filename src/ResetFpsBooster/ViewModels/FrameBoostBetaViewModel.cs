@@ -1,5 +1,4 @@
 #if RFB_BETA
-using System.Globalization;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -47,7 +46,6 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         get
         {
             if (!IsRunning) return null;
-            if (DisplayLimitNotice is not null) return DisplayLimitNotice;
 
             bool noNewContent = (Telemetry.SourceFps ?? Telemetry.NativeFps) is null or < 1;
             if (!noNewContent) return null;
@@ -61,26 +59,6 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
                      + " as soon as something moves.";
 
             return "No frames are arriving from the display. If this stays, turn FrameBoost off and on again.";
-        }
-    }
-
-    /// Set when the game runs faster than half the refresh rate. The generated
-    /// frames are real, but the monitor has no window left to show them - and
-    /// saying nothing would leave an output number on screen that the display
-    /// never actually reaches.
-    public string? DisplayLimitNotice
-    {
-        get
-        {
-            double? game = Telemetry.SourceFps ?? Telemetry.NativeFps;
-            if (game is not > 1 || Telemetry.DisplayHz is not > 1) return null;
-            double doubled = game.Value * 2;
-            if (doubled <= Telemetry.DisplayHz.Value) return null;
-
-            return string.Create(CultureInfo.InvariantCulture,
-                $"The game runs at {game:0} FPS. Doubled that is {doubled:0}, "
-                + $"but this display shows {Telemetry.DisplayHz:0} per second - so generation is off. "
-                + $"Cap the game at {Telemetry.DisplayHz.Value / 2:0} FPS or below and every generated frame reaches the screen.");
         }
     }
 
@@ -107,7 +85,6 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         _telemetryTimer.Tick += (_, _) =>
         {
             Telemetry = _service.ReadLatestTelemetry();
-            OnPropertyChanged(nameof(DisplayLimitNotice));
             OnPropertyChanged(nameof(StatusNotice));
             if (!_service.IsRunning)
             {

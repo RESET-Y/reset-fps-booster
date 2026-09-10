@@ -451,7 +451,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     int maxFactor = 2;
     // False while the source runs faster than half the refresh rate, where a
     // doubled frame cannot be displayed any more (see the simple-2x path).
-    bool doublingFitsDisplay = true;
+    // No longer switched off above half the refresh rate.
+    //
+    // It used to be: doubling a 90 FPS source asks for 180 frames on a 144 Hz
+    // panel, the extra ones cannot be shown, and generation was disabled with a
+    // note telling the user to cap their game. That is a demand no product gets
+    // to make of the person using it, and the clock-driven path does not need
+    // it: it fills each refresh with whatever phase the wall clock calls for, so
+    // a source faster than half the refresh rate simply gets fewer generated
+    // frames between its real ones instead of none at all.
+    const bool doublingFitsDisplay = true;
     bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
@@ -825,7 +834,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Duplicate check: " << (duplicateCheckSamples ? duplicateCheckMsSum / duplicateCheckSamples : -1.0) << " ms avg"
             << " | Capture latency (real, avg): " << (avgLatencyMs >= 0 ? std::to_string(avgLatencyMs) + " ms" : "N/A")
             << " | Display Hz: " << outputRefreshHz
-            << " | Doubling fits display: " << (doublingFitsDisplay ? "yes" : "no")
             << " | Capture path: " << (useDesktopDuplication ? "Desktop Duplication" : "Windows Graphics Capture")
             << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
             << " | Coalesced by us: " << ddCapture.CoalescedFrames()
@@ -1385,44 +1393,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // artefacts). Doubling is the honest promise the feature makes -
             // whatever the game runs at, it runs at twice that - and it is
             // the one the person testing it asked for.
-            //
-            // Above half the refresh rate, doubling asks for more frames than
-            // the panel can show (90 FPS doubled is 180 on a 144 Hz display).
-            // The refresh lock below simply cannot place them all; that is the
-            // display, not this decision.
             const int outputPerReal = 2;
 
-            // Does doubling still fit on this display?
-            //
-            // A 90 FPS source doubled asks for 180 frames on a 144 Hz panel.
-            // The extra 36 are computed, handed over, and never shown - the
-            // display has 144 windows per second and nothing more. Worse than
-            // wasted: which frame makes it into a window and which is replaced
-            // first becomes irregular, and that unevenness is exactly what was
-            // reported as "the raw 75 FPS feels better than the boosted one".
-            //
-            // So above half the refresh rate the engine stops generating and
-            // passes the source through untouched, which is the honest answer:
-            // there is nothing left to add that the screen can show. Capping
-            // the game at or below half the refresh rate is what buys the
-            // doubling back.
-            if (outputRefreshHz > 0.0 && realFrameIntervalEmaMs > 1.0) {
-                const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
-                const bool fits = doublingFitsDisplay
-                    ? (2.0 * nativeFps < outputRefreshHz * 1.04)  // leave once clearly over
-                    : (2.0 * nativeFps < outputRefreshHz * 0.98); // re-enter only when clearly under
-                if (fits != doublingFitsDisplay) {
-                    doublingFitsDisplay = fits;
-                    std::ostringstream oss;
-                    oss << "[FrameBoostBeta] Doubling " << (fits ? "fits" : "no longer fits")
-                        << " this display: source " << nativeFps << " FPS x2 = " << (2.0 * nativeFps)
-                        << " against " << outputRefreshHz << " Hz.";
-                    if (!fits)
-                        oss << " Generation is off - the panel cannot show more than it refreshes."
-                               " Cap the game at " << (outputRefreshHz / 2.0) << " FPS or below to double it.";
-                    FrameBoostBeta::Logger::Log(oss.str());
-                }
-            }
 
             // EXTRAPOLATION: show the real frame the instant it arrives, and
             // predict the in-between frame forward from it afterwards.
