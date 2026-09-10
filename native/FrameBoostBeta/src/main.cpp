@@ -1459,8 +1459,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // 38 real frames per second against a 64 FPS source, with
                     // on-screen age climbing to 20-24 ms.
                     nextRealPresentDueMs += realFrameIntervalEmaMs;
-                    if (nextRealPresentDueMs < NowMs())
-                        nextRealPresentDueMs = NowMs() + realFrameIntervalEmaMs; // too far behind: resync
+                    if (nextRealPresentDueMs < NowMs()) {
+                        // Behind the grid: the next frame is shown as soon as it
+                        // exists, NOT one interval from now.
+                        //
+                        // Pushing the slot a full interval into the future while
+                        // already late is what produced the recurring hitch: output
+                        // intervals of exactly 41.6 ms - six refresh periods with
+                        // nothing new on screen - in almost every second, against a
+                        // mean of 8.3-9.9 ms. Described from the sofa as "smooth for
+                        // a moment, then it feels like 50 FPS, then smooth again".
+                        nextRealPresentDueMs = NowMs();
+                    }
 
                     WaitForRefreshBoundary();
                     if (transparentRealFrames && presenter.SupportsTransparency()) {
