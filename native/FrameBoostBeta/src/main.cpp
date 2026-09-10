@@ -1576,9 +1576,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     : generationCostEmaMs * 0.8 + costMs * 0.2;
 
                 if (realFrameIntervalEmaMs > 1.0) {
+                    // 0.7 to leave, 0.5 to return - raised from 0.5/0.3 after it began
+                    // firing on healthy frames. Measured: generation costs
+                    // 3.0-4.0 ms against source intervals of 9.8-33 ms, so a
+                    // single measurement spike of 8.7 ms was enough to trip a
+                    // threshold set at half a 13 ms interval, and the player got
+                    // told their game was using the whole graphics card when it
+                    // was not.
+                    //
+                    // The case this exists for is nowhere near the new line
+                    // either: in a GPU-bound game the same figures read 59 ms
+                    // against 22 ms, which trips it several times over.
                     const bool hasRoom = gpuHasRoom
-                        ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.5)   // leave once clearly over
-                        : (generationCostEmaMs < realFrameIntervalEmaMs * 0.3);  // return only with margin
+                        ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.7)   // leave once clearly over
+                        : (generationCostEmaMs < realFrameIntervalEmaMs * 0.5);  // return only with margin
 
                     // ...and only after the verdict has held for about half a
                     // second. Without this it flipped twice within the same
