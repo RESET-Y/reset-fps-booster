@@ -1387,24 +1387,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // background, because no later frame exists to copy it from. That
             // is the trade, and it is for the eye to judge, not the numbers.
             if (extrapolateMode) {
-                if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
-                        && realFrameIntervalEmaMs > 1.0 && doublingFitsDisplay) {
-                    // The real frame first, with nothing held back.
-                    WaitForRefreshBoundary();
-                    if (transparentRealFrames && presenter.SupportsTransparency()) {
-                        presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
-                    } else if (estimator.CurrFrameTexture()) {
-                        presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
-                    }
-                    ++nativeFramesSinceReport;
-                    RecordPresentGap(NowMs());
-                    RecordPresentAge();
-
-                    generatedDueAtMs = NowMs() + realFrameIntervalEmaMs * 0.5;
-                    generatedPendingSimple = haveMotionField;
-                }
-
-                if (generatedPendingSimple && NowMs() >= generatedDueAtMs && estimator.CurrFrameTexture()) {
+                // The predicted frame goes out FIRST when its moment has come -
+                // and a newly arrived real frame means that moment has passed,
+                // because the prediction belongs to the interval before it.
+                // Emitting it after the new real frame would step backwards in
+                // time; leaving it pending drops it, which cost half of them:
+                // measured at 34 generated against 64 real frames per second.
+                if (generatedPendingSimple && (haveNewContent || NowMs() >= generatedDueAtMs)
+                        && estimator.CurrFrameTexture()) {
                     D3D11_TEXTURE2D_DESC desc{};
                     estimator.CurrFrameTexture()->GetDesc(&desc);
 
@@ -1424,6 +1414,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         RecordPresentAge();
                     }
                     generatedPendingSimple = false;
+                }
+
+                if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
+                        && realFrameIntervalEmaMs > 1.0 && doublingFitsDisplay) {
+                    // The real frame follows immediately, with nothing held back.
+                    WaitForRefreshBoundary();
+                    if (transparentRealFrames && presenter.SupportsTransparency()) {
+                        presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+                    } else if (estimator.CurrFrameTexture()) {
+                        presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+                    }
+                    ++nativeFramesSinceReport;
+                    RecordPresentGap(NowMs());
+                    RecordPresentAge();
+
+                    generatedDueAtMs = NowMs() + realFrameIntervalEmaMs * 0.5;
+                    generatedPendingSimple = haveMotionField;
                 }
 
                 Sleep(0);
