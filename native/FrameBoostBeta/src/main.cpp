@@ -144,6 +144,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
 
     g_hotkeysEnabled = HasArg(L"hotkeys");
+    // "dupcheck": keep comparing frames on the GPU even when the capture API
+    // reports dirty rectangles, so the two can be compared against each other.
+    const bool useDirtyRectsOnly = HasArg(L"dirtyonly");
 
     FrameBoostBeta::Logger::Init();
 
@@ -291,6 +294,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     FrameBoostBeta::MotionStats motionStats;
     uint64_t duplicateFramesSinceReport = 0;
+    // Snapshot of the capture.s own unchanged-frame counter at the last report,
+    // so the per-second figure covers both ways of spotting an unchanged frame.
+    uint64_t ddUnchangedAtReport = 0;
 
     LARGE_INTEGER qpcFreq{};
     QueryPerformanceFrequency(&qpcFreq);
@@ -299,6 +305,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t nativeFramesSinceReport = 0;
     uint64_t generatedFramesSinceReport = 0;
     double lastCaptureMs = -1.0;
+    double duplicateCheckMsSum = 0.0;
+    uint64_t duplicateCheckSamples = 0;
     double lastCaptureLatencyMs = -1.0;
     double latencySumMs = 0.0;
     uint64_t latencySamples = 0;
@@ -747,6 +755,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Generated FPS: " << generatedFps
             << " | Output FPS: " << outputFps
             << " | Poll time: " << lastCaptureMs << " ms"
+            << " | Duplicate check: " << (duplicateCheckSamples ? duplicateCheckMsSum / duplicateCheckSamples : -1.0) << " ms avg"
             << " | Capture latency (real, avg): " << (avgLatencyMs >= 0 ? std::to_string(avgLatencyMs) + " ms" : "N/A")
             << " | Display Hz: " << outputRefreshHz
             << " | Doubling fits display: " << (doublingFitsDisplay ? "yes" : "no")
@@ -756,7 +765,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Capture published/consumed: " << ddCapture.FramesPublished() << "/" << ddCapture.FramesConsumed()
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
             << " | Capture reconnects: " << ddCapture.Reconnects()
-            << " | Duplicate frames skipped/s: " << (duplicateFramesSinceReport / elapsed)
+            << " | Duplicate frames skipped/s: " << ((duplicateFramesSinceReport + (ddCapture.UnchangedFrames() - ddUnchangedAtReport)) / elapsed)
+            << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
@@ -798,6 +808,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         duplicateFramesSinceReport = 0;
+        ddUnchangedAtReport = ddCapture.UnchangedFrames();
+        duplicateCheckMsSum = 0.0;
+        duplicateCheckSamples = 0;
         latencySumMs = 0.0;
         latencySamples = 0;
         phaseComputeMsSum = 0.0;
@@ -1016,7 +1029,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // generation off on a display that could have shown 2 x 60 = 120
         // comfortably. Seen live as "Doubling fits display" flipping yes/no
         // every second while only 6-10 frames a second carried new content.
-        if (haveNewContent && duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
+        // Timed, because it runs on EVERY arrival - about ninety times a second
+        // with Desktop Duplication - and it reads back from the GPU, which stalls
+        // the pipeline. Suspected of being why only half the frames that carry
+        // new content ever reach the estimator.
+        LARGE_INTEGER dupStart{};
+        QueryPerformanceCounter(&dupStart);
+        // MEASURED, and it did not work out: replacing this comparison with the
+        // capture API.s dirty-rectangle metadata caught nothing at all - zero
+        // unchanged frames over 20 seconds and ~75 arrivals per second, where
+        // the comparison below finds 20-45 a second on the same screen. A game
+        // presenting full-screen flips has the driver report the whole screen
+        // as dirty on every present, identical content or not, so "dirty" says
+        // nothing about whether anything changed.
+        //
+        // The dirty-rect early-out still runs inside the capture, where it
+        // costs nothing and is correct on the rare frame that reports no dirty
+        // region at all. "dirtyonly" trusts it alone, for re-testing this on
+        // other hardware.
+        const bool useDirtyRects = useDesktopDuplication && useDirtyRectsOnly;
+        const bool frameIsDuplicate = haveNewContent && !useDirtyRects
+            && duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex);
+        LARGE_INTEGER dupEnd{};
+        QueryPerformanceCounter(&dupEnd);
+        if (haveNewContent && !useDirtyRects) {
+            duplicateCheckMsSum += static_cast<double>(dupEnd.QuadPart - dupStart.QuadPart) / qpcFreq.QuadPart * 1000.0;
+            ++duplicateCheckSamples;
+        }
+
+        if (frameIsDuplicate) {
             ++duplicateFramesSinceReport;
             // Recomposited but unchanged: no new content to estimate from, so
             // it is treated exactly like "no new frame". The slot below still

@@ -41,8 +41,22 @@ RWTexture2D<float4> MotionVectors : register(u0);
 // Four times as many blocks, but motion estimation runs once per REAL frame -
 // about 50 times a second, with a 20 ms budget each - and it was costing
 // 0.3-2.3 ms.
-static const int kBlockSize = 8;
-static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
+//
+// RAISED BACK TO 16 after measuring the cost in a real game at 2560x1440:
+// motion estimation took 4.2-11.8 ms per real frame, which at ~45 frames a
+// second is 190-530 ms of GPU time every second - and it was why only ~40 of
+// ~65 frames carrying new content ever reached the estimator. The block size
+// sets the dispatch grid: at 8 px a 2560x1440 frame is 320x180 = 57,600 thread
+// groups, at 16 px it is 160x90 = 14,400. Four times less work, for the same
+// 16 samples per candidate.
+//
+// The cost is granularity: a block shares one motion vector, so the boundary
+// between a moving object and its background is 16 px of content forced into
+// one answer instead of 8. That is why it was halved originally - but a
+// sharper field that arrives for half the frames is worth less than a coarser
+// one that arrives for all of them.
+static const int kBlockSize = 16;
+static const int kBlockSampleStride = 4; // 4x4 = 16 samples per candidate, as before
 // FINE stage of the pyramid. The search no longer starts from zero: it
 // starts from the coarse stage's result (motion_estimation_coarse.hlsl,
 // which searches +-48 px on a quarter-resolution mip) and only refines it
@@ -76,7 +90,7 @@ static const float kZeroMotionMargin = 1.15;
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
 // it now covers 8 of them per axis rather than 4.
-static const int kCoarseBlockRatio = 8;
+static const int kCoarseBlockRatio = 4;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);

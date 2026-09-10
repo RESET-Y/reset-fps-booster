@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <vector>
 
 namespace FrameBoostBeta {
 
@@ -86,6 +87,18 @@ public:
     // counted as frames.
     uint64_t CursorOnlyUpdates() const { return m_cursorOnlyUpdates.load(std::memory_order_relaxed); }
 
+    // Presents that changed no pixels at all, according to the API.s own
+    // dirty-rectangle metadata. This replaces comparing thumbnails on the GPU:
+    // that comparison cost 0.9-1.8 ms per arrival and, at ~90 arrivals a
+    // second, 80-160 ms of every second - a readback that stalls the pipeline
+    // to answer a question the compositor already knows the answer to.
+    uint64_t UnchangedFrames() const { return m_unchangedFrames.load(std::memory_order_relaxed); }
+
+    // True when the driver gave us usable dirty-rect metadata for the last
+    // frame. Without it, "no dirty rects" cannot be distinguished from "no
+    // information", and the frame has to be assumed changed.
+    bool DirtyRectsAvailable() const { return m_dirtyRectsAvailable.load(std::memory_order_relaxed); }
+
     // The display mode changed, or something took the output away (a game
     // entering exclusive fullscreen, a resolution change, a driver reset).
     // The duplication is rebuilt automatically; this counts how often.
@@ -117,6 +130,9 @@ private:
 
     std::atomic<uint64_t> m_coalescedFrames{ 0 };
     std::atomic<uint64_t> m_cursorOnlyUpdates{ 0 };
+    std::atomic<uint64_t> m_unchangedFrames{ 0 };
+    std::atomic<bool> m_dirtyRectsAvailable{ false };
+    std::vector<uint8_t> m_metadataBuffer;
     std::atomic<uint64_t> m_reconnects{ 0 };
     std::atomic<uint64_t> m_framesPublished{ 0 };
     uint64_t m_framesConsumed = 0;

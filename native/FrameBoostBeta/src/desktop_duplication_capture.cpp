@@ -141,6 +141,46 @@ void DesktopDuplicationCapture::Pump() {
         if (info.AccumulatedFrames > 1)
             m_coalescedFrames.fetch_add(info.AccumulatedFrames - 1, std::memory_order_relaxed);
 
+        // Did anything actually change? The compositor already knows, and says
+        // so in the frame's dirty-rectangle metadata - no readback, no
+        // comparison, no threshold to tune.
+        //
+        // The engine used to answer this by downscaling both frames on the GPU
+        // and reading the result back to the CPU, which stalls the pipeline:
+        // measured at 0.9-1.8 ms per arrival, and at ~90 arrivals a second
+        // that is 80-160 ms of every second spent asking a question the API
+        // answers for free.
+        //
+        // Zero dirty rects and zero moves means the present carried no pixel
+        // changes. No metadata at all is a different answer - it means the
+        // driver told us nothing, and then the frame must be assumed changed,
+        // because dropping a real frame is far worse than processing a
+        // duplicate.
+        bool contentChanged = true;
+        if (info.TotalMetadataBufferSize > 0) {
+            m_dirtyRectsAvailable.store(true, std::memory_order_relaxed);
+            if (m_metadataBuffer.size() < info.TotalMetadataBufferSize)
+                m_metadataBuffer.resize(info.TotalMetadataBufferSize);
+
+            UINT moveBytes = 0;
+            m_duplication->GetFrameMoveRects(static_cast<UINT>(m_metadataBuffer.size()),
+                reinterpret_cast<DXGI_OUTDUPL_MOVE_RECT*>(m_metadataBuffer.data()), &moveBytes);
+
+            UINT dirtyBytes = 0;
+            m_duplication->GetFrameDirtyRects(static_cast<UINT>(m_metadataBuffer.size() - moveBytes),
+                reinterpret_cast<RECT*>(m_metadataBuffer.data() + moveBytes), &dirtyBytes);
+
+            contentChanged = (moveBytes > 0) || (dirtyBytes > 0);
+        } else {
+            m_dirtyRectsAvailable.store(false, std::memory_order_relaxed);
+        }
+
+        if (!contentChanged) {
+            m_unchangedFrames.fetch_add(1, std::memory_order_relaxed);
+            m_duplication->ReleaseFrame();
+            continue;
+        }
+
         auto surface = resource.try_as<ID3D11Texture2D>();
         if (!surface) { m_duplication->ReleaseFrame(); continue; }
 
