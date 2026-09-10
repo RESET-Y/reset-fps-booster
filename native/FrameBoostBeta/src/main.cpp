@@ -509,6 +509,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ageMs > presentAgeMaxMs) presentAgeMaxMs = ageMs;
         ++presentAgeSamples;
     };
+    FrameBoostBeta::Logger::Log(std::string("[FrameBoostBeta] Frame generation scheme: ")
+        + (extrapolateMode ? "EXTRAPOLATION (predicted forward, real frame not held back)"
+                           : "INTERPOLATION (between two real frames, newest held back half an interval)"));
     FrameBoostBeta::Logger::Log(g_hotkeysEnabled
         ? "[FrameBoostBeta] Hotkeys ENABLED (started with \"hotkeys\") and need CTRL+ALT: CTRL+ALT+F4 simple 2x, F5 one-frame buffer, F6 latency cap, F7 transparency, F8 refresh lock, F9 generation on/off, F11 tint generated frames."
         : "[FrameBoostBeta] Hotkeys disabled - the tuned configuration cannot be changed by anything the game sends. Start with \"hotkeys\" to enable them for testing.");
