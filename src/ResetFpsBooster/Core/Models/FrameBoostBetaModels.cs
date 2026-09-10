@@ -40,6 +40,11 @@ public sealed class FrameBoostBetaTelemetry
     // 1 while doubling is active, 0 while the engine stands aside because the
     // display is already full. A state, not a fault.
     public double? DoublingActive { get; init; }
+
+    // 1 when generation is paused because the game is using the whole GPU.
+    // A different reason from "the display is already full", and the panel
+    // should not blame the wrong one.
+    public double? NoGpuRoom { get; init; }
     public double? MotionEstimationGpuMs { get; init; }
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }

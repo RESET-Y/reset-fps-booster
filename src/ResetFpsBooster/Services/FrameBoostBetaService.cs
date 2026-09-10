@@ -101,6 +101,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 DisplayHz = ReadField(lastMatchLine, "Display Hz"),
                 DuplicateFps = ReadField(lastMatchLine, "Duplicate frames skipped/s"),
                 DoublingActive = lastMatchLine.Contains("Doubling: on", StringComparison.Ordinal) ? 1 : 0,
+                NoGpuRoom = lastMatchLine.Contains("no GPU room", StringComparison.Ordinal) ? 1 : 0,
                 MotionEstimationGpuMs = ReadField(lastMatchLine, "Motion estimation GPU"),
                 InterpolationGpuMs = ReadField(lastMatchLine, "Interpolation GPU"),
                 LastUpdatedUtc = DateTime.UtcNow,

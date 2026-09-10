@@ -357,6 +357,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // pile onto an already-stressed GPU. Never a crash risk - purely skips
     // optional generation.
     double gpuTimeEmaMs = -1.0;
+
+    // Does this GPU have room to do our work at all?
+    //
+    // Separate from the spike breaker below, which only catches sudden jumps
+    // (five times the running average). A GPU-bound game does not produce
+    // spikes - it produces a sustained high cost, and the average rises with
+    // it, so the spike test never fires. Measured in Watch Dogs at 1440p:
+    // motion estimation 30.6-33.4 ms and interpolation 29.9-30.6 ms, against
+    // 0.50 and 0.45 ms in a game that leaves the GPU some room. Our work sat in
+    // the queue behind the game.s, the picture reached the screen 79-95 ms old,
+    // and the output ran BELOW the source: 14 frames shown for 17 delivered.
+    //
+    // Taking frames away from someone who asked for more of them is the one
+    // outcome this feature must never produce.
+    double generationCostEmaMs = -1.0;
+    bool gpuHasRoom = true;
     constexpr double kEmaAlpha = 0.1;
     bool inDegradedMode = false;
     int degradedFrameCounter = 0;
@@ -882,7 +898,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Display Hz: " << outputRefreshHz
             << " | Capture path: " << (useDesktopDuplication ? "Desktop Duplication" : "Windows Graphics Capture")
             << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
-            << " | Doubling: " << (doublingFitsDisplay ? "on" : "standing aside (display already full)")
+            << " | Doubling: " << ((doublingFitsDisplay && gpuHasRoom) ? "on"
+                : (!gpuHasRoom ? "standing aside (no GPU room)" : "standing aside (display already full)"))
+            << " | Generation cost: " << generationCostEmaMs << " ms"
             << " | Coalesced by us: " << ddCapture.CoalescedFrames()
             << " | Capture published/consumed: " << ddCapture.FramesPublished() << "/" << ddCapture.FramesConsumed()
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
@@ -1374,6 +1392,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         if (ranEstimationThisTick) {
             double meGpuMs = estimator.LastGpuTimeMs();
+
+            // What generating one frame currently costs us on this GPU,
+            // estimation plus interpolation, against what a source frame is
+            // worth in time. Above half the source interval there is no room to
+            // do the work without delaying the very frames we are meant to be
+            // adding to - so generation stops until there is.
+            const double interpMs = interpolator.LastGpuTimeMs();
+            const double costMs = (meGpuMs >= 0.0 ? meGpuMs : 0.0) + (interpMs >= 0.0 ? interpMs : 0.0);
+            if (costMs > 0.0) {
+                generationCostEmaMs = generationCostEmaMs < 0.0
+                    ? costMs
+                    : generationCostEmaMs * 0.8 + costMs * 0.2;
+
+                if (realFrameIntervalEmaMs > 1.0) {
+                    const bool hasRoom = gpuHasRoom
+                        ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.5)   // leave once clearly over
+                        : (generationCostEmaMs < realFrameIntervalEmaMs * 0.3);  // return only with margin
+                    if (hasRoom != gpuHasRoom) {
+                        gpuHasRoom = hasRoom;
+                        std::ostringstream oss;
+                        oss << "[FrameBoostBeta] " << (hasRoom ? "GPU has room again" : "GPU has no room")
+                            << ": generating a frame costs " << generationCostEmaMs
+                            << " ms against a source interval of " << realFrameIntervalEmaMs << " ms."
+                            << (hasRoom ? " Doubling resumes."
+                                        : " Passing the game through untouched rather than slowing it down.");
+                        FrameBoostBeta::Logger::Log(oss.str());
+                    }
+                }
+            }
+
             if (meGpuMs >= 0.0) {
                 if (gpuTimeEmaMs < 0.0) {
                     gpuTimeEmaMs = meGpuMs; // seed on first real reading
@@ -1597,7 +1645,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 continue;
             }
 
-            if (haveNewContent && haveMotionField && doublingFitsDisplay
+            if (haveNewContent && haveMotionField && doublingFitsDisplay && gpuHasRoom
                     && !forcePassthroughOnly && !inDegradedMode
                     && realFrameIntervalEmaMs > 1.0) {
                 // A new real frame just landed. Emit the intermediate frames
