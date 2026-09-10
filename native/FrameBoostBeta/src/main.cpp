@@ -402,16 +402,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // ~1.4 ms for pure passthrough. F6 caps the factor at 2 to halve the
     // hold, trading output frames for responsiveness.
     //
-    // The cap follows the source, rather than sitting at 2 forever. A fixed 2
-    // is right for a fast source - at 90 real FPS on a 144 Hz panel there is
-    // nothing to win beyond it - but it quietly ruins a slow one: a 30 FPS
-    // source capped at 2x produces 60 output frames for a 144 Hz display,
-    // which does not divide evenly, so every frame is held for either two
-    // refreshes or three. The test would then measure the cap, not the
-    // interpolation. Recomputed from the measured interval in
-    // EvaluateGenerationFactor, unless the user sets it by hand (F6).
+    // Fixed at 2. The engine doubles whatever the game is running at - that
+    // is the whole promise, and it is what held up by eye: every higher
+    // factor tested worse, because it holds the real frame back longer and
+    // puts more guessed frames between two known ones.
     int maxFactor = 2;
-    bool userChoseFactorCap = false;
     bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
@@ -676,22 +671,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (!refreshLockEnabled || realFrameIntervalEmaMs <= 0.0) return;
         const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
 
-        // How many output frames per real frame the display can actually take.
-        // Four is the ceiling: beyond it the real frame is held back so long
-        // that the added latency costs more than the smoothness is worth.
-        if (!userChoseFactorCap) {
-            int wanted = static_cast<int>(outputRefreshHz / (nativeFps > 1.0 ? nativeFps : 1.0) + 0.5);
-            if (wanted < 2) wanted = 2;
-            if (wanted > 4) wanted = 4;
-            if (wanted != maxFactor) {
-                FrameBoostBeta::Logger::Log("[FrameBoostBeta] Factor cap follows the source: up to "
-                    + std::to_string(wanted) + "x (native " + std::to_string(nativeFps)
-                    + " FPS, display " + std::to_string(outputRefreshHz) + " Hz).");
-                maxFactor = wanted;
-                candidateFactorHeldFrames = 0;
-            }
-        }
-
         auto relativeError = [&](int factor) {
             return std::abs(factor * nativeFps - outputRefreshHz) / outputRefreshHz;
         };
@@ -910,7 +889,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         bool f6IsDown = HotkeyDown(VK_F6);
         if (f6IsDown && !f6WasDown) {
             maxFactor = (maxFactor == 2) ? 3 : 2;
-            userChoseFactorCap = true;
             candidateFactorHeldFrames = 0;
             if (generationFactor > maxFactor) generationFactor = maxFactor;
             FrameBoostBeta::Logger::Log(maxFactor == 2
@@ -1270,32 +1248,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
             const double nowMs = NowMs();
 
-            // How many output frames per real frame, chosen so the result
-            // lands on the refresh rate.
+            // Always exactly double: one generated frame per real frame, at the
+            // midpoint of the interval the source itself sets.
             //
-            // Doubling a ~48 FPS source gives 96 on a 144 Hz panel, and 96
-            // does not divide 144: the content steps evenly while the display
-            // holds each frame for either one or two refreshes, alternating.
-            // That is the same mismatch that makes 24 fps film judder on a
-            // 60 Hz television - visible however clean each frame is, which
-            // is exactly what was reported after the artefacts were fixed.
-            // Three output frames per real frame gives 144 on the nose.
-            int outputPerReal = 2;
-            if (outputRefreshHz > 0.0 && realFrameIntervalEmaMs > 1.0) {
-                const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
-                const int ideal = static_cast<int>(outputRefreshHz / nativeFps + 0.5);
-                outputPerReal = ideal < 2 ? 2 : (ideal > 4 ? 4 : ideal);
-                // Capped by the F6 setting, so the choice stays with the user.
-                // 2x is the default because it was judged best by eye;
-                // CTRL+ALT+F6 releases the cap to whatever lands on the
-                // refresh rate - 3x at ~48 real FPS on a 144 Hz panel.
-                if (outputPerReal > maxFactor) outputPerReal = maxFactor;
-                // Capped by the F6 setting, so the choice stays with the user:
-                // 2x is the default because it was judged best by eye, and
-                // CTRL+ALT+F6 releases the cap to whatever lands on the
-                // refresh rate (3x at ~48 real FPS on a 144 Hz panel).
-                if (outputPerReal > maxFactor) outputPerReal = maxFactor;
-            }
+            // This used to derive the count from the display instead - three
+            // output frames per real frame at ~48 FPS, because 3 x 48 lands
+            // on a 144 Hz refresh exactly. That is the better answer for
+            // pacing on paper, and it lost every comparison by eye: a higher
+            // factor holds the real frame back longer (more latency) and
+            // stacks more guessed frames between two known ones (more
+            // artefacts). Doubling is the honest promise the feature makes -
+            // whatever the game runs at, it runs at twice that - and it is
+            // the one the person testing it asked for.
+            //
+            // Above half the refresh rate, doubling asks for more frames than
+            // the panel can show (90 FPS doubled is 180 on a 144 Hz display).
+            // The refresh lock below simply cannot place them all; that is the
+            // display, not this decision.
+            const int outputPerReal = 2;
 
             if (haveNewContent && haveMotionField && !forcePassthroughOnly && !inDegradedMode
                     && realFrameIntervalEmaMs > 1.0) {
