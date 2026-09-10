@@ -71,8 +71,21 @@ RWTexture2D<float4> MotionVectors : register(u0);
 //
 // Finer blocks really are better, and 8 px is the right choice on a GPU with
 // room to spare. Sharing one with the game it is boosting is not that.
-static const int kBlockSize = 16;
-static const int kBlockSampleStride = 4; // 4x4 = 16 samples per candidate, as before
+//
+// BACK TO 8 px, now that the search runs on mip 1 and costs 0.5-0.7 ms.
+//
+// Reported from a live game: moving bots dragging a trail behind them. That is
+// what one motion vector per 16 pixels does at the edge of a small moving
+// object - the block holds both the object and the background it is passing
+// over, both get the same vector, and whichever of the two is wrong smears.
+// Halving the block quarters the area where object and background are forced
+// into a single answer.
+//
+// Affordable again for a different reason than the last time: the search is
+// four times cheaper per block on mip 1, so four times as many blocks costs
+// about what 16 px cost at full resolution.
+static const int kBlockSize = 8;
+static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
 // FINE stage of the pyramid. The search no longer starts from zero: it
 // starts from the coarse stage's result (motion_estimation_coarse.hlsl,
 // which searches +-48 px on a quarter-resolution mip) and only refines it
@@ -111,7 +124,7 @@ static const float kStaticBlockSad = 0.5;
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
 // it now covers 8 of them per axis rather than 4.
-static const int kCoarseBlockRatio = 4;
+static const int kCoarseBlockRatio = 8;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);

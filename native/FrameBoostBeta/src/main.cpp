@@ -170,6 +170,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
 
     g_hotkeysEnabled = HasArg(L"hotkeys");
+    // "tint": paint every generated frame red, so it is unmistakable on screen
+    // which frames are ours. The one test that settles whether generated frames
+    // reach the display as distinct pictures at all.
+    const bool tintGeneratedFrames = HasArg(L"tint");
     // "dupcheck": keep comparing frames on the GPU even when the capture API
     // reports dirty rectangles, so the two can be compared against each other.
     const bool useDirtyRectsOnly = HasArg(L"dirtyonly");
@@ -360,6 +364,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     FrameBoost::MotionEstimation::Estimator estimator;
     FrameBoost::Interpolation::Interpolator interpolator;
+    // Handed over here, not only in the F11 handler - which is dead while the
+    // hotkeys are disabled, so "tint" on the command line set a variable that
+    // never reached the shader. The one diagnostic that answers "do our frames
+    // reach the screen at all" silently did nothing, and its blank result was
+    // nearly taken as evidence that they do not.
+    interpolator.SetDebugTint(tintGeneratedFrames);
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     FrameBoostBeta::MotionStats motionStats;
     uint64_t duplicateFramesSinceReport = 0;
@@ -460,7 +470,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // reaching the screen?" instantly and unambiguously - a question that
     // could not be settled by screenshots, because the overlay shows a copy
     // of the captured window and therefore looks identical either way.
-    bool debugTint = false;
+    bool debugTint = tintGeneratedFrames; // handed to the interpolator once it exists, below
     bool f11WasDown = false;
 
     // Frame pacing. Measured: presenting with syncInterval 1 blocked ~34ms
@@ -748,6 +758,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "doublerate" re-enables it for further work.
     const bool doubleRateOutput = HasArg(L"doublerate");
     const bool snapToRefreshGrid = HasArg(L"refreshsnap");
+    const bool waitForDisplaySlot = HasArg(L"slotwait");
     bool f4WasDown = false;
     bool f12WasDown = false;
     bool autoDumpDone = false;
@@ -864,6 +875,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // here: a frame nobody sees is worth less than a frame that arrives a
     // little later.
     auto WaitForDisplaySlot = [&]() {
+        // Off unless asked for: it removed the collisions completely (35-41%
+        // down to 0.0%) and the picture got WORSE, not better - the added
+        // latency was real and the promised gain never showed up. Kept behind
+        // "slotwait" because the measurement it produced still stands.
+        if (!waitForDisplaySlot) return;
         if (outputSlotMs <= 0.0 || lastPresentAtMs <= 0.0) return;
         const double earliest = lastPresentAtMs + outputSlotMs * 0.95;
         const double ceiling = NowMs() + 20.0;
