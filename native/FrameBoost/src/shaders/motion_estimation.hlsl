@@ -27,9 +27,20 @@ RWTexture2D<float2> MotionVectors : register(u0);
 // trade-off taken here for a usable framerate.
 static const int kBlockSize = 32;
 static const int kBlockSampleStride = 8;
-static const int kSearchRadius = 6;
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
-static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
+// Raised from 6 after live measurement showed the search saturating: with
+// radius 6 the reported maximum motion magnitude sat at exactly 8.5 px
+// frame after frame, which is sqrt(6^2 + 6^2) - the diagonal corner of the
+// search window. A maximum pinned to the window's own edge means content
+// was moving FURTHER than the search could look, so those blocks got the
+// closest wrong answer instead of the right one. That is precisely the kind
+// of wrong vector that produces visible interpolation artefacts.
+//
+// One thread per candidate, so the group is kSearchWindow^2 threads: radius
+// 12 gives 625, still inside D3D11's 1024-thread limit (radius 15 would be
+// 961 - the practical ceiling for this design).
+static const int kSearchRadius = 12;
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 25
+static const int kCandidateCount = kSearchWindow * kSearchWindow; // 625
 
 cbuffer FrameDims : register(b0)
 {

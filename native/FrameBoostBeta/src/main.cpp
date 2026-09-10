@@ -21,6 +21,7 @@
 #include "capture_engine.h"
 #include "beta_presenter.h"
 #include "duplicate_detector.h"
+#include "motion_stats.h"
 #include "../../FrameBoost/src/motion_estimation.h"
 #include "../../FrameBoost/src/interpolation.h"
 
@@ -165,6 +166,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     FrameBoost::MotionEstimation::Estimator estimator;
     FrameBoost::Interpolation::Interpolator interpolator;
     FrameBoostBeta::DuplicateDetector duplicateDetector;
+    FrameBoostBeta::MotionStats motionStats;
     uint64_t duplicateFramesSinceReport = 0;
 
     LARGE_INTEGER qpcFreq{};
@@ -393,6 +395,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
+            << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
+            << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
         if (phaseSamples > 0) {
@@ -665,6 +669,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
 
         double computeEndMs = NowMs();
+
+        // Diagnostics: how much of the frame the estimator actually sees
+        // moving. Sampled rarely (the readback stalls the pipeline).
+        if (haveMotionField) motionStats.SampleIfDue(device.get(), context.get(), estimator.MotionVectorTexture());
 
         const bool canGenerate = haveMotionField && !inDegradedMode
             && generationFactor > 1 && !forcePassthroughOnly;
