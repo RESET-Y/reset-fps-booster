@@ -325,20 +325,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         ++presentAgeSamples;
     };
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Press F9 (while this window is focused) to toggle pure passthrough vs. frame generation for A/B comparison.");
-
-    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Engine running. Native/Generated/Output FPS reported once per second below.");
-
-    // Presentation state for the current pair of real frames. The pair is
-    // shown as `pairFactor` slots: steps 1..pairFactor-1 are generated frames
-    // at t = step/pairFactor, and the final step is the real frame itself.
-    // One present per loop iteration - presenting several in one iteration
-    // was measured to throttle the whole loop to half speed, because the
-    // display can only retire roughly one frame per refresh.
-    int pairFactor = 0;   // 0 = no pair in flight
-    int pairStep = 0;     // which slot of the pair comes next
-    // Set when the pair`s real frame still owes its slot, which is presented
-    // at the END of the iteration that captures and estimates the next pair.
-    bool pendingRealPresent = false;
+    // Timestamps of the two real frames the motion field spans, in the same
+    // clock as NowMs(). The output is driven from these, not from a counter.
+    double phaseSumForReport = 0.0;
+    uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
+    double motionPrevTimestampMs = 0.0;
+    double motionCurrTimestampMs = 0.0;
+    bool haveMotionField = false;
 
     // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
     // out to be ambiguous under cross-process GPU contention (whichever
@@ -383,12 +376,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     // Presents the real frame whose slot is still owed, if any. Returns true
     // when it did.
-    //
-    // Every path that leaves the iteration early has to call this: the real
-    // frame's slot is claimed the moment the pair reaches it, and dropping it
-    // because no new frame happened to arrive left output slots empty and
-    // produced gaps of up to 277 ms.
-    std::function<bool()> FlushPendingRealFrame;
 
     // Holds until this frame's slot on the refresh-locked grid comes up, then
     // advances the grid by exactly one slot. Coarse Sleep for the bulk of the
@@ -471,35 +458,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool statsAvailable = false, statsUnsupportedLogged = false;
     double submittedPerSecond = -1.0, displayedPerSecond = -1.0;
 
-    FlushPendingRealFrame = [&]() -> bool {
-        if (!pendingRealPresent) return false;
-        pendingRealPresent = false;
-
-        const double iterationStartMs = NowMs();
-        WaitForOutputSlot();
-        const double tStart = NowMs();
-        if (transparentRealFrames && presenter.SupportsTransparency()) {
-            // Nothing of ours: the real screen underneath is what shows.
-            presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
-        } else {
-            // The estimator's PREVIOUS frame is exactly the real frame this
-            // slot belongs to - preparing the next pair has already moved the
-            // newly captured one into CurrFrame. Presenting Curr here would
-            // skip a real frame entirely and break the motion sequence.
-            presenter.PresentFrame(context.get(), estimator.PrevFrameTexture(), presentSyncInterval);
-        }
-        const double tEnd = NowMs();
-
-        lastRealPresentMs = tEnd;
-        ++nativeFramesSinceReport;
-        RecordPresentGap(tEnd);
-        RecordPresentAge();
-        phasePresentMsSum += tEnd - tStart;
-        phaseIterationMsSum += tEnd - iterationStartMs;
-        ++phaseSamples;
-        return true;
-    };
-
     auto ReportTelemetryIfDue = [&]() {
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
@@ -545,6 +503,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Phase avg: " << (phaseCountForReport ? phaseSumForReport / phaseCountForReport : -1.0)
+            << " | Timeline slots: " << (phaseCountForReport ? 100.0 * timelineSlotsForReport / phaseCountForReport : -1.0) << "%"
+            << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
             << " | Capture arrivals/s: " << (captureArrivalsSinceReport / elapsed)
             << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
@@ -576,6 +537,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         phaseComputeMsSum = 0.0;
         presentAgeSumMs = 0.0; presentAgeMaxMs = 0.0; presentAgeSamples = 0;
         captureArrivalsSinceReport = 0;
+        phaseSumForReport = 0.0; phaseCountForReport = 0; timelineSlotsForReport = 0;
         gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
@@ -654,137 +616,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f11WasDown = f11IsDown;
 
-        // One present per loop iteration, alternating generated -> real.
-        // Presenting BOTH in a single iteration meant submitting two frames
-        // per iteration while the display can only retire roughly one per
-        // refresh, which throttled the whole loop to half speed: measured
-        // live, the loop ran at ~14.5 Hz against a game rendering at ~29 Hz,
-        // discarding every second real frame ("Stale frames dropped/poll: 1")
-        // and interpolating across a two-frame gap instead of neighbouring
-        // frames. This iteration just flushes the real frame that the
-        // previous iteration's generated frame belongs in front of.
-        if (pairFactor > 0 && pairStep <= pairFactor) {
-            const bool isRealFrame = (pairStep == pairFactor);
-
-            // The real frame's slot is NOT presented here. Instead the loop
-            // falls through to capture and estimate the next pair first, and
-            // presents this frame at the end of that same iteration - so that
-            // work happens during the slot's idle wait rather than after it.
-            // See the comment at the capture block for the measurements.
-            if (isRealFrame) {
-                pendingRealPresent = true;
-                pairFactor = 0;
-                ++pairStep;
-                // deliberately no `continue`
-            } else {
-
-            // Keep the capture drained even while presenting this pair's
-            // generated frames. Polling only once per pair meant asking WGC
-            // for frames ~52 times a second while a game was producing 75 -
-            // and a full frame pool discards the surplus silently, with no
-            // count to show for it, so the source merely looked slower than
-            // it was. The newest frame here is kept for the next pair rather
-            // than dropped.
-            {
-                UINT pw = 0, ph = 0;
-                int64_t pts = 0;
-                bool isNew = false;
-                ID3D11Texture2D* drained = capture.PollLatestFrame(pw, ph, pts, isNew);
-                if (drained && isNew && pts > 0) {
-                    pendingCaptureTimestamp100ns = pts;
-                    havePendingCapture = true;
-                    ++captureArrivalsSinceReport;
-                }
-            }
-
-            ID3D11Texture2D* frameToShow = estimator.CurrFrameTexture();
-
-            {
-                // Generated frame number `pairStep` of this pair, placed at
-                // its own point in time between the two real frames. The
-                // motion field is estimated once per pair and reused for all
-                // of them, which is why a higher factor costs only one extra
-                // interpolation dispatch (0.15 ms) per frame.
-                // Phase from the MEASURED real-frame interval, not from
-                // step/factor. Those agree only when a pair happens to span
-                // exactly `factor` output slots: at 48.0 native FPS on a
-                // 144 Hz display, 3 x 6.94 = 20.83 ms exactly. At 47.3 FPS
-                // the real interval is 21.1 ms, and replaying it as if it
-                // were 20.83 ms shows the motion slightly too fast, then
-                // corrects on the real frame - which is seen as stepping
-                // rather than as flow. Dividing the slot time by the actual
-                // interval places each generated frame where it belongs on
-                // the real timeline.
-                float phase = static_cast<float>(pairStep) / static_cast<float>(pairFactor);
-                if (refreshLockEnabled && realFrameIntervalEmaMs > 1.0) {
-                    const double phaseFromTime = (pairStep * outputSlotMs) / realFrameIntervalEmaMs;
-                    // Clamped below 1: a generated frame must stay strictly
-                    // between the two real frames it is interpolated from.
-                    phase = static_cast<float>(phaseFromTime < 0.95 ? phaseFromTime : 0.95);
-                }
-                interpolator.SetPhase(phase);
-                interpolator.SetStatusFlags((maxFactor == 2 ? 1u : 0u)
-                    | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
-                D3D11_TEXTURE2D_DESC desc{};
-                estimator.CurrFrameTexture()->GetDesc(&desc);
-                if (interpolator.GenerateFrame(device.get(), context.get(),
-                        estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
-                        desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM)) {
-                    frameToShow = interpolator.GeneratedFrameTexture();
-                }
-                // If generation failed we fall through with the real frame -
-                // a duplicate real frame is always preferable to a gap.
-            }
-
-            if (refreshLockEnabled) {
-                WaitForOutputSlot();
-            } else {
-                double nowMs = NowMs();
-                if (pacingEnabled && realFrameIntervalEmaMs > 0.0 && nowMs < generatedFrameDueAtMs) {
-                    double remainingMs = generatedFrameDueAtMs - nowMs;
-                    if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0)); // coarse wait
-                    while (NowMs() < generatedFrameDueAtMs) { /* short spin for the last fraction */ }
-                }
-                generatedFrameDueAtMs = NowMs() + (realFrameIntervalEmaMs > 0.0 ? realFrameIntervalEmaMs / pairFactor : 0.0);
-            }
-
-            double presentStartMs = NowMs();
-            presenter.PresentFrame(context.get(), frameToShow, presentSyncInterval);
-            double presentEndMs = NowMs();
-
-            if (frameToShow == interpolator.GeneratedFrameTexture()) ++generatedFramesSinceReport;
-            else ++nativeFramesSinceReport;
-
-            ++pairStep;
-
-            RecordPresentGap(presentEndMs);
-            RecordPresentAge();
-            phasePresentMsSum += presentEndMs - presentStartMs;
-            phaseIterationMsSum += presentEndMs - iterationStartMs;
-            ++phaseSamples;
-
-            ReportTelemetryIfDue();
-            continue;
-            } // end of the generated-frame branch
-        }
-
-        // Capture and prepare the next pair. Reached either from the bottom of
-        // the loop, or - the point of making it callable - from the real-frame
-        // slot above, so this work happens WHILE waiting for that slot instead
-        // of after it.
+        // TIME-DRIVEN OUTPUT. One iteration = one output slot = one present,
+        // always, whatever the source is doing.
         //
-        // Why that matters, measured: at factor 3 the three output slots of
-        // 6.94 ms exactly fill the 20.83 ms real frame interval, leaving no
-        // slack. Doing capture plus estimation afterwards pushed every pair
-        // late until the pipeline settled a full interval behind - 20.8 ms
-        // average on-screen age, where the scheme itself only requires 13.9.
-        // The slot wait idles for ~6 ms; this work needs ~1.7 ms and fits
-        // inside it.
+        // This replaced a scheme that emitted a fixed number of frames per
+        // real frame (the "factor"). That can only be evenly paced when the
+        // source rate divides the refresh rate, which is true of a browser
+        // locking itself to 48 FPS on a 144 Hz display, and false of every
+        // game: measured in Delta Force, ~50 real FPS against 144 Hz left a
+        // third of all output slots empty ("missed slots 32-36%") and output
+        // intervals swinging between 6.9 and 20 ms. No integer factor fixes
+        // that - 50 x 2 = 100 and 50 x 3 = 150, neither of which is 144.
         //
-        // While pendingRealPresent is set, the slot this iteration belongs to
-        // is already spoken for by the real frame presented at the end, so the
-        // paths below that would present a frame of their own (a duplicate
-        // frame, or factor 1) must not also fill it.
+        // Instead, each slot asks what the content SHOULD look like at this
+        // instant and interpolates to exactly that point on the real
+        // timeline. The spacing is then always one refresh interval, and the
+        // source rate becomes irrelevant - 50, 63 or 87 FPS all work.
+        //
+        // Capture and estimation run before the slot wait, so that work
+        // overlaps the idle time rather than delaying the next slot.
         LARGE_INTEGER captureStart{};
         QueryPerformanceCounter(&captureStart);
 
@@ -846,25 +696,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             EvaluateGenerationFactor();
         }
 
-        if (!capturedTex || !isNewFrame) {
-            // No NEW frame from the target application yet. Critically, do
-            // not run motion estimation or present anything here: feeding
-            // the same frame in again produces a zero motion field, poisons
-            // the estimator's previous-frame reference with a duplicate and
-            // pushes duplicate frames to the screen - measured as severe
-            // judder in the first overlay test. Just wait for real new
-            // content instead.
-            // The real frame's slot is still owed - it must not be dropped
-            // just because no NEW frame arrived to prepare the next pair with.
-            // Skipping it here left whole output slots empty and produced gaps
-            // of up to 277 ms.
-            FlushPendingRealFrame();
-            Sleep(1);
-            continue;
-        }
+        // Whether this iteration brought genuinely new content to estimate
+        // from. Either way the slot below is still presented - it just shows
+        // the real frame when there is nothing new to interpolate toward.
+        // Feeding an unchanged frame into the estimator would produce a zero
+        // motion field and poison its previous-frame reference.
+        bool haveNewContent = (capturedTex != nullptr) && isNewFrame;
 
-        presenter.Resize(frameW, frameH);
-        presenter.TrackOverlayTarget(); // follow the game window if it moves/resizes
+        if (haveNewContent) {
+            presenter.Resize(frameW, frameH);
+            presenter.TrackOverlayTarget(); // follow the window if it moves/resizes
+        }
 
         // A recomposited-but-unchanged frame carries no new information.
         // Interpolating against it yields a zero motion field and a
@@ -872,23 +714,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // nothing gets smoother. Skip it entirely and wait for content that
         // actually changed, so interpolation always runs between two
         // genuinely different frames.
-        if (duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
+        if (haveNewContent && duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
             ++duplicateFramesSinceReport;
-            // Skip the GENERATION work, but still present the real frame.
-            // Skipping the present as well made the output look frozen
-            // whenever the screen went static (reported live: "sobald meine
-            // Maus still bleibt ... bleibt es stehen") - and a frozen
-            // overlay is far worse than a redundant present, because the
-            // viewer cannot tell it apart from a crash.
-            // If the real frame still owes its slot, that IS this slot - show
-            // it rather than a second copy of the same picture.
-            if (!FlushPendingRealFrame()) {
-                WaitForOutputSlot();
-                presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
-                ++nativeFramesSinceReport;
-            }
-            ReportTelemetryIfDue();
-            continue;
+            // Recomposited but unchanged: no new content to estimate from, so
+            // it is treated exactly like "no new frame". The slot below still
+            // gets presented - skipping the present made the output look
+            // frozen on a static screen, which is indistinguishable from a
+            // crash to the viewer.
+            haveNewContent = false;
         }
 
         // While degraded, DON'T run motion estimation at all except a
@@ -901,14 +734,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // actually restores a responsive passthrough framerate.
         double computeStartMs = NowMs();
 
-        bool haveMotionField = false;
         bool ranEstimationThisTick = false;
         ++degradedFrameCounter;
 
-        if (!forcePassthroughOnly && (!inDegradedMode || degradedFrameCounter >= kDegradedRetryIntervalFrames)) {
+        if (haveNewContent && !forcePassthroughOnly
+                && (!inDegradedMode || degradedFrameCounter >= kDegradedRetryIntervalFrames)) {
             degradedFrameCounter = 0;
+            // Motion field and frame timestamps persist across slots: the
+            // output is driven by the clock, not by frame arrivals, so several
+            // slots interpolate from the same pair of real frames.
             haveMotionField = estimator.ProcessFrame(device.get(), context.get(), capturedTex);
             ranEstimationThisTick = true;
+            if (haveMotionField) {
+                motionPrevTimestampMs = motionCurrTimestampMs;
+                motionCurrTimestampMs = frameTimestamp100ns / 10000.0;
+            }
         }
 
         if (ranEstimationThisTick) {
@@ -941,38 +781,71 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // moving. Sampled rarely (the readback stalls the pipeline).
         if (haveMotionField) motionStats.SampleIfDue(device.get(), context.get(), estimator.MotionVectorTexture());
 
-        const bool canGenerate = haveMotionField && !inDegradedMode
-            && generationFactor > 1 && !forcePassthroughOnly;
-        if (canGenerate) {
-            // Hand this pair to the presentation state machine above, which
-            // emits the generated frames and then the real one, one per
-            // iteration on the refresh-locked grid. Nothing is presented here.
-            pairFactor = generationFactor;
-            pairStep = 1;
-        } else if (!pendingRealPresent) {
-            // Factor 1 (source already saturates the display), no motion
-            // field yet, or degraded mode: show the real frame unchanged.
-            WaitForOutputSlot();
-            presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
-            ++nativeFramesSinceReport;
-            // Only a real present advances the interval measurement. Counting
-            // this iteration unconditionally is exactly the mistake that made
-            // the first jitter readings meaningless: the pair-setup path
-            // presents nothing, so it contributed a phantom zero-length gap
-            // per pair and reported 192 intervals per second against 144
-            // actual frames - which looked like a pacing bug that was not
-            // there.
-            RecordPresentGap(NowMs());
+        // ---- The output slot ----------------------------------------------
+        // Wait for this slot, then decide from the CLOCK what to show in it.
+        WaitForOutputSlot();
+
+        const double realIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+        const bool haveTimeline = haveMotionField && realIntervalMs > 1.0 && realIntervalMs < 200.0;
+
+        // The presentation clock runs one real-frame interval behind the
+        // capture, which is the minimum an interpolator can manage: the frame
+        // after a given instant has to exist before that instant can be drawn.
+        double phase = 1.0;
+        if (haveTimeline) {
+            const double contentTimeMs = NowMs() - realIntervalMs;
+            phase = (contentTimeMs - motionPrevTimestampMs) / realIntervalMs;
+            phase = phase < 0.0 ? 0.0 : (phase > 1.0 ? 1.0 : phase);
         }
 
-        // The real frame's slot, presented AFTER the work above so that work
-        // overlapped the slot's idle wait instead of delaying the next pair.
-        if (FlushPendingRealFrame()) {
-            ReportTelemetryIfDue();
-            continue;
+        // Close enough to a real frame that generating one would just
+        // reproduce it - show the real thing instead. This is also what
+        // happens when the source has stopped delivering: phase saturates at
+        // 1 and the real frame keeps being shown, which is correct rather
+        // than frozen.
+        constexpr double kRealFrameEpsilon = 0.04;
+        const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly
+            && phase > kRealFrameEpsilon && phase < 1.0 - kRealFrameEpsilon;
+
+        phaseSumForReport += phase;
+        ++phaseCountForReport;
+        if (haveTimeline) ++timelineSlotsForReport;
+
+        const double presentStartMs = NowMs();
+        bool presentedGenerated = false;
+
+        if (wantGenerated) {
+            interpolator.SetPhase(static_cast<float>(phase));
+            interpolator.SetStatusFlags((maxFactor == 2 ? 1u : 0u)
+                | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
+            D3D11_TEXTURE2D_DESC desc{};
+            estimator.CurrFrameTexture()->GetDesc(&desc);
+            if (interpolator.GenerateFrame(device.get(), context.get(),
+                    estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                    desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM)) {
+                presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                presentedGenerated = true;
+            }
         }
 
-        double presentEndMs = NowMs();
+        if (!presentedGenerated) {
+            if (transparentRealFrames && presenter.SupportsTransparency() && haveMotionField) {
+                // Show nothing of ours: the real screen underneath is what the
+                // viewer sees, at native quality.
+                presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+            } else if (estimator.CurrFrameTexture()) {
+                presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+            } else if (capturedTex) {
+                presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
+            }
+        }
+
+        const double presentEndMs = NowMs();
+        if (presentedGenerated) ++generatedFramesSinceReport;
+        else ++nativeFramesSinceReport;
+        RecordPresentGap(presentEndMs);
+        RecordPresentAge();
+        phasePresentMsSum += presentEndMs - presentStartMs;
         phaseComputeMsSum += computeEndMs - computeStartMs;
         phasePresentMsSum += presentEndMs - computeEndMs;
         phaseIterationMsSum += presentEndMs - iterationStartMs;
