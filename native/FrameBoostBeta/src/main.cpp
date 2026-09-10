@@ -826,7 +826,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double lastPresentAtMs = -1.0;
     double gapSumMs = 0.0, gapSumSqMs = 0.0;
     double gapMinMs = 1e9, gapMaxMs = 0.0;
-    uint64_t gapSamples = 0, gapMissed = 0;
+    uint64_t gapSamples = 0, gapMissed = 0, gapCollapsed = 0;
 
     auto RecordPresentGap = [&](double presentEndMs) {
         if (lastPresentAtMs > 0.0) {
@@ -837,6 +837,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (gap > gapMaxMs) gapMaxMs = gap;
             ++gapSamples;
             if (outputSlotMs > 0.0 && std::abs(gap - outputSlotMs) > outputSlotMs * 0.5) ++gapMissed;
+            // Closer than one refresh: counted by us, never seen by anyone.
+            if (outputSlotMs > 0.0 && gap < outputSlotMs * 0.9) ++gapCollapsed;
         }
         lastPresentAtMs = presentEndMs;
     };
@@ -849,6 +851,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         LARGE_INTEGER t{};
         QueryPerformanceCounter(&t);
         return static_cast<double>(t.QuadPart) / qpcFreq.QuadPart * 1000.0;
+    };
+
+    // Two frames cannot share one refresh: the display scans out once per
+    // interval, so a present that follows too closely replaces one that was
+    // never shown. Measured in Apex: 35-41% of all presents landed closer
+    // together than a refresh, some 0.34 ms apart - four frames in ten counted
+    // and never displayed, which is why an output of 146 did not even look
+    // like 72.
+    //
+    // Waiting costs latency, and that is the trade being made deliberately
+    // here: a frame nobody sees is worth less than a frame that arrives a
+    // little later.
+    auto WaitForDisplaySlot = [&]() {
+        if (outputSlotMs <= 0.0 || lastPresentAtMs <= 0.0) return;
+        const double earliest = lastPresentAtMs + outputSlotMs * 0.95;
+        const double ceiling = NowMs() + 20.0;
+        while (NowMs() < earliest && NowMs() < ceiling) { ddCapture.Pump(); }
     };
 
     // Presents the real frame whose slot is still owed, if any. Returns true
@@ -1014,6 +1033,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR - generation off" : "steady")
                 : std::string("N/A"))
             << " | Queue depth: " << queueCount << " (dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
+            << " | Presents lost to collision: " << (gapSamples ? 100.0 * gapCollapsed / gapSamples : -1.0) << "%"
             << " | Content step: " << (contentStepCount ? contentStepSum / contentStepCount : -1.0) << " ms mean, min "
             << (contentStepCount ? contentStepMin : -1.0) << ", max " << (contentStepCount ? contentStepMax : -1.0)
             << ", sd " << (contentStepCount > 1
@@ -1064,7 +1084,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         phaseSumForReport = 0.0; phaseCountForReport = 0; timelineSlotsForReport = 0;
         contentStepSum = 0.0; contentStepSumSq = 0.0; contentStepCount = 0;
         contentStepMin = 1e9; contentStepMax = -1e9; contentStepBackwards = 0;
-        gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
+        gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0; gapCollapsed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
         phaseSamples = 0;
@@ -1861,6 +1881,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // must never be able to inherit a bad measurement.
                     const double genCeilingMs = NowMs() + 20.0;
                     while (NowMs() < dueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
+                    WaitForDisplaySlot();
                     WaitForRefreshBoundary();
 
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
@@ -1900,6 +1921,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // impossible rather than merely unlikely.
                 const double waitCeilingMs = NowMs() + 20.0;
                 while (NowMs() < realDueAtMs && NowMs() < waitCeilingMs) { ddCapture.Pump(); }
+                WaitForDisplaySlot();
 
                 WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
