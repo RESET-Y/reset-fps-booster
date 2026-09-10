@@ -408,11 +408,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // outcome this feature must never produce.
     double generationCostEmaMs = -1.0;
     bool gpuHasRoom = true;
-    int gpuRoomHoldFrames = 0;
-    // About half a second at a typical source rate - long enough that a swing in
-    // the measured interval cannot toggle the overlay, short enough that a game
-    // genuinely running out of GPU is left alone quickly.
-    static constexpr int kGpuRoomHoldFrames = 30;
+    double gpuRoomVerdictSinceMs = 0.0;
+    double lastInterpolationRunMs = 0.0;
+    // Long enough that a swing in the measured interval cannot toggle the
+    // overlay, short enough that a game genuinely out of GPU is left alone
+    // quickly.
+    static constexpr double kGpuRoomHoldMs = 500.0;
 
     // Standing aside has to mean getting out of the way COMPLETELY.
     //
@@ -1457,7 +1458,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // worth in time. Above half the source interval there is no room to
             // do the work without delaying the very frames we are meant to be
             // adding to - so generation stops until there is.
-            const double interpMs = interpolator.LastGpuTimeMs();
+            // The interpolation figure is only usable while interpolation is
+            // actually running - and once this guard has paused it, it is not.
+            // Reading LastGpuTimeMs() then returns whatever it measured during
+            // the contention that triggered the pause, forever, so the cost never
+            // falls back below the threshold and the guard never releases. It
+            // latched: measured 9 ms of "generation cost" while the two parts it
+            // is made of were reporting 0.53 and 0.43 ms in the same telemetry
+            // line.
+            //
+            // Motion estimation always runs, whether or not a frame is generated,
+            // so it is the honest half of the measurement. While interpolation is
+            // idle its cost is estimated as equal to it - measured repeatedly at
+            // roughly one to one - and the guard can recover on its own.
+            const bool interpFresh = (NowMs() - lastInterpolationRunMs) < 500.0;
+            const double interpMs = interpFresh ? interpolator.LastGpuTimeMs() : meGpuMs;
             const double costMs = (meGpuMs >= 0.0 ? meGpuMs : 0.0) + (interpMs >= 0.0 ? interpMs : 0.0);
             if (costMs > 0.0) {
                 generationCostEmaMs = generationCostEmaMs < 0.0
@@ -1475,11 +1490,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // both at the same cost - because the measured source rate
                     // swings, and each flip shows or hides the overlay. A guard
                     // that blinks is worse than the problem it guards against.
-                    if (hasRoom == gpuHasRoom) gpuRoomHoldFrames = 0;
-                    else ++gpuRoomHoldFrames;
+                    // Held by TIME, not by a count of measurements. Counting
+                    // measurements ties recovery to how often motion estimation
+                    // happens to run - and on a quiet screen it barely runs at
+                    // all, so the engine could sit paused long after the GPU had
+                    // room again, waiting for ticks that were not coming.
+                    if (hasRoom == gpuHasRoom) gpuRoomVerdictSinceMs = 0.0;
+                    else if (gpuRoomVerdictSinceMs <= 0.0) gpuRoomVerdictSinceMs = NowMs();
 
-                    if (hasRoom != gpuHasRoom && gpuRoomHoldFrames >= kGpuRoomHoldFrames) {
-                        gpuRoomHoldFrames = 0;
+                    if (hasRoom != gpuHasRoom && gpuRoomVerdictSinceMs > 0.0
+                            && NowMs() - gpuRoomVerdictSinceMs >= kGpuRoomHoldMs) {
+                        gpuRoomVerdictSinceMs = 0.0;
                         gpuHasRoom = hasRoom;
                         std::ostringstream oss;
                         oss << "[FrameBoostBeta] " << (hasRoom ? "GPU has room again" : "GPU has no room")
@@ -1635,6 +1656,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (interpolator.GenerateFrame(device.get(), context.get(),
                             estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                             desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                        lastInterpolationRunMs = NowMs();
                         WaitForRefreshBoundary();
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                         else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
@@ -1744,6 +1766,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                             desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
                         break;
                     }
+                    lastInterpolationRunMs = NowMs();
 
                     // Hold each one until its own point in the interval before
                     // presenting, so the spacing follows the content rather
