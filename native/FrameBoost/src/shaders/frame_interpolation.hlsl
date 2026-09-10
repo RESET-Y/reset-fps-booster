@@ -85,6 +85,12 @@ cbuffer InterpolationParams : register(b0)
 // smaller lie than a ghost of something that has already moved on.
 static const float kMismatchSensitivity = 14.0;
 
+// How sharply disagreement between a vector and the field it points into turns
+// into distrust. At 0.08 a disagreement of 4 px still counts as honest motion
+// (blocks never agree perfectly), while 12 px halves the confidence and 25 px -
+// the width of a moving object against still ground - removes it entirely.
+static const float kOcclusionSensitivity = 0.08;
+
 // How quickly a block`s own match error turns into distrust. Measured in a
 // game: a clean match scores 0.002-0.015, while a block that found nothing
 // resembling itself scores above 0.06.
@@ -181,6 +187,30 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float2 mv = motionAndError.xy;
     float blockMatchError = motionAndError.z;
 
+    // OCCLUSION, found in the motion field itself rather than in the colours.
+    //
+    // The trail behind a moving object is not a wrong vector - every vector
+    // there is right. The ground an object has just left is background in the
+    // new frame and was the object in the old one, so blending the two halfway
+    // paints a ghost of the object where it used to be. The colour test that
+    // was supposed to catch this needs the two samples to look different, and a
+    // dark bot against a dark background never does; raising its sensitivity
+    // from 6 to 14 changed nothing visible.
+    //
+    // This asks a geometric question instead: follow this pixel's own vector to
+    // where it says the content came from, and read the field THERE. On honest
+    // motion the two agree - the whole object is moving together. Across an
+    // occlusion they disagree, because the place a vector points into belongs
+    // to something else entirely. Colour-blind by construction, so darkness
+    // does not hide it.
+    //
+    // One extra motion-field read per pixel, against 169 candidates per block
+    // for the search that produced it.
+    const float3 motionAtSource = SampleMotionBilinear(pixelCenter + mv, blockCount);
+    const float2 motionDisagreement = motionAtSource.xy - mv;
+    const float occlusionDistance = length(motionDisagreement);
+    const float occlusionConfidence = saturate(1.0 - occlusionDistance * kOcclusionSensitivity);
+
     // Motion-compensated sample positions - THIS is what makes this real
     // interpolation rather than a static blend: both samples are pulled
     // along the actual estimated motion path toward this frame's point in
@@ -236,7 +266,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // found it is high regardless of how similar two individual pixels happen
     // to look.
     float blockConfidence = saturate(1.0 - blockMatchError * kBlockErrorSensitivity);
-    float confidence = min(pixelConfidence, blockConfidence);
+    // The strictest of the three decides. Each catches a different failure:
+    // the pixel test catches content that is simply not in both frames, the
+    // block test catches a search that found nothing, and the occlusion test
+    // catches the case where both vectors are right and the content behind
+    // them still does not exist in one of the two frames.
+    float confidence = min(min(pixelConfidence, blockConfidence), occlusionConfidence);
 
     // Where the motion vector cannot be trusted, fall back to the real frame
     // this generated frame is NEARER TO IN TIME - not always the current one.
