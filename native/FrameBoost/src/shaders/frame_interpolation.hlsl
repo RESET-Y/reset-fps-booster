@@ -40,6 +40,21 @@ cbuffer InterpolationParams : register(b0)
     // motion field, estimated once per real frame pair.
     float PhaseT;
 
+    // Predict forward from CurrFrame by this fraction of an interval, instead
+    // of interpolating between PrevFrame and CurrFrame. 0 = interpolate.
+    //
+    // Interpolation must hold the newest real frame back so its generated
+    // partner can be shown first, and that hold is half an interval of pure
+    // added latency - 7.8 ms of a measured 13.4 ms at 64 FPS, which is why
+    // the raw game still felt more responsive than the boosted output.
+    // Extrapolating pays none of it: the real frame is shown the moment it
+    // arrives and the predicted frame follows.
+    //
+    // The price is that nothing behind a moving object is known - there is no
+    // later frame to copy it from - so revealed areas can only be filled with
+    // what the current frame already shows there.
+    float ExtrapolateAhead;
+
     // Status indicator, drawn as small squares in the top-left corner so the
     // active modes are visible on screen. Needed because the hotkeys had no
     // visible feedback at all - the overlay window has no title bar and is
@@ -146,6 +161,32 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // shifted by its own temporal distance to that point, so both land on
     // the same content: the previous frame is (1 - t) away, the current
     // frame t. At t = 0.5 this reduces to the original halfway case.
+    // Extrapolation: there is only one frame to read from, and the content is
+    // carried FORWARD along the motion it already had. Content moved by -mv
+    // between the two real frames, so the pixel at p a fraction a later was at
+    // p + a*mv in the current frame.
+    if (ExtrapolateAhead > 0.0)
+    {
+        float2 aheadPos = pixelCenter + ExtrapolateAhead * mv;
+        float4 aheadColor = CurrFrame.SampleLevel(LinearClamp, aheadPos / dims, 0);
+
+        // No second frame exists at this instant, so the per-pixel agreement
+        // test that interpolation uses is not available. The block's own match
+        // error is: where the estimator found no real match, the vector is a
+        // guess and moving the picture by it would smear.
+        float aheadConfidence = saturate(1.0 - blockMatchError * kBlockErrorSensitivity);
+        float4 aheadFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+
+        float3 aheadLinear = SrgbToLinear(aheadColor.rgb);
+        float3 aheadFallbackLinear = SrgbToLinear(aheadFallback.rgb);
+        float3 aheadResult = lerp(aheadFallbackLinear, aheadLinear, aheadConfidence);
+
+        float4 outColor = float4(LinearToSrgb(aheadResult), 1.0);
+        if (DebugTintGenerated) outColor.r = min(outColor.r + 0.35, 1.0);
+        GeneratedFrame[id.xy] = outColor;
+        return;
+    }
+
     float2 prevSamplePos = pixelCenter + (1.0 - PhaseT) * mv;
     float2 currSamplePos = pixelCenter - PhaseT * mv;
 

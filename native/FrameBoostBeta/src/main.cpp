@@ -147,6 +147,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "dupcheck": keep comparing frames on the GPU even when the capture API
     // reports dirty rectangles, so the two can be compared against each other.
     const bool useDirtyRectsOnly = HasArg(L"dirtyonly");
+    const bool extrapolateMode = !HasArg(L"interpolate");
 
     FrameBoostBeta::Logger::Init();
 
@@ -535,6 +536,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool f12WasDown = false;
     bool autoDumpDone = false;
     bool realFramePendingSimple = false;
+
+    // Extrapolation is the default: the real frame is never held back, which is
+    // where interpolation spends more than half its added latency. "interpolate"
+    // on the command line selects the older scheme for comparison.
+    bool generatedPendingSimple = false;
+    double generatedDueAtMs = 0.0;
     // Fixed anchor for the refresh grid the 2x mode snaps its presents to.
     double refreshAnchorMs = 0.0;
     double realFrameDueAtMs = 0.0;
@@ -1363,6 +1370,65 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                                " Cap the game at " << (outputRefreshHz / 2.0) << " FPS or below to double it.";
                     FrameBoostBeta::Logger::Log(oss.str());
                 }
+            }
+
+            // EXTRAPOLATION: show the real frame the instant it arrives, and
+            // predict the in-between frame forward from it afterwards.
+            //
+            // Interpolation cannot do this. To place a frame between N and N+1
+            // it must have N+1 in hand, so N+1 waits half an interval - 7.8 ms
+            // of the 13.4 ms measured at 64 FPS, and the reason the raw game
+            // still felt more responsive than the boosted output. Predicting
+            // forward pays none of that: the newest real frame goes straight
+            // out, and the generated frame that follows is a guess about a
+            // moment that has not happened yet.
+            //
+            // The guess is wrong exactly where a moving object uncovers
+            // background, because no later frame exists to copy it from. That
+            // is the trade, and it is for the eye to judge, not the numbers.
+            if (extrapolateMode) {
+                if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
+                        && realFrameIntervalEmaMs > 1.0 && doublingFitsDisplay) {
+                    // The real frame first, with nothing held back.
+                    WaitForRefreshBoundary();
+                    if (transparentRealFrames && presenter.SupportsTransparency()) {
+                        presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+                    } else if (estimator.CurrFrameTexture()) {
+                        presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+                    }
+                    ++nativeFramesSinceReport;
+                    RecordPresentGap(NowMs());
+                    RecordPresentAge();
+
+                    generatedDueAtMs = NowMs() + realFrameIntervalEmaMs * 0.5;
+                    generatedPendingSimple = haveMotionField;
+                }
+
+                if (generatedPendingSimple && NowMs() >= generatedDueAtMs && estimator.CurrFrameTexture()) {
+                    D3D11_TEXTURE2D_DESC desc{};
+                    estimator.CurrFrameTexture()->GetDesc(&desc);
+
+                    interpolator.SetExtrapolateAhead(0.5f);
+                    interpolator.SetPhase(0.5f);
+                    interpolator.SetStatusFlags((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u);
+
+                    ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
+                    if (interpolator.GenerateFrame(device.get(), context.get(),
+                            estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                            desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                        WaitForRefreshBoundary();
+                        if (uav) presenter.PresentBackBuffer(presentSyncInterval);
+                        else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                        ++generatedFramesSinceReport;
+                        RecordPresentGap(NowMs());
+                        RecordPresentAge();
+                    }
+                    generatedPendingSimple = false;
+                }
+
+                Sleep(0);
+                ReportTelemetryIfDue();
+                continue;
             }
 
             // A real frame from the previous pair that never got shown. It is

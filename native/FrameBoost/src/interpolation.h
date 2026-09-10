@@ -33,6 +33,18 @@ public:
     // Clamped to keep the shader's sampling well behaved.
     void SetPhase(float t) { m_phaseT = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t); }
 
+    /// Predict FORWARD from the current frame instead of interpolating between
+    /// two known ones. 0 = interpolate (the default); 0.5 = half an interval
+    /// past the newest real frame.
+    ///
+    /// Interpolation has to hold the newest real frame back so its generated
+    /// partner can be shown first, and that hold is a full half interval of
+    /// added latency - 7.8 ms of a measured 13.4 ms at 64 FPS. Extrapolation
+    /// pays nothing for it: the real frame goes out the moment it arrives.
+    /// What it cannot do is know what is behind a moving object, because there
+    /// is no later frame to copy that from.
+    void SetExtrapolateAhead(float a) { m_extrapolateAhead = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a); }
+
     // Draws small status squares in the generated frames' top-left corner:
     // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
     void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
@@ -64,6 +76,8 @@ private:
     // the overlay has no title bar and is hidden from the taskbar, so a mode
     // change could only be confirmed by reading the log file.
     unsigned int m_statusFlags = 0;
+    float m_extrapolateAhead = 0.0f;
+    float m_extrapolateAheadInBuffer = -1.0f;
     unsigned int m_statusFlagsInBuffer = 0xFFFFFFFFu;
 
     static constexpr int kQueryRingSize = 4;
