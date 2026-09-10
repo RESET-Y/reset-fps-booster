@@ -1,5 +1,4 @@
 #if RFB_BETA
-using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,10 +14,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private bool _isRunning;
     [ObservableProperty] private string? _statusMessage;
-    [ObservableProperty] private CaptureTargetWindow? _selectedWindow;
     [ObservableProperty] private FrameBoostBetaTelemetry _telemetry = new();
-
-    public ObservableCollection<CaptureTargetWindow> AvailableWindows { get; } = new();
 
     public FrameBoostBetaViewModel(IFrameBoostBetaService service)
     {
@@ -26,23 +22,9 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    public void RefreshWindows()
-    {
-        AvailableWindows.Clear();
-        foreach (var window in _service.EnumerateCandidateWindows())
-            AvailableWindows.Add(window);
-    }
-
-    [RelayCommand]
     public void StartCapture()
     {
-        if (SelectedWindow is null)
-        {
-            StatusMessage = "Select a window to capture first.";
-            return;
-        }
-
-        var error = _service.Start(SelectedWindow);
+        var error = _service.Start();
         if (error is not null)
         {
             StatusMessage = error;
@@ -59,11 +41,11 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             Telemetry = _service.ReadLatestTelemetry();
             if (!_service.IsRunning)
             {
-                // The native engine exited on its own (failsafe path, target
-                // window closed, or a genuine failure) - reflect that
-                // honestly instead of pretending it's still running.
+                // The native engine exited on its own (failsafe path or a
+                // genuine failure) - reflect that honestly instead of
+                // pretending it's still running.
                 StopCapture();
-                StatusMessage = "FrameBoost engine stopped (target window closed, or it hit a failsafe exit).";
+                StatusMessage = "FrameBoost stopped on its own (it hit a failsafe exit). Nothing was left running.";
             }
         };
         _telemetryTimer.Start();

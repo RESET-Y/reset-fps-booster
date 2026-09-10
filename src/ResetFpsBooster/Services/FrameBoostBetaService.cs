@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 
@@ -10,12 +9,11 @@ namespace ResetFpsBooster.Services;
 
 /// <summary>
 /// Manages the RESET FRAMEBOOST BETA native engine (FrameBoostBeta.exe) — a
-/// completely separate process from this app and from any target game.
-/// This service only ever: enumerates OTHER processes' top-level window
-/// handles (a public, read-only Win32 API — no memory access, no
-/// injection), launches the native engine as an ordinary child process with
-/// that handle as a command-line argument, and tails a log file the engine
-/// writes. It never touches a target application beyond that.
+/// completely separate process from this app and from any running game.
+/// This service only ever launches that engine as an ordinary child process
+/// and tails the log file it writes. It never touches a game: no memory
+/// access, no injection, nothing but the public screen-capture API the
+/// engine itself uses.
 /// </summary>
 public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 {
@@ -23,42 +21,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public bool IsRunning => _process is { HasExited: false };
 
-    public IReadOnlyList<CaptureTargetWindow> EnumerateCandidateWindows()
-    {
-        var results = new List<CaptureTargetWindow>();
-        int ownProcessId = Environment.ProcessId;
-
-        NativeMethods.EnumWindows((hWnd, _) =>
-        {
-            if (!NativeMethods.IsWindowVisible(hWnd)) return true;
-
-            int titleLength = NativeMethods.GetWindowTextLength(hWnd);
-            if (titleLength == 0) return true;
-
-            var titleBuffer = new System.Text.StringBuilder(titleLength + 1);
-            NativeMethods.GetWindowText(hWnd, titleBuffer, titleBuffer.Capacity);
-            string title = titleBuffer.ToString();
-            if (string.IsNullOrWhiteSpace(title)) return true;
-
-            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
-            if (pid == ownProcessId) return true;
-
-            string processName = "unknown";
-            try
-            {
-                using var proc = Process.GetProcessById((int)pid);
-                processName = proc.ProcessName;
-            }
-            catch { /* process may have exited between enumeration and lookup */ }
-
-            results.Add(new CaptureTargetWindow(hWnd, title, processName));
-            return true;
-        }, IntPtr.Zero);
-
-        return results;
-    }
-
-    public string? Start(CaptureTargetWindow target)
+    public string? Start()
     {
         Stop();
 
@@ -71,18 +34,20 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = exePath,
-                // "monitor": capture the whole display the target sits on,
-                // rather than the window itself.
+                // No arguments at all: the engine boosts the whole primary
+                // display, and its hotkeys stay disabled.
                 //
-                // Window capture stalls as soon as the overlay covers the
-                // window - Windows stops drawing what it believes is hidden,
-                // which starves the very frames FrameBoost needs. Measured on
-                // the same game and machine: 32-35 duplicate frames per second
-                // and gaps up to 485 ms with window capture, against 0 and
-                // ~7 ms capturing the monitor. A display is always composited,
-                // so it keeps delivering with the overlay on top of it.
-                Arguments = string.Create(CultureInfo.InvariantCulture,
-                    $"{target.Handle} monitor"),
+                // Both matter. Window capture stalls as soon as the overlay
+                // covers the window - Windows stops drawing what it believes
+                // is hidden, which starves the very frames FrameBoost needs
+                // (measured: 32-35 duplicate frames per second and gaps up to
+                // 485 ms, against 0 and ~7 ms capturing the monitor). And the
+                // engine's F-key hotkeys, even behind CTRL+ALT, were being
+                // triggered from inside the game: one session silently turned
+                // off the frame buffer and raised the generation factor, which
+                // brought the judder back. Started from here, the tuned
+                // configuration is the only one that runs.
+                Arguments = string.Empty,
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
@@ -176,24 +141,5 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public void Dispose() => Stop();
 
-    private static class NativeMethods
-    {
-        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        public static extern bool IsWindowVisible(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        public static extern int GetWindowTextLength(IntPtr hWnd);
-
-        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-        public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll")]
-        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-    }
 }
 #endif

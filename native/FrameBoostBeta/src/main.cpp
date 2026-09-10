@@ -15,6 +15,7 @@
 #include <sstream>
 #include <utility>
 #include <string>
+#include <vector>
 #include <cmath>
 #include <functional>
 
@@ -80,7 +81,23 @@ double MonitorRefreshHz(HMONITOR monitor) {
 // 15-second session in Delta Force toggled the frame buffer twice, the
 // refresh lock, the latency cap and the debug tint - and the "test" that
 // followed was therefore of a random configuration, not of the fix.
+//
+// CTRL+ALT was still not enough. Measured again, from the app's own run:
+// three combos arrived within two seconds of gameplay - F4 turned the simple
+// 2x path off, F5 dropped the one-frame buffer, F6 raised the cap to 3x. With
+// the buffer gone and this source measuring 17-25% interval deviation, the
+// irregularity guard then disabled generation completely: 70 real frames per
+// second passed straight through to a 144 Hz panel, and every one of them was
+// held for either one refresh or two. That is the judder that came back, and
+// nobody chose any of it.
+//
+// So the hotkeys are now off unless the engine is started with "hotkeys" on
+// the command line. Started from the app, the tuned configuration is the only
+// one that can be running - a switch, not a keyboard full of traps.
+bool g_hotkeysEnabled = false;
+
 bool HotkeyDown(int vk) {
+    if (!g_hotkeysEnabled) return false;
     const bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
     const bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
     return ctrl && alt && (GetAsyncKeyState(vk) & 0x8000) != 0;
@@ -102,16 +119,31 @@ bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     int argc = 0;
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    HWND targetWindow = ParseTargetWindow(argc, argv);
-    std::wstring argv2Storage = (argc >= 3 && argv) ? argv[2] : L"";
+    // Arguments are read by keyword rather than by position, and a window
+    // handle is optional. With no handle the engine boosts the whole primary
+    // display - which is what the app's switch does, and what a player
+    // actually wants: the screen, not one window they first have to pick out
+    // of a list.
+    std::vector<std::wstring> args;
+    for (int i = 1; i < argc && argv; ++i) args.emplace_back(argv[i]);
     if (argv) LocalFree(argv);
 
-    FrameBoostBeta::Logger::Init();
+    auto HasArg = [&](const wchar_t* keyword) {
+        for (const auto& a : args)
+            if (_wcsicmp(a.c_str(), keyword) == 0) return true;
+        return false;
+    };
 
-    if (!targetWindow) {
-        FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: no target window handle provided on the command line.");
-        return 1;
+    HWND targetWindow = nullptr;
+    for (const auto& a : args) {
+        wchar_t* end = nullptr;
+        uintptr_t value = wcstoull(a.c_str(), &end, 0); // accepts "0x..." or decimal
+        if (value && end && *end == L'\0') { targetWindow = reinterpret_cast<HWND>(value); break; }
     }
+
+    g_hotkeysEnabled = HasArg(L"hotkeys");
+
+    FrameBoostBeta::Logger::Init();
 
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
 
@@ -127,7 +159,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // when the window is covered (Windows stops redrawing hidden windows);
     // a monitor is always composited, so this mode keeps receiving frames
     // even with our own output displayed on top of everything.
-    bool monitorMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"monitor") == 0);
+    // With no window handle there is nothing to capture BUT a monitor, so
+    // whole-screen mode is also the default.
+    bool monitorMode = HasArg(L"monitor") || !targetWindow;
     // "monitor2": capture the monitor the target sits on, but display the
     // boosted result on a DIFFERENT monitor. This is the only tested
     // configuration where nothing gets covered, so the source keeps
@@ -138,11 +172,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // delivery irregular. Everything the engine normally does competes with
     // the game and the compositor for the same GPU, so the only way to know
     // what the source looks like undisturbed is to stop disturbing it.
-    bool measureOnlyMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"measure") == 0);
+    bool measureOnlyMode = HasArg(L"measure");
 
-    bool secondScreenMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"monitor2") == 0);
+    bool secondScreenMode = HasArg(L"monitor2");
     if (secondScreenMode) monitorMode = true;
-    HMONITOR targetMonitor = MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST);
+    // No handle: the primary display, which is the one being played on.
+    HMONITOR targetMonitor = targetWindow
+        ? MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST)
+        : MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY);
     HMONITOR outputMonitor = targetMonitor;
 
     if (secondScreenMode) {
@@ -165,7 +202,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
 
     RECT targetRect{};
-    GetClientRect(targetWindow, &targetRect);
+    if (targetWindow) {
+        GetClientRect(targetWindow, &targetRect);
+    } else {
+        MONITORINFO mi{ sizeof(mi) };
+        if (GetMonitorInfoW(targetMonitor, &mi)) targetRect = mi.rcMonitor;
+    }
     UINT initialWidth = static_cast<UINT>(targetRect.right - targetRect.left);
     UINT initialHeight = static_cast<UINT>(targetRect.bottom - targetRect.top);
     if (initialWidth == 0 || initialHeight == 0) { initialWidth = 1280; initialHeight = 720; }
@@ -377,7 +419,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ageMs > presentAgeMaxMs) presentAgeMaxMs = ageMs;
         ++presentAgeSamples;
     };
-    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Hotkeys need CTRL+ALT (games bind the F-keys themselves): CTRL+ALT+F5 one-frame buffer, F6 latency cap, F7 transparency, F8 refresh lock, F9 generation on/off, F11 tint generated frames.");
+    FrameBoostBeta::Logger::Log(g_hotkeysEnabled
+        ? "[FrameBoostBeta] Hotkeys ENABLED (started with \"hotkeys\") and need CTRL+ALT: CTRL+ALT+F4 simple 2x, F5 one-frame buffer, F6 latency cap, F7 transparency, F8 refresh lock, F9 generation on/off, F11 tint generated frames."
+        : "[FrameBoostBeta] Hotkeys disabled - the tuned configuration cannot be changed by anything the game sends. Start with \"hotkeys\" to enable them for testing.");
     // Timestamps of the two real frames the motion field spans, in the same
     // clock as NowMs(). The output is driven from these, not from a counter.
     double phaseSumForReport = 0.0;

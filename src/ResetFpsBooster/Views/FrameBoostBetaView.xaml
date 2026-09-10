@@ -14,26 +14,17 @@
                 </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="System-level frame generation for any Windows application window, via the public Windows Graphics Capture API — no game modification, no injection, no memory access. Displays the boosted result in its own separate window. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
+                       Text="System-level frame generation for your whole screen, via the public Windows Graphics Capture API — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
 
             <Border Style="{StaticResource Card}" Margin="0,20,0,16">
                 <StackPanel>
-                    <TextBlock Text="Target window" Style="{StaticResource Text.SectionTitle}"/>
-                    <Grid Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableWindows}" SelectedItem="{Binding SelectedWindow}"
-                                  DisplayMemberPath="Title" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
-                        <Button Grid.Column="1" Content="Refresh" Style="{StaticResource Button.Secondary}" Command="{Binding RefreshWindowsCommand}"
-                                Margin="10,0,0,0" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
-                    </Grid>
+                    <TextBlock Text="Frame generation" Style="{StaticResource Text.SectionTitle}"/>
+                    <TextBlock Text="Boosts the main display — no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
 
                     <Grid Margin="0,16,0,0">
-                        <Button Content="Start FrameBoost" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
+                        <Button Content="Turn FrameBoost on" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
                                 HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVis}}"/>
-                        <Button Content="Stop FrameBoost" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
+                        <Button Content="Turn FrameBoost off" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
                                 HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
                     </Grid>
 

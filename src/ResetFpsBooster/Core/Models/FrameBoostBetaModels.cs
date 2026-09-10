@@ -1,7 +1,6 @@
 #if RFB_BETA
 namespace ResetFpsBooster.Core.Models;
 
-public sealed record CaptureTargetWindow(nint Handle, string Title, string ProcessName);
 
 // Real values only — every field stays null until the native engine's own
 // log actually reports it. Never fabricated, never a placeholder number.

@@ -7,11 +7,12 @@ public interface IFrameBoostBetaService
 {
     bool IsRunning { get; }
 
-    IReadOnlyList<CaptureTargetWindow> EnumerateCandidateWindows();
-
+    /// Boosts the whole main display. There is no target to choose: the
+    /// engine captures the monitor, which is also the only source that keeps
+    /// delivering frames while our own output is displayed on top of it.
     /// <returns>Null on success, or a human-readable reason it could not start
     /// (missing engine binary, launch failure, etc.) — never throws.</returns>
-    string? Start(CaptureTargetWindow target);
+    string? Start();
 
     void Stop();
 
