@@ -122,24 +122,46 @@ cbuffer FrameDims : register(b0)
 groupshared float g_sad[kCandidateCount];
 groupshared float g_zeroMotionSad;
 
-float BlockSAD(int2 currBlockOrigin, int2 candidateOffset)
+// THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
+// same 16 full-resolution pixels, so the motion field keeps its granularity.
+//
+// Reason, measured in a GPU-bound game: this dispatch reported 30 ms where the
+// same work costs 0.50 ms on an idle GPU. The arithmetic is not the problem,
+// the memory traffic is: 169 candidates x 16 samples per block, every one a
+// texture read. At half resolution the same block is eight texels across
+// instead of sixteen, so a search window fits in a quarter of the footprint.
+//
+// It also doubles the reach for free: a refinement of six texels here is twelve
+// full-resolution pixels, where before it was six.
+//
+// What it costs: motion is resolved to two-pixel precision instead of one. For
+// deciding where a sixteen-pixel block went, that sits below the noise floor of
+// the estimate itself.
+static const int kSearchMip = 1;
+static const int kMipScale = 2;                                        // 1 << kSearchMip
+static const int kBlockTexels = kBlockSize / kMipScale;                // 8 texels
+static const int kSampleStrideTexels = kBlockSampleStride / kMipScale; // 2 -> 4x4 = 16 samples
+
+float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
 {
+    const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                             max((int)FrameHeight / kMipScale, 1)) - 1;
+
     float sad = 0.0;
     [unroll]
-    for (int y = 0; y < kBlockSize; y += kBlockSampleStride)
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
     {
         [unroll]
-        for (int x = 0; x < kBlockSize; x += kBlockSampleStride)
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
         {
-            int2 currPixel = currBlockOrigin + int2(x, y);
-            int2 prevPixel = currPixel + candidateOffset;
+            int2 currTexel = currBlockOriginTexels + int2(x, y);
+            int2 prevTexel = currTexel + candidateOffsetTexels;
 
-            if (currPixel.x >= (int)FrameWidth || currPixel.y >= (int)FrameHeight)
+            if (currTexel.x > mipMax.x || currTexel.y > mipMax.y)
                 continue;
 
-            float3 currColor = CurrFrame.Load(int3(currPixel, 0)).rgb;
-            float3 prevColor = PrevFrame.Load(int3(clamp(prevPixel, int2(0, 0),
-                int2(FrameWidth - 1, FrameHeight - 1)), 0)).rgb;
+            float3 currColor = CurrFrame.Load(int3(currTexel, kSearchMip)).rgb;
+            float3 prevColor = PrevFrame.Load(int3(clamp(prevTexel, int2(0, 0), mipMax), kSearchMip)).rgb;
 
             sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
         }
@@ -152,13 +174,17 @@ float BlockSAD(int2 currBlockOrigin, int2 candidateOffset)
 [numthreads(kSearchWindow, kSearchWindow, 1)]
 void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
 {
-    int2 blockOrigin = int2(groupId.xy) * kBlockSize;
+    // Everything in this stage is counted in MIP 1 TEXELS; only the vector
+    // written at the end is converted back to full-resolution pixels.
+    int2 blockOrigin = int2(groupId.xy) * kBlockTexels;
 
-    // Seed from the coarse stage: which coarse block this fine block sits in,
-    // scaled from mip-2 texels back to full-resolution pixels.
+    // Seed from the coarse stage: which coarse block this fine block sits in.
+    // The coarse vector is in full-resolution pixels, so it is halved to land
+    // in this stage's coordinates.
     int2 coarseIndex = clamp(int2(groupId.xy) / kCoarseBlockRatio,
         int2(0, 0), int2(max(CoarseWidth, 1u), max(CoarseHeight, 1u)) - 1);
-    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)).xy)) * kCoarseToFineScale;
+    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)).xy))
+        * kCoarseToFineScale / kMipScale;
 
     int2 refinement = int2(groupThreadId.xy) - kSearchRadius;
     int2 candidateOffset = seed + refinement;
@@ -245,6 +271,10 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         const float matchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinement));
 
         const float kSamplesPerCandidate = 16.0 * 3.0; // 4x4 samples, 3 channels
-        MotionVectors[groupId.xy] = float4(float2(bestOffset), max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
+        // Back to full-resolution pixels: everything above was counted in
+        // mip-1 texels, and every consumer of this field - the smoothing pass,
+        // the interpolation shader, the statistics - works in real pixels.
+        MotionVectors[groupId.xy] = float4(float2(bestOffset * kMipScale),
+            max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
 }
