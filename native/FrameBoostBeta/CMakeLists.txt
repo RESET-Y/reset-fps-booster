@@ -20,6 +20,8 @@ set(MOTION_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/motion_estimation.hlsl")
 set(MOTION_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_cs.h")
 set(COARSE_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/motion_estimation_coarse.hlsl")
 set(COARSE_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_coarse_cs.h")
+set(COARSEST_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/motion_estimation_coarsest.hlsl")
+set(COARSEST_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_coarsest_cs.h")
 set(SMOOTH_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/motion_smooth.hlsl")
 set(SMOOTH_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_smooth_cs.h")
 set(INTERP_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/frame_interpolation.hlsl")
@@ -31,13 +33,16 @@ add_custom_command(OUTPUT "${MOTION_SHADER_HEADER}"
 add_custom_command(OUTPUT "${COARSE_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${COARSE_SHADER_HEADER}" /Vn g_MotionEstimationCoarseCS "${COARSE_SHADER_SRC}"
     DEPENDS "${COARSE_SHADER_SRC}" COMMENT "Compiling motion_estimation_coarse.hlsl")
+add_custom_command(OUTPUT "${COARSEST_SHADER_HEADER}"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${COARSEST_SHADER_HEADER}" /Vn g_MotionEstimationCoarsestCS "${COARSEST_SHADER_SRC}"
+    DEPENDS "${COARSEST_SHADER_SRC}" COMMENT "Compiling motion_estimation_coarsest.hlsl")
 add_custom_command(OUTPUT "${SMOOTH_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${SMOOTH_SHADER_HEADER}" /Vn g_MotionSmoothCS "${SMOOTH_SHADER_SRC}"
     DEPENDS "${SMOOTH_SHADER_SRC}" COMMENT "Compiling motion_smooth.hlsl")
 add_custom_command(OUTPUT "${INTERP_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${INTERP_SHADER_HEADER}" /Vn g_FrameInterpolationCS "${INTERP_SHADER_SRC}"
     DEPENDS "${INTERP_SHADER_SRC}" COMMENT "Compiling frame_interpolation.hlsl")
-add_custom_target(CompileBetaShaders DEPENDS "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
+add_custom_target(CompileBetaShaders DEPENDS "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${COARSEST_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
 
 add_executable(FrameBoostBeta WIN32
     src/main.cpp

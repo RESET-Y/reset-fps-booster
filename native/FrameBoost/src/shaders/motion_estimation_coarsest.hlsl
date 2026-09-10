@@ -1,5 +1,15 @@
-// Coarse stage of the pyramid search: block matching on a QUARTER-resolution
-// mip of both source frames.
+// COARSEST stage of the pyramid search: block matching on a SIXTEENTH-
+// resolution mip of both source frames.
+//
+// Exists because the two-level pyramid still saturated: 10-14% of moving
+// blocks sat on the edge of its 54 px reach during fast motion, with mean
+// motion measured at 19.6 px. At one sixteenth resolution a single texel
+// spans 16 full-resolution pixels, so the same radius of 12 reaches 192 px -
+// and it costs almost nothing, because there are 256 times fewer blocks than
+// at full resolution.
+//
+// It also makes the levels below CHEAPER: each now only has to refine a few
+// pixels around the level above rather than search from zero.
 //
 // Why the downsampling is the essential part, not an optimisation: a first
 // attempt widened the reach by sampling a 4-pixel candidate grid on the
@@ -18,28 +28,16 @@
 
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
-RWTexture2D<float2> CoarseMotionVectors : register(u0);
+RWTexture2D<float2> CoarsestMotionVectors : register(u0);
 
 // Blocks and offsets below are in MIP-2 texels throughout.
-static const int kMipLevel = 2;
-static const int kMipScale = 4;              // 1 texel here = 4 full-res pixels
+static const int kMipLevel = 4;
+static const int kMipScale = 16;        // 1 texel here = 16 full-res pixels
 static const int kBlockSize = 16;            // = 64 full-resolution pixels
 static const int kBlockSampleStride = 4;     // 4x4 = 16 samples per candidate
-// Radius reduced from 12 now that a coarsest level (mip 4) runs first: this
-// stage only refines around that result instead of searching from zero, so it
-// needs to cover the coarsest level's step size (16 full-resolution pixels =
-// 4 texels here) plus a margin. Six texels = 24 full-resolution pixels is
-// ample, and costs 169 candidates per block instead of 625.
-static const int kSearchRadius = 6;          // = 24 full-resolution pixels
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
-static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
-
-// One coarsest block covers 4x4 of this level's blocks, and its vectors are
-// stored in mip-4 texels - four of this level's texels each.
-static const int kCoarsestBlockRatio = 4;
-static const int kCoarsestToCoarseScale = 4;
-
-Texture2D<float2> CoarsestMotionVectors : register(t2);
+static const int kSearchRadius = 12;         // = 48 full-resolution pixels
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 25
+static const int kCandidateCount = kSearchWindow * kSearchWindow; // 625
 
 cbuffer FrameDims : register(b0)
 {
@@ -85,14 +83,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 {
     int2 mipDims = int2(max(FrameWidth / kMipScale, 1u), max(FrameHeight / kMipScale, 1u));
     int2 blockOrigin = int2(groupId.xy) * kBlockSize;
-
-    // Seed from the coarsest level, converted from mip-4 texels into this
-    // level's mip-2 texels.
-    int2 coarsestIndex = clamp(int2(groupId.xy) / kCoarsestBlockRatio,
-        int2(0, 0), int2(max(CoarsestWidth, 1u), max(CoarsestHeight, 1u)) - 1);
-    int2 seed = int2(round(CoarsestMotionVectors.Load(int3(coarsestIndex, 0)))) * kCoarsestToCoarseScale;
-
-    int2 candidateOffset = seed + int2(groupThreadId.xy) - kSearchRadius;
+    int2 candidateOffset = int2(groupThreadId.xy) - kSearchRadius;
 
     g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset, mipDims);
     GroupMemoryBarrierWithGroupSync();
@@ -110,8 +101,8 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             }
         }
 
-        int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        int2 bestOffset = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         // Stored in mip-2 texels; the fine stage scales it up by kMipScale.
-        CoarseMotionVectors[groupId.xy] = float2(bestOffset);
+        CoarsestMotionVectors[groupId.xy] = float2(bestOffset);
     }
 }

@@ -21,6 +21,8 @@ set(MOTION_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_estimation
 set(MOTION_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_cs.h")
 set(COARSE_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_estimation_coarse.hlsl")
 set(COARSE_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_coarse_cs.h")
+set(COARSEST_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_estimation_coarsest.hlsl")
+set(COARSEST_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_coarsest_cs.h")
 set(SMOOTH_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_smooth.hlsl")
 set(SMOOTH_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_smooth_cs.h")
 set(INTERP_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/frame_interpolation.hlsl")
@@ -39,6 +41,12 @@ add_custom_command(
     COMMENT "Compiling motion_estimation_coarse.hlsl -> motion_estimation_coarse_cs.h"
 )
 add_custom_command(
+    OUTPUT "${COARSEST_SHADER_HEADER}"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${COARSEST_SHADER_HEADER}" /Vn g_MotionEstimationCoarsestCS "${COARSEST_SHADER_SRC}"
+    DEPENDS "${COARSEST_SHADER_SRC}"
+    COMMENT "Compiling motion_estimation_coarsest.hlsl -> motion_estimation_coarsest_cs.h"
+)
+add_custom_command(
     OUTPUT "${SMOOTH_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${SMOOTH_SHADER_HEADER}" /Vn g_MotionSmoothCS "${SMOOTH_SHADER_SRC}"
     DEPENDS "${SMOOTH_SHADER_SRC}"
@@ -50,7 +58,7 @@ add_custom_command(
     DEPENDS "${INTERP_SHADER_SRC}"
     COMMENT "Compiling frame_interpolation.hlsl -> frame_interpolation_cs.h"
 )
-add_custom_target(CompileShaders DEPENDS "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
+add_custom_target(CompileShaders DEPENDS "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${COARSEST_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
 
 # Milestone 1 target: a d3d11.dll proxy that sits next to Watch_Dogs.exe.
 # It forwards every real export to the system d3d11.dll so the game keeps
