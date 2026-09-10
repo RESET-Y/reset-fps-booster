@@ -57,7 +57,38 @@ Hotkeys: **F8** refresh lock, **F9** generation on/off, **F10** vsync,
   perceives therefore does not come from uneven output spacing - so the
   remaining suspects are interpolation quality and added latency.
 
-## Next step (do this one first - cheap and low-risk)
+## The remaining judder cause, and the fix that is still owed
+
+Judder during motion is the one open complaint, and everything else has been
+ruled out by measurement:
+
+| Suspect | Measured | Verdict |
+| --- | --- | --- |
+| Frame rate | 144.0 output, 96 generated | not it |
+| Frame pacing | 6.94 ms interval, 0.01 ms jitter, 0% missed | not it |
+| Frames reaching the panel | displayed == submitted (DXGI) | not it |
+| Generated frames too dark | fixed by blending in linear light | fixed |
+| **Wrong motion vectors** | **18-23% of moving blocks on the search edge** | **this one** |
+
+Roughly one moving block in five has a vector that is wrong by construction:
+the true match lies outside the +-12 px search window, so the block gets the
+closest wrong answer. That is ~2600 blocks per frame showing content in the
+wrong place, concentrated in fast scenes - which is exactly where the eye is
+looking.
+
+The fix is a real pyramid search: build mip levels of both source frames,
+search coarsely at quarter resolution (where the same radius reaches 48 px
+AND the fine detail is averaged away), then refine at full resolution.
+
+**A shortcut was tried and failed - do not repeat it.** Sampling a 4-pixel
+coarse grid on the FULL-resolution frame, without downsampling, let 16px
+blocks match distant repeating detail (text, noise) better than their true
+small motion. Measured: mean motion jumped 6.2 -> 37.5 px and saturation
+6.6% -> 32.4%, i.e. the field filled with false matches, and output fell to
+83-120 FPS. Reverted. The downsampling is not an optimisation in a pyramid
+search, it is the part that makes the coarse stage valid at all.
+
+## Earlier step (done - kept for the reasoning)
 
 Adaptive generation factor instead of a fixed 2x.
 
