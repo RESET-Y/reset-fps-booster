@@ -144,7 +144,19 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
     float confidence = saturate(1.0 - mismatch * kMismatchSensitivity);
 
-    float4 safeFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+    // Where the motion vector cannot be trusted, fall back to the real frame
+    // this generated frame is NEARER TO IN TIME - not always the current one.
+    //
+    // Always falling back to CurrFrame is correct only at the symmetric
+    // midpoint. At phase 1/3 the current frame is two thirds of an interval
+    // in the future, so every low-confidence pixel jumped forward and then
+    // back again on the next frame. That flicker appears only at the
+    // asymmetric phases, which is to say only at factors above 2 - matching
+    // the report that a factor of 2 looked better even after its latency
+    // advantage was gone.
+    float4 safeFallback = (PhaseT < 0.5)
+        ? PrevFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0)
+        : CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
 
     // Both mixes - the temporal blend and the confidence fallback - are done
     // in linear light and converted back once at the end. See the transfer
@@ -152,10 +164,25 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 prevLinear = SrgbToLinear(prevColor.rgb);
     float3 currLinear = SrgbToLinear(currColor.rgb);
 
-    // Weighted toward whichever real frame this generated frame sits closer
-    // to in time, so a t = 1/3 frame resembles the previous frame rather
-    // than the midpoint of the pair.
-    float3 blendedLinear = lerp(prevLinear, currLinear, PhaseT);
+    // Both samples are motion-compensated to the SAME instant t, so when they
+    // agree their average is the best estimate - and the sharpest, since
+    // averaging two views of the same content cancels sampling noise. Only
+    // when they disagree does it matter which one to believe, and then the
+    // temporally NEARER frame wins: its sample was pulled a shorter distance
+    // along the motion path, so it is the less likely of the two to have
+    // landed on the wrong content.
+    //
+    // The previous rule weighted purely by temporal position (weight = t),
+    // which had it backwards at the asymmetric phases. At t = 1/3 the
+    // previous frame is sampled 2/3 of the way along the motion - the larger
+    // displacement, the higher error risk - and was then given 2/3 of the
+    // weight. That is why a factor of 3, whose frames sit at 1/3 and 2/3,
+    // looked worse than a factor of 2, whose single frame sits at the
+    // symmetric midpoint: reported directly, "low latency mode is better",
+    // and it stayed better after the latency gap was closed to ~5 ms.
+    float nearestSource = (PhaseT < 0.5) ? 0.0 : 1.0; // 0 = previous frame
+    float sourceWeight = lerp(nearestSource, 0.5, confidence);
+    float3 blendedLinear = lerp(prevLinear, currLinear, sourceWeight);
     float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);
 
     // Interpolation is systematically softer than a real frame: both source
@@ -179,7 +206,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         {
             float3 p = SrgbToLinear(PrevFrame.SampleLevel(LinearClamp, (prevSamplePos + offsets[i]) / dims, 0).rgb);
             float3 c = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, (currSamplePos + offsets[i]) / dims, 0).rgb);
-            blurLinear += lerp(p, c, PhaseT);
+            // Same weighting as the pixel itself, so the sharpening compares
+            // like with like - a blur built with different weights would push
+            // the result toward the other source instead of just restoring
+            // local contrast.
+            blurLinear += lerp(p, c, sourceWeight);
         }
         blurLinear *= 0.25;
     }
