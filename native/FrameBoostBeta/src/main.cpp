@@ -105,7 +105,8 @@ bool HotkeyDown(int vk) {
     return ctrl && alt && (GetAsyncKeyState(vk) & 0x8000) != 0;
 }
 
-bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3D11DeviceContext>& context) {
+bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3D11DeviceContext>& context,
+                        int gpuPriority) {
     UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT; // required for Windows Graphics Capture interop
 #ifdef _DEBUG
     flags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -113,7 +114,32 @@ bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3
     D3D_FEATURE_LEVEL obtained{};
     HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags,
         nullptr, 0, D3D11_SDK_VERSION, device.put(), &obtained, context.put());
-    return SUCCEEDED(hr);
+    if (FAILED(hr)) return false;
+
+    // Where our work sits in the GPU.s queue.
+    //
+    // Measured under a GPU-bound game: motion estimation reported 30-33 ms
+    // where the same dispatch costs 0.50 ms on an idle GPU. That difference is
+    // not our arithmetic - it is our commands waiting behind an entire frame of
+    // the game.s. We do not need more of the GPU, we need to be scheduled
+    // sooner, and this is the documented way to ask: IDXGIDevice::
+    // SetGPUThreadPriority, -7 to +7, no hooking, no driver tricks, nothing
+    // done to the game.
+    //
+    // It is still a trade, and an honest one: priority we take is priority the
+    // game loses. Off by default until measurement shows what it costs the
+    // source frame rate; "gpupriority=N" sets it.
+    if (gpuPriority != 0) {
+        winrt::com_ptr<IDXGIDevice> dxgiDevice;
+        if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(dxgiDevice.put())))) {
+            const HRESULT pr = dxgiDevice->SetGPUThreadPriority(gpuPriority);
+            FrameBoostBeta::Logger::Log(SUCCEEDED(pr)
+                ? "[FrameBoostBeta] GPU thread priority set to " + std::to_string(gpuPriority)
+                  + " (0 = normal, 7 = highest). Priority taken here is priority the game loses."
+                : "[FrameBoostBeta] Could not set the GPU thread priority - running at normal.");
+        }
+    }
+    return true;
 }
 
 } // namespace
@@ -169,7 +195,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     winrt::com_ptr<ID3D11Device> device;
     winrt::com_ptr<ID3D11DeviceContext> context;
-    if (!CreateSharedDevice(device, context)) {
+    // "gpupriority=N": -7 to 7, 0 = normal.
+    int gpuPriority = 0;
+    for (const auto& a : args) {
+        if (a.rfind(L"gpupriority=", 0) == 0) {
+            const int parsed = _wtoi(a.c_str() + 12);
+            if (parsed >= -7 && parsed <= 7) gpuPriority = parsed;
+        }
+    }
+
+    if (!CreateSharedDevice(device, context, gpuPriority)) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: could not create a BGRA-capable D3D11 device.");
         return 2;
     }
@@ -373,6 +408,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // outcome this feature must never produce.
     double generationCostEmaMs = -1.0;
     bool gpuHasRoom = true;
+
+    // Standing aside has to mean getting out of the way COMPLETELY.
+    //
+    // Measured in Watch Dogs with the new guard active: output dropped to 0
+    // frames per second while the overlay stayed on screen, holding its last
+    // picture over a game that was still running underneath. Pausing generation
+    // without hiding the window is worse than anything it was meant to prevent.
+    //
+    // Hiding it also costs nothing: no capture processing reaches the screen, no
+    // present, no latency - the player simply sees their game.
+    bool overlayHidden = false;
+    auto SetOverlayVisible = [&](bool visible) {
+        if (visible == !overlayHidden) return;
+        overlayHidden = !visible;
+        if (HWND hwnd = presenter.WindowHandle())
+            ShowWindow(hwnd, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
+        FrameBoostBeta::Logger::Log(visible
+            ? "[FrameBoostBeta] Overlay shown - boosting again."
+            : "[FrameBoostBeta] Overlay hidden - standing aside completely, the game is displayed directly.");
+    };
     constexpr double kEmaAlpha = 0.1;
     bool inDegradedMode = false;
     int degradedFrameCounter = 0;
@@ -1469,6 +1524,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // The real frame is held back half an interval so its generated
         // partner has somewhere to sit. That half interval IS the added
         // latency, and it is the least any interpolator can manage.
+        // Show the overlay only while we are actually adding something.
+        SetOverlayVisible(doublingFitsDisplay && gpuHasRoom && !forcePassthroughOnly);
+
         if (simpleDoubleMode) {
             // Every present is snapped to a refresh boundary.
             //
