@@ -37,8 +37,7 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,16"
                         Visibility="{Binding StatusNotice, Converter={StaticResource NullToVis}}">
                     <StackPanel>
-                        <TextBlock Text="Not doubling right now" Style="{StaticResource Text.SectionTitle}"
-                                   Foreground="{StaticResource Brush.Warning}"/>
+                        <TextBlock Text="Status" Style="{StaticResource Text.SectionTitle}"/>
                         <TextBlock Text="{Binding StatusNotice}" Style="{StaticResource Text.Body}"
                                    Margin="0,8,0,0" TextWrapping="Wrap"/>
                     </StackPanel>

@@ -36,6 +36,10 @@ public sealed class FrameBoostBetaTelemetry
     // still picture (nothing to double) from a capture that has stopped
     // delivering (a real fault). Both read as "Native FPS: 0" on their own.
     public double? DuplicateFps { get; init; }
+
+    // 1 while doubling is active, 0 while the engine stands aside because the
+    // display is already full. A state, not a fault.
+    public double? DoublingActive { get; init; }
     public double? MotionEstimationGpuMs { get; init; }
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }

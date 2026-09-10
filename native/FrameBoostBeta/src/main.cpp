@@ -451,16 +451,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     int maxFactor = 2;
     // False while the source runs faster than half the refresh rate, where a
     // doubled frame cannot be displayed any more (see the simple-2x path).
-    // No longer switched off above half the refresh rate.
+    // Generation switches ITSELF off when the display cannot show the result,
+    // and says nothing about it beyond a status line.
     //
-    // It used to be: doubling a 90 FPS source asks for 180 frames on a 144 Hz
-    // panel, the extra ones cannot be shown, and generation was disabled with a
-    // note telling the user to cap their game. That is a demand no product gets
-    // to make of the person using it, and the clock-driven path does not need
-    // it: it fills each refresh with whatever phase the wall clock calls for, so
-    // a source faster than half the refresh rate simply gets fewer generated
-    // frames between its real ones instead of none at all.
-    const bool doublingFitsDisplay = true;
+    // Doubling 96 FPS asks for 192 frames on a 144 Hz panel. The extra ones
+    // cannot appear, so pairs get dropped instead, and the content then
+    // advances in an alternating 2 ms / 15 ms pattern - measured in Rocket
+    // League, and visibly worse than the untouched 96.
+    //
+    // An earlier version of this told the player to cap their game, which is a
+    // demand no product gets to make. The behaviour is right, the demand was
+    // not: below half the refresh rate FrameBoost doubles, above it FrameBoost
+    // gets out of the way, and the player does nothing either way.
+    bool doublingFitsDisplay = true;
     bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
@@ -879,6 +882,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Display Hz: " << outputRefreshHz
             << " | Capture path: " << (useDesktopDuplication ? "Desktop Duplication" : "Windows Graphics Capture")
             << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
+            << " | Doubling: " << (doublingFitsDisplay ? "on" : "standing aside (display already full)")
             << " | Coalesced by us: " << ddCapture.CoalescedFrames()
             << " | Capture published/consumed: " << ddCapture.FramesPublished() << "/" << ddCapture.FramesConsumed()
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
@@ -1458,6 +1462,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // whatever the game runs at, it runs at twice that - and it is
             // the one the person testing it asked for.
             const int outputPerReal = 2;
+
+            if (outputRefreshHz > 0.0 && realFrameIntervalEmaMs > 1.0) {
+                const double sourceRate = 1000.0 / realFrameIntervalEmaMs;
+                const bool fits = doublingFitsDisplay
+                    ? (2.0 * sourceRate < outputRefreshHz * 1.04)   // leave once clearly over
+                    : (2.0 * sourceRate < outputRefreshHz * 0.98);  // re-enter only when clearly under
+                if (fits != doublingFitsDisplay) {
+                    doublingFitsDisplay = fits;
+                    std::ostringstream oss;
+                    oss << "[FrameBoostBeta] " << (fits ? "Doubling again" : "Standing aside")
+                        << ": source " << sourceRate << " FPS x2 = " << (2.0 * sourceRate)
+                        << " against a " << outputRefreshHz << " Hz display.";
+                    FrameBoostBeta::Logger::Log(oss.str());
+                }
+            }
 
 
             // EXTRAPOLATION: show the real frame the instant it arrives, and
