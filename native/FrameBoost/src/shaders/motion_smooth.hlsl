@@ -49,10 +49,16 @@ static const float kNewFieldWeight = 0.7;
 static const float kMatchErrorSensitivity = 30.0;
 
 // How sharply a changed motion cancels the carry-over from the previous field.
-// At 0.5 a block whose vector moved by 2 px still keeps most of the damping,
-// while one that jumped by 20 px - an object arriving or leaving - keeps
-// almost none of it.
-static const float kMotionChangeSensitivity = 0.5;
+//
+// 0.1, not the 0.5 this started at - the first value did not do what its own
+// comment claimed. At 0.5 a change of 2 px already halves the damping, so the
+// temporal smoothing was effectively switched off across the whole picture
+// rather than at object edges, and the flicker it exists to prevent came
+// straight back: reported within a minute as the image flickering.
+//
+// At 0.1 the numbers match the intent: 2 px keeps 83% of the damping, 20 px
+// keeps a third, 40 px - an object arriving or leaving - keeps a fifth.
+static const float kMotionChangeSensitivity = 0.1;
 
 // How sharply a neighbour.s weight falls off when it is moving somewhere else.
 // At 0.25 a neighbour differing by 4 px still carries half the weight - noise
