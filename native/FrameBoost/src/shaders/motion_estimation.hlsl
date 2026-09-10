@@ -102,6 +102,11 @@ static const float kNeighbourhoodBias = 0.01;
 // noisy scene does not.
 static const float kZeroMotionMargin = 1.15;
 
+// Below this, a block is identical to where it already was: 16 samples across
+// 3 channels, so 0.5 is a mean absolute difference of about 0.01 per channel -
+// compression noise and nothing more.
+static const float kStaticBlockSad = 0.5;
+
 // One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
@@ -122,6 +127,20 @@ cbuffer FrameDims : register(b0)
 groupshared float g_sad[kCandidateCount];
 groupshared float g_zeroMotionSad;
 
+// The same "did this block move at all" question, asked at FULL resolution.
+//
+// The search runs on mip 1, and half resolution erases fine detail: a
+// sidebar of small text washes into a grey smear, every candidate then scores
+// about the same, and the neighbourhood bias hands the block whatever its
+// moving neighbours are doing. Seen in a dumped frame: a Twitch page.s left
+// column, which never moved at all, came out doubled and smeared while the
+// video in the middle of the screen interpolated cleanly.
+//
+// At full resolution that same block matches itself almost exactly, so this
+// one extra comparison settles it. It costs 16 samples per block, once,
+// against 169 candidates for the search itself.
+groupshared float g_zeroMotionSadFull;
+
 // THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
 // same 16 full-resolution pixels, so the motion field keeps its granularity.
 //
@@ -141,6 +160,27 @@ static const int kSearchMip = 1;
 static const int kMipScale = 2;                                        // 1 << kSearchMip
 static const int kBlockTexels = kBlockSize / kMipScale;                // 8 texels
 static const int kSampleStrideTexels = kBlockSampleStride / kMipScale; // 2 -> 4x4 = 16 samples
+
+// Zero motion, judged on the real pixels rather than the halved ones.
+float BlockSADFullRes(int2 blockOriginPixels)
+{
+    const int2 maxPixel = int2((int)FrameWidth, (int)FrameHeight) - 1;
+
+    float sad = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockSize; y += kBlockSampleStride)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockSize; x += kBlockSampleStride)
+        {
+            const int2 p = min(blockOriginPixels + int2(x, y), maxPixel);
+            float3 currColor = CurrFrame.Load(int3(p, 0)).rgb;
+            float3 prevColor = PrevFrame.Load(int3(p, 0)).rgb;
+            sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
 
 float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
 {
@@ -226,6 +266,10 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     {
         g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
     }
+    if (groupIndex == 2)
+    {
+        g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
+    }
     GroupMemoryBarrierWithGroupSync();
 
     // Cheap serial reduction over already-computed SAD values (no more
@@ -254,6 +298,15 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         {
             bestOffset = int2(0, 0);
             bestMatchSad = g_zeroMotionSad;
+        }
+
+        // Full resolution has the last word on standing still. A block this
+        // close to identical where it already is did not move, whatever the
+        // half-resolution search made of it.
+        if (g_zeroMotionSadFull < kStaticBlockSad)
+        {
+            bestOffset = int2(0, 0);
+            bestMatchSad = min(bestMatchSad, g_zeroMotionSadFull);
         }
 
         // .z carries how WELL that best candidate actually matched, as a mean
