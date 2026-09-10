@@ -857,9 +857,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         else ++nativeFramesSinceReport;
         RecordPresentGap(presentEndMs);
         RecordPresentAge();
+        // Present time is the present alone. A leftover second addition here
+        // also counted the slot wait, and reported a "present" of 9.5 ms
+        // inside a 7.8 ms iteration - a part larger than the whole, which is
+        // how it was caught.
         phasePresentMsSum += presentEndMs - presentStartMs;
         phaseComputeMsSum += computeEndMs - computeStartMs;
-        phasePresentMsSum += presentEndMs - computeEndMs;
         phaseIterationMsSum += presentEndMs - iterationStartMs;
         ++phaseSamples;
 
