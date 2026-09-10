@@ -613,6 +613,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // feature promises, and every extra generated frame is another guess
     // between the same two known ones. "timedriven" selects it.
     bool simpleDoubleMode = !HasArg(L"timedriven");
+
+    // DOUBLE THE SOURCE, ON A SMOOTH CLOCK.
+    //
+    // The clock-driven path places frames by asking the wall clock where it
+    // stands between two real frames, which is what makes an uneven source come
+    // out even. Its output rate was the refresh rate, so a 60 FPS source got
+    // 2.4 generated frames per real one - more guesses than knowns.
+    //
+    // Its output rate is now twice the measured source rate instead. Same
+    // smoothing, exactly one generated frame per real frame, and no frame
+    // invented only to fill a refresh that had nothing new for it.
+    // Off by default: tried, measured, worse. Limiting the clock-driven path.s
+    // output rate to twice the source made content advance LESS evenly than the
+    // pair-paced path (sd 4.1-6.2 ms against 3.0-5.1), added steps of exactly
+    // 0 ms - the content standing still for a frame because the output clock no
+    // longer lands on the display.s grid - and produced a backwards step.
+    // "doublerate" re-enables it for further work.
+    const bool doubleRateOutput = HasArg(L"doublerate");
     bool f4WasDown = false;
     bool f12WasDown = false;
     bool autoDumpDone = false;
@@ -1261,6 +1279,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // otherwise never be reconsidered and would still read 1x when
             // motion resumes.
             EvaluateGenerationFactor();
+
+            // Output slot follows the source: exactly two output frames per real
+            // frame. Recomputed as the measured interval moves, so a game that
+            // speeds up or slows down keeps its doubling instead of drifting
+            // toward whatever the panel happens to refresh at.
+            if (doubleRateOutput && realFrameIntervalEmaMs > 1.0) {
+                const double wanted = realFrameIntervalEmaMs * 0.5;
+                // Never faster than the display can show, and never so slow that
+                // a stalled source freezes the output clock entirely.
+                const double floorMs = outputRefreshHz > 0.0 ? 1000.0 / outputRefreshHz : 1.0;
+                outputSlotMs = (wanted < floorMs) ? floorMs : ((wanted > 40.0) ? 40.0 : wanted);
+            }
         }
 
         // While degraded, DON'T run motion estimation at all except a
