@@ -59,6 +59,13 @@ static const int kSearchRadius = 6;
 static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
 static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 
+// Cost per pixel of straying from the neighbourhood`s estimate. Deliberately
+// small: a block matching 16 samples across 3 channels typically scores well
+// under 1.0 when it matches cleanly, so 0.01 per pixel adds at most 0.06 over
+// the whole search window - enough to settle ties, not enough to override a
+// real match.
+static const float kNeighbourhoodBias = 0.01;
+
 // One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
@@ -116,9 +123,25 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         int2(0, 0), int2(max(CoarseWidth, 1u), max(CoarseHeight, 1u)) - 1);
     int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)).xy)) * kCoarseToFineScale;
 
-    int2 candidateOffset = seed + int2(groupThreadId.xy) - kSearchRadius;
+    int2 refinement = int2(groupThreadId.xy) - kSearchRadius;
+    int2 candidateOffset = seed + refinement;
 
-    g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset);
+    // A candidate that agrees with the neighbourhood wins ties.
+    //
+    // Pure lowest-SAD picking is unstable wherever the picture is flat - sky,
+    // walls, dust - because many candidates match almost equally well and
+    // noise decides which one wins. The field then flickers from frame to
+    // frame and has to be smoothed afterwards, which blurs real motion along
+    // with the noise.
+    //
+    // The coarse level's result is a good predictor of the neighbourhood: it
+    // covers 64 pixels, so it describes the local motion rather than this
+    // block's own. Charging a small cost for straying from it settles ties in
+    // favour of coherence, while a genuinely better match - anything beyond
+    // the noise floor - still wins outright.
+    const float distanceFromSeed = length(float2(refinement));
+    g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset)
+        + kNeighbourhoodBias * distanceFromSeed;
     GroupMemoryBarrierWithGroupSync();
 
     // Cheap serial reduction over already-computed SAD values (no more
@@ -146,7 +169,14 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // with different fixes: a mis-estimated vector can be corrected, while
         // content that was simply not present in the previous frame cannot be
         // interpolated at all.
+        // The neighbourhood bias is taken back out, so .z stays a measurement
+        // of how well the block actually matched rather than of how far its
+        // winner sat from the seed. The smoothing pass and the diagnostics
+        // both read this as real match quality.
+        const int2 bestRefinement = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        const float matchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinement));
+
         const float kSamplesPerCandidate = 16.0 * 3.0; // 4x4 samples, 3 channels
-        MotionVectors[groupId.xy] = float4(float2(bestOffset), bestSad / kSamplesPerCandidate, 0.0);
+        MotionVectors[groupId.xy] = float4(float2(bestOffset), max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
 }
