@@ -43,6 +43,9 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     SafeRelease(m_motionVectorSmoothTex); m_motionVectorSmoothTex = nullptr;
     SafeRelease(m_motionVectorSmoothUAV); m_motionVectorSmoothUAV = nullptr;
     SafeRelease(m_motionVectorSmoothSRV); m_motionVectorSmoothSRV = nullptr;
+    SafeRelease(m_motionVectorHistoryTex); m_motionVectorHistoryTex = nullptr;
+    SafeRelease(m_motionVectorHistorySRV); m_motionVectorHistorySRV = nullptr;
+    m_haveMotionHistory = false;
     SafeRelease(m_coarsestMotionTex); m_coarsestMotionTex = nullptr;
     SafeRelease(m_coarsestMotionUAV); m_coarsestMotionUAV = nullptr;
     SafeRelease(m_coarsestMotionSRV); m_coarsestMotionSRV = nullptr;
@@ -105,6 +108,12 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     device->CreateShaderResourceView(m_motionVectorRawTex, nullptr, &m_motionVectorRawSRV);
     device->CreateUnorderedAccessView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothUAV);
     device->CreateShaderResourceView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothSRV);
+
+    if (FAILED(device->CreateTexture2D(&mvDesc, nullptr, &m_motionVectorHistoryTex))) {
+        Logger::Log("[FrameBoost] Motion estimation: failed to create the motion history texture.");
+        return false;
+    }
+    device->CreateShaderResourceView(m_motionVectorHistoryTex, nullptr, &m_motionVectorHistorySRV);
 
     D3D11_TEXTURE2D_DESC coarseDesc = mvDesc;
     coarseDesc.Width = m_coarseCountX;
@@ -169,8 +178,8 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     D3D11_SUBRESOURCE_DATA cbInit{ &frameDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &cbInit, &m_frameDimsCB);
 
-    struct BlockGridDimsCB { UINT blockCountX, blockCountY, pad0, pad1; };
-    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, 0 };
+    struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, pad1; };
+    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, 0 }; // no history yet
     D3D11_SUBRESOURCE_DATA gridCbInit{ &gridDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &gridCbInit, &m_blockGridDimsCB);
 
@@ -275,10 +284,18 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         context->CSSetShaderResources(0, 3, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
 
-        // Pass 2: 3x3 spatial smoothing over the raw field - the real fix
-        // for the speckle noise seen on the first live test against Watch
-        // Dogs. Dispatched in 8x8 thread groups over the (small) block grid.
-        context->CSSetShaderResources(0, 1, &m_motionVectorRawSRV);
+        // Pass 2: 5x5 spatial smoothing plus temporal blending against the
+        // previous frame's field - the fix for speckle noise and for the
+        // "wiggling" reported in a game, where the image warped slightly
+        // differently from frame to frame.
+        {
+            struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, pad1; };
+            BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, 0 };
+            context->UpdateSubresource(m_blockGridDimsCB, 0, nullptr, &gridDims, 0, 0);
+        }
+
+        ID3D11ShaderResourceView* smoothSrvs[2] = { m_motionVectorRawSRV, m_motionVectorHistorySRV };
+        context->CSSetShaderResources(0, 2, smoothSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorSmoothUAV, nullptr);
         context->CSSetConstantBuffers(0, 1, &m_blockGridDimsCB);
         context->CSSetShader(m_smoothShader, nullptr, 0);
@@ -286,9 +303,13 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         UINT groupsY = (m_blockCountY + 7) / 8;
         context->Dispatch(groupsX, groupsY, 1);
 
-        ID3D11ShaderResourceView* nullSrv1[1] = { nullptr };
-        context->CSSetShaderResources(0, 1, nullSrv1);
+        ID3D11ShaderResourceView* nullSrv2[2] = { nullptr, nullptr };
+        context->CSSetShaderResources(0, 2, nullSrv2);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+
+        // Keep this field as history for the next frame's temporal blend.
+        context->CopyResource(m_motionVectorHistoryTex, m_motionVectorSmoothTex);
+        m_haveMotionHistory = true;
 
         context->End(q.end);
         context->End(q.disjoint);
@@ -322,6 +343,8 @@ Estimator::~Estimator() {
     SafeRelease(m_coarseShader);
     SafeRelease(m_coarsestShader);
     SafeRelease(m_coarsestMotionTex);
+    SafeRelease(m_motionVectorHistoryTex);
+    SafeRelease(m_motionVectorHistorySRV);
     SafeRelease(m_coarsestMotionUAV);
     SafeRelease(m_coarsestMotionSRV);
     SafeRelease(m_coarseMotionTex);

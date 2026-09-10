@@ -75,6 +75,10 @@ private:
     ID3D11ComputeShader* m_smoothShader = nullptr;
     ID3D11ComputeShader* m_coarseShader = nullptr;
     ID3D11ComputeShader* m_coarsestShader = nullptr;
+    // Previous frame`s smoothed field, for temporal damping of the "wiggle".
+    ID3D11Texture2D* m_motionVectorHistoryTex = nullptr;
+    ID3D11ShaderResourceView* m_motionVectorHistorySRV = nullptr;
+    bool m_haveMotionHistory = false;
     ID3D11Texture2D* m_coarsestMotionTex = nullptr;
     ID3D11UnorderedAccessView* m_coarsestMotionUAV = nullptr;
     ID3D11ShaderResourceView* m_coarsestMotionSRV = nullptr;
