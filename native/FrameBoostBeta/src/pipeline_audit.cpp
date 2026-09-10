@@ -168,6 +168,209 @@ void RunCaptureAudit(HMONITOR monitor, ID3D11Device* device, ID3D11DeviceContext
     capture.Stop();
 }
 
+namespace {
+
+// Finds the DXGI output that is this monitor, so every measurement here is
+// about the same display the rest of the engine is working on.
+winrt::com_ptr<IDXGIOutput1> FindOutputForMonitor(ID3D11Device* device, HMONITOR monitor) {
+    winrt::com_ptr<IDXGIDevice> dxgiDevice;
+    if (FAILED(device->QueryInterface(IID_PPV_ARGS(dxgiDevice.put())))) return nullptr;
+    winrt::com_ptr<IDXGIAdapter> adapter;
+    if (FAILED(dxgiDevice->GetAdapter(adapter.put()))) return nullptr;
+
+    for (UINT i = 0;; ++i) {
+        winrt::com_ptr<IDXGIOutput> output;
+        if (adapter->EnumOutputs(i, output.put()) == DXGI_ERROR_NOT_FOUND) break;
+        DXGI_OUTPUT_DESC desc{};
+        if (SUCCEEDED(output->GetDesc(&desc)) && desc.Monitor == monitor)
+            return output.try_as<IDXGIOutput1>();
+    }
+    return nullptr;
+}
+
+LRESULT CALLBACK ProbeWindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_PAINT) {
+        PAINTSTRUCT ps{};
+        HDC hdc = BeginPaint(hwnd, &ps);
+        HBRUSH brush = CreateSolidBrush(RGB(255, 0, 255)); // magenta: appears in no real desktop
+        FillRect(hdc, &ps.rcPaint, brush);
+        DeleteObject(brush);
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+} // namespace
+
+namespace {
+
+// Shows a magenta window over the whole monitor - with or without the
+// exclusion flag - and reports how many of 64 sampled points come back
+// magenta through Desktop Duplication. Returns -1 if no frame could be read.
+//
+// Run twice, because "we saw no magenta" on its own proves nothing: a window
+// that never made it onto the screen produces exactly the same reading as a
+// window that was successfully excluded. The unexcluded run is the control
+// that tells those two apart.
+int SampleProbeThroughDesktopDuplication(HMONITOR monitor, ID3D11Device* device,
+                                         ID3D11DeviceContext* context, bool useExclusionFlag) {
+    MONITORINFO mi{ sizeof(mi) };
+    if (!GetMonitorInfoW(monitor, &mi)) {
+        Logger::Log("[Audit] Self-capture test: could not get the monitor rectangle.");
+        return -1;
+    }
+
+    WNDCLASSEXW wc{ sizeof(wc) };
+    wc.lpfnWndProc = ProbeWindowProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"FrameBoostBetaCaptureProbe";
+    RegisterClassExW(&wc);
+
+    HWND probe = CreateWindowExW(
+        WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        wc.lpszClassName, L"FrameBoost capture probe", WS_POPUP,
+        mi.rcMonitor.left, mi.rcMonitor.top,
+        mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
+        nullptr, nullptr, wc.hInstance, nullptr);
+    if (!probe) {
+        Logger::Log("[Audit] Self-capture test: could not create the probe window.");
+        return -1;
+    }
+
+    SetLayeredWindowAttributes(probe, 0, 255, LWA_ALPHA);
+    if (useExclusionFlag) {
+        const BOOL ok = SetWindowDisplayAffinity(probe, WDA_EXCLUDEFROMCAPTURE);
+        Logger::Log(ok
+            ? "[Audit] Probe shown WITH WDA_EXCLUDEFROMCAPTURE."
+            : "[Audit] WARNING: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) FAILED on the probe window.");
+    } else {
+        Logger::Log("[Audit] Control run: probe shown WITHOUT the exclusion flag - this one MUST be captured.");
+    }
+
+    ShowWindow(probe, SW_SHOWNOACTIVATE);
+    UpdateWindow(probe);
+
+    // Give the compositor time to actually put the window on screen, pumping
+    // messages so it paints.
+    const double showUntilMs = NowMs() + 700.0;
+    while (NowMs() < showUntilMs) {
+        MSG msg{};
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+        Sleep(10);
+    }
+
+    auto output1 = FindOutputForMonitor(device, monitor);
+    if (!output1) {
+        Logger::Log("[Audit] Self-capture test: no DXGI output matches that monitor.");
+        DestroyWindow(probe);
+        return -1;
+    }
+
+    winrt::com_ptr<IDXGIOutputDuplication> duplication;
+    HRESULT hr = output1->DuplicateOutput(device, duplication.put());
+    if (FAILED(hr)) {
+        std::ostringstream oss;
+        oss << "[Audit] Self-capture test: DuplicateOutput failed (hr 0x" << std::hex << hr << ").";
+        Logger::Log(oss.str());
+        DestroyWindow(probe);
+        return -1;
+    }
+
+    // Take a frame that actually carries new content, not the first one the
+    // API happens to hand over.
+    winrt::com_ptr<ID3D11Texture2D> captured;
+    int result = -1;
+    for (int attempt = 0; attempt < 200 && !captured; ++attempt) {
+        MSG msg{};
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+
+        DXGI_OUTDUPL_FRAME_INFO info{};
+        winrt::com_ptr<IDXGIResource> resource;
+        hr = duplication->AcquireNextFrame(50, &info, resource.put());
+        if (hr == DXGI_ERROR_WAIT_TIMEOUT) continue;
+        if (FAILED(hr)) break;
+
+        if (info.LastPresentTime.QuadPart != 0) captured = resource.try_as<ID3D11Texture2D>();
+        if (!captured) { duplication->ReleaseFrame(); continue; }
+
+        // Copy out before releasing: the duplication surface is only ours
+        // until ReleaseFrame.
+        D3D11_TEXTURE2D_DESC desc{};
+        captured->GetDesc(&desc);
+        D3D11_TEXTURE2D_DESC stagingDesc = desc;
+        stagingDesc.Usage = D3D11_USAGE_STAGING;
+        stagingDesc.BindFlags = 0;
+        stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        stagingDesc.MiscFlags = 0;
+
+        winrt::com_ptr<ID3D11Texture2D> staging;
+        if (FAILED(device->CreateTexture2D(&stagingDesc, nullptr, staging.put()))) {
+            duplication->ReleaseFrame();
+            break;
+        }
+        context->CopyResource(staging.get(), captured.get());
+        duplication->ReleaseFrame();
+
+        D3D11_MAPPED_SUBRESOURCE mapped{};
+        if (FAILED(context->Map(staging.get(), 0, D3D11_MAP_READ, 0, &mapped))) break;
+
+        // Sample a grid across the frame rather than one pixel: a single
+        // sample could land on something magenta by accident, and a partly
+        // excluded window would look like a clean pass.
+        int magentaSamples = 0, totalSamples = 0;
+        for (int y = 1; y <= 8; ++y) {
+            for (int x = 1; x <= 8; ++x) {
+                const UINT px = desc.Width * x / 9, py = desc.Height * y / 9;
+                const auto* row = static_cast<const uint8_t*>(mapped.pData) + py * mapped.RowPitch;
+                const uint8_t b = row[px * 4 + 0], g = row[px * 4 + 1], r = row[px * 4 + 2];
+                if (r > 200 && g < 60 && b > 200) ++magentaSamples;
+                ++totalSamples;
+            }
+        }
+        context->Unmap(staging.get(), 0);
+
+        std::ostringstream oss;
+        oss << "[Audit] " << (useExclusionFlag ? "Excluded" : "Control") << " run: sampled "
+            << totalSamples << " points, " << magentaSamples << " show the probe colour.";
+        Logger::Log(oss.str());
+        result = magentaSamples;
+        break;
+    }
+
+    if (!captured) Logger::Log("[Audit] Self-capture test: no frame with new content arrived - inconclusive.");
+
+    DestroyWindow(probe);
+    UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    return result;
+}
+
+} // namespace
+
+void RunSelfCaptureTest(HMONITOR monitor, ID3D11Device* device, ID3D11DeviceContext* context) {
+    Logger::Log("[Audit] === Does WDA_EXCLUDEFROMCAPTURE hide a window from Desktop Duplication? ===");
+
+    const int excludedRun = SampleProbeThroughDesktopDuplication(monitor, device, context, true);
+    const int controlRun = SampleProbeThroughDesktopDuplication(monitor, device, context, false);
+
+    if (excludedRun < 0 || controlRun < 0) {
+        Logger::Log("[Audit] RESULT: inconclusive - one of the two runs could not read a frame.");
+        return;
+    }
+    if (controlRun == 0) {
+        // Without this check the test would happily "prove" exclusion works
+        // when in fact the probe window never reached the screen.
+        Logger::Log("[Audit] RESULT: INVALID - the control window was not captured either, so the probe"
+                    " never made it onto the screen. The test proves nothing about the exclusion flag.");
+        return;
+    }
+    Logger::Log(excludedRun == 0
+        ? "[Audit] RESULT: WDA_EXCLUDEFROMCAPTURE IS honoured by Desktop Duplication - the control window"
+          " was captured, the excluded one was not. Our overlay can stay out of the DD capture."
+        : "[Audit] RESULT: Desktop Duplication CAPTURES the excluded window - the overlay would feed itself"
+          " back into the engine, so the DD path needs another way to display the result.");
+}
+
 void RunDesktopDuplicationAudit(HMONITOR monitor, ID3D11Device* device, int seconds) {
     Logger::Log("[Audit] === DXGI Desktop Duplication: same question, other capture path ===");
 

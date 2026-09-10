@@ -28,6 +28,7 @@
 #include "../../FrameBoost/src/motion_estimation.h"
 #include "../../FrameBoost/src/interpolation.h"
 #include "pipeline_audit.h"
+#include "desktop_duplication_capture.h"
 
 namespace {
 
@@ -194,6 +195,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         FrameBoostBeta::Logger::Log("[Audit] Starting pipeline audit for " + std::to_string(auditSeconds)
             + " s per capture path. Nothing is generated or displayed during the audit.");
+        if (HasArg(L"selftest")) {
+            FrameBoostBeta::RunSelfCaptureTest(auditMonitor, device.get(), context.get());
+            FrameBoostBeta::Logger::Log("[Audit] Pipeline audit complete (self-capture test only).");
+            return 0;
+        }
+
         FrameBoostBeta::RunCaptureAudit(auditMonitor, device.get(), context.get(), auditSeconds);
         FrameBoostBeta::RunDesktopDuplicationAudit(auditMonitor, device.get(), auditSeconds);
         FrameBoostBeta::Logger::Log("[Audit] Pipeline audit complete.");
@@ -219,9 +226,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
 
     FrameBoostBeta::CaptureEngine capture;
-    bool captureStarted = monitorMode
-        ? capture.StartMonitor(targetMonitor, device.get())
-        : capture.Start(targetWindow, device.get());
+    FrameBoostBeta::DesktopDuplicationCapture ddCapture;
+
+    // Desktop Duplication is the default source for whole-screen capture, and
+    // the reason is measured, not architectural taste. With Rocket League
+    // reporting 90 FPS, on the same monitor within the same minute:
+    //
+    //   Windows Graphics Capture  44.60 frames/s produced, 0 lost in our pool
+    //   Desktop Duplication       90.20 presents/s, spacing 11.09 ms, max 1 coalesced
+    //
+    // WGC was not being read too slowly - it announced 892 frames and we
+    // retrieved all 892. It simply hands out about half of what the compositor
+    // presents, and the interpolator can only work with what it is given.
+    // "wgc" on the command line selects the old path for comparison.
+    bool useDesktopDuplication = monitorMode && !HasArg(L"wgc");
+
+    bool captureStarted = useDesktopDuplication
+        ? ddCapture.StartMonitor(targetMonitor, device.get(), context.get())
+        : (monitorMode ? capture.StartMonitor(targetMonitor, device.get())
+                       : capture.Start(targetWindow, device.get()));
+
+    // Desktop Duplication can be refused outright (another duplication client,
+    // a secure desktop). Rather than fail, fall back to the path that has been
+    // working all along - halved frame rate is still better than no boost.
+    if (!captureStarted && useDesktopDuplication) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] Desktop Duplication could not start - falling back to"
+            " Windows Graphics Capture (about half the source frame rate).");
+        useDesktopDuplication = false;
+        captureStarted = capture.StartMonitor(targetMonitor, device.get());
+    }
     if (!captureStarted) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: capture failed to start - target window may be unsupported or closed. Falling back safely (no display, exiting).");
         return 3;
@@ -699,7 +732,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Output FPS: " << outputFps
             << " | Poll time: " << lastCaptureMs << " ms"
             << " | Capture latency (real, avg): " << (avgLatencyMs >= 0 ? std::to_string(avgLatencyMs) + " ms" : "N/A")
+            << " | Capture path: " << (useDesktopDuplication ? "Desktop Duplication" : "Windows Graphics Capture")
             << " | Stale frames dropped/poll: " << capture.LastDiscardedStaleFrames()
+            << " | Coalesced by us: " << ddCapture.CoalescedFrames()
+            << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
+            << " | Capture reconnects: " << ddCapture.Reconnects()
             << " | Duplicate frames skipped/s: " << (duplicateFramesSinceReport / elapsed)
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
@@ -914,7 +951,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         UINT frameW = 0, frameH = 0;
         int64_t frameTimestamp100ns = 0;
         bool isNewFrame = false;
-        ID3D11Texture2D* capturedTex = capture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame);
+        ID3D11Texture2D* capturedTex = useDesktopDuplication
+            ? ddCapture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame)
+            : capture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame);
 
         LARGE_INTEGER captureEnd{};
         QueryPerformanceCounter(&captureEnd);
@@ -1440,5 +1479,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     for (auto& t : queueTex) if (t) t->Release();
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window closed - shutting down cleanly.");
     capture.Stop();
+    ddCapture.Stop();
     return 0;
 }

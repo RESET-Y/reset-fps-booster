@@ -37,4 +37,19 @@ void RunCaptureAudit(HMONITOR monitor, ID3D11Device* device, ID3D11DeviceContext
 // artefact of how we read it.
 void RunDesktopDuplicationAudit(HMONITOR monitor, ID3D11Device* device, int seconds);
 
+// Does WDA_EXCLUDEFROMCAPTURE hide a window from Desktop Duplication, the
+// way it does from Windows Graphics Capture?
+//
+// The whole DD plan depends on the answer. Our output is a fullscreen
+// overlay sitting on the monitor we capture; if DD sees it, the engine
+// captures its own last frame, interpolates that, displays it, captures it
+// again - a feedback loop, not a frame generator. WGC solves this with
+// SetWindowDisplayAffinity, and it would be reasonable to assume DD honours
+// the same flag. Reasonable is not measured.
+//
+// Puts a known solid colour over the whole monitor with the exclusion flag
+// set, takes one DD frame, and reads the pixels back: our colour means DD
+// captured the overlay, anything else means it was excluded.
+void RunSelfCaptureTest(HMONITOR monitor, ID3D11Device* device, ID3D11DeviceContext* context);
+
 } // namespace FrameBoostBeta

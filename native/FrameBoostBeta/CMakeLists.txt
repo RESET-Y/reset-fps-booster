@@ -52,6 +52,7 @@ add_executable(FrameBoostBeta WIN32
     src/duplicate_detector.cpp
     src/motion_stats.cpp
     src/pipeline_audit.cpp
+    src/desktop_duplication_capture.cpp
     src/frame_dump.cpp
     "${FRAMEBOOST_SRC}/bmp_writer.cpp"
     src/frame_dump.cpp
