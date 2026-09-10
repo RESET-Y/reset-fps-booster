@@ -73,6 +73,18 @@ double MonitorRefreshHz(HMONITOR monitor) {
     return 0.0; // unknown - callers fall back to unlocked pacing
 }
 
+// Hotkeys require CTRL+ALT, because they are read globally with
+// GetAsyncKeyState and games bind the function keys themselves. Without the
+// modifier, playing the game silently reconfigured the engine: a single
+// 15-second session in Delta Force toggled the frame buffer twice, the
+// refresh lock, the latency cap and the debug tint - and the "test" that
+// followed was therefore of a random configuration, not of the fix.
+bool HotkeyDown(int vk) {
+    const bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+    return ctrl && alt && (GetAsyncKeyState(vk) & 0x8000) != 0;
+}
+
 bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3D11DeviceContext>& context) {
     UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT; // required for Windows Graphics Capture interop
 #ifdef _DEBUG
@@ -364,7 +376,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ageMs > presentAgeMaxMs) presentAgeMaxMs = ageMs;
         ++presentAgeSamples;
     };
-    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Press F9 (while this window is focused) to toggle pure passthrough vs. frame generation for A/B comparison.");
+    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Hotkeys need CTRL+ALT (games bind the F-keys themselves): CTRL+ALT+F5 one-frame buffer, F6 latency cap, F7 transparency, F8 refresh lock, F9 generation on/off, F11 tint generated frames.");
     // Timestamps of the two real frames the motion field spans, in the same
     // clock as NowMs(). The output is driven from these, not from a counter.
     double phaseSumForReport = 0.0;
@@ -634,7 +646,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         presenter.PumpMessages();
         if (presenter.ShouldClose()) break;
 
-        bool f9IsDown = (GetAsyncKeyState(VK_F9) & 0x8000) != 0;
+        bool f9IsDown = HotkeyDown(VK_F9);
         if (f9IsDown && !f9WasDown) {
             forcePassthroughOnly = !forcePassthroughOnly;
             FrameBoostBeta::Logger::Log(forcePassthroughOnly
@@ -647,7 +659,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // F5: one-frame buffer. The fix for an irregular source, at the cost
         // of one frame of latency - worth toggling, since video does not care
         // about the latency and a shooter does.
-        bool f5IsDown = (GetAsyncKeyState(VK_F5) & 0x8000) != 0;
+        bool f5IsDown = HotkeyDown(VK_F5);
         if (f5IsDown && !f5WasDown) {
             bufferOneFrame = !bufferOneFrame;
             havePendingFrame = false;
@@ -660,7 +672,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         // F6: low-latency mode. Caps the generation factor at 2, so a real
         // frame is held one output slot instead of two before being shown.
-        bool f6IsDown = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
+        bool f6IsDown = HotkeyDown(VK_F6);
         if (f6IsDown && !f6WasDown) {
             maxFactor = (maxFactor == 2) ? 4 : 2;
             candidateFactorHeldFrames = 0;
@@ -671,7 +683,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f6WasDown = f6IsDown;
 
-        bool f7IsDown = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
+        bool f7IsDown = HotkeyDown(VK_F7);
         if (f7IsDown && !f7WasDown) {
             transparentRealFrames = !transparentRealFrames;
             FrameBoostBeta::Logger::Log(transparentRealFrames
@@ -684,7 +696,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // meant to look smoother at a LOWER frame count than free-running
         // pacing, which is counterintuitive enough that it has to be
         // A/B-comparable live rather than argued about.
-        bool f8IsDown = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;
+        bool f8IsDown = HotkeyDown(VK_F8);
         if (f8IsDown && !f8WasDown && outputSlotMs > 0.0) {
             refreshLockEnabled = !refreshLockEnabled;
             nextPresentDueMs = 0.0; // re-anchor the grid on the next present
@@ -694,7 +706,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f8WasDown = f8IsDown;
 
-        bool f10IsDown = (GetAsyncKeyState(VK_F10) & 0x8000) != 0;
+        bool f10IsDown = HotkeyDown(VK_F10);
         if (f10IsDown && !f10WasDown) {
             presentSyncInterval = presentSyncInterval == 0 ? 1 : 0;
             FrameBoostBeta::Logger::Log(presentSyncInterval == 0
@@ -703,7 +715,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f10WasDown = f10IsDown;
 
-        bool f11IsDown = (GetAsyncKeyState(VK_F11) & 0x8000) != 0;
+        bool f11IsDown = HotkeyDown(VK_F11);
         if (f11IsDown && !f11WasDown) {
             debugTint = !debugTint;
             interpolator.SetDebugTint(debugTint);
