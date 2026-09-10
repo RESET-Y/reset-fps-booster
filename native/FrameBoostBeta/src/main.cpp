@@ -303,6 +303,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // without either shader actually changing). These CPU-side numbers say
     // unambiguously where the ~34ms per iteration really goes.
     double phaseComputeMsSum = 0.0;   // submitting estimation + interpolation
+    // Output interval jitter - the number that actually corresponds to
+    // "smooth". An average of 144.0 FPS says nothing about evenness: 144
+    // frames with occasional hitches look worse than 120 perfectly spaced
+    // ones, and the average hides exactly that. So measure the gap between
+    // consecutive presents and report its spread, plus how many gaps missed
+    // the refresh interval by more than half of one.
+    double lastPresentAtMs = -1.0;
+    double gapSumMs = 0.0, gapSumSqMs = 0.0;
+    double gapMinMs = 1e9, gapMaxMs = 0.0;
+    uint64_t gapSamples = 0, gapMissed = 0;
+
+    auto RecordPresentGap = [&](double presentEndMs) {
+        if (lastPresentAtMs > 0.0) {
+            const double gap = presentEndMs - lastPresentAtMs;
+            gapSumMs += gap;
+            gapSumSqMs += gap * gap;
+            if (gap < gapMinMs) gapMinMs = gap;
+            if (gap > gapMaxMs) gapMaxMs = gap;
+            ++gapSamples;
+            if (outputSlotMs > 0.0 && std::abs(gap - outputSlotMs) > outputSlotMs * 0.5) ++gapMissed;
+        }
+        lastPresentAtMs = presentEndMs;
+    };
+
     double phasePresentMsSum = 0.0;   // CopyResource + Present, incl. any vsync block
     double phaseIterationMsSum = 0.0; // whole iteration
     uint64_t phaseSamples = 0;
@@ -322,14 +346,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // catch up with a burst of presents that would themselves judder.
     auto WaitForOutputSlot = [&]() {
         if (!refreshLockEnabled || !pacingEnabled) return;
-        double nowMs = NowMs();
-        if (nextPresentDueMs <= 0.0 || nowMs > nextPresentDueMs + outputSlotMs) {
-            nextPresentDueMs = nowMs; // first frame, or recovering from a stall
-        } else if (nowMs < nextPresentDueMs) {
-            double remainingMs = nextPresentDueMs - nowMs;
-            if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0));
-            while (NowMs() < nextPresentDueMs) { /* spin out the last fraction */ }
+        const double nowMs = NowMs();
+
+        if (nextPresentDueMs <= 0.0) {
+            nextPresentDueMs = nowMs; // first present establishes the grid
+        } else if (nowMs > nextPresentDueMs) {
+            // Late. Advance to the next grid line in WHOLE slots rather than
+            // snapping the grid to "now" - snapping was measured to be the
+            // single biggest smoothness bug in the whole pipeline: every
+            // fourth present went out 0.29 ms after the previous one (mean
+            // interval 5.22 ms against a 6.94 ms refresh, 25% of presents
+            // off-grid). The display cannot show two frames in one refresh,
+            // so it simply discarded one: nominally 144 FPS, actually ~96
+            // reaching the screen at uneven intervals.
+            //
+            // Skipping a slot shows one frame for two refresh intervals,
+            // which is visibly better than presenting two frames into one
+            // interval and having the display throw one away.
+            const double behindMs = nowMs - nextPresentDueMs;
+            nextPresentDueMs += std::ceil(behindMs / outputSlotMs) * outputSlotMs;
         }
+
+        const double remainingMs = nextPresentDueMs - NowMs();
+        if (remainingMs > 1.5) Sleep(static_cast<DWORD>(remainingMs - 1.0)); // coarse, cheap
+        while (NowMs() < nextPresentDueMs) { /* spin out the last fraction */ }
+
         nextPresentDueMs += outputSlotMs;
     };
 
@@ -399,6 +440,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
+        if (gapSamples > 1) {
+            const double mean = gapSumMs / gapSamples;
+            const double variance = gapSumSqMs / gapSamples - mean * mean;
+            oss << " || Output interval: " << mean << " ms"
+                << " (min " << gapMinMs << ", max " << gapMaxMs
+                << ", jitter " << (variance > 0.0 ? std::sqrt(variance) : 0.0) << " ms"
+                << ", missed slots " << (100.0 * gapMissed / gapSamples) << "%)";
+        }
         if (phaseSamples > 0) {
             oss << " || CPU per iteration: " << (phaseIterationMsSum / phaseSamples) << " ms"
                 << " (compute submit " << (phaseComputeMsSum / phaseSamples) << " ms"
@@ -412,6 +461,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         latencySumMs = 0.0;
         latencySamples = 0;
         phaseComputeMsSum = 0.0;
+        gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
         phaseSamples = 0;
@@ -520,6 +570,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (isRealFrame) { lastRealPresentMs = presentEndMs; pairFactor = 0; }
             ++pairStep;
 
+            RecordPresentGap(presentEndMs);
             phasePresentMsSum += presentEndMs - presentStartMs;
             phaseIterationMsSum += presentEndMs - iterationStartMs;
             ++phaseSamples;
@@ -688,6 +739,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             WaitForOutputSlot();
             presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
             ++nativeFramesSinceReport;
+            // Only a real present advances the interval measurement. Counting
+            // this iteration unconditionally is exactly the mistake that made
+            // the first jitter readings meaningless: the pair-setup path
+            // presents nothing, so it contributed a phantom zero-length gap
+            // per pair and reported 192 intervals per second against 144
+            // actual frames - which looked like a pacing bug that was not
+            // there.
+            RecordPresentGap(NowMs());
         }
 
         double presentEndMs = NowMs();
