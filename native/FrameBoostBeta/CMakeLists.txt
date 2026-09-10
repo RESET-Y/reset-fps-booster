@@ -51,6 +51,10 @@ add_executable(FrameBoostBeta WIN32
     src/beta_presenter.cpp
     src/duplicate_detector.cpp
     src/motion_stats.cpp
+    src/frame_dump.cpp
+    "${FRAMEBOOST_SRC}/bmp_writer.cpp"
+    src/frame_dump.cpp
+    "${FRAMEBOOST_SRC}/bmp_writer.cpp"
     "${FRAMEBOOST_SRC}/motion_estimation.cpp"
     "${FRAMEBOOST_SRC}/interpolation.cpp"
     "${FRAMEBOOST_SRC}/logger.cpp"

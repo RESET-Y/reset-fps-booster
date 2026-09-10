@@ -66,6 +66,12 @@ static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 // real match.
 static const float kNeighbourhoodBias = 0.01;
 
+// How much better "not moving" has to be before it is believed. At 1.15 it
+// needs to beat the searched winner by 15%, which a genuinely static overlay
+// does by a wide margin (it matches almost exactly) while a moving block in a
+// noisy scene does not.
+static const float kZeroMotionMargin = 1.15;
+
 // One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
@@ -84,6 +90,7 @@ cbuffer FrameDims : register(b0)
 };
 
 groupshared float g_sad[kCandidateCount];
+groupshared float g_zeroMotionSad;
 
 float BlockSAD(int2 currBlockOrigin, int2 candidateOffset)
 {
@@ -142,6 +149,27 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     const float distanceFromSeed = length(float2(refinement));
     g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset)
         + kNeighbourhoodBias * distanceFromSeed;
+    // ZERO MOTION is always a candidate, whatever the neighbourhood says.
+    //
+    // The fine stage may only refine +-6 px around the coarse prediction, and
+    // that makes motion DISCONTINUITIES unrepresentable: during a 90 px camera
+    // turn the prediction is 90 px, so a block that is actually still - the
+    // HUD, the crosshair, any screen-space overlay - would have to say 90 px
+    // away from the prediction to be right, and simply cannot.
+    //
+    // Seen directly in a dumped frame: the score panel, the ammo counter and
+    // the "RESET" label were smeared and doubled while the scene behind them
+    // interpolated cleanly. They do not move at all; the engine was dragging
+    // them along with the camera because it had no way to say "this one is
+    // still". No metric showed it - the blocks reported a plausible vector and
+    // a mediocre match, indistinguishable from ordinary difficulty.
+    //
+    // One extra evaluation per block, and it costs the same whichever thread
+    // does it since the rest are waiting at the barrier anyway.
+    if (groupIndex == 1)
+    {
+        g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
+    }
     GroupMemoryBarrierWithGroupSync();
 
     // Cheap serial reduction over already-computed SAD values (no more
@@ -161,6 +189,16 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
         // Relative to the coarse seed, so the final vector is seed + refinement.
         int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        int2 bestRefinementForError = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        float bestMatchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinementForError));
+
+        // Standing still wins only when it is CLEARLY better, so ordinary
+        // noise in a moving scene cannot make blocks stick.
+        if (g_zeroMotionSad * kZeroMotionMargin < bestMatchSad)
+        {
+            bestOffset = int2(0, 0);
+            bestMatchSad = g_zeroMotionSad;
+        }
 
         // .z carries how WELL that best candidate actually matched, as a mean
         // absolute difference per colour channel (0 = identical, 1 = maximal).

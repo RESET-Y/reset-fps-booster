@@ -46,7 +46,9 @@ public:
     ~MotionStats();
 
 private:
-    static constexpr int kSampleIntervalFrames = 120; // ~1-2 seconds of output
+    // Sampled often enough that a fast turn is actually caught - the readback
+    // stalls the pipeline, so this is still far from every frame.
+    static constexpr int kSampleIntervalFrames = 30;
 
     ID3D11Texture2D* m_staging = nullptr;
     UINT m_width = 0, m_height = 0;

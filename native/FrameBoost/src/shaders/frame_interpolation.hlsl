@@ -57,6 +57,12 @@ cbuffer InterpolationParams : register(b0)
 // (occlusion) falls back to the real frame.
 static const float kMismatchSensitivity = 6.0;
 
+// How quickly a block`s own match error turns into distrust. Measured in a
+// game: a clean match scores 0.002-0.015, while a block that found nothing
+// resembling itself scores above 0.06. At 15 the first group is left
+// untouched and the second is pushed onto the single-source fallback.
+static const float kBlockErrorSensitivity = 15.0;
+
 // Blending has to happen in LINEAR light, not in the gamma-encoded values
 // the frame is stored in. This was the cause of the contrast loss and
 // darkening noted early on and deliberately deferred: averaging two
@@ -89,7 +95,13 @@ float3 LinearToSrgb(float3 c)
 // Bilinear read of the low-resolution motion field. Done with four explicit
 // Loads rather than a sampler so it does not depend on linear-filtering
 // support for 32-bit float formats.
-float2 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
+// Returns the motion vector in .xy and the block`s MATCH ERROR in .z - how
+// well the winning candidate actually fitted, measured over 16 samples by the
+// estimator. That is a far more reliable signal than comparing two single
+// pixels: in a grey industrial scene two entirely different places often
+// differ by less than the per-pixel test`s threshold, so it waves them
+// through and the two get blended into a ghost.
+float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
 {
     // Position within the block grid, offset by half a block so that a
     // block's vector is anchored at the block's CENTRE.
@@ -102,10 +114,10 @@ float2 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
     int2 b10 = int2(b11.x, b00.y);
     int2 b01 = int2(b00.x, b11.y);
 
-    float2 m00 = MotionVectors.Load(int3(b00, 0)).xy;
-    float2 m10 = MotionVectors.Load(int3(b10, 0)).xy;
-    float2 m01 = MotionVectors.Load(int3(b01, 0)).xy;
-    float2 m11 = MotionVectors.Load(int3(b11, 0)).xy;
+    float3 m00 = MotionVectors.Load(int3(b00, 0)).xyz;
+    float3 m10 = MotionVectors.Load(int3(b10, 0)).xyz;
+    float3 m01 = MotionVectors.Load(int3(b01, 0)).xyz;
+    float3 m11 = MotionVectors.Load(int3(b11, 0)).xyz;
 
     return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
 }
@@ -123,7 +135,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // mv is defined (see motion_estimation.hlsl) such that
     // CurrFrame(p) approx= PrevFrame(p + mv) - i.e. mv points from this
     // pixel's current position back to where that content was previously.
-    float2 mv = SampleMotionBilinear(pixelCenter, blockCount);
+    float3 motionAndError = SampleMotionBilinear(pixelCenter, blockCount);
+    float2 mv = motionAndError.xy;
+    float blockMatchError = motionAndError.z;
 
     // Motion-compensated sample positions - THIS is what makes this real
     // interpolation rather than a static blend: both samples are pulled
@@ -142,7 +156,19 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // vector claims are "the same content, half a frame apart" do not
     // actually look alike, the vector is wrong here.
     float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
-    float confidence = saturate(1.0 - mismatch * kMismatchSensitivity);
+    float pixelConfidence = saturate(1.0 - mismatch * kMismatchSensitivity);
+
+    // The block's own match error decides as well, and the stricter of the two
+    // wins. Seen in a dumped frame during a fast turn: the half of the picture
+    // that the turn was revealing came out as two views superimposed - a clean
+    // double image. Those pixels are blended because the per-pixel test finds
+    // them similar enough, which in a grey industrial scene two entirely
+    // different places often are. The block's error, measured over 16 samples
+    // by the estimator, does not make that mistake: where no real match was
+    // found it is high regardless of how similar two individual pixels happen
+    // to look.
+    float blockConfidence = saturate(1.0 - blockMatchError * kBlockErrorSensitivity);
+    float confidence = min(pixelConfidence, blockConfidence);
 
     // Where the motion vector cannot be trusted, fall back to the real frame
     // this generated frame is NEARER TO IN TIME - not always the current one.

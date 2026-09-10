@@ -23,6 +23,7 @@
 #include "beta_presenter.h"
 #include "duplicate_detector.h"
 #include "motion_stats.h"
+#include "frame_dump.h"
 #include "../../FrameBoost/src/motion_estimation.h"
 #include "../../FrameBoost/src/interpolation.h"
 
@@ -403,6 +404,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // midpoint, paced off the source. Toggled with CTRL+ALT+F4.
     bool simpleDoubleMode = true;
     bool f4WasDown = false;
+    bool f12WasDown = false;
+    bool autoDumpDone = false;
     bool realFramePendingSimple = false;
     // Fixed anchor for the refresh grid the 2x mode snaps its presents to.
     double refreshAnchorMs = 0.0;
@@ -685,6 +688,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             presenter.SetTitleSuffix(forcePassthroughOnly ? L"PASSTHROUGH ONLY (F9 to toggle)" : L"GENERATING (F9 to toggle)");
         }
         f9WasDown = f9IsDown;
+
+        // F12: dump the generated frame and its two real sources to disk. A
+        // screenshot cannot show what the engine produces - the overlay is
+        // excluded from capture so that monitor capture does not feed back on
+        // itself - so the comparison has to be written from inside.
+        // Triggered by hand OR automatically on the first fast turn.
+        //
+        // The hotkey alone was not enough: F12 never arrived, being commonly
+        // claimed by screenshot tools and debuggers, and on many keyboards it
+        // needs Fn as well. Firing the dump from the measurement itself
+        // removes the dependency entirely and catches exactly the case worth
+        // looking at - the fast motion where the picture breaks down - rather
+        // than whatever happened to be on screen when a key was pressed.
+        const bool fastTurnToDump = !autoDumpDone
+            && motionStats.MeanMagnitudePixels() > 30.0
+            && haveMotionField;
+        if (fastTurnToDump) autoDumpDone = true;
+
+        bool f12IsDown = HotkeyDown(VK_F12);
+        if (((f12IsDown && !f12WasDown) || fastTurnToDump) && estimator.CurrFrameTexture() && haveMotionField) {
+            // Generate once into the interpolator's OWN texture. In normal
+            // operation the shader writes straight into the back buffer to
+            // avoid a full-frame copy, which leaves that texture empty - so
+            // for the dump the frame has to be produced again where it can be
+            // read back.
+            D3D11_TEXTURE2D_DESC dumpDesc{};
+            estimator.CurrFrameTexture()->GetDesc(&dumpDesc);
+            interpolator.SetPhase(0.5f);
+            interpolator.SetStatusFlags(0u); // no status squares in the dump
+            if (interpolator.GenerateFrame(device.get(), context.get(),
+                    estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                    dumpDesc.Width, dumpDesc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, nullptr)) {
+                FrameBoostBeta::FrameDump::SaveComparison(device.get(), context.get(),
+                    estimator.PrevFrameTexture(), interpolator.GeneratedFrameTexture(), estimator.CurrFrameTexture());
+            }
+        }
+        f12WasDown = f12IsDown;
 
         // F4: simple 2x vs. the time-driven output.
         bool f4IsDown = HotkeyDown(VK_F4);
