@@ -154,9 +154,21 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // asymmetric phases, which is to say only at factors above 2 - matching
     // the report that a factor of 2 looked better even after its latency
     // advantage was gone.
+    // The fallback is MOTION-COMPENSATED too - sampled along the same motion
+    // path, just from one source instead of two.
+    //
+    // Sampling it at the untouched pixel position, as before, is what made
+    // those regions stand still: measured during a fast turn, 14.9% of blocks
+    // find no match, so roughly a seventh of the image froze in place while
+    // the rest moved smoothly. That patchwork is what the eye reads as judder.
+    //
+    // Taking one source along the motion path keeps them moving with the
+    // scene. It can show slightly wrong content - it is a guess about what was
+    // revealed - but a temporally consistent guess, without the ghosting that
+    // blending two disagreeing samples produces.
     float4 safeFallback = (PhaseT < 0.5)
-        ? PrevFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0)
-        : CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+        ? PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0)
+        : CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0);
 
     // Both mixes - the temporal blend and the confidence fallback - are done
     // in linear light and converted back once at the end. See the transfer
