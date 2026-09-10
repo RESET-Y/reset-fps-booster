@@ -555,6 +555,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     double lastRealPresentMs = 0.0;
     double realFrameIntervalEmaMs = -1.0;
+    // What the output pacing runs on: the rate frames ARRIVE at, which is not
+    // the same as the rate the game produces new pictures (see where it is set).
+    double pacingIntervalMs = -1.0;
+
+    // The interval the OUTPUT is paced on: the arrival rate where it is known,
+    // the processed rate otherwise.
+    auto OutputInterval = [&]() {
+        return (pacingIntervalMs > 0.5 && pacingIntervalMs < 100.0) ? pacingIntervalMs : realFrameIntervalEmaMs;
+    };
 
     // Regularity of the source, and the gate built on it.
     //
@@ -1338,9 +1347,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // reported as 36.5, and the doubled output landing at 73 - the
             // game's own rate, so the doubling was worth nothing. That state is
             // stable; the engine cannot climb out of it by itself.
+            //
+            // And it is used for PACING ONLY. The capture publishes more than
+            // the game draws - overlays, the cursor, other windows - so using
+            // it for the displayed rate made "GAME FPS" read far above what
+            // Apex was actually running at. The number the panel shows still
+            // comes from frames that carried new content.
             if (useDesktopDuplication) {
                 const double published = ddCapture.PublishedIntervalMs();
-                if (published > 0.5 && published < 100.0) realFrameIntervalEmaMs = published;
+                if (published > 0.5 && published < 100.0) pacingIntervalMs = published;
             }
 
             lastFrameTimestamp100ns = frameTimestamp100ns;
@@ -1788,7 +1803,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // Hold each one until its own point in the interval before
                     // presenting, so the spacing follows the content rather
                     // than however fast the GPU happened to finish.
-                    const double dueAtMs = nowMs + realFrameIntervalEmaMs * (static_cast<double>(step - 1) / outputPerReal);
+                    const double dueAtMs = nowMs + OutputInterval() * (static_cast<double>(step - 1) / outputPerReal);
                     while (NowMs() < dueAtMs) { /* short wait; steps are ~7 ms apart */ }
                     WaitForRefreshBoundary();
 
@@ -1818,7 +1833,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 //
                 // The wait is bounded by half a source interval - about 7 ms -
                 // and capture keeps running through it.
-                const double realDueAtMs = nowMs + realFrameIntervalEmaMs
+                const double realDueAtMs = nowMs + OutputInterval()
                     * (static_cast<double>(outputPerReal - 1) / outputPerReal);
                 while (NowMs() < realDueAtMs) { ddCapture.Pump(); }
 
