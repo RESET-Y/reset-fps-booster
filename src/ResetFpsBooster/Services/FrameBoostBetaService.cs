@@ -91,6 +91,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
             return new FrameBoostBetaTelemetry
             {
+                SourceFps = ReadField(lastMatchLine, "Source FPS"),
                 NativeFps = ReadField(lastMatchLine, "Native FPS"),
                 GeneratedFps = ReadField(lastMatchLine, "Generated FPS"),
                 OutputFps = ReadField(lastMatchLine, "Output FPS"),

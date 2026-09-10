@@ -567,7 +567,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // each individual frame is, and no amount of interpolation quality touches
     // it - which is exactly what was reported: a dumped frame with no visible
     // artefacts, and judder unchanged.
-    bool simpleDoubleMode = true;
+    // "timedriven" selects the clock-driven output path instead: one frame per
+    // refresh with the phase taken from the clock, fed by the frame queue. It
+    // was switched off back when capture delivered half the source rate and the
+    // queue was starved; that reason is gone.
+    // The clock-driven path is the default: judged smoother side by side, and
+    // it is the one that adapts. The spacing between output frames is not a
+    // fixed step - the phase comes from the wall clock against the two real
+    // frames.s own capture timestamps, so an uneven source is replayed evenly
+    // instead of being handed on unevenly. Measured against the simple path on
+    // the same scene: output 139-140 of 144 possible, against 108-128.
+    // "simple" selects the pair-paced path.
+    bool simpleDoubleMode = HasArg(L"simple");
     bool f4WasDown = false;
     bool f12WasDown = false;
     bool autoDumpDone = false;
@@ -802,6 +813,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // the second under the name "Native FPS" made a pacing problem look
         // like a capture problem for most of a day.
         const double sourceFps = realFrameIntervalEmaMs > 0.0 ? 1000.0 / realFrameIntervalEmaMs : -1.0;
+        // Native FPS counts real frames presented UNCHANGED. On the clock-driven
+        // path that is a small share by design - a frame whose phase lands mid
+        // interval is shown as an interpolation of itself and its neighbour,
+        // not skipped - so Source FPS is the number that describes the game.
         oss << "[FrameBoostBeta] Source FPS: " << sourceFps
             << " | Native FPS: " << nativeFps
             << " | Generated FPS: " << generatedFps

@@ -59,9 +59,9 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="NATIVE FPS" Style="{StaticResource Text.Caption}"/>
+                                <TextBlock Text="GAME FPS" Style="{StaticResource Text.Caption}"/>
                                 <TextBlock FontFamily="Consolas" FontSize="24" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,6,0,0">
-                                    <Run Text="{Binding Telemetry.NativeFps, StringFormat='{}{0:0.0}', TargetNullValue=N/A}"/>
+                                    <Run Text="{Binding Telemetry.SourceFps, StringFormat='{}{0:0.0}', TargetNullValue=N/A}"/>
                                 </TextBlock>
                             </StackPanel>
 

@@ -49,7 +49,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             if (!IsRunning) return null;
             if (DisplayLimitNotice is not null) return DisplayLimitNotice;
 
-            bool noNewContent = Telemetry.NativeFps is null or < 1;
+            bool noNewContent = (Telemetry.SourceFps ?? Telemetry.NativeFps) is null or < 1;
             if (!noNewContent) return null;
 
             // Frames still arrive, they are just identical - the game is
@@ -72,12 +72,13 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     {
         get
         {
-            if (Telemetry.NativeFps is not > 1 || Telemetry.DisplayHz is not > 1) return null;
-            double doubled = Telemetry.NativeFps.Value * 2;
+            double? game = Telemetry.SourceFps ?? Telemetry.NativeFps;
+            if (game is not > 1 || Telemetry.DisplayHz is not > 1) return null;
+            double doubled = game.Value * 2;
             if (doubled <= Telemetry.DisplayHz.Value) return null;
 
             return string.Create(CultureInfo.InvariantCulture,
-                $"The game runs at {Telemetry.NativeFps:0} FPS. Doubled that is {doubled:0}, "
+                $"The game runs at {game:0} FPS. Doubled that is {doubled:0}, "
                 + $"but this display shows {Telemetry.DisplayHz:0} per second - so generation is off. "
                 + $"Cap the game at {Telemetry.DisplayHz.Value / 2:0} FPS or below and every generated frame reaches the screen.");
         }

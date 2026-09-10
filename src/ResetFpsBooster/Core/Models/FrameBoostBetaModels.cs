@@ -6,6 +6,14 @@ namespace ResetFpsBooster.Core.Models;
 // log actually reports it. Never fabricated, never a placeholder number.
 public sealed class FrameBoostBetaTelemetry
 {
+    /// What the game itself delivers, from the measured interval between frames
+    /// that carry new content. This is the number a player recognises as "my FPS".
+    public double? SourceFps { get; init; }
+
+    /// Real frames presented UNCHANGED. On the clock-driven path this is a small
+    /// share by design: a frame whose phase lands mid-interval is shown as an
+    /// interpolation of itself and its neighbour rather than skipped, so a low
+    /// number here does not mean frames were lost.
     public double? NativeFps { get; init; }
     public double? GeneratedFps { get; init; }
     public double? OutputFps { get; init; }
