@@ -119,6 +119,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // boosted result on a DIFFERENT monitor. This is the only tested
     // configuration where nothing gets covered, so the source keeps
     // rendering at full speed and the capture never starves.
+    // "measure": capture and time the source, and do nothing else - no motion
+    // estimation, no interpolation, no presenting. A diagnostic mode, for
+    // answering whether the engine's own GPU load is what makes a game's frame
+    // delivery irregular. Everything the engine normally does competes with
+    // the game and the compositor for the same GPU, so the only way to know
+    // what the source looks like undisturbed is to stop disturbing it.
+    bool measureOnlyMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"measure") == 0);
+
     bool secondScreenMode = (argc >= 3 && _wcsicmp(argv2Storage.c_str(), L"monitor2") == 0);
     if (secondScreenMode) monitorMode = true;
     HMONITOR targetMonitor = MonitorFromWindow(targetWindow, MONITOR_DEFAULTTONEAREST);
@@ -816,7 +824,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         bool ranEstimationThisTick = false;
         ++degradedFrameCounter;
 
-        if (haveNewContent && !forcePassthroughOnly
+        if (haveNewContent && !forcePassthroughOnly && !measureOnlyMode
                 && (!inDegradedMode || degradedFrameCounter >= kDegradedRetryIntervalFrames)) {
             degradedFrameCounter = 0;
             // Motion field and frame timestamps persist across slots: the
@@ -860,6 +868,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Diagnostics: how much of the frame the estimator actually sees
         // moving. Sampled rarely (the readback stalls the pipeline).
         if (haveMotionField) motionStats.SampleIfDue(device.get(), context.get(), estimator.MotionVectorTexture());
+
+        // Diagnostic mode: measure the source and present nothing at all, so
+        // the engine stops competing with the game for the GPU.
+        if (measureOnlyMode) {
+            Sleep(1);
+            ReportTelemetryIfDue();
+            continue;
+        }
 
         // ---- The output slot ----------------------------------------------
         // Wait for this slot, then decide from the CLOCK what to show in it.
