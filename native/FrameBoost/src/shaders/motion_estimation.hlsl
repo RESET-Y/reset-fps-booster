@@ -55,8 +55,14 @@ RWTexture2D<float4> MotionVectors : register(u0);
 // one answer instead of 8. That is why it was halved originally - but a
 // sharper field that arrives for half the frames is worth less than a coarser
 // one that arrives for all of them.
-static const int kBlockSize = 16;
-static const int kBlockSampleStride = 4; // 4x4 = 16 samples per candidate, as before
+//
+// AND BACK TO 8. Raising it was the right call while motion estimation cost
+// 4.2-11.8 ms a frame, but that cost has since gone for other reasons - the
+// same measurement at 16 px reads 0.70 ms - so the granularity is affordable
+// again. Four times the thread groups on a budget with room for them, and the
+// 16 px boundary between a moving object and its background goes back to 8.
+static const int kBlockSize = 8;
+static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
 // FINE stage of the pyramid. The search no longer starts from zero: it
 // starts from the coarse stage's result (motion_estimation_coarse.hlsl,
 // which searches +-48 px on a quarter-resolution mip) and only refines it
@@ -90,7 +96,7 @@ static const float kZeroMotionMargin = 1.15;
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
 // it now covers 8 of them per axis rather than 4.
-static const int kCoarseBlockRatio = 4;
+static const int kCoarseBlockRatio = 8;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);
