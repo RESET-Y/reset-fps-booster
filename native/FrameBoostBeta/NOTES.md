@@ -4,147 +4,138 @@ Experimental system-level frame generation. Isolated from the Stable build:
 everything here compiles only under the `Beta` solution configuration
 (`RFB_BETA`), and Stable has no reference to it at all.
 
-## What works today
+## How it works
 
-Real frame generation via Windows Graphics Capture -> block-matching motion
-estimation -> motion-compensated interpolation -> own swapchain. No injection,
-no game memory access, no kernel driver, no anti-cheat interaction. The target
-application is only ever read from its already-composited image.
+Windows Graphics Capture -> three-level pyramid block-matching motion
+estimation -> motion-compensated interpolation in linear light -> our own
+DirectComposition flip-model swapchain. No injection, no game memory access,
+no kernel driver, no anti-cheat interaction: the target application is only
+ever read from the image Windows has already composited.
 
-Measured live on a 2560x1440 @ 144 Hz display, Opera playing a YouTube video:
+Output is **time-driven**. Every refresh interval is one output slot, and each
+slot asks what the content should look like at that instant:
+
+```
+phase = (now - arrival_of_newer_frame) / (t_newer - t_older)
+```
+
+clamped to [0, 1]. There is no "factor" any more - the source rate does not
+have to divide the refresh rate.
+
+## Measured, browser video (2560x1440 @ 144 Hz, Opera, YouTube)
 
 | Metric | Value |
 | --- | --- |
-| Native FPS (real, captured) | ~42-50 |
-| Generated FPS | ~30 |
-| Output FPS | 72.00 (refresh-locked) |
-| Capture latency | ~1.4 ms |
-| Motion estimation (GPU) | 0.083 ms |
-| Interpolation (GPU) | 0.150 ms |
-| CPU per iteration | 13.91 ms (of which 6.6 ms is the paced wait) |
+| Native FPS captured | ~48 (the browser locks to 144/3) |
+| Generated FPS | ~96 |
+| Output FPS | **144.0** |
+| Output interval | 6.94 ms, jitter 0.01 ms, 0% missed slots |
+| On-screen age (end to end) | 6.6 ms average, 13.4 ms worst |
+| Motion search saturation | 0.0% |
+| Duplicates discarded | 0 |
 
-## Modes
+## Measured, game (Delta Force, shooting range)
 
-| Argument | Behaviour |
-| --- | --- |
-| *(none)* | Click-through overlay tracking a single window |
-| `monitor` | Capture and display the whole monitor the target sits on |
-| `monitor2` | Capture one monitor, display on the other - nothing is covered |
+Reaches 144.0 output FPS with 0.0% empty slots and 6.94 ms intervals - but
+**the user reports it feels like ~35 FPS**, and that is not a measurement
+error. See the open problem below.
 
-Hotkeys: **F8** refresh lock, **F9** generation on/off, **F10** vsync,
-**F11** tint generated frames red.
+## Hotkeys
 
-## Findings that cost real time to establish
+**F6** low-latency cap (legacy, no longer affects pacing) · **F7** transparency
+· **F8** refresh lock · **F9** generation on/off · **F11** tint generated frames
+
+Modes are shown as small squares in the top-left corner of generated frames:
+amber = low latency, cyan = transparency.
+
+## THE OPEN PROBLEM - read this first
+
+In a demanding game the captured frames do not arrive at a steady rate:
+
+```
+measured interval: 20.83 ms -> 27.18 ms -> 27.01 ms -> 34.70 ms
+                   (48 Hz)     (37 Hz)     (37 Hz)     (29 Hz)
+```
+
+The interval between two captured frames is replayed *uniformly* across the
+slots it spans. When that interval swings between 20.8 and 34.7 ms, the
+apparent speed of motion swings with it, several times a second. Interpolation
+cannot smooth an irregular input - it converts the irregularity into varying
+motion speed and makes it MORE visible. This is why perfectly paced 144 output
+still feels like ~35.
+
+Ruled out by measurement, so do not re-investigate:
+
+- Output pacing (6.94 ms, 0.01 ms jitter, 0% missed slots)
+- Frames not reaching the panel (DXGI: displayed == submitted)
+- Capture dropping frames (raised the pool 2 -> 6 and polled every slot:
+  0-8 extra frames per second, so the surplus does not exist)
+- Generated frames too dark (fixed: blending is in linear light)
+- Search saturation (fixed: three-level pyramid, 0.0%)
+- Transparency mixing live and delayed frames (turning it off changed nothing)
+- In-game V-Sync (changed nothing)
+
+### Next step agreed with the user
+
+**Detect an irregular source and disable generation while it lasts.** Clean
+passthrough at 50 FPS beats wobbling 144. Same principle as the adaptive
+factor - generate nothing where there is nothing to gain - applied to the
+regularity of the signal rather than its rate.
+
+Suggested shape: track the variance of the measured real-frame interval; when
+the spread exceeds roughly a quarter of the mean for a sustained period, fall
+back to passthrough and log it; resume when it settles. Hysteresis is required,
+as with the factor switch.
+
+### The ceiling behind it
+
+A game reporting 75 FPS internally delivers ~50 to Windows Graphics Capture,
+at irregular intervals. The compositor simply does not build a desktop frame
+for every present the game makes, and an external capture can only ever see
+what it builds. This is why DLSS 3 and FSR 3 run inside the game process.
+That path is deliberately not taken here: it would mean injecting into games,
+which the project rules exclude, and which risks anti-cheat bans.
+
+For video and steadier content the approach measures very well. For a
+demanding game it hits a limit that is not in this code.
+
+## Other findings worth keeping
 
 - **Whenever our output covers the source, Windows stops compositing the
-  source and the capture starves.** Proven in three separate configurations
-  (window overlay, fullscreen monitor overlay, and covered browser). This is
-  why DLSS/FSR3 run in-process rather than as an external overlay.
-- **A layered window cannot host a flip-model swapchain.** Click-through
-  needs `WS_EX_LAYERED`, which forces the legacy BitBlt swap effect.
-- **`WS_EX_TRANSPARENT` alone does not give click-through**; it needs
-  `WS_EX_LAYERED` as well, plus `WM_NCHITTEST` -> `HTTRANSPARENT`.
-- **An opaque overlay triggers occlusion detection** in Chromium browsers and
-  in games, which then stop rendering. Alpha 254 avoids being counted as an
-  occluder; a 1px inset does the same job for window mode.
-- **Duplicate detection needs coverage, not resolution.** 12 patches covered
-  0.08% of the screen and missed a playing video entirely.
-- **Never skip the present on a duplicate frame.** Skipping generation is
-  correct; skipping the present makes the output look frozen and
-  indistinguishable from a crash.
-- **Refresh-locked output made no visible difference** in the live A/B test
-  (F8), even though the cadence is exact to 0.02 ms. The judder the user
-  perceives therefore does not come from uneven output spacing - so the
-  remaining suspects are interpolation quality and added latency.
-
-## The remaining judder cause, and the fix that is still owed
-
-Judder during motion is the one open complaint, and everything else has been
-ruled out by measurement:
-
-| Suspect | Measured | Verdict |
-| --- | --- | --- |
-| Frame rate | 144.0 output, 96 generated | not it |
-| Frame pacing | 6.94 ms interval, 0.01 ms jitter, 0% missed | not it |
-| Frames reaching the panel | displayed == submitted (DXGI) | not it |
-| Generated frames too dark | fixed by blending in linear light | fixed |
-| **Wrong motion vectors** | **18-23% of moving blocks on the search edge** | **this one** |
-
-Roughly one moving block in five has a vector that is wrong by construction:
-the true match lies outside the +-12 px search window, so the block gets the
-closest wrong answer. That is ~2600 blocks per frame showing content in the
-wrong place, concentrated in fast scenes - which is exactly where the eye is
-looking.
-
-The fix is a real pyramid search: build mip levels of both source frames,
-search coarsely at quarter resolution (where the same radius reaches 48 px
-AND the fine detail is averaged away), then refine at full resolution.
-
-**A shortcut was tried and failed - do not repeat it.** Sampling a 4-pixel
-coarse grid on the FULL-resolution frame, without downsampling, let 16px
-blocks match distant repeating detail (text, noise) better than their true
-small motion. Measured: mean motion jumped 6.2 -> 37.5 px and saturation
-6.6% -> 32.4%, i.e. the field filled with false matches, and output fell to
-83-120 FPS. Reverted. The downsampling is not an optimisation in a pyramid
-search, it is the part that makes the coarse stage valid at all.
-
-## Earlier step (done - kept for the reasoning)
-
-Adaptive generation factor instead of a fixed 2x.
-
-Measure the incoming real frame rate, compare it against the display refresh
-rate, and generate exactly as many intermediate frames as are missing:
-
-| Native FPS (144 Hz display) | Factor | Output |
-| --- | --- | --- |
-| 144+ | none | native, untouched |
-| 72 | 2x | 144 |
-| 60 | 2x | 120 |
-| 48 | 3x | 144 |
-| 30 | 4x | 120 |
-
-The first row matters most: when the source already saturates the display,
-generation disables itself. No quality loss, no added latency, no GPU cost -
-exactly where there was nothing to gain anyway. It is also the honest
-behaviour: never manufacture frames that are not missing.
-
-Only real change needed: `frame_interpolation.hlsl` currently interpolates
-the fixed midpoint. Factors above 2x need a time parameter t so it can
-produce frames at 1/3, 2/3 etc. instead of only 1/2 - roughly ten lines,
-not a rewrite. Everything else is bookkeeping in the pacing loop.
-
-Hysteresis is required around the switch points, otherwise a source hovering
-near a threshold will flip factors every second and that change is itself
-visible.
-
-## Next step after that (the promising but risky one)
-
-Show the generated frames ONLY, and let the real desktop show through
-untouched in between.
-
-Today the viewer never sees their real screen - every frame is our captured,
-copied and rescaled version of it, which is the source of the visible quality
-loss. If the overlay were fully transparent during the real-frame slots, the
-real image would be seen at native quality and we would contribute only the
-frames that would not otherwise exist. This is how in-process frame
-generation effectively behaves.
-
-Requirements:
-
-- Per-frame alpha of 0% or 100%, never in between. A partially transparent
-  generated frame blends with the real frame underneath, which is a
-  crossfade - explicitly out of scope.
-- Needs `WS_EX_NOREDIRECTIONBITMAP` + DirectComposition with a premultiplied-
-  alpha flip-model swapchain. The current layered window only supports one
-  uniform alpha for the whole window.
-
-Main risk: the transparent/opaque alternation has to land between the
-desktop's own composited frames. If it does not, the result is flicker rather
-than smoothness. Unproven - estimate roughly 50/50, and it has to be measured
-live rather than argued about.
+  source and the capture starves.** Fixed for monitor mode by leaving a single
+  pixel column uncovered: duplicates went 32-35/s -> 0, gaps 485 ms -> 7 ms.
+- **A layered window cannot host a flip-model swapchain**, and DXGI refuses to
+  report frame statistics for the BitBlt path at all. The presenter is
+  therefore WS_EX_NOREDIRECTIONBITMAP + DirectComposition - but WS_EX_LAYERED
+  still has to be set, because mouse pass-through genuinely requires LAYERED
+  together with TRANSPARENT. Both work together; verified with WindowFromPoint.
+- **Blend in linear light.** Averaging gamma-encoded values does not give the
+  average brightness (the midpoint of 0 and 255 encodes ~22% of the light),
+  so every pixel where the two sources differed came out too dark.
+- **Weight the blend by agreement, not by temporal position.** At phase 1/3
+  the previous frame is sampled 2/3 of the way along the motion - the larger
+  displacement, the higher error risk - and weighting it 2/3 amplified exactly
+  the least reliable sample.
+- **Fall back to the temporally NEARER real frame** where the vector cannot be
+  trusted. Always falling back to the current frame made low-confidence pixels
+  jump forward and back at the asymmetric phases.
+- **A coarse search only works on a downsampled image.** Sampling a coarse
+  candidate grid on the full-resolution frame let blocks false-match distant
+  detail: mean motion 6.2 -> 37.5 px, saturation 6.6% -> 32.4%. Reverted.
+- **Duplicate detection must cover the whole frame.** Sparse patches touched
+  0.17% of the screen and missed a playing video entirely. A GenerateMips
+  thumbnail compared in tiles covers 100%. Its threshold had to drop from 1.2
+  to 0.3, because a thumbnail texel averages a 64x64 block and shrinks
+  differences by roughly that factor.
+- **Three measurement bugs cost real time.** Each was caught by an impossible
+  number, and each would have led to optimising something that was not broken:
+  a phantom gap per pair (192 intervals/s against 144 frames), reading
+  PresentRefreshCount as frames displayed (a stalled output looked like a
+  perfect 144), and double-counting present time (a 9.5 ms present inside a
+  7.8 ms iteration). Check that parts are smaller than wholes.
 
 ## Known issue, deliberately deferred
 
-Generated frames lose contrast / appear darker than real ones. Documented in
-`../FrameBoost/README.md`; to be fixed together with the other quality passes
-at the end.
+Generated frames are gently sharpened to match a real frame's perceived
+sharpness, since interpolation is systematically softer. If edges ever look
+overdrawn, `kSharpenAmount` in `frame_interpolation.hlsl` is the dial.
