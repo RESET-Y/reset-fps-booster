@@ -16,7 +16,7 @@
 
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
-RWTexture2D<float2> MotionVectors : register(u0);
+RWTexture2D<float4> MotionVectors : register(u0);
 
 // 16px blocks with a matching 4px sampling stride: 4x4 = 16 samples per
 // candidate either way, so the stride scales with the block and only the
@@ -66,7 +66,7 @@ static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 static const int kCoarseBlockRatio = 8;
 static const int kCoarseToFineScale = 4;
 
-Texture2D<float2> CoarseMotionVectors : register(t2);
+Texture2D<float4> CoarseMotionVectors : register(t2);
 
 cbuffer FrameDims : register(b0)
 {
@@ -114,7 +114,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     // scaled from mip-2 texels back to full-resolution pixels.
     int2 coarseIndex = clamp(int2(groupId.xy) / kCoarseBlockRatio,
         int2(0, 0), int2(max(CoarseWidth, 1u), max(CoarseHeight, 1u)) - 1);
-    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)))) * kCoarseToFineScale;
+    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)).xy)) * kCoarseToFineScale;
 
     int2 candidateOffset = seed + int2(groupThreadId.xy) - kSearchRadius;
 
@@ -138,6 +138,15 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
         // Relative to the coarse seed, so the final vector is seed + refinement.
         int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
-        MotionVectors[groupId.xy] = float2(bestOffset);
+
+        // .z carries how WELL that best candidate actually matched, as a mean
+        // absolute difference per colour channel (0 = identical, 1 = maximal).
+        // The vector alone cannot distinguish a confident match from the least
+        // bad of a set of equally wrong ones - and those are different problems
+        // with different fixes: a mis-estimated vector can be corrected, while
+        // content that was simply not present in the previous frame cannot be
+        // interpolated at all.
+        const float kSamplesPerCandidate = 16.0 * 3.0; // 4x4 samples, 3 channels
+        MotionVectors[groupId.xy] = float4(float2(bestOffset), bestSad / kSamplesPerCandidate, 0.0);
     }
 }

@@ -28,7 +28,7 @@
 
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
-RWTexture2D<float2> CoarsestMotionVectors : register(u0);
+RWTexture2D<float4> CoarsestMotionVectors : register(u0);
 
 // Blocks and offsets below are in MIP-2 texels throughout.
 static const int kMipLevel = 4;
@@ -103,6 +103,6 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
         int2 bestOffset = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         // Stored in mip-2 texels; the fine stage scales it up by kMipScale.
-        CoarsestMotionVectors[groupId.xy] = float2(bestOffset);
+        CoarsestMotionVectors[groupId.xy] = float4(float2(bestOffset), 0.0, 0.0);
     }
 }

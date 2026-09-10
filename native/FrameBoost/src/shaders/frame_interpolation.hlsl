@@ -20,7 +20,7 @@
 
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
-Texture2D<float2> MotionVectors : register(t2); // block-resolution, from motion estimation
+Texture2D<float4> MotionVectors : register(t2); // block-resolution, from motion estimation
 RWTexture2D<float4> GeneratedFrame : register(u0);
 
 SamplerState LinearClamp : register(s0);
@@ -102,10 +102,10 @@ float2 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
     int2 b10 = int2(b11.x, b00.y);
     int2 b01 = int2(b00.x, b11.y);
 
-    float2 m00 = MotionVectors.Load(int3(b00, 0));
-    float2 m10 = MotionVectors.Load(int3(b10, 0));
-    float2 m01 = MotionVectors.Load(int3(b01, 0));
-    float2 m11 = MotionVectors.Load(int3(b11, 0));
+    float2 m00 = MotionVectors.Load(int3(b00, 0)).xy;
+    float2 m10 = MotionVectors.Load(int3(b10, 0)).xy;
+    float2 m01 = MotionVectors.Load(int3(b01, 0)).xy;
+    float2 m11 = MotionVectors.Load(int3(b11, 0)).xy;
 
     return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
 }

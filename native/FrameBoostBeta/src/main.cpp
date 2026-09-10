@@ -634,6 +634,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
             << " | Search-saturated blocks: " << motionStats.SaturatedBlockPercent() << "%"
+            << " | Match error mean/max: " << motionStats.MeanMatchError() << "/" << motionStats.MaxMatchError()
+            << " | Blocks with no real match: " << motionStats.PoorMatchPercent() << "%"
             << " | Displayed/submitted: " << displayedPerSecond << "/" << submittedPerSecond
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";

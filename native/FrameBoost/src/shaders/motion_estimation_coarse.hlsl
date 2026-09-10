@@ -18,7 +18,7 @@
 
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
-RWTexture2D<float2> CoarseMotionVectors : register(u0);
+RWTexture2D<float4> CoarseMotionVectors : register(u0);
 
 // Blocks and offsets below are in MIP-2 texels throughout.
 static const int kMipLevel = 2;
@@ -39,7 +39,7 @@ static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 static const int kCoarsestBlockRatio = 4;
 static const int kCoarsestToCoarseScale = 4;
 
-Texture2D<float2> CoarsestMotionVectors : register(t2);
+Texture2D<float4> CoarsestMotionVectors : register(t2);
 
 cbuffer FrameDims : register(b0)
 {
@@ -90,7 +90,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     // level's mip-2 texels.
     int2 coarsestIndex = clamp(int2(groupId.xy) / kCoarsestBlockRatio,
         int2(0, 0), int2(max(CoarsestWidth, 1u), max(CoarsestHeight, 1u)) - 1);
-    int2 seed = int2(round(CoarsestMotionVectors.Load(int3(coarsestIndex, 0)))) * kCoarsestToCoarseScale;
+    int2 seed = int2(round(CoarsestMotionVectors.Load(int3(coarsestIndex, 0)).xy)) * kCoarsestToCoarseScale;
 
     int2 candidateOffset = seed + int2(groupThreadId.xy) - kSearchRadius;
 
@@ -112,6 +112,6 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
         int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         // Stored in mip-2 texels; the fine stage scales it up by kMipScale.
-        CoarseMotionVectors[groupId.xy] = float2(bestOffset);
+        CoarseMotionVectors[groupId.xy] = float4(float2(bestOffset), 0.0, 0.0);
     }
 }

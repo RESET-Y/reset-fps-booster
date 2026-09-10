@@ -36,14 +36,23 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(context->Map(m_staging, 0, D3D11_MAP_READ, 0, &mapped))) return false;
 
-    size_t movingBlocks = 0, totalBlocks = 0, saturatedBlocks = 0;
+    size_t movingBlocks = 0, totalBlocks = 0, saturatedBlocks = 0, poorMatchBlocks = 0;
     double magnitudeSum = 0.0, magnitudeMax = 0.0;
+    double matchErrorSum = 0.0, matchErrorMax = 0.0;
+
+    // Mean absolute difference per channel, above which the best candidate is
+    // not really a match at all - the block found nothing that resembled it.
+    constexpr double kPoorMatchThreshold = 0.06;
 
     for (UINT y = 0; y < m_height; ++y) {
         const float* row = reinterpret_cast<const float*>(static_cast<const uint8_t*>(mapped.pData) + static_cast<size_t>(y) * mapped.RowPitch);
         for (UINT x = 0; x < m_width; ++x) {
-            const float mx = row[x * 2];
-            const float my = row[x * 2 + 1];
+            const float mx = row[x * 4];
+            const float my = row[x * 4 + 1];
+            const float matchError = row[x * 4 + 2];
+            matchErrorSum += matchError;
+            if (matchError > matchErrorMax) matchErrorMax = matchError;
+            if (matchError > kPoorMatchThreshold) ++poorMatchBlocks;
             const double magnitude = std::sqrt(static_cast<double>(mx) * mx + static_cast<double>(my) * my);
             ++totalBlocks;
             // Half a pixel: below that the block is standing still as far as
@@ -69,6 +78,9 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
     m_meanMagnitude = movingBlocks ? magnitudeSum / static_cast<double>(movingBlocks) : 0.0;
     m_maxMagnitude = magnitudeMax;
     m_saturatedPercent = movingBlocks ? 100.0 * static_cast<double>(saturatedBlocks) / static_cast<double>(movingBlocks) : 0.0;
+    m_meanMatchError = totalBlocks ? matchErrorSum / static_cast<double>(totalBlocks) : 0.0;
+    m_maxMatchError = matchErrorMax;
+    m_poorMatchPercent = totalBlocks ? 100.0 * static_cast<double>(poorMatchBlocks) / static_cast<double>(totalBlocks) : 0.0;
     return true;
 }
 

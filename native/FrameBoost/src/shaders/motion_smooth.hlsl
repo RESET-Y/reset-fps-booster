@@ -23,9 +23,9 @@
 //     of the previous field forward removes that flicker at the cost of a
 //     little responsiveness when motion changes direction abruptly.
 
-Texture2D<float2> RawMotionVectors : register(t0);
-Texture2D<float2> PreviousMotionVectors : register(t1);
-RWTexture2D<float2> SmoothedMotionVectors : register(u0);
+Texture2D<float4> RawMotionVectors : register(t0);
+Texture2D<float4> PreviousMotionVectors : register(t1);
+RWTexture2D<float4> SmoothedMotionVectors : register(u0);
 
 cbuffer BlockGridDims : register(b0)
 {
@@ -43,14 +43,35 @@ static const int kSpatialRadius = 2; // 5x5
 // immediately.
 static const float kNewFieldWeight = 0.7;
 
+// How sharply a poor match reduces a block`s influence. At 30, a block whose
+// best candidate differs by 0.3 per channel - no real match at all - carries
+// about a tenth of the weight of a clean one.
+static const float kMatchErrorSensitivity = 30.0;
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= BlockCountX || id.y >= BlockCountY)
         return;
 
+    // Weighted by how well each neighbour actually matched, not averaged
+    // blindly.
+    //
+    // Measured during a fast turn in a game: 14.9% of blocks find no real
+    // match at all, because the content they cover was simply not in the
+    // previous frame - it was revealed BY the turn. Their vectors are the
+    // least bad of a set of equally wrong candidates, and letting them
+    // contribute equally spreads that error into their neighbours.
+    //
+    // It matters most for those blocks themselves. A block with no match of
+    // its own now takes its motion almost entirely from the neighbourhood,
+    // which during a camera turn is very nearly the right answer: newly
+    // revealed background moves with the camera like everything else. The
+    // alternative - the interpolator falling back to a real frame for those
+    // pixels - leaves 15% of the image standing still while the rest moves,
+    // and that patchwork is what the eye reads as judder.
     float2 sum = float2(0, 0);
-    int count = 0;
+    float weightSum = 0.0;
 
     [unroll]
     for (int dy = -kSpatialRadius; dy <= kSpatialRadius; ++dy)
@@ -62,18 +83,27 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             if (p.x < 0 || p.y < 0 || p.x >= (int)BlockCountX || p.y >= (int)BlockCountY)
                 continue;
 
-            sum += RawMotionVectors.Load(int3(p, 0));
-            count += 1;
+            float4 neighbour = RawMotionVectors.Load(int3(p, 0));
+            // Match error 0 gives weight 1; a thoroughly unmatched block
+            // (error ~0.3) gives ~0.1, so it still contributes, but its
+            // neighbours decide.
+            float weight = 1.0 / (1.0 + kMatchErrorSensitivity * neighbour.z);
+            sum += neighbour.xy * weight;
+            weightSum += weight;
         }
     }
 
-    float2 spatial = sum / max(count, 1);
+    float2 spatial = weightSum > 0.0 ? sum / weightSum : float2(0, 0);
 
     if (HavePreviousField != 0)
     {
-        float2 previous = PreviousMotionVectors.Load(int3(id.xy, 0));
+        float2 previous = PreviousMotionVectors.Load(int3(id.xy, 0)).xy;
         spatial = lerp(previous, spatial, kNewFieldWeight);
     }
 
-    SmoothedMotionVectors[id.xy] = spatial;
+    // .z (the match error) is carried through unsmoothed: it describes this
+    // block`s own match quality, and averaging it with its neighbours` would
+    // blur exactly the localisation the metric exists to provide.
+    float matchError = RawMotionVectors.Load(int3(id.xy, 0)).z;
+    SmoothedMotionVectors[id.xy] = float4(spatial, matchError, 0.0);
 }

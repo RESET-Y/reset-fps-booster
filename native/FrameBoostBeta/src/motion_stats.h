@@ -34,6 +34,15 @@ public:
     // the quality limiter or not.
     double SaturatedBlockPercent() const { return m_saturatedPercent; }
 
+    // How well the winning candidate actually matched, as a mean absolute
+    // difference per colour channel. This separates two problems that look
+    // identical on screen but need opposite fixes: a wrong vector (a good
+    // match existed and was missed) versus content that was not present in
+    // the previous frame at all, which no interpolation can recover.
+    double MeanMatchError() const { return m_meanMatchError; }
+    double MaxMatchError() const { return m_maxMatchError; }
+    double PoorMatchPercent() const { return m_poorMatchPercent; }
+
     ~MotionStats();
 
 private:
@@ -46,6 +55,9 @@ private:
     double m_meanMagnitude = -1.0;
     double m_maxMagnitude = -1.0;
     double m_saturatedPercent = -1.0;
+    double m_meanMatchError = -1.0;
+    double m_maxMatchError = -1.0;
+    double m_poorMatchPercent = -1.0;
 
     // Must match kSearchRadius in motion_estimation.hlsl.
     // Total reach of the pyramid search: coarse stage 48 px (radius 12 on a

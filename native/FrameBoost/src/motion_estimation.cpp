@@ -94,7 +94,7 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     mvDesc.Height = m_blockCountY;
     mvDesc.MipLevels = 1;
     mvDesc.ArraySize = 1;
-    mvDesc.Format = DXGI_FORMAT_R32G32_FLOAT;
+    mvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
     mvDesc.SampleDesc.Count = 1;
     mvDesc.Usage = D3D11_USAGE_DEFAULT;
     mvDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
