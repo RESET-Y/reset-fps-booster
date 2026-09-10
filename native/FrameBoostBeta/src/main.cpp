@@ -374,6 +374,44 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Wall-clock moment the newer of the two frames reached us. The phase is
     // measured from here, so capture latency is not counted twice.
     double motionCurrArrivalMs = 0.0;
+
+    // One-frame buffer (F5). See the comment at the estimator feed for why.
+    bool bufferOneFrame = true;
+    bool f5WasDown = false;
+    ID3D11Texture2D* pendingTex = nullptr;
+    double pendingTimestampMs = 0.0;
+    bool havePendingFrame = false;
+    UINT pendingWidth = 0, pendingHeight = 0;
+
+    auto EnsurePendingTexture = [&](ID3D11Texture2D* like) -> bool {
+        if (!like) return false;
+        D3D11_TEXTURE2D_DESC desc{};
+        like->GetDesc(&desc);
+        if (pendingTex && desc.Width == pendingWidth && desc.Height == pendingHeight) return true;
+
+        if (pendingTex) { pendingTex->Release(); pendingTex = nullptr; }
+        havePendingFrame = false;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = 0;
+        desc.MipLevels = 1;
+        if (FAILED(device->CreateTexture2D(&desc, nullptr, &pendingTex))) {
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] Could not create the frame buffer texture - "
+                "running without the one-frame buffer.");
+            return false;
+        }
+        pendingWidth = desc.Width;
+        pendingHeight = desc.Height;
+        return true;
+    };
+
+    // Presentation clock offset behind the capture clock. Rather than being
+    // computed once, it is nudged every slot to keep the phase inside the
+    // interval it is meant to cover - the same idea an audio player uses to
+    // stay in sync with a clock it does not control. A fixed offset cannot
+    // work here because the source's own rate drifts.
+    double presentOffsetMs = -1.0;
     bool haveMotionField = false;
 
     // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
@@ -606,6 +644,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f9WasDown = f9IsDown;
 
+        // F5: one-frame buffer. The fix for an irregular source, at the cost
+        // of one frame of latency - worth toggling, since video does not care
+        // about the latency and a shooter does.
+        bool f5IsDown = (GetAsyncKeyState(VK_F5) & 0x8000) != 0;
+        if (f5IsDown && !f5WasDown) {
+            bufferOneFrame = !bufferOneFrame;
+            havePendingFrame = false;
+            presentOffsetMs = -1.0;
+            FrameBoostBeta::Logger::Log(bufferOneFrame
+                ? "[FrameBoostBeta] F5: ONE-FRAME BUFFER on - the displayed pair is fully in the past, so an uneven source no longer freezes and jumps. Costs one frame of latency."
+                : "[FrameBoostBeta] F5: one-frame buffer off - lowest latency, but an uneven source will freeze and jump again.");
+        }
+        f5WasDown = f5IsDown;
+
         // F6: low-latency mode. Caps the generation factor at 2, so a real
         // frame is held one output slot instead of two before being shown.
         bool f6IsDown = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
@@ -830,12 +882,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // Motion field and frame timestamps persist across slots: the
             // output is driven by the clock, not by frame arrivals, so several
             // slots interpolate from the same pair of real frames.
-            haveMotionField = estimator.ProcessFrame(device.get(), context.get(), capturedTex);
-            ranEstimationThisTick = true;
-            if (haveMotionField) {
-                motionPrevTimestampMs = motionCurrTimestampMs;
-                motionCurrTimestampMs = frameTimestamp100ns / 10000.0;
-                motionCurrArrivalMs = NowMs();
+            // ONE FRAME OF BUFFER. The newest frame is held back and only fed
+            // to the estimator when the frame after it arrives.
+            //
+            // Without it the engine starts replaying an interval the moment
+            // its second frame lands, without knowing how long that interval
+            // will last - so a late frame leaves the phase pinned at 1 (the
+            // picture freezes) and the next arrival jumps. That freeze-and-jump
+            // is what an irregular source turns into, and it is what made a
+            // perfectly paced 144 FPS output feel like ~35 in a game measuring
+            // +-25% jitter.
+            //
+            // Holding one frame back means the pair being displayed is always
+            // fully in the past: its duration is known exactly, and the frame
+            // that ends it is already in hand. Costs one frame of latency,
+            // which is why it is a toggle (F5).
+            if (bufferOneFrame && EnsurePendingTexture(capturedTex)) {
+                // Buffered: the frame is only parked here. Whether it becomes
+                // the next pair is decided by the presentation CLOCK further
+                // down, not by its arrival.
+                //
+                // Tying that to arrival - the obvious first attempt - only
+                // moves the problem: a late frame still leaves the clock
+                // sitting at the end of the current pair with nothing to
+                // advance to, so it freezes exactly as before. Measured with
+                // that version: average phase 0.67-1.00, pinned at 1 whenever
+                // a frame ran late.
+                context->CopyResource(pendingTex, capturedTex);
+                pendingTimestampMs = frameTimestamp100ns / 10000.0;
+                havePendingFrame = true;
+            } else {
+                haveMotionField = estimator.ProcessFrame(device.get(), context.get(), capturedTex);
+                ranEstimationThisTick = true;
+                if (haveMotionField) {
+                    motionPrevTimestampMs = motionCurrTimestampMs;
+                    motionCurrTimestampMs = frameTimestamp100ns / 10000.0;
+                    motionCurrArrivalMs = NowMs();
+                }
             }
         }
 
@@ -881,6 +964,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Wait for this slot, then decide from the CLOCK what to show in it.
         WaitForOutputSlot();
 
+        // The clock starts one and a half intervals behind the capture: far
+        // enough that a late frame is already buffered, close enough that the
+        // latency stays near the theoretical minimum. It is nudged from there.
+        if (bufferOneFrame && presentOffsetMs < 0.0 && realFrameIntervalEmaMs > 0.0) {
+            presentOffsetMs = realFrameIntervalEmaMs * 1.5;
+        }
+
+        // Advance to the next pair when the presentation clock has consumed
+        // the current one - driven by the clock, never by frame arrivals. This
+        // is what actually absorbs an irregular source: a frame that arrives
+        // late was already buffered, and one that arrives early simply waits.
+        if (bufferOneFrame && havePendingFrame && presentOffsetMs > 0.0) {
+            const double contentTimeMs = NowMs() - presentOffsetMs;
+            const bool pairConsumed = (motionCurrTimestampMs <= 0.0) || (contentTimeMs >= motionCurrTimestampMs);
+            if (pairConsumed && pendingTimestampMs > motionCurrTimestampMs) {
+                if (estimator.ProcessFrame(device.get(), context.get(), pendingTex)) {
+                    haveMotionField = true;
+                    motionPrevTimestampMs = motionCurrTimestampMs;
+                    motionCurrTimestampMs = pendingTimestampMs;
+                    motionCurrArrivalMs = NowMs();
+                }
+                havePendingFrame = false;
+            }
+        }
+
         const double realIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
         const bool haveTimeline = haveMotionField && realIntervalMs > 1.0 && realIntervalMs < 200.0;
 
@@ -898,7 +1006,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // frame instead of interpolating.
         double phase = 1.0;
         if (haveTimeline) {
-            phase = (NowMs() - motionCurrArrivalMs) / realIntervalMs;
+            if (bufferOneFrame) {
+                // Content time = now minus the presentation offset, mapped
+                // onto the pair's own timestamps. Because the pair is fully in
+                // the past, both ends are known and the phase moves at the
+                // right speed even when frames arrive unevenly.
+                if (presentOffsetMs < 0.0) presentOffsetMs = realIntervalMs * 1.5;
+
+                const double contentTimeMs = NowMs() - presentOffsetMs;
+                phase = (contentTimeMs - motionPrevTimestampMs) / realIntervalMs;
+
+                // Keep the clock in the middle of the interval. Running past
+                // the end means showing a frozen frame; running before the
+                // start means the buffer is deeper than it needs to be and
+                // costs latency for nothing. Corrections are small so the
+                // motion speed is not visibly altered while it settles.
+                constexpr double kClockNudgeMs = 0.25;
+                if (phase > 0.95) presentOffsetMs += kClockNudgeMs;
+                else if (phase < 0.15) presentOffsetMs -= kClockNudgeMs;
+
+                const double minOffset = realIntervalMs * 0.6;
+                const double maxOffset = realIntervalMs * 3.0;
+                if (presentOffsetMs < minOffset) presentOffsetMs = minOffset;
+                if (presentOffsetMs > maxOffset) presentOffsetMs = maxOffset;
+            } else {
+                phase = (NowMs() - motionCurrArrivalMs) / realIntervalMs;
+            }
             phase = phase < 0.0 ? 0.0 : (phase > 1.0 ? 1.0 : phase);
         }
 
@@ -908,7 +1041,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // 1 and the real frame keeps being shown, which is correct rather
         // than frozen.
         constexpr double kRealFrameEpsilon = 0.04;
-        const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly && !sourceIsIrregular
+        const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly && !(sourceIsIrregular && !bufferOneFrame) // the buffer is what makes an uneven source usable
             && phase > kRealFrameEpsilon && phase < 1.0 - kRealFrameEpsilon;
 
         phaseSumForReport += phase;
@@ -961,6 +1094,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         ReportTelemetryIfDue();
     }
 
+    if (pendingTex) pendingTex->Release();
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window closed - shutting down cleanly.");
     capture.Stop();
     return 0;
