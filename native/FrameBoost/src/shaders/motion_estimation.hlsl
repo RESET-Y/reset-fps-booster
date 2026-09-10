@@ -56,13 +56,23 @@ RWTexture2D<float4> MotionVectors : register(u0);
 // sharper field that arrives for half the frames is worth less than a coarser
 // one that arrives for all of them.
 //
-// AND BACK TO 8. Raising it was the right call while motion estimation cost
-// 4.2-11.8 ms a frame, but that cost has since gone for other reasons - the
-// same measurement at 16 px reads 0.70 ms - so the granularity is affordable
-// again. Four times the thread groups on a budget with room for them, and the
-// 16 px boundary between a moving object and its background goes back to 8.
-static const int kBlockSize = 8;
-static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
+// 16 px, and this time the reason is not our own frame budget but THE GAME'S.
+//
+// Logging our GPU time against the source frame rate second by second, during
+// real movement in a game capped at 72 FPS:
+//
+//   motion estimation 1.5-4.2 ms   ->  source 50-72 FPS, mean ~63
+//   motion estimation 9.3-11.1 ms  ->  source 50-67 FPS, mean ~57
+//
+// We are not a bystander on this GPU. At 8 px the estimator costs 2-11 ms of
+// every frame and the game gives up about six frames a second to pay for it -
+// frames the doubling then has to earn back before it is worth anything. At
+// 16 px the same measurement reads 0.70 ms.
+//
+// Finer blocks really are better, and 8 px is the right choice on a GPU with
+// room to spare. Sharing one with the game it is boosting is not that.
+static const int kBlockSize = 16;
+static const int kBlockSampleStride = 4; // 4x4 = 16 samples per candidate, as before
 // FINE stage of the pyramid. The search no longer starts from zero: it
 // starts from the coarse stage's result (motion_estimation_coarse.hlsl,
 // which searches +-48 px on a quarter-resolution mip) and only refines it
@@ -96,7 +106,7 @@ static const float kZeroMotionMargin = 1.15;
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
 // it now covers 8 of them per axis rather than 4.
-static const int kCoarseBlockRatio = 8;
+static const int kCoarseBlockRatio = 4;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);
