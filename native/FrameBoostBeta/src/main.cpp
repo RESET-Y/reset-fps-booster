@@ -567,6 +567,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // How long a frame takes to reach us after the compositor timestamped it.
     double arrivalLagEmaMs = -1.0;
     // Content time of the predicted frame waiting to be shown.
+
     double generatedContentMs = 0.0;
 
     // The interval the OUTPUT is paced on: the arrival rate where it is known,
@@ -669,6 +670,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
+
+    // The pair interval with outliers taken out - and it MUST be this rather
+    // than the raw difference.
+    //
+    // motionPrevTimestampMs starts at zero, so the very first pair measures not
+    // 13 ms but every millisecond since the machine booted. Offsets built on
+    // that were astronomically large, every wait ran to its ceiling - a ceiling
+    // computed from the same number, so it protected nothing - and the engine
+    // sat for 36 seconds without writing a single telemetry line. On screen
+    // that is one frozen frame: reported as "stuck again". The same guard
+    // covers a pause, an alt-tab or a loading screen.
+    auto PacingInterval = [&]() {
+        const double raw = motionCurrTimestampMs - motionPrevTimestampMs;
+        if (raw > 1.0 && raw < 100.0) return raw;
+        if (realFrameIntervalEmaMs > 1.0 && realFrameIntervalEmaMs < 100.0) return realFrameIntervalEmaMs;
+        return 16.7; // nothing measured yet: assume 60 FPS until it is
+    };
     // Wall-clock moment the newer of the two frames reached us. The phase is
     // measured from here, so capture latency is not counted twice.
     double motionCurrArrivalMs = 0.0;
@@ -1694,7 +1712,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // is weak the pixel stays put instead of smearing.
                 if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
                         && gpuHasRoom && realFrameIntervalEmaMs > 1.0) {
-                    const double pairIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+                    const double pairIntervalMs = PacingInterval();
                     const double arrivalLagMs = NowMs() - motionCurrTimestampMs;
                     arrivalLagEmaMs = arrivalLagEmaMs < 0.0
                         ? arrivalLagMs
@@ -1706,7 +1724,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     const double offsetMs = arrivalLagEmaMs + 1.0;
 
                     const double realDueAtMs = motionCurrTimestampMs + offsetMs;
-                    const double realCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                    const double realCeilingMs = NowMs() + 20.0;
                     while (NowMs() < realDueAtMs && NowMs() < realCeilingMs) { ddCapture.Pump(); }
 
                     if (transparentRealFrames && presenter.SupportsTransparency()) {
@@ -1792,12 +1810,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // frame it was made from and can only be shown once that frame
                 // exists. Both are measured, so the offset tracks them instead
                 // of drifting away from them.
-                const double pairIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+                const double pairIntervalMs = PacingInterval();
                 const double arrivalLagMs = NowMs() - motionCurrTimestampMs;
                 arrivalLagEmaMs = arrivalLagEmaMs < 0.0
                     ? arrivalLagMs
                     : arrivalLagEmaMs * 0.9 + arrivalLagMs * 0.1;
-                simplePresentOffsetMs = arrivalLagEmaMs + pairIntervalMs * 0.5 + 1.0;
+                // No safety margin on top: measured, every millimetre of it shows
+                // up in the on-screen age, and the age is what the hand feels.
+                // Anchoring with a 1 ms margin read 8.1 ms against 4.4 ms for
+                // pacing off the processing time, and bought only 0.4 ms less
+                // jitter for it - the wrong trade for a shooter.
+                simplePresentOffsetMs = arrivalLagEmaMs + pairIntervalMs * 0.5;
 
                 for (int step = 1; step < outputPerReal; ++step) {
                     const float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
@@ -1823,12 +1846,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // uneven source exactly as unevenly as it was produced -
                     // which is what smooth motion actually requires - and drops
                     // our own scheduling noise out of the result.
-                    const double contentMs = motionPrevTimestampMs
-                        + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs);
-                    const double dueAtMs = contentMs + simplePresentOffsetMs;
+                    // ...and it was measured, twice, and it did not pay off:
+                    // 8.1 ms on-screen age anchored with a 1 ms margin, 6.5-6.9
+                    // without it, against 4.4 ms when paced from the moment the
+                    // pair was processed - with the same jitter either way (sd
+                    // 2.1-2.5 against 2.2-2.6). Two milliseconds of hand-felt
+                    // delay for nothing measurable is not a trade worth making,
+                    // so the pacing runs off the processing time after all.
+                    const double dueAtMs = nowMs
+                        + pairIntervalMs * (static_cast<double>(step - 1) / outputPerReal);
                     // Same backstop as below: never wait longer than one source
                     // interval, so no arithmetic mistake can freeze the picture.
-                    const double genCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                    // A fixed ceiling, not one derived from the interval: a wait
+                    // must never be able to inherit a bad measurement.
+                    const double genCeilingMs = NowMs() + 20.0;
                     while (NowMs() < dueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
                     WaitForRefreshBoundary();
 
@@ -1860,13 +1891,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // and capture keeps running through it.
                 // Same anchor for the real frame: its own capture timestamp
                 // plus the offset.
-                const double realDueAtMs = motionCurrTimestampMs + simplePresentOffsetMs;
+                const double realDueAtMs = nowMs + pairIntervalMs
+                    * (static_cast<double>(outputPerReal - 1) / outputPerReal);
 
                 // Never wait longer than one source interval, whatever the
                 // arithmetic says. A wait that can grow without bound is how the
                 // picture froze; this is the backstop that makes that
                 // impossible rather than merely unlikely.
-                const double waitCeilingMs = NowMs() + (pairIntervalMs > 0.0 ? pairIntervalMs : 20.0);
+                const double waitCeilingMs = NowMs() + 20.0;
                 while (NowMs() < realDueAtMs && NowMs() < waitCeilingMs) { ddCapture.Pump(); }
 
                 WaitForRefreshBoundary();
