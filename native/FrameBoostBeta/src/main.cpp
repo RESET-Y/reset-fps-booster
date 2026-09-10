@@ -147,7 +147,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "dupcheck": keep comparing frames on the GPU even when the capture API
     // reports dirty rectangles, so the two can be compared against each other.
     const bool useDirtyRectsOnly = HasArg(L"dirtyonly");
-    const bool extrapolateMode = !HasArg(L"interpolate");
+    // Interpolation is the default again.
+    //
+    // Extrapolation removes the half-interval hold and with it 7.8 ms of
+    // latency, and it was worth trying: the raw game felt more responsive than
+    // the boosted output, and that hold was most of the difference. But the
+    // hold was doing a second job nobody had asked it to do - running every
+    // present off an even clock, which hid a source that measures 30-45%
+    // deviation between frame intervals. Three attempts to replace that with a
+    // smaller pacing buffer each made things worse by eye: a blocking wait that
+    // halved the frame rate, a drifting clock that halved it again, and a
+    // catch-up rule that turned the hitches into "ultra stutter".
+    //
+    // The smoothest configuration measured and judged so far is the
+    // interpolating one, so that is what runs unless "extrapolate" is passed.
+    const bool extrapolateMode = HasArg(L"extrapolate");
 
     FrameBoostBeta::Logger::Init();
 
