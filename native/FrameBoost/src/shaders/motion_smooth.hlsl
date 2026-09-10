@@ -48,6 +48,12 @@ static const float kNewFieldWeight = 0.7;
 // about a tenth of the weight of a clean one.
 static const float kMatchErrorSensitivity = 30.0;
 
+// How sharply a neighbour.s weight falls off when it is moving somewhere else.
+// At 0.25 a neighbour differing by 4 px still carries half the weight - noise
+// inside one object is smoothed as before - while one differing by 40 px, which
+// is a genuine motion boundary, carries a tenth.
+static const float kMotionDifferenceSensitivity = 0.25;
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
@@ -70,6 +76,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // alternative - the interpolator falling back to a real frame for those
     // pixels - leaves 15% of the image standing still while the rest moves,
     // and that patchwork is what the eye reads as judder.
+    // This block's own vector, which decides which neighbours are talking
+    // about the same motion and which belong to something else entirely.
+    const float4 centre = RawMotionVectors.Load(int3(id.xy, 0));
+
     float2 sum = float2(0, 0);
     float weightSum = 0.0;
 
@@ -88,6 +98,22 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             // (error ~0.3) gives ~0.1, so it still contributes, but its
             // neighbours decide.
             float weight = 1.0 / (1.0 + kMatchErrorSensitivity * neighbour.z);
+
+            // A neighbour moving somewhere else entirely barely counts.
+            //
+            // Averaging across a motion boundary is what drags a moving object.s
+            // vector into the still background beside it, and at 8 px blocks
+            // this window reaches 40 px in every direction. Reported from a live
+            // game as a trail behind moving bots: the background they crossed
+            // inherited their motion and was pulled along with them.
+            //
+            // Averaging still smooths noise inside an object, where neighbours
+            // agree, and stops at the edge, where they do not - which is where
+            // the smoothing was doing harm rather than good.
+            const float2 delta = neighbour.xy - centre.xy;
+            const float distance = sqrt(dot(delta, delta));
+            weight *= 1.0 / (1.0 + kMotionDifferenceSensitivity * distance);
+
             sum += neighbour.xy * weight;
             weightSum += weight;
         }
