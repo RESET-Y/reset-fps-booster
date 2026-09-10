@@ -1060,14 +1060,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 const double contentTimeMs = NowMs() - presentOffsetMs;
                 phase = (contentTimeMs - motionPrevTimestampMs) / realIntervalMs;
 
-                // Keep the clock in the middle of the interval. Running past
-                // the end means showing a frozen frame; running before the
-                // start means the buffer is deeper than it needs to be and
-                // costs latency for nothing. Corrections are small so the
-                // motion speed is not visibly altered while it settles.
-                constexpr double kClockNudgeMs = 0.25;
-                if (phase > 0.95) presentOffsetMs += kClockNudgeMs;
-                else if (phase < 0.15) presentOffsetMs -= kClockNudgeMs;
+                // The clock is corrected against QUEUE DEPTH, not against the
+                // phase.
+                //
+                // Correcting against the phase is what the first version did,
+                // and it is self-defeating: the phase jumps from ~1 back to ~0
+                // every time a pair is consumed, so the clock was pulled
+                // forward and back once per source frame - up to 36 ms per
+                // second of adjustment. The output stayed perfectly paced
+                // while the CONTENT sped up and slowed down, which is exactly
+                // what judder is. Reported on a video, whose source timing is
+                // steady to 0.0%, so the cause could only be here.
+                //
+                // Queue depth does not jump: it rises when the clock runs too
+                // slowly and falls when it runs too fast, so a gentle pull
+                // toward a target depth holds the content moving at a constant
+                // rate.
+                constexpr int kTargetQueueDepth = 2;
+                constexpr double kClockNudgeMs = 0.02;
+                if (queueCount > kTargetQueueDepth) presentOffsetMs -= kClockNudgeMs;
+                else if (queueCount < kTargetQueueDepth) presentOffsetMs += kClockNudgeMs;
 
                 const double minOffset = realIntervalMs * 0.6;
                 const double maxOffset = realIntervalMs * 3.0;
