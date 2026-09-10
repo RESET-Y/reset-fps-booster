@@ -70,7 +70,20 @@ cbuffer InterpolationParams : register(b0)
 // into distrust of the motion vector. Tuned so ordinary lighting/noise
 // differences still blend normally, while genuinely mismatched content
 // (occlusion) falls back to the real frame.
-static const float kMismatchSensitivity = 6.0;
+//
+// RAISED FROM 6 TO 14 against a trail behind moving bots that survived both
+// finer blocks and edge-aware smoothing. The vectors there are not wrong at
+// all: ground a bot has just left is background in the new frame and was the
+// bot in the old one, so blending the two halfway paints a ghost of the bot
+// where it used to be. This test is the only thing standing between that and
+// the screen, and at 6 the two samples had to differ by a sixth of full range
+// before it fully distrusted them - which a dark bot against a dark background
+// never manages. At 14 a difference of 7% is enough.
+//
+// The cost is that genuinely difficult pixels stop being interpolated and hold
+// on the nearer real frame. A patch that stands still for one frame is a
+// smaller lie than a ghost of something that has already moved on.
+static const float kMismatchSensitivity = 14.0;
 
 // How quickly a block`s own match error turns into distrust. Measured in a
 // game: a clean match scores 0.002-0.015, while a block that found nothing
