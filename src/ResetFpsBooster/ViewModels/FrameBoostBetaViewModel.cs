@@ -21,7 +21,28 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     /// read as "Native FPS: 0" on their own and mean completely different
     /// things: a still picture, a source that is too fast to double, and a
     /// capture that has stopped delivering. Only the last one is a fault.
+    private int _noticeHoldTicks;
+    private string? _shownNotice;
+
+    /// The notice only appears after the condition has held for about a second,
+    /// and disappears the same way. Without that it flickered on every second
+    /// that happened to contain no new frames - a pause between rounds, a
+    /// loading screen, a moment of standing still - which reads as a fault
+    /// light blinking rather than as information.
     public string? StatusNotice
+    {
+        get
+        {
+            string? live = LiveNotice;
+            if (live == _shownNotice) { _noticeHoldTicks = 0; return _shownNotice; }
+            if (++_noticeHoldTicks < 3) return _shownNotice;
+            _noticeHoldTicks = 0;
+            _shownNotice = live;
+            return _shownNotice;
+        }
+    }
+
+    private string? LiveNotice
     {
         get
         {

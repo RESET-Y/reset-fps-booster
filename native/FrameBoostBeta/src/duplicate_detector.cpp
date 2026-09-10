@@ -3,72 +3,40 @@
 
 #include <string>
 #include <cstring>
+#include <algorithm>
+
+#include "thumbnail_cs.h"
 
 namespace FrameBoostBeta {
 
 namespace {
 void SafeRelease(IUnknown* obj) { if (obj) obj->Release(); }
 
-// Number of mip levels for a full chain down to 1x1.
-UINT FullMipLevels(UINT width, UINT height) {
-    UINT levels = 1;
-    while (width > 1 || height > 1) { width = width > 1 ? width / 2 : 1; height = height > 1 ? height / 2 : 1; ++levels; }
-    return levels;
-}
-
-UINT MipDimension(UINT base, UINT level) {
-    UINT d = base >> level;
-    return d ? d : 1;
-}
 } // namespace
 
 bool DuplicateDetector::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& frameDesc) {
-    if (m_staging && frameDesc.Width == m_frameWidth && frameDesc.Height == m_frameHeight && frameDesc.Format == m_format)
+    if (m_staging[0] && frameDesc.Width == m_frameWidth && frameDesc.Height == m_frameHeight && frameDesc.Format == m_format)
         return true;
 
-    SafeRelease(m_mipSRV);      m_mipSRV = nullptr;
-    SafeRelease(m_mipSource);   m_mipSource = nullptr;
+    SafeRelease(m_thumbUAV);    m_thumbUAV = nullptr;
     SafeRelease(m_thumbTarget); m_thumbTarget = nullptr;
-    SafeRelease(m_staging);     m_staging = nullptr;
+    SafeRelease(m_frameSRV);    m_frameSRV = nullptr;
+    m_frameSRVSource = nullptr;
+    SafeRelease(m_staging[0]); m_staging[0] = nullptr;
+    SafeRelease(m_staging[1]); m_staging[1] = nullptr;
+    m_stagingFilled[0] = m_stagingFilled[1] = false;
+    m_writeIndex = 0;
     m_lastThumb.clear(); // frame geometry changed - previous samples are meaningless
 
     m_frameWidth = frameDesc.Width;
     m_frameHeight = frameDesc.Height;
     m_format = frameDesc.Format;
-    m_mipLevels = FullMipLevels(frameDesc.Width, frameDesc.Height);
 
-    // Pick the mip level closest to (but not smaller than) the target
-    // thumbnail width, so the GPU does the whole reduction and we read back
-    // only a few KB.
-    m_thumbMipLevel = 0;
-    for (UINT level = 0; level < m_mipLevels; ++level) {
-        m_thumbMipLevel = level;
-        if (MipDimension(frameDesc.Width, level) <= kThumbWidth) break;
-    }
-    m_thumbActualWidth = MipDimension(frameDesc.Width, m_thumbMipLevel);
-    m_thumbActualHeight = MipDimension(frameDesc.Height, m_thumbMipLevel);
+    // Thumbnail size, keeping the frame.s aspect ratio so each texel covers a
+    // square-ish region.
+    m_thumbActualWidth = kThumbWidth;
+    m_thumbActualHeight = (std::max)(1u, kThumbWidth * frameDesc.Height / (std::max)(1u, frameDesc.Width));
 
-    D3D11_TEXTURE2D_DESC mipDesc{};
-    mipDesc.Width = frameDesc.Width;
-    mipDesc.Height = frameDesc.Height;
-    mipDesc.MipLevels = m_mipLevels;
-    mipDesc.ArraySize = 1;
-    mipDesc.Format = frameDesc.Format;
-    mipDesc.SampleDesc.Count = 1;
-    mipDesc.Usage = D3D11_USAGE_DEFAULT;
-    // RENDER_TARGET and the GENERATE_MIPS flag are both required for
-    // GenerateMips to be allowed to write the chain.
-    mipDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-    mipDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-
-    if (FAILED(device->CreateTexture2D(&mipDesc, nullptr, &m_mipSource))) {
-        Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the mip source - duplicate detection disabled.");
-        return false;
-    }
-    if (FAILED(device->CreateShaderResourceView(m_mipSource, nullptr, &m_mipSRV))) {
-        Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the mip SRV - duplicate detection disabled.");
-        return false;
-    }
 
     D3D11_TEXTURE2D_DESC thumbDesc{};
     thumbDesc.Width = m_thumbActualWidth;
@@ -78,22 +46,46 @@ bool DuplicateDetector::EnsureResources(ID3D11Device* device, const D3D11_TEXTUR
     thumbDesc.Format = frameDesc.Format;
     thumbDesc.SampleDesc.Count = 1;
     thumbDesc.Usage = D3D11_USAGE_DEFAULT;
+    thumbDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
     if (FAILED(device->CreateTexture2D(&thumbDesc, nullptr, &m_thumbTarget))) {
         Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the thumbnail target - duplicate detection disabled.");
         return false;
+    }
+    if (FAILED(device->CreateUnorderedAccessView(m_thumbTarget, nullptr, &m_thumbUAV))) {
+        Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the thumbnail UAV - duplicate detection disabled.");
+        return false;
+    }
+
+    if (!m_thumbnailCS &&
+        FAILED(device->CreateComputeShader(g_ThumbnailCS, sizeof(g_ThumbnailCS), nullptr, &m_thumbnailCS))) {
+        Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the thumbnail shader - duplicate detection disabled.");
+        return false;
+    }
+
+    if (!m_dimsCB) {
+        D3D11_BUFFER_DESC cbDesc{};
+        cbDesc.ByteWidth = 16; // four uints
+        cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+        cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+        cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        if (FAILED(device->CreateBuffer(&cbDesc, nullptr, &m_dimsCB))) {
+            Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the dimensions buffer - duplicate detection disabled.");
+            return false;
+        }
     }
 
     thumbDesc.Usage = D3D11_USAGE_STAGING;
     thumbDesc.BindFlags = 0;
     thumbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    if (FAILED(device->CreateTexture2D(&thumbDesc, nullptr, &m_staging))) {
+    if (FAILED(device->CreateTexture2D(&thumbDesc, nullptr, &m_staging[0])) ||
+        FAILED(device->CreateTexture2D(&thumbDesc, nullptr, &m_staging[1]))) {
         Logger::Log("[FrameBoostBeta] DuplicateDetector: could not create the staging thumbnail - duplicate detection disabled.");
         return false;
     }
 
     Logger::Log("[FrameBoostBeta] DuplicateDetector: full-frame thumbnail comparison at "
         + std::to_string(m_thumbActualWidth) + "x" + std::to_string(m_thumbActualHeight)
-        + " (mip " + std::to_string(m_thumbMipLevel) + " of " + std::to_string(m_mipLevels) + ") - 100% frame coverage.");
+        + " - one compute dispatch, 64 samples per texel, whole frame covered.");
     return true;
 }
 
@@ -104,23 +96,53 @@ bool DuplicateDetector::IsDuplicate(ID3D11Device* device, ID3D11DeviceContext* c
     frame->GetDesc(&frameDesc);
     if (!EnsureResources(device, frameDesc)) return false;
 
-    // Full frame into mip 0, then let the GPU reduce it. Every source pixel
-    // contributes to the thumbnail, which is the whole point: nothing on
-    // screen can move without changing it.
-    context->CopySubresourceRegion(m_mipSource, 0, 0, 0, 0, frame, 0, nullptr);
-    context->GenerateMips(m_mipSRV);
-    context->CopySubresourceRegion(m_thumbTarget, 0, 0, 0, 0, m_mipSource, m_thumbMipLevel, nullptr);
-    context->CopyResource(m_staging, m_thumbTarget);
+    // One dispatch: every thumbnail texel averages a grid of samples from the
+    // region it stands for. Nothing on screen can move without changing it,
+    // and nothing full-frame is copied to find that out.
+    if (m_frameSRVSource != frame) {
+        SafeRelease(m_frameSRV);
+        m_frameSRV = nullptr;
+        if (FAILED(device->CreateShaderResourceView(frame, nullptr, &m_frameSRV))) return false;
+        m_frameSRVSource = frame;
+    }
+
+    D3D11_MAPPED_SUBRESOURCE cb{};
+    if (SUCCEEDED(context->Map(m_dimsCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &cb))) {
+        UINT* dims = static_cast<UINT*>(cb.pData);
+        dims[0] = m_frameWidth; dims[1] = m_frameHeight;
+        dims[2] = m_thumbActualWidth; dims[3] = m_thumbActualHeight;
+        context->Unmap(m_dimsCB, 0);
+    }
+
+    context->CSSetShader(m_thumbnailCS, nullptr, 0);
+    context->CSSetConstantBuffers(0, 1, &m_dimsCB);
+    context->CSSetShaderResources(0, 1, &m_frameSRV);
+    context->CSSetUnorderedAccessViews(0, 1, &m_thumbUAV, nullptr);
+    context->Dispatch((m_thumbActualWidth + 7) / 8, (m_thumbActualHeight + 7) / 8, 1);
+
+    ID3D11ShaderResourceView* nullSrv = nullptr;
+    ID3D11UnorderedAccessView* nullUav = nullptr;
+    context->CSSetShaderResources(0, 1, &nullSrv);
+    context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+    context->CopyResource(m_staging[m_writeIndex], m_thumbTarget);
+    m_stagingFilled[m_writeIndex] = true;
+
+    // Read the OTHER copy - the one filled on the previous call, whose GPU work
+    // has long since finished. Mapping the one just written would mean waiting
+    // for the GPU, which is the cost this avoids.
+    const int readIndex = 1 - m_writeIndex;
+    m_writeIndex = readIndex;
+    if (!m_stagingFilled[readIndex]) return false; // first call: nothing to compare yet
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    if (FAILED(context->Map(m_staging, 0, D3D11_MAP_READ, 0, &mapped))) return false;
+    if (FAILED(context->Map(m_staging[readIndex], 0, D3D11_MAP_READ, 0, &mapped))) return false;
 
     const size_t rowBytes = static_cast<size_t>(m_thumbActualWidth) * 4;
     std::vector<uint8_t> current(rowBytes * m_thumbActualHeight);
     const uint8_t* src = static_cast<const uint8_t*>(mapped.pData);
     for (UINT y = 0; y < m_thumbActualHeight; ++y)
         memcpy(current.data() + y * rowBytes, src + static_cast<size_t>(y) * mapped.RowPitch, rowBytes);
-    context->Unmap(m_staging, 0);
+    context->Unmap(m_staging[readIndex], 0);
 
     bool duplicate = false;
     if (m_lastThumb.size() == current.size()) {
@@ -158,14 +180,18 @@ bool DuplicateDetector::IsDuplicate(ID3D11Device* device, ID3D11DeviceContext* c
     }
 
     m_lastThumb = std::move(current);
+    m_lastVerdict = duplicate;
     return duplicate;
 }
 
 DuplicateDetector::~DuplicateDetector() {
-    SafeRelease(m_mipSRV);
-    SafeRelease(m_mipSource);
+    SafeRelease(m_thumbUAV);
+    SafeRelease(m_frameSRV);
+    SafeRelease(m_thumbnailCS);
+    SafeRelease(m_dimsCB);
     SafeRelease(m_thumbTarget);
-    SafeRelease(m_staging);
+    SafeRelease(m_staging[0]);
+    SafeRelease(m_staging[1]);
 }
 
 } // namespace FrameBoostBeta

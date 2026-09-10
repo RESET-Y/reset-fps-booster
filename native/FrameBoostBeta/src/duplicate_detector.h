@@ -75,15 +75,34 @@ private:
     // per second.
     static constexpr double kDuplicateThreshold = 0.3; // mean abs difference per channel (0-255)
 
-    // Full-size intermediate carrying a mip chain: the frame is copied into
-    // mip 0 and GenerateMips does the reduction on the GPU, which is both
-    // faster and better quality than sampling a handful of pixels ourselves.
-    ID3D11Texture2D* m_mipSource = nullptr;
-    ID3D11ShaderResourceView* m_mipSRV = nullptr;
-    ID3D11Texture2D* m_thumbTarget = nullptr; // thumbnail-sized, copied from the matching mip
-    ID3D11Texture2D* m_staging = nullptr;     // CPU-readable copy of the thumbnail
-    UINT m_mipLevels = 0;
-    UINT m_thumbMipLevel = 0;
+    // One compute dispatch shrinks the frame straight to thumbnail size.
+    //
+    // This used to copy the whole frame into a mip-capable texture and call
+    // GenerateMips - a full twelve-level pyramid of a 2560x1440 image, roughly
+    // a hundred times a second, to produce 40x22 pixels. Measured at 0.7-1.8 ms
+    // per arrival, and 2.8-3.0 ms once a readback stall stopped hiding it.
+    ID3D11ComputeShader* m_thumbnailCS = nullptr;
+    ID3D11Buffer* m_dimsCB = nullptr;
+    ID3D11Texture2D* m_thumbTarget = nullptr;    // thumbnail-sized, written by the shader
+    ID3D11UnorderedAccessView* m_thumbUAV = nullptr;
+    ID3D11ShaderResourceView* m_frameSRV = nullptr; // view onto the frame being checked
+    ID3D11Texture2D* m_frameSRVSource = nullptr;    // which texture that view belongs to
+    // Two staging copies, read one frame behind the one being written.
+    //
+    // Mapping the texture the GPU was just told to fill means waiting for it,
+    // and that wait was measured at 0.9-1.8 ms on every arrival - about 120 ms
+    // of every second at ~100 arrivals. Reading the PREVIOUS copy costs
+    // nothing, because that work finished long ago.
+    //
+    // The verdict is then one frame old: it says whether the previous frame
+    // differed from the one before it. On a still screen that is the same
+    // answer; it can only be wrong on the single frame where motion starts or
+    // stops, and being wrong there costs one processed duplicate or one
+    // skipped frame - far cheaper than stalling the pipeline on every frame.
+    ID3D11Texture2D* m_staging[2] = { nullptr, nullptr };
+    int m_writeIndex = 0;
+    bool m_stagingFilled[2] = { false, false };
+    bool m_lastVerdict = false;
     UINT m_thumbActualWidth = 0, m_thumbActualHeight = 0;
 
     UINT m_frameWidth = 0, m_frameHeight = 0;
