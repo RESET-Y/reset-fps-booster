@@ -295,6 +295,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
     double lastRealPresentMs = 0.0;
     double realFrameIntervalEmaMs = -1.0;
+
+    // Regularity of the source, and the gate built on it.
+    //
+    // Interpolation cannot smooth an irregular input. The interval between two
+    // captured frames is replayed uniformly across the slots it spans, so a
+    // varying interval becomes varying motion speed - several times a second,
+    // which reads as heavy judder no matter how evenly the output itself is
+    // paced. Generating in that state actively makes the picture worse than
+    // passing it through untouched, so the engine stops generating instead.
+    //
+    // Same principle as the adaptive factor: produce nothing where there is
+    // nothing to gain.
+    double intervalDeviationEmaMs = -1.0;
+    bool sourceIsIrregular = false;
+    int regularityHoldFrames = 0;
+
+    // Deviation as a fraction of the interval. A steady source sits near 0.05;
+    // the game measured 0.25-0.40 while it felt like a third of its frame rate.
+    // Separate thresholds, so a source hovering at the boundary does not switch
+    // back and forth - the switch itself would be visible.
+    constexpr double kIrregularEnterRatio = 0.20;
+    constexpr double kIrregularLeaveRatio = 0.12;
+    constexpr int kRegularityHoldFrames = 45; // ~1 s at 45 real FPS
     double generatedFrameDueAtMs = 0.0;
     int64_t lastFrameTimestamp100ns = 0;
 
@@ -506,6 +529,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
+                ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR - generation off" : "steady")
+                : std::string("N/A"))
             << " | Phase avg: " << (phaseCountForReport ? phaseSumForReport / phaseCountForReport : -1.0)
             << " | Timeline slots: " << (phaseCountForReport ? 100.0 * timelineSlotsForReport / phaseCountForReport : -1.0) << "%"
             << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
@@ -683,6 +709,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (lastFrameTimestamp100ns > 0) {
                 double intervalMs = (frameTimestamp100ns - lastFrameTimestamp100ns) / 10000.0;
                 if (intervalMs > 1.0 && intervalMs < 100.0) {
+                    // How far this interval sits from the running average,
+                    // tracked alongside the average itself. This is the number
+                    // that decides whether generating anything is worthwhile:
+                    // the interval between two captured frames is replayed
+                    // UNIFORMLY across the output slots it spans, so if that
+                    // interval keeps changing, the apparent speed of motion
+                    // changes with it. Measured in a game: 20.83 -> 27.18 ->
+                    // 34.70 ms within a second, which is why a perfectly paced
+                    // 144 FPS output was reported as feeling like ~35.
+                    if (realFrameIntervalEmaMs > 0.0) {
+                        const double deviation = std::abs(intervalMs - realFrameIntervalEmaMs);
+                        intervalDeviationEmaMs = intervalDeviationEmaMs < 0.0
+                            ? deviation
+                            : intervalDeviationEmaMs * 0.8 + deviation * 0.2;
+                    }
                     realFrameIntervalEmaMs = realFrameIntervalEmaMs < 0.0
                         ? intervalMs
                         : realFrameIntervalEmaMs * 0.8 + intervalMs * 0.2;
@@ -690,6 +731,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
             lastFrameTimestamp100ns = frameTimestamp100ns;
             currentPairTimestamp100ns = frameTimestamp100ns;
+
+            // Regularity gate. Evaluated per real frame, and only switched
+            // after the new verdict has held for about a second, because
+            // toggling generation is itself visible.
+            if (realFrameIntervalEmaMs > 0.0 && intervalDeviationEmaMs >= 0.0) {
+                const double ratio = intervalDeviationEmaMs / realFrameIntervalEmaMs;
+                const bool verdictIrregular = sourceIsIrregular
+                    ? (ratio > kIrregularLeaveRatio)   // stay irregular until clearly settled
+                    : (ratio > kIrregularEnterRatio);  // become irregular only when clearly bad
+
+                if (verdictIrregular == sourceIsIrregular) {
+                    regularityHoldFrames = 0;
+                } else if (++regularityHoldFrames >= kRegularityHoldFrames) {
+                    sourceIsIrregular = verdictIrregular;
+                    regularityHoldFrames = 0;
+                    std::ostringstream oss;
+                    oss << "[FrameBoostBeta] Source is " << (sourceIsIrregular ? "IRREGULAR" : "steady again")
+                        << " (interval " << realFrameIntervalEmaMs << " ms +- " << intervalDeviationEmaMs
+                        << " ms, " << (100.0 * ratio) << "%) - "
+                        << (sourceIsIrregular
+                            ? "generation off, passing frames through untouched: interpolating an uneven "
+                              "interval turns it into uneven motion speed and looks worse than the source."
+                            : "generation back on.");
+                    FrameBoostBeta::Logger::Log(oss.str());
+                }
+            }
 
             // Re-evaluated here, as soon as the measured interval updates,
             // rather than further down the loop: the duplicate-frame path
@@ -816,7 +883,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // 1 and the real frame keeps being shown, which is correct rather
         // than frozen.
         constexpr double kRealFrameEpsilon = 0.04;
-        const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly
+        const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly && !sourceIsIrregular
             && phase > kRealFrameEpsilon && phase < 1.0 - kRealFrameEpsilon;
 
         phaseSumForReport += phase;
