@@ -139,3 +139,61 @@ demanding game it hits a limit that is not in this code.
 Generated frames are gently sharpened to match a real frame's perceived
 sharpness, since interpolation is systematically softer. If edges ever look
 overdrawn, `kSharpenAmount` in `frame_interpolation.hlsl` is the dial.
+
+## The first configuration that worked (2026-09-11, Apex Legends)
+
+Reported after a long day of testing: "in Apex it worked perfectly, the frames
+felt smooth". The log for that session, doubling steadily over seconds:
+
+    00:37:11 | source 33.3 -> output 61.0
+    00:37:13 | source 29.3 -> output 60.0
+    00:37:15 | source 29.4 -> output 59.0
+    00:37:18 | source 29.0 -> output 59.0
+
+What that configuration is, and why each part is the way it is:
+
+- Capture through DXGI Desktop Duplication, not Windows Graphics Capture.
+  Measured on the same monitor in the same minute with a 90 FPS game: WGC
+  produced 44.6 frames a second, DD 90.2. WGC was not being read too
+  slowly - it announced 892 frames and all 892 were retrieved. It simply
+  hands out about half of what the compositor presents.
+
+- Acquisition pumped from the output loop's idle time. Reading once per
+  output slot left AccumulatedFrames reporting 60-70 coalesced updates a
+  second. A dedicated capture thread fixed that and broke worse: sharing
+  one D3D11 immediate context needs SetMultithreadProtected, and the
+  full-screen copies then serialised against the render work - 3-7 FPS
+  output, 100% missed slots.
+
+- Motion search on mip 1 with 16 px blocks: same granularity, a quarter
+  of the memory traffic, and double the reach for free.
+
+- "Did not move" judged at FULL resolution. Half resolution erases fine
+  text, so a static sidebar washes into a smear where every candidate
+  scores alike and the neighbourhood bias hands it the video's motion.
+  That was the reported "a quarter of the screen shifts".
+
+- Coarsest stage at radius 15, the ceiling for one thread per candidate
+  (31x31 = 961 against D3D11's 1024). At radius 12 the measured maximum
+  motion read exactly 239.7 px in every single line - a search pinned at
+  its own edge.
+
+- Output paced off the SOURCE, not the display. Snapping presents to the
+  refresh grid tied the feature to the refresh rate (124 does not divide
+  144) and every cure was a demand on the user. Frames now go out at
+  twice the source rate and the display shows what it can reach.
+
+- The GPU-room guard, which pauses generation and hides the overlay
+  entirely when a game needs the whole card. Measured in Watch Dogs:
+  with generation on, 11-12 FPS; with the overlay hidden, 20-30.
+
+Measurements that describe smoothness, in the order they became useful:
+
+- Content step - how far the displayed content advances between shown
+  frames. The only number that tracks what the eye reads as smooth;
+  frame counts do not. Pair-paced 2x measured sd 3.0-5.1 ms; source-paced
+  6.94 ms mean with sd 2.4.
+- Source FPS separate from Native FPS. Native counts real frames shown
+  UNCHANGED, which on the clock-driven path is a small share by design.
+  Conflating them made a pacing problem look like a capture problem for
+  most of a day.
