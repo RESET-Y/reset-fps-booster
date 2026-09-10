@@ -292,13 +292,17 @@ HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext*
     HRESULT hr = m_swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
     if (FAILED(hr)) return hr;
 
-    // A render target view is needed just to clear; created on demand and
-    // cached, since this runs on every real-frame slot.
-    if (!m_clearRTV) {
+    // The view has to belong to the buffer being presented. Caching it once
+    // was wrong: a flip-model swapchain rotates through several buffers, so a
+    // stale view clears a buffer that is not the one about to be shown - and
+    // whatever was in the real one, an old generated frame, goes to the panel.
+    if (!m_clearRTV || backBuffer != m_clearRTVBuffer) {
+        if (m_clearRTV) { m_clearRTV->Release(); m_clearRTV = nullptr; }
         if (FAILED(device->CreateRenderTargetView(backBuffer, nullptr, &m_clearRTV))) {
             backBuffer->Release();
             return E_FAIL;
         }
+        m_clearRTVBuffer = backBuffer; // borrowed pointer, identity only
     }
 
     // Fully transparent, premultiplied: alpha 0 with zero colour. The real

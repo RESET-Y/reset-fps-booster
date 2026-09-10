@@ -399,7 +399,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // three times longer than it should.
     //
     // A queue keeps them in order, and the clock consumes them one at a time.
-    bool bufferOneFrame = true;
+    // Simple 2x is the default: one generated frame per real frame at the
+    // midpoint, paced off the source. Toggled with CTRL+ALT+F4.
+    bool simpleDoubleMode = true;
+    bool f4WasDown = false;
+    bool realFramePendingSimple = false;
+    double realFrameDueAtMs = 0.0;
+
+    bool bufferOneFrame = false;
     bool f5WasDown = false;
     constexpr int kFrameQueueSize = 4;
     ID3D11Texture2D* queueTex[kFrameQueueSize] = {};
@@ -674,6 +681,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             presenter.SetTitleSuffix(forcePassthroughOnly ? L"PASSTHROUGH ONLY (F9 to toggle)" : L"GENERATING (F9 to toggle)");
         }
         f9WasDown = f9IsDown;
+
+        // F4: simple 2x vs. the time-driven output.
+        bool f4IsDown = HotkeyDown(VK_F4);
+        if (f4IsDown && !f4WasDown) {
+            simpleDoubleMode = !simpleDoubleMode;
+            realFramePendingSimple = false;
+            FrameBoostBeta::Logger::Log(simpleDoubleMode
+                ? "[FrameBoostBeta] F4: SIMPLE 2x - one generated frame per real frame at the midpoint, paced off the source."
+                : "[FrameBoostBeta] F4: time-driven output - one frame per refresh, phase from the clock.");
+        }
+        f4WasDown = f4IsDown;
 
         // F5: one-frame buffer. The fix for an irregular source, at the cost
         // of one frame of latency - worth toggling, since video does not care
@@ -996,6 +1014,62 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // the engine stops competing with the game for the GPU.
         if (measureOnlyMode) {
             Sleep(1);
+            ReportTelemetryIfDue();
+            continue;
+        }
+
+        // ---- SIMPLE 2x -----------------------------------------------------
+        // One generated frame per real frame, at the exact midpoint, paced off
+        // the source rather than the refresh grid. Deliberately the simplest
+        // scheme there is: every earlier version that tried to be cleverer -
+        // adaptive factors, arbitrary phases, a frame buffer - was judged
+        // worse by eye than plain doubling, so this is the one to get right
+        // first.
+        //
+        // The real frame is held back half an interval so its generated
+        // partner has somewhere to sit. That half interval IS the added
+        // latency, and it is the least any interpolator can manage.
+        if (simpleDoubleMode) {
+            const double nowMs = NowMs();
+
+            if (haveNewContent && haveMotionField && !forcePassthroughOnly && !inDegradedMode
+                    && realFrameIntervalEmaMs > 1.0) {
+                // A new real frame just landed: show the midpoint between it
+                // and the one before, then queue the real frame itself for
+                // half an interval later.
+                interpolator.SetPhase(0.5f);
+                interpolator.SetStatusFlags(1u | (transparentRealFrames && presenter.SupportsTransparency() ? 2u : 0u));
+
+                D3D11_TEXTURE2D_DESC desc{};
+                estimator.CurrFrameTexture()->GetDesc(&desc);
+                ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
+                if (interpolator.GenerateFrame(device.get(), context.get(),
+                        estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                        desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                    if (uav) presenter.PresentBackBuffer(presentSyncInterval);
+                    else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                    ++generatedFramesSinceReport;
+                    RecordPresentGap(NowMs());
+                    RecordPresentAge();
+                }
+
+                realFrameDueAtMs = nowMs + realFrameIntervalEmaMs * 0.5;
+                realFramePendingSimple = true;
+            }
+
+            if (realFramePendingSimple && nowMs >= realFrameDueAtMs) {
+                if (transparentRealFrames && presenter.SupportsTransparency()) {
+                    presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+                } else if (estimator.CurrFrameTexture()) {
+                    presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
+                }
+                ++nativeFramesSinceReport;
+                realFramePendingSimple = false;
+                RecordPresentGap(NowMs());
+                RecordPresentAge();
+            }
+
+            Sleep(0); // yield without burning a core; the pacing is by clock above
             ReportTelemetryIfDue();
             continue;
         }

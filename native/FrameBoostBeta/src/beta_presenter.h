@@ -114,6 +114,7 @@ private:
     bool m_compositionDisabled = false;
     // Cached view used only to clear the back buffer to full transparency.
     ID3D11RenderTargetView* m_clearRTV = nullptr;
+    ID3D11Texture2D* m_clearRTVBuffer = nullptr;   // which buffer m_clearRTV belongs to
     ID3D11Texture2D* m_uavBackBuffer = nullptr;      // which buffer m_backBufferUAV belongs to
     ID3D11UnorderedAccessView* m_backBufferUAV = nullptr;
 
