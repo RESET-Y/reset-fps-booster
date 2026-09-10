@@ -542,6 +542,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // on the command line selects the older scheme for comparison.
     bool generatedPendingSimple = false;
     double generatedDueAtMs = 0.0;
+    double nextRealPresentDueMs = 0.0;
     // Fixed anchor for the refresh grid the 2x mode snaps its presents to.
     double refreshAnchorMs = 0.0;
     double realFrameDueAtMs = 0.0;
@@ -1418,7 +1419,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
                 if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
                         && realFrameIntervalEmaMs > 1.0 && doublingFitsDisplay) {
-                    // The real frame follows immediately, with nothing held back.
+                    // A PACING BUFFER, not the algorithmic hold interpolation needs.
+                    //
+                    // Showing each real frame the instant it arrives makes the
+                    // output inherit the source.s own unevenness - and this
+                    // source measures 30-45% deviation between frame intervals.
+                    // Interpolation.s half-interval hold was hiding that: it ran
+                    // every frame off an even clock. Removing it bought 3 ms of
+                    // latency and cost the smoothness, which is exactly what was
+                    // reported - "it lagged a fraction of a second before, but it
+                    // was smoother".
+                    //
+                    // So the frame is placed on an even clock derived from the
+                    // measured interval, and the buffer is only as large as the
+                    // jitter it has to absorb - a quarter interval, ~3.5 ms at 70
+                    // FPS, against the 7.8 ms interpolation could not avoid. A
+                    // frame that arrives later than its slot is shown at once and
+                    // the clock resynchronises, so a real stall never accumulates.
+                    const double pacingBufferMs = realFrameIntervalEmaMs * 0.25;
+                    if (nextRealPresentDueMs <= 0.0 || NowMs() > nextRealPresentDueMs + realFrameIntervalEmaMs)
+                        nextRealPresentDueMs = NowMs() + pacingBufferMs; // (re)synchronise
+
+                    while (NowMs() < nextRealPresentDueMs) { ddCapture.Pump(); }
+                    lastRealPresentMs = NowMs();
+                    nextRealPresentDueMs = lastRealPresentMs + realFrameIntervalEmaMs;
+
                     WaitForRefreshBoundary();
                     if (transparentRealFrames && presenter.SupportsTransparency()) {
                         presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
@@ -1429,7 +1454,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     RecordPresentGap(NowMs());
                     RecordPresentAge();
 
-                    generatedDueAtMs = NowMs() + realFrameIntervalEmaMs * 0.5;
+                    generatedDueAtMs = lastRealPresentMs + realFrameIntervalEmaMs * 0.5;
                     generatedPendingSimple = haveMotionField;
                 }
 
