@@ -331,6 +331,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
+    // Wall-clock moment the newer of the two frames reached us. The phase is
+    // measured from here, so capture latency is not counted twice.
+    double motionCurrArrivalMs = 0.0;
     bool haveMotionField = false;
 
     // Per-phase CPU wall-clock accounting. The GPU timestamp queries turned
@@ -748,6 +751,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (haveMotionField) {
                 motionPrevTimestampMs = motionCurrTimestampMs;
                 motionCurrTimestampMs = frameTimestamp100ns / 10000.0;
+                motionCurrArrivalMs = NowMs();
             }
         }
 
@@ -788,13 +792,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const double realIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
         const bool haveTimeline = haveMotionField && realIntervalMs > 1.0 && realIntervalMs < 200.0;
 
-        // The presentation clock runs one real-frame interval behind the
-        // capture, which is the minimum an interpolator can manage: the frame
-        // after a given instant has to exist before that instant can be drawn.
+        // The interval between the two real frames is replayed over the wall
+        // clock starting from the moment the newer one ARRIVED. Phase then
+        // sweeps 0 to 1 across exactly one interval, whatever the capture
+        // latency happens to be.
+        //
+        // Subtracting an estimated lag from "now" instead, as a first version
+        // did, double-counts the capture latency: the frame reaches us ~7 ms
+        // after it was composed, so a content time of now minus one full
+        // interval lands BEFORE the older of the two frames and the phase
+        // clamps to 0. Measured: average phase 0.28 where an even sweep must
+        // average ~0.5, with ~45 slots per second pinned to the previous real
+        // frame instead of interpolating.
         double phase = 1.0;
         if (haveTimeline) {
-            const double contentTimeMs = NowMs() - realIntervalMs;
-            phase = (contentTimeMs - motionPrevTimestampMs) / realIntervalMs;
+            phase = (NowMs() - motionCurrArrivalMs) / realIntervalMs;
             phase = phase < 0.0 ? 0.0 : (phase > 1.0 ? 1.0 : phase);
         }
 
