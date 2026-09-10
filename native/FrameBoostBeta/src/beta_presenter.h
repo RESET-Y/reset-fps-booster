@@ -39,6 +39,23 @@ public:
     // it. syncInterval 0 or 1 as needed by the caller's pacing strategy.
     HRESULT PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* sourceTexture, UINT syncInterval);
 
+    // Presents a fully transparent frame, so the REAL screen underneath is
+    // what the viewer sees for that slot.
+    //
+    // This is the point of the whole DirectComposition move. Showing only the
+    // generated frames and letting the real image through in between fixes
+    // two things at once: the real frames are seen at native quality rather
+    // than as our captured, copied and rescaled version of them, and the
+    // window below is never continuously covered by opaque content - which is
+    // what made Windows stop drawing it and starved our own capture
+    // (measured: 32-35 duplicate frames per second covered, 0 uncovered).
+    //
+    // Composition path only; returns E_FAIL on the layered fallback, whose
+    // swapchain has no per-pixel alpha.
+    HRESULT PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval);
+
+    bool SupportsTransparency() const { return m_usingComposition; }
+
     // How many of our presents the DISPLAY actually showed, as opposed to how
     // many we submitted. These are different numbers and only the first one
     // corresponds to what the eye sees: a layered window cannot use the flip
@@ -85,6 +102,8 @@ private:
     // Set when the composition path has already failed once, so the layered
     // fallback cannot loop back into trying it again.
     bool m_compositionDisabled = false;
+    // Cached view used only to clear the back buffer to full transparency.
+    ID3D11RenderTargetView* m_clearRTV = nullptr;
 
     bool TryCreateCompositionWindow(ID3D11Device* device, UINT width, UINT height, const wchar_t* title);
     bool AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapChain);

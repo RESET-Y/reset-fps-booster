@@ -245,6 +245,33 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     return true;
 }
 
+HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval) {
+    if (!m_swapChain || !m_usingComposition) return E_FAIL;
+
+    ID3D11Texture2D* backBuffer = nullptr;
+    HRESULT hr = m_swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
+    if (FAILED(hr)) return hr;
+
+    // A render target view is needed just to clear; created on demand and
+    // cached, since this runs on every real-frame slot.
+    if (!m_clearRTV) {
+        if (FAILED(device->CreateRenderTargetView(backBuffer, nullptr, &m_clearRTV))) {
+            backBuffer->Release();
+            return E_FAIL;
+        }
+    }
+
+    // Fully transparent, premultiplied: alpha 0 with zero colour. The real
+    // screen underneath shows through untouched - no capture, no copy, no
+    // rescale, so those frames cost nothing in quality, and the window below
+    // is never fully covered by opaque content.
+    const float transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    context->ClearRenderTargetView(m_clearRTV, transparent);
+    backBuffer->Release();
+
+    return m_swapChain->Present(syncInterval, 0);
+}
+
 HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* sourceTexture, UINT syncInterval) {
     if (!m_swapChain || !sourceTexture) return E_FAIL;
 
@@ -345,6 +372,7 @@ void Presenter::PumpMessages() {
 }
 
 Presenter::~Presenter() {
+    if (m_clearRTV) m_clearRTV->Release();
     if (m_dcompVisual) m_dcompVisual->Release();
     if (m_dcompTarget) m_dcompTarget->Release();
     if (m_dcompDevice) m_dcompDevice->Release();

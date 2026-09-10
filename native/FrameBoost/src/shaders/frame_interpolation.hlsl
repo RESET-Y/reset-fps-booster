@@ -151,7 +151,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     float4 result;
     result.rgb = LinearToSrgb(lerp(fallbackLinear, blendedLinear, confidence));
-    result.a = lerp(safeFallback.a, lerp(prevColor.a, currColor.a, PhaseT), confidence);
+    // Fully opaque, NOT the source frames' alpha. The presenter's composition
+    // swapchain uses premultiplied alpha, so whatever ends up here decides how
+    // much of the screen behind shows through. Captured desktop frames carry
+    // an alpha channel that is often 0 or otherwise meaningless - inheriting
+    // it made generated frames semi-transparent and washed out. Because they
+    // now alternate with untouched real frames, that difference showed up as a
+    // brightness pulse at the real frame rate rather than as uniform softness.
+    result.a = 1.0;
 
     // Developer aid: makes it unambiguous on screen whether generated frames
     // are actually reaching the display, and which ones they are.

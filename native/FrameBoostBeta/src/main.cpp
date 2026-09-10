@@ -256,6 +256,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     bool f8WasDown = false;
 
+    // F7: transparency mode. Defaults ON where the composition path is
+    // available, because it addresses the one problem that measurement could
+    // not otherwise solve - a covered source stops being drawn by Windows.
+    bool transparentRealFrames = true;
+    bool f7WasDown = false;
+
     // Adaptive generation factor. A fixed 2x is wrong in both directions: it
     // wastes the display when the source is slow (30 FPS doubled is 60 on a
     // 144 Hz panel, leaving 84 Hz unused) and it manufactures frames that
@@ -462,6 +468,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
+            << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
             << " | Search-saturated blocks: " << motionStats.SaturatedBlockPercent() << "%"
@@ -511,6 +518,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         f9WasDown = f9IsDown;
 
+        bool f7IsDown = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
+        if (f7IsDown && !f7WasDown) {
+            transparentRealFrames = !transparentRealFrames;
+            FrameBoostBeta::Logger::Log(transparentRealFrames
+                ? "[FrameBoostBeta] F7: TRANSPARENCY ON - real frames show the actual screen, only generated frames come from us."
+                : "[FrameBoostBeta] F7: transparency off - every frame is our own captured copy.");
+        }
+        f7WasDown = f7IsDown;
+
         // F8: refresh-lock on/off. The whole point of the lock is that it is
         // meant to look smoother at a LOWER frame count than free-running
         // pacing, which is counterintuitive enough that it has to be
@@ -556,6 +572,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // previous iteration's generated frame belongs in front of.
         if (pairFactor > 0 && pairStep <= pairFactor) {
             const bool isRealFrame = (pairStep == pairFactor);
+
+            // Transparency mode: for a real frame, show nothing of our own and
+            // let the actual screen underneath be seen. Only the generated
+            // frames come from us. Two wins at once - the real frames are seen
+            // at native quality rather than as our copy of them, and the
+            // window below is never continuously covered, which is what made
+            // Windows stop drawing it (measured: 32-35 duplicates/s covered
+            // versus 0 uncovered).
+            if (isRealFrame && transparentRealFrames && presenter.SupportsTransparency()) {
+                WaitForOutputSlot();
+                double tStart = NowMs();
+                presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
+                double tEnd = NowMs();
+                RecordPresentGap(tEnd);
+                lastRealPresentMs = tEnd;
+                pairFactor = 0;
+                ++pairStep;
+                ++nativeFramesSinceReport;
+                phasePresentMsSum += tEnd - tStart;
+                phaseIterationMsSum += tEnd - iterationStartMs;
+                ++phaseSamples;
+                ReportTelemetryIfDue();
+                continue;
+            }
+
             ID3D11Texture2D* frameToShow = estimator.CurrFrameTexture();
 
             if (!isRealFrame) {
