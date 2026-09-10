@@ -311,12 +311,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool sourceIsIrregular = false;
     int regularityHoldFrames = 0;
 
-    // Deviation as a fraction of the interval. A steady source sits near 0.05;
-    // the game measured 0.25-0.40 while it felt like a third of its frame rate.
-    // Separate thresholds, so a source hovering at the boundary does not switch
-    // back and forth - the switch itself would be visible.
-    constexpr double kIrregularEnterRatio = 0.20;
-    constexpr double kIrregularLeaveRatio = 0.12;
+    // Deviation as a fraction of the interval, calibrated against the only
+    // measurement that settles the question - which of the two actually looks
+    // better, generation or plain passthrough:
+    //
+    //   browser video   0.0-2.2%   generation clearly better
+    //   Delta Force    11.6-24.2%  passthrough clearly better (reported)
+    //
+    // The threshold sits in the gap between those two regimes, with margin on
+    // both sides. A first attempt put it at 20% by guesswork, which left the
+    // game hovering right on the boundary and never tripping.
+    //
+    // Separate enter/leave values so a source sitting near the line does not
+    // switch back and forth - the switch itself is visible.
+    constexpr double kIrregularEnterRatio = 0.08;
+    constexpr double kIrregularLeaveRatio = 0.05;
     constexpr int kRegularityHoldFrames = 45; // ~1 s at 45 real FPS
     double generatedFrameDueAtMs = 0.0;
     int64_t lastFrameTimestamp100ns = 0;
