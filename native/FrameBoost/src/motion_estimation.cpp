@@ -12,7 +12,7 @@ namespace {
 // Estimator::BlockSizePixels() - the dispatch grid, the shader's block
 // origin maths and the interpolation shader's block lookup all depend on
 // these agreeing.
-constexpr UINT kBlockSize = 32;
+constexpr UINT kBlockSize = 16;
 
 void SafeRelease(IUnknown* obj) {
     if (obj) obj->Release();

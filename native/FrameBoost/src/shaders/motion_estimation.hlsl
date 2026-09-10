@@ -18,15 +18,22 @@ Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
 RWTexture2D<float2> MotionVectors : register(u0);
 
-// 32px blocks with a matching 8px sampling stride (instead of 16px blocks
-// with a 4px stride): same 4x4=16 samples evaluated per candidate, but a
-// quarter as many blocks over the frame - roughly 4x less total work.
-// Measured need: at 2560x1440 the 16px version cost ~35ms of GPU time per
-// frame while the target game was rendering, which capped the whole
-// FrameBoost loop at ~14 FPS. Coarser motion vectors are the honest
-// trade-off taken here for a usable framerate.
-static const int kBlockSize = 32;
-static const int kBlockSampleStride = 8;
+// 16px blocks with a matching 4px sampling stride: 4x4 = 16 samples per
+// candidate either way, so the stride scales with the block and only the
+// number of blocks changes.
+//
+// This was 32px for most of the project's life, and for a good reason: the
+// original 16px version cost ~35 ms of GPU time per frame at 2560x1440 and
+// capped the loop at ~14 FPS. What made 16px affordable again was the
+// parallel rewrite above (one thread per candidate rather than one thread
+// per block), which cut motion estimation from ~350 ms to 0.09 ms - four
+// times as many blocks is a cost that budget can absorb.
+//
+// Finer blocks matter because a block shares ONE motion vector: at 32px,
+// a moving object and the static background behind it are forced into the
+// same vector wherever they meet, and one of the two is always wrong.
+static const int kBlockSize = 16;
+static const int kBlockSampleStride = 4;
 // Raised from 6 after live measurement showed the search saturating: with
 // radius 6 the reported maximum motion magnitude sat at exactly 8.5 px
 // frame after frame, which is sqrt(6^2 + 6^2) - the diagonal corner of the

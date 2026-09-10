@@ -40,7 +40,7 @@ public:
     // generated frame, so the real frame still gets displayed right after it.
     ID3D11Texture2D* CurrFrameTexture() const { return m_currFrameTex; }
     ID3D11ShaderResourceView* MotionVectorSRV() const { return m_motionVectorSmoothSRV; }
-    static constexpr UINT BlockSizePixels() { return 32; }
+    static constexpr UINT BlockSizePixels() { return 16; }
 
     ~Estimator();
 
