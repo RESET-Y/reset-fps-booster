@@ -48,6 +48,35 @@ cbuffer InterpolationParams : register(b0)
 // (occlusion) falls back to the real frame.
 static const float kMismatchSensitivity = 6.0;
 
+// Blending has to happen in LINEAR light, not in the gamma-encoded values
+// the frame is stored in. This was the cause of the contrast loss and
+// darkening noted early on and deliberately deferred: averaging two
+// gamma-encoded values does not give the average brightness. The midpoint
+// of 0 and 255 encoded is 128, which is only ~22% of the light - the
+// correct 50% is encoded as ~188. Every pixel where the two source frames
+// differ came out too dark, which is every edge and everything in motion.
+//
+// At two generated frames out of every three displayed, that darkening also
+// arrived periodically, so the brightness itself flickered at the real
+// frame rate - seen as "not quite smooth" even with perfect frame pacing.
+//
+// Exact sRGB transfer function, not a 2.2 power approximation: the linear
+// segment near black is where banding in dark scenes would otherwise show.
+float3 SrgbToLinear(float3 c)
+{
+    float3 low = c / 12.92;
+    float3 high = pow(max(c + 0.055, 0.0) / 1.055, 2.4);
+    return lerp(low, high, step(0.04045, c));
+}
+
+float3 LinearToSrgb(float3 c)
+{
+    c = max(c, 0.0);
+    float3 low = c * 12.92;
+    float3 high = 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    return lerp(low, high, step(0.0031308, c));
+}
+
 // Bilinear read of the low-resolution motion field. Done with four explicit
 // Loads rather than a sampler so it does not depend on linear-filtering
 // support for 32-bit float formats.
@@ -106,13 +135,23 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
     float confidence = saturate(1.0 - mismatch * kMismatchSensitivity);
 
+    float4 safeFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+
+    // Both mixes - the temporal blend and the confidence fallback - are done
+    // in linear light and converted back once at the end. See the transfer
+    // functions above for why this is not optional.
+    float3 prevLinear = SrgbToLinear(prevColor.rgb);
+    float3 currLinear = SrgbToLinear(currColor.rgb);
+
     // Weighted toward whichever real frame this generated frame sits closer
     // to in time, so a t = 1/3 frame resembles the previous frame rather
     // than the midpoint of the pair.
-    float4 blended = lerp(prevColor, currColor, PhaseT);
-    float4 safeFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+    float3 blendedLinear = lerp(prevLinear, currLinear, PhaseT);
+    float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);
 
-    float4 result = lerp(safeFallback, blended, confidence);
+    float4 result;
+    result.rgb = LinearToSrgb(lerp(fallbackLinear, blendedLinear, confidence));
+    result.a = lerp(safeFallback.a, lerp(prevColor.a, currColor.a, PhaseT), confidence);
 
     // Developer aid: makes it unambiguous on screen whether generated frames
     // are actually reaching the display, and which ones they are.

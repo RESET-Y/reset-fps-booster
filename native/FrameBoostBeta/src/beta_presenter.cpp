@@ -38,6 +38,69 @@ LRESULT CALLBACK Presenter::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+bool Presenter::TryCreateCompositionWindow(ID3D11Device* device, UINT width, UINT height, const wchar_t* title) {
+    if (m_compositionDisabled) return false;
+
+    // WS_EX_NOREDIRECTIONBITMAP: the window gets no redirection surface at
+    // all, which is exactly the point - content comes from a composition
+    // swapchain instead, on the flip model, with per-refresh delivery and
+    // working frame statistics.
+    //
+    // WS_EX_LAYERED is here despite NOREDIRECTIONBITMAP, and it has to be:
+    // mouse pass-through to another process genuinely requires LAYERED plus
+    // TRANSPARENT. Dropping it in the first DirectComposition build made the
+    // captured window completely uninteractable - no clicking, scrolling or
+    // typing - which is the same failure seen before with TRANSPARENT alone.
+    // The content still comes from the composition swapchain rather than a
+    // redirection surface, so the flip model survives.
+    const DWORD exStyle = WS_EX_NOREDIRECTIONBITMAP | WS_EX_NOACTIVATE
+        | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED;
+
+    m_hwnd = CreateWindowExW(exStyle, kWindowClassName, title, WS_POPUP,
+        0, 0, static_cast<int>(width), static_cast<int>(height),
+        nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+    if (!m_hwnd) {
+        Logger::Log("[FrameBoostBeta] Presenter: WS_EX_NOREDIRECTIONBITMAP window creation failed - falling back to the layered path.");
+        return false;
+    }
+
+    // Alpha 254, deliberately not 255: Chromium-based browsers and games with
+    // a backgrounded mode stop rendering entirely when they believe their
+    // window is fully covered by an OPAQUE window, which starves the very
+    // capture this overlay exists to improve. One step below opaque is not
+    // counted as an occluder and is invisible in practice.
+    SetLayeredWindowAttributes(m_hwnd, 0, 254, LWA_ALPHA);
+
+    // Still hide ourselves from capture: in monitor mode we would otherwise
+    // capture our own output and feed it back into the next frame.
+    if (!SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+        Logger::Log("[FrameBoostBeta] Presenter: could not exclude the overlay from capture "
+            "(needs Windows 10 2004+). Monitor capture would feed back on itself.");
+    }
+    return true;
+}
+
+bool Presenter::AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapChain) {
+    winrt::com_ptr<IDXGIDevice> dxgiDevice;
+    if (FAILED(device->QueryInterface(IID_PPV_ARGS(dxgiDevice.put())))) return false;
+
+    if (FAILED(DCompositionCreateDevice(dxgiDevice.get(), IID_PPV_ARGS(&m_dcompDevice)))) {
+        Logger::Log("[FrameBoostBeta] Presenter: DCompositionCreateDevice failed.");
+        return false;
+    }
+    // topmost = TRUE so the visual sits above the window's own (absent) content.
+    if (FAILED(m_dcompDevice->CreateTargetForHwnd(m_hwnd, TRUE, &m_dcompTarget))) {
+        Logger::Log("[FrameBoostBeta] Presenter: CreateTargetForHwnd failed.");
+        return false;
+    }
+    if (FAILED(m_dcompDevice->CreateVisual(&m_dcompVisual))) return false;
+    if (FAILED(m_dcompVisual->SetContent(swapChain))) return false;
+    if (FAILED(m_dcompTarget->SetRoot(m_dcompVisual))) return false;
+    if (FAILED(m_dcompDevice->Commit())) return false;
+
+    return true;
+}
+
 bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wchar_t* title, HWND overlayTarget) {
     m_width = width;
     m_height = height;
@@ -53,7 +116,12 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
 
     g_instanceForWndProc = this;
 
+    // Preferred path: composition swapchain on a non-redirected window.
     if (m_overlayTarget || m_overlayMonitor) {
+        m_usingComposition = TryCreateCompositionWindow(device, width, height, title);
+    }
+
+    if (!m_usingComposition && (m_overlayTarget || m_overlayMonitor)) {
         // WS_EX_NOACTIVATE  - never take foreground focus from the game
         // WS_EX_TRANSPARENT - clicks/input pass straight through to the game
         // WS_EX_TOPMOST     - stays visible above the game window
@@ -86,7 +154,7 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
             Logger::Log("[FrameBoostBeta] Presenter: could not exclude the overlay from capture "
                 "(needs Windows 10 2004+). Monitor capture would feed back on itself.");
         }
-    } else {
+    } else if (!m_usingComposition) {
         m_hwnd = CreateWindowExW(0, kWindowClassName, title, WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT, static_cast<int>(width), static_cast<int>(height),
             nullptr, nullptr, wc.hInstance, nullptr);
@@ -124,21 +192,56 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     scDesc.SampleDesc.Count = 1;
     scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     scDesc.BufferCount = 3; // extra slack so the immediate (syncInterval 0) generated-frame present never stalls waiting for a free buffer
-    // A layered window (needed for click-through, see above) cannot host a
-    // flip-model swapchain - DXGI only supports the older BitBlt model
-    // there. Standalone windows keep the faster flip model.
-    scDesc.SwapEffect = (m_overlayTarget || m_overlayMonitor) ? DXGI_SWAP_EFFECT_DISCARD : DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    scDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
     IDXGISwapChain1* swapChain = nullptr;
-    HRESULT hr = factory->CreateSwapChainForHwnd(device, m_hwnd, &scDesc, nullptr, nullptr, &swapChain);
-    if (FAILED(hr)) {
-        Logger::Log("[FrameBoostBeta] Presenter: CreateSwapChainForHwnd failed, hr=" + std::to_string(hr));
-        return false;
+    HRESULT hr = E_FAIL;
+
+    if (m_usingComposition) {
+        // Flip model with premultiplied alpha: the per-refresh delivery path,
+        // and the prerequisite for ever showing only the generated frames
+        // while the real screen shows through in between.
+        scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        scDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+        hr = factory->CreateSwapChainForComposition(device, &scDesc, nullptr, &swapChain);
+        if (FAILED(hr)) {
+            Logger::Log("[FrameBoostBeta] Presenter: CreateSwapChainForComposition failed, hr="
+                + std::to_string(hr) + " - falling back to the layered path.");
+        } else if (!AttachComposition(device, swapChain)) {
+            swapChain->Release();
+            swapChain = nullptr;
+            hr = E_FAIL;
+            Logger::Log("[FrameBoostBeta] Presenter: DirectComposition attach failed - falling back to the layered path.");
+        }
+
+        if (FAILED(hr)) {
+            // Safe fallback: tear the composition window down and rebuild the
+            // old layered overlay, so a DirectComposition problem degrades to
+            // the previously working behaviour instead of no output at all.
+            m_usingComposition = false;
+            m_compositionDisabled = true;
+            if (m_dcompVisual) { m_dcompVisual->Release(); m_dcompVisual = nullptr; }
+            if (m_dcompTarget) { m_dcompTarget->Release(); m_dcompTarget = nullptr; }
+            if (m_dcompDevice) { m_dcompDevice->Release(); m_dcompDevice = nullptr; }
+            if (m_hwnd) { DestroyWindow(m_hwnd); m_hwnd = nullptr; }
+            return Create(device, width, height, m_baseTitle.c_str(), m_overlayTarget);
+        }
+    } else {
+        // A layered window cannot host a flip-model swapchain - DXGI only
+        // supports the older BitBlt model there.
+        scDesc.SwapEffect = (m_overlayTarget || m_overlayMonitor) ? DXGI_SWAP_EFFECT_DISCARD : DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        scDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+        hr = factory->CreateSwapChainForHwnd(device, m_hwnd, &scDesc, nullptr, nullptr, &swapChain);
+        if (FAILED(hr)) {
+            Logger::Log("[FrameBoostBeta] Presenter: CreateSwapChainForHwnd failed, hr=" + std::to_string(hr));
+            return false;
+        }
     }
+
     m_swapChain = swapChain;
 
-    Logger::Log("[FrameBoostBeta] Presenter window+swapchain created (flip-model, 2 buffers).");
+    Logger::Log(m_usingComposition
+        ? "[FrameBoostBeta] Presenter: DirectComposition flip-model swapchain (per-refresh delivery, frame statistics available, per-pixel alpha capable)."
+        : "[FrameBoostBeta] Presenter: layered-window BitBlt swapchain (legacy path - no per-refresh guarantee).");
     return true;
 }
 
@@ -153,6 +256,30 @@ HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* s
     backBuffer->Release();
 
     return m_swapChain->Present(syncInterval, 0);
+}
+
+bool Presenter::QueryPresentStats(UINT& outPresentCount, UINT& outPresentRefreshCount, UINT& outSyncRefreshCount) {
+    if (!m_swapChain) return false;
+
+    DXGI_FRAME_STATISTICS stats{};
+    if (FAILED(m_swapChain->GetFrameStatistics(&stats))) return false;
+
+    UINT lastPresent = 0;
+    if (FAILED(m_swapChain->GetLastPresentCount(&lastPresent))) return false;
+
+    // stats.PresentCount counts presents that were actually DISPLAYED;
+    // GetLastPresentCount counts presents we SUBMITTED. The difference is
+    // frames the display never showed.
+    //
+    // PresentRefreshCount is deliberately not used for this: it is the
+    // refresh counter at which the last present appeared, so its delta is
+    // simply the number of refreshes elapsed (~144/s whatever we submit).
+    // Reading it as "frames displayed" made a completely static output look
+    // like a perfect 144 FPS.
+    outPresentCount = stats.PresentCount;                 // displayed
+    outPresentRefreshCount = lastPresent;                 // submitted
+    outSyncRefreshCount = stats.SyncRefreshCount;
+    return true;
 }
 
 void Presenter::Resize(UINT width, UINT height) {
@@ -218,6 +345,9 @@ void Presenter::PumpMessages() {
 }
 
 Presenter::~Presenter() {
+    if (m_dcompVisual) m_dcompVisual->Release();
+    if (m_dcompTarget) m_dcompTarget->Release();
+    if (m_dcompDevice) m_dcompDevice->Release();
     if (m_swapChain) m_swapChain->Release();
     if (m_hwnd) DestroyWindow(m_hwnd);
 }

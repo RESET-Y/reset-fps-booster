@@ -27,6 +27,13 @@ public:
     double MeanMagnitudePixels() const { return m_meanMagnitude; } // averaged over MOVING blocks only
     double MaxMagnitudePixels() const { return m_maxMagnitude; }
 
+    // Share of MOVING blocks whose vector sits on the edge of the search
+    // window. Those blocks did not find their match - the search ran out of
+    // room - so their vector is the closest wrong answer rather than the
+    // right one. This is the number that says whether the search radius is
+    // the quality limiter or not.
+    double SaturatedBlockPercent() const { return m_saturatedPercent; }
+
     ~MotionStats();
 
 private:
@@ -38,6 +45,10 @@ private:
     double m_movingPercent = -1.0;
     double m_meanMagnitude = -1.0;
     double m_maxMagnitude = -1.0;
+    double m_saturatedPercent = -1.0;
+
+    // Must match kSearchRadius in motion_estimation.hlsl.
+    static constexpr double kSearchRadiusPixels = 12.0;
 };
 
 } // namespace FrameBoostBeta

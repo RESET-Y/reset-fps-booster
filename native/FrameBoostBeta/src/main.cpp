@@ -412,6 +412,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
     };
 
+    // Submitted vs actually displayed, per reporting interval. The gap
+    // between them is the part of the pipeline our own timing cannot see.
+    UINT lastStatsPresentCount = 0, lastStatsRefreshCount = 0;
+    bool statsAvailable = false, statsUnsupportedLogged = false;
+    double submittedPerSecond = -1.0, displayedPerSecond = -1.0;
+
     auto ReportTelemetryIfDue = [&]() {
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
@@ -422,6 +428,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         double generatedFps = generatedFramesSinceReport / elapsed;
         double outputFps = nativeFps + generatedFps;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
+
+        // What the display actually showed, straight from DXGI, versus what
+        // we submitted. PresentRefreshCount advances by one per refresh that
+        // showed a new present, so its delta is the number of our frames that
+        // genuinely reached the panel.
+        UINT presentCount = 0, presentRefresh = 0, syncRefresh = 0;
+        if (presenter.QueryPresentStats(presentCount, presentRefresh, syncRefresh)) {
+            if (statsAvailable) {
+                displayedPerSecond = (presentCount - lastStatsPresentCount) / elapsed;
+                submittedPerSecond = (presentRefresh - lastStatsRefreshCount) / elapsed;
+            }
+            lastStatsPresentCount = presentCount;
+            lastStatsRefreshCount = presentRefresh;
+            statsAvailable = true;
+        } else if (!statsUnsupportedLogged) {
+            statsUnsupportedLogged = true;
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] DXGI frame statistics unavailable on this swapchain "
+                "(expected for the legacy BitBlt path a layered window forces). That path gives no per-refresh "
+                "delivery guarantee, so submitted frames and displayed frames cannot be compared here.");
+        }
 
         std::ostringstream oss;
         oss << "[FrameBoostBeta] Native FPS: " << nativeFps
@@ -438,6 +464,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Generation factor: " << generationFactor << "x"
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
+            << " | Search-saturated blocks: " << motionStats.SaturatedBlockPercent() << "%"
+            << " | Displayed/submitted: " << displayedPerSecond << "/" << submittedPerSecond
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
         if (gapSamples > 1) {

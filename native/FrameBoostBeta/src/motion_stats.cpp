@@ -36,7 +36,7 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(context->Map(m_staging, 0, D3D11_MAP_READ, 0, &mapped))) return false;
 
-    size_t movingBlocks = 0, totalBlocks = 0;
+    size_t movingBlocks = 0, totalBlocks = 0, saturatedBlocks = 0;
     double magnitudeSum = 0.0, magnitudeMax = 0.0;
 
     for (UINT y = 0; y < m_height; ++y) {
@@ -52,6 +52,13 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
                 ++movingBlocks;
                 magnitudeSum += magnitude;
                 if (magnitude > magnitudeMax) magnitudeMax = magnitude;
+
+                // Either component sitting on the search window's edge means
+                // the true match may well lie outside it.
+                if (std::abs(static_cast<double>(mx)) >= kSearchRadiusPixels ||
+                    std::abs(static_cast<double>(my)) >= kSearchRadiusPixels) {
+                    ++saturatedBlocks;
+                }
             }
         }
     }
@@ -61,6 +68,7 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
     m_movingPercent = 100.0 * static_cast<double>(movingBlocks) / static_cast<double>(totalBlocks);
     m_meanMagnitude = movingBlocks ? magnitudeSum / static_cast<double>(movingBlocks) : 0.0;
     m_maxMagnitude = magnitudeMax;
+    m_saturatedPercent = movingBlocks ? 100.0 * static_cast<double>(saturatedBlocks) / static_cast<double>(movingBlocks) : 0.0;
     return true;
 }
 
