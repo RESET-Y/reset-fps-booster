@@ -98,6 +98,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 CaptureLatencyMs = ReadField(lastMatchLine, "Capture latency (real, avg)"),
                 OnScreenAgeMs = ReadField(lastMatchLine, "On-screen age"),
                 DisplayHz = ReadField(lastMatchLine, "Display Hz"),
+                DuplicateFps = ReadField(lastMatchLine, "Duplicate frames skipped/s"),
                 MotionEstimationGpuMs = ReadField(lastMatchLine, "Motion estimation GPU"),
                 InterpolationGpuMs = ReadField(lastMatchLine, "Interpolation GPU"),
                 LastUpdatedUtc = DateTime.UtcNow,

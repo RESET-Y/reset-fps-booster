@@ -14,7 +14,7 @@
                 </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="System-level frame generation for your whole screen, via the public Windows Graphics Capture API — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
+                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
 
             <Border Style="{StaticResource Card}" Margin="0,20,0,16">
                 <StackPanel>
@@ -35,11 +35,11 @@
 
             <StackPanel Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}">
                 <Border Style="{StaticResource Card}" Margin="0,0,0,16"
-                        Visibility="{Binding DisplayLimitNotice, Converter={StaticResource NullToVis}}">
+                        Visibility="{Binding StatusNotice, Converter={StaticResource NullToVis}}">
                     <StackPanel>
                         <TextBlock Text="Not doubling right now" Style="{StaticResource Text.SectionTitle}"
                                    Foreground="{StaticResource Brush.Warning}"/>
-                        <TextBlock Text="{Binding DisplayLimitNotice}" Style="{StaticResource Text.Body}"
+                        <TextBlock Text="{Binding StatusNotice}" Style="{StaticResource Text.Body}"
                                    Margin="0,8,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>

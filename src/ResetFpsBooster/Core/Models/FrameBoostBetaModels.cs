@@ -22,6 +22,12 @@ public sealed class FrameBoostBetaTelemetry
     // doubling can still reach the screen: above half the refresh rate the
     // generated frames exist but the monitor has no window left to show them.
     public double? DisplayHz { get; init; }
+
+    // Frames per second that arrived unchanged - the compositor republishing a
+    // screen nobody is changing. Together with NativeFps this separates a
+    // still picture (nothing to double) from a capture that has stopped
+    // delivering (a real fault). Both read as "Native FPS: 0" on their own.
+    public double? DuplicateFps { get; init; }
     public double? MotionEstimationGpuMs { get; init; }
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }

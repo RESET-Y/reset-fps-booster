@@ -17,6 +17,32 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private FrameBoostBetaTelemetry _telemetry = new();
 
+    /// What the engine is doing right now, in the user.s terms. Three states
+    /// read as "Native FPS: 0" on their own and mean completely different
+    /// things: a still picture, a source that is too fast to double, and a
+    /// capture that has stopped delivering. Only the last one is a fault.
+    public string? StatusNotice
+    {
+        get
+        {
+            if (!IsRunning) return null;
+            if (DisplayLimitNotice is not null) return DisplayLimitNotice;
+
+            bool noNewContent = Telemetry.NativeFps is null or < 1;
+            if (!noNewContent) return null;
+
+            // Frames still arrive, they are just identical - the game is
+            // running, the picture is standing still. Nothing to double, and
+            // nothing wrong.
+            if (Telemetry.DuplicateFps is > 5)
+                return "The picture is not changing right now, so there is nothing to double."
+                     + " The game keeps running at its own frame rate; generation resumes by itself"
+                     + " as soon as something moves.";
+
+            return "No frames are arriving from the display. If this stays, turn FrameBoost off and on again.";
+        }
+    }
+
     /// Set when the game runs faster than half the refresh rate. The generated
     /// frames are real, but the monitor has no window left to show them - and
     /// saying nothing would leave an output number on screen that the display
@@ -60,6 +86,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         {
             Telemetry = _service.ReadLatestTelemetry();
             OnPropertyChanged(nameof(DisplayLimitNotice));
+            OnPropertyChanged(nameof(StatusNotice));
             if (!_service.IsRunning)
             {
                 // The native engine exited on its own (failsafe path or a
