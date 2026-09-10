@@ -17,6 +17,11 @@ public sealed class FrameBoostBetaTelemetry
     // number a player feels, so it is reported separately rather than folded
     // into CaptureLatencyMs.
     public double? OnScreenAgeMs { get; init; }
+
+    // The display the boost is running on. The panel needs it to say whether
+    // doubling can still reach the screen: above half the refresh rate the
+    // generated frames exist but the monitor has no window left to show them.
+    public double? DisplayHz { get; init; }
     public double? MotionEstimationGpuMs { get; init; }
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }

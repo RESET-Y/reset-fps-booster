@@ -1,4 +1,5 @@
 #if RFB_BETA
+using System.Globalization;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,25 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool _isRunning;
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private FrameBoostBetaTelemetry _telemetry = new();
+
+    /// Set when the game runs faster than half the refresh rate. The generated
+    /// frames are real, but the monitor has no window left to show them - and
+    /// saying nothing would leave an output number on screen that the display
+    /// never actually reaches.
+    public string? DisplayLimitNotice
+    {
+        get
+        {
+            if (Telemetry.NativeFps is not > 1 || Telemetry.DisplayHz is not > 1) return null;
+            double doubled = Telemetry.NativeFps.Value * 2;
+            if (doubled <= Telemetry.DisplayHz.Value) return null;
+
+            return string.Create(CultureInfo.InvariantCulture,
+                $"The game runs at {Telemetry.NativeFps:0} FPS. Doubled that is {doubled:0}, "
+                + $"but this display shows {Telemetry.DisplayHz:0} per second - so generation is off. "
+                + $"Cap the game at {Telemetry.DisplayHz.Value / 2:0} FPS or below and every generated frame reaches the screen.");
+        }
+    }
 
     public FrameBoostBetaViewModel(IFrameBoostBetaService service)
     {
@@ -39,6 +59,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         _telemetryTimer.Tick += (_, _) =>
         {
             Telemetry = _service.ReadLatestTelemetry();
+            OnPropertyChanged(nameof(DisplayLimitNotice));
             if (!_service.IsRunning)
             {
                 // The native engine exited on its own (failsafe path or a
