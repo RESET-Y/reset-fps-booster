@@ -1436,13 +1436,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // FPS, against the 7.8 ms interpolation could not avoid. A
                     // frame that arrives later than its slot is shown at once and
                     // the clock resynchronises, so a real stall never accumulates.
+                    // The wait is NOT taken here. Blocking until the slot came due
+                    // stretched every pass of the loop by a quarter interval on
+                    // top of its own work, so a pass took longer than the source
+                    // interval and the engine settled at half the source rate -
+                    // seen immediately as 35 native FPS against a 70 FPS game.
+                    // The frame is marked pending instead, and the loop keeps
+                    // capturing and estimating until its moment arrives.
                     const double pacingBufferMs = realFrameIntervalEmaMs * 0.25;
                     if (nextRealPresentDueMs <= 0.0 || NowMs() > nextRealPresentDueMs + realFrameIntervalEmaMs)
                         nextRealPresentDueMs = NowMs() + pacingBufferMs; // (re)synchronise
+                    realFramePendingSimple = true;
+                }
 
-                    while (NowMs() < nextRealPresentDueMs) { ddCapture.Pump(); }
+                if (realFramePendingSimple && NowMs() >= nextRealPresentDueMs) {
+                    realFramePendingSimple = false;
                     lastRealPresentMs = NowMs();
-                    nextRealPresentDueMs = lastRealPresentMs + realFrameIntervalEmaMs;
+                    // The clock advances in fixed steps from the PREVIOUS slot, not
+                    // from the moment this frame actually went out. Measuring from
+                    // the actual present adds that pass.s overshoot to every
+                    // interval, and the overshoot compounds: the engine settled at
+                    // 38 real frames per second against a 64 FPS source, with
+                    // on-screen age climbing to 20-24 ms.
+                    nextRealPresentDueMs += realFrameIntervalEmaMs;
+                    if (nextRealPresentDueMs < NowMs())
+                        nextRealPresentDueMs = NowMs() + realFrameIntervalEmaMs; // too far behind: resync
 
                     WaitForRefreshBoundary();
                     if (transparentRealFrames && presenter.SupportsTransparency()) {
