@@ -29,6 +29,10 @@ public:
     // Clamped to keep the shader's sampling well behaved.
     void SetPhase(float t) { m_phaseT = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t); }
 
+    // Draws small status squares in the generated frames' top-left corner:
+    // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
+    void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
+
     ID3D11Texture2D* GeneratedFrameTexture() const { return m_generatedTex; }
     double LastGpuTimeMs() const { return m_lastGpuTimeMs; }
 
@@ -51,6 +55,12 @@ private:
     bool m_debugTintInBuffer = false;
     float m_phaseT = 0.5f;          // midpoint - the 2x case
     float m_phaseTInBuffer = -1.0f; // forces the first upload
+
+    // On-screen status indicator. The hotkeys had no visible feedback at all -
+    // the overlay has no title bar and is hidden from the taskbar, so a mode
+    // change could only be confirmed by reading the log file.
+    unsigned int m_statusFlags = 0;
+    unsigned int m_statusFlagsInBuffer = 0xFFFFFFFFu;
 
     static constexpr int kQueryRingSize = 4;
     struct QuerySet {

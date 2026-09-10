@@ -39,7 +39,16 @@ cbuffer InterpolationParams : register(b0)
     // (t = 1/3, 2/3), 4x (t = 1/4, 1/2, 3/4) and so on from the very same
     // motion field, estimated once per real frame pair.
     float PhaseT;
-    float3 _padTo32Bytes;
+
+    // Status indicator, drawn as small squares in the top-left corner so the
+    // active modes are visible on screen. Needed because the hotkeys had no
+    // visible feedback at all - the overlay window has no title bar and is
+    // hidden from the taskbar, so mode changes could only be confirmed by
+    // reading the log file.
+    //   bit 0 - low-latency mode (generation factor capped at 2)
+    //   bit 1 - transparency mode (real frames show the actual screen)
+    uint StatusFlags;
+    float2 _padTo32Bytes;
 };
 
 // How quickly disagreement between the two motion-compensated samples turns
@@ -149,8 +158,38 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 blendedLinear = lerp(prevLinear, currLinear, PhaseT);
     float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);
 
+    // Interpolation is systematically softer than a real frame: both source
+    // samples are read with bilinear filtering at non-integer positions, and
+    // then the two are mixed. On its own that reads as slight blur - but two
+    // generated frames alternating with one untouched real frame make the
+    // sharpness pulse at the real frame rate, which is what makes generated
+    // frames identifiable at a glance.
+    //
+    // A mild unsharp mask compensates for that specific loss. It adds no
+    // detail that is not already in the source frames - it restores local
+    // contrast the resampling removed, using the same motion-compensated
+    // neighbourhood the pixel itself came from.
+    float3 blurLinear = float3(0.0, 0.0, 0.0);
+    {
+        const float2 offsets[4] = {
+            float2(-1.0, 0.0), float2(1.0, 0.0), float2(0.0, -1.0), float2(0.0, 1.0)
+        };
+        [unroll]
+        for (int i = 0; i < 4; ++i)
+        {
+            float3 p = SrgbToLinear(PrevFrame.SampleLevel(LinearClamp, (prevSamplePos + offsets[i]) / dims, 0).rgb);
+            float3 c = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, (currSamplePos + offsets[i]) / dims, 0).rgb);
+            blurLinear += lerp(p, c, PhaseT);
+        }
+        blurLinear *= 0.25;
+    }
+    // Deliberately gentle: enough to match a real frame's perceived
+    // sharpness, not enough to ring on edges.
+    static const float kSharpenAmount = 0.35;
+    float3 sharpenedLinear = max(blendedLinear + (blendedLinear - blurLinear) * kSharpenAmount, 0.0);
+
     float4 result;
-    result.rgb = LinearToSrgb(lerp(fallbackLinear, blendedLinear, confidence));
+    result.rgb = LinearToSrgb(lerp(fallbackLinear, sharpenedLinear, confidence));
     // Fully opaque, NOT the source frames' alpha. The presenter's composition
     // swapchain uses premultiplied alpha, so whatever ends up here decides how
     // much of the screen behind shows through. Captured desktop frames carry
@@ -162,6 +201,26 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     // Developer aid: makes it unambiguous on screen whether generated frames
     // are actually reaching the display, and which ones they are.
+    // Status squares: 14x14 px each, 4 px apart, starting 12 px from the
+    // top-left corner. Amber = low latency, cyan = transparency. Drawn only
+    // into generated frames, which is all we produce - enough to read at a
+    // glance without covering anything that matters.
+    if (StatusFlags != 0)
+    {
+        const int kSize = 14, kGap = 4, kMargin = 12;
+        int2 p = int2(id.xy) - int2(kMargin, kMargin);
+        if (p.y >= 0 && p.y < kSize && p.x >= 0)
+        {
+            int slot = p.x / (kSize + kGap);
+            int withinSlot = p.x % (kSize + kGap);
+            if (withinSlot < kSize && slot < 2 && (StatusFlags & (1u << (uint)slot)) != 0)
+            {
+                result.rgb = (slot == 0) ? float3(1.0, 0.65, 0.0)   // amber: low latency
+                                         : float3(0.0, 0.8, 1.0);   // cyan: transparency
+            }
+        }
+    }
+
     if (DebugTintGenerated != 0)
         result.rgb = lerp(result.rgb, float3(1.0, 0.0, 0.0), 0.45);
 

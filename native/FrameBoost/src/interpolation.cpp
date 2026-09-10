@@ -105,10 +105,11 @@ bool Interpolator::EnsureResources(ID3D11Device* device, UINT width, UINT height
         device->CreateSamplerState(&sampDesc, &m_linearClampSampler);
     }
 
-    struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; float pad[3]; };
-    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, {} };
+    struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float pad[2]; };
+    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, m_statusFlags, {} };
     m_debugTintInBuffer = m_debugTint;
     m_phaseTInBuffer = m_phaseT;
+    m_statusFlagsInBuffer = m_statusFlags;
     D3D11_BUFFER_DESC cbDesc{};
     cbDesc.ByteWidth = sizeof(ParamsCB);
     cbDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -161,12 +162,14 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
     // frame at factors above 2x, so this is on the hot path - but it is a
     // 32-byte upload, which is why the whole multi-frame scheme costs
     // essentially nothing beyond the extra dispatches themselves.
-    if ((m_debugTint != m_debugTintInBuffer || m_phaseT != m_phaseTInBuffer) && m_paramsCB) {
-        struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; float pad[3]; };
-        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, {} };
+    if ((m_debugTint != m_debugTintInBuffer || m_phaseT != m_phaseTInBuffer
+            || m_statusFlags != m_statusFlagsInBuffer) && m_paramsCB) {
+        struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float pad[2]; };
+        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint ? 1u : 0u, m_phaseT, m_statusFlags, {} };
         context->UpdateSubresource(m_paramsCB, 0, nullptr, &params, 0, 0);
         m_debugTintInBuffer = m_debugTint;
         m_phaseTInBuffer = m_phaseT;
+        m_statusFlagsInBuffer = m_statusFlags;
     }
 
     QuerySet& q = m_queries[m_queryWriteIndex];

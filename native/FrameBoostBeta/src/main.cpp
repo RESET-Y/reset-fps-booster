@@ -272,7 +272,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Capped at 4x because every generated frame past the first sits further
     // from a real reference, and interpolation error grows with that
     // distance. Beyond 4x the artefacts cost more than the smoothness gains.
-    constexpr int kMaxFactor = 4;
+    // Latency cap. Each extra generated frame per pair holds the REAL frame
+    // back one more output slot (6.94 ms at 144 Hz) so its partners can be
+    // shown first - that hold IS the added latency. Measured end to end:
+    // 3-6 ms average on-screen age at factor 3, 12-20 ms worst case, against
+    // ~1.4 ms for pure passthrough. F6 caps the factor at 2 to halve the
+    // hold, trading output frames for responsiveness.
+    int maxFactor = 4;
+    bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
     // Hysteresis. Without it a source hovering near a switch point (say 47-49
@@ -289,6 +296,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double realFrameIntervalEmaMs = -1.0;
     double generatedFrameDueAtMs = 0.0;
     int64_t lastFrameTimestamp100ns = 0;
+
+    // END-TO-END latency: how old the content is at the moment it is put on
+    // screen, measured against WGC's own capture timestamp for the frame it
+    // came from. This is the honest number - capture latency alone (~1.4 ms)
+    // says nothing about the delay the interpolation scheme itself adds by
+    // holding a real frame back so its generated partners can be shown first.
+    int64_t currentPairTimestamp100ns = 0;
+    double presentAgeSumMs = 0.0, presentAgeMaxMs = 0.0;
+    uint64_t presentAgeSamples = 0;
+
+    auto RecordPresentAge = [&]() {
+        if (currentPairTimestamp100ns <= 0) return;
+        LARGE_INTEGER qpcNow{};
+        QueryPerformanceCounter(&qpcNow);
+        const double now100ns = static_cast<double>(qpcNow.QuadPart) / qpcFreq.QuadPart * 10000000.0;
+        double ageMs = (now100ns - static_cast<double>(currentPairTimestamp100ns)) / 10000.0;
+        if (ageMs < 0.0) ageMs = 0.0;
+        presentAgeSumMs += ageMs;
+        if (ageMs > presentAgeMaxMs) presentAgeMaxMs = ageMs;
+        ++presentAgeSamples;
+    };
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Press F9 (while this window is focused) to toggle pure passthrough vs. frame generation for A/B comparison.");
 
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Engine running. Native/Generated/Output FPS reported once per second below.");
@@ -392,7 +420,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         };
 
         int best = 1;
-        for (int f = 2; f <= kMaxFactor; ++f)
+        for (int f = 2; f <= maxFactor; ++f)
             if (relativeError(f) < relativeError(best)) best = f;
 
         // The source already saturates the display: generate nothing. No
@@ -468,6 +496,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
+            << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
             << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
@@ -496,6 +525,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         latencySumMs = 0.0;
         latencySamples = 0;
         phaseComputeMsSum = 0.0;
+        presentAgeSumMs = 0.0; presentAgeMaxMs = 0.0; presentAgeSamples = 0;
         gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
@@ -517,6 +547,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             presenter.SetTitleSuffix(forcePassthroughOnly ? L"PASSTHROUGH ONLY (F9 to toggle)" : L"GENERATING (F9 to toggle)");
         }
         f9WasDown = f9IsDown;
+
+        // F6: low-latency mode. Caps the generation factor at 2, so a real
+        // frame is held one output slot instead of two before being shown.
+        bool f6IsDown = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
+        if (f6IsDown && !f6WasDown) {
+            maxFactor = (maxFactor == 2) ? 4 : 2;
+            candidateFactorHeldFrames = 0;
+            if (generationFactor > maxFactor) generationFactor = maxFactor;
+            FrameBoostBeta::Logger::Log(maxFactor == 2
+                ? "[FrameBoostBeta] F6: LOW LATENCY - factor capped at 2x, real frames held one slot instead of two."
+                : "[FrameBoostBeta] F6: latency cap released - factor free up to 4x.");
+        }
+        f6WasDown = f6IsDown;
 
         bool f7IsDown = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
         if (f7IsDown && !f7WasDown) {
@@ -586,6 +629,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
                 double tEnd = NowMs();
                 RecordPresentGap(tEnd);
+                RecordPresentAge();
                 lastRealPresentMs = tEnd;
                 pairFactor = 0;
                 ++pairStep;
@@ -605,7 +649,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // motion field is estimated once per pair and reused for all
                 // of them, which is why a higher factor costs only one extra
                 // interpolation dispatch (0.15 ms) per frame.
-                interpolator.SetPhase(static_cast<float>(pairStep) / static_cast<float>(pairFactor));
+                // Phase from the MEASURED real-frame interval, not from
+                // step/factor. Those agree only when a pair happens to span
+                // exactly `factor` output slots: at 48.0 native FPS on a
+                // 144 Hz display, 3 x 6.94 = 20.83 ms exactly. At 47.3 FPS
+                // the real interval is 21.1 ms, and replaying it as if it
+                // were 20.83 ms shows the motion slightly too fast, then
+                // corrects on the real frame - which is seen as stepping
+                // rather than as flow. Dividing the slot time by the actual
+                // interval places each generated frame where it belongs on
+                // the real timeline.
+                float phase = static_cast<float>(pairStep) / static_cast<float>(pairFactor);
+                if (refreshLockEnabled && realFrameIntervalEmaMs > 1.0) {
+                    const double phaseFromTime = (pairStep * outputSlotMs) / realFrameIntervalEmaMs;
+                    // Clamped below 1: a generated frame must stay strictly
+                    // between the two real frames it is interpolated from.
+                    phase = static_cast<float>(phaseFromTime < 0.95 ? phaseFromTime : 0.95);
+                }
+                interpolator.SetPhase(phase);
+                interpolator.SetStatusFlags((maxFactor == 2 ? 1u : 0u)
+                    | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
                 D3D11_TEXTURE2D_DESC desc{};
                 estimator.CurrFrameTexture()->GetDesc(&desc);
                 if (interpolator.GenerateFrame(device.get(), context.get(),
@@ -640,6 +703,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             ++pairStep;
 
             RecordPresentGap(presentEndMs);
+            RecordPresentAge();
             phasePresentMsSum += presentEndMs - presentStartMs;
             phaseIterationMsSum += presentEndMs - iterationStartMs;
             ++phaseSamples;
@@ -699,6 +763,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
             }
             lastFrameTimestamp100ns = frameTimestamp100ns;
+            currentPairTimestamp100ns = frameTimestamp100ns;
 
             // Re-evaluated here, as soon as the measured interval updates,
             // rather than further down the loop: the duplicate-frame path
