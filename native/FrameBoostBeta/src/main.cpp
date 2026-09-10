@@ -401,7 +401,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // 3-6 ms average on-screen age at factor 3, 12-20 ms worst case, against
     // ~1.4 ms for pure passthrough. F6 caps the factor at 2 to halve the
     // hold, trading output frames for responsiveness.
+    //
+    // The cap follows the source, rather than sitting at 2 forever. A fixed 2
+    // is right for a fast source - at 90 real FPS on a 144 Hz panel there is
+    // nothing to win beyond it - but it quietly ruins a slow one: a 30 FPS
+    // source capped at 2x produces 60 output frames for a 144 Hz display,
+    // which does not divide evenly, so every frame is held for either two
+    // refreshes or three. The test would then measure the cap, not the
+    // interpolation. Recomputed from the measured interval in
+    // EvaluateGenerationFactor, unless the user sets it by hand (F6).
     int maxFactor = 2;
+    bool userChoseFactorCap = false;
     bool f6WasDown = false;
     int generationFactor = 1; // 1 = pure passthrough, nothing generated
 
@@ -666,6 +676,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (!refreshLockEnabled || realFrameIntervalEmaMs <= 0.0) return;
         const double nativeFps = 1000.0 / realFrameIntervalEmaMs;
 
+        // How many output frames per real frame the display can actually take.
+        // Four is the ceiling: beyond it the real frame is held back so long
+        // that the added latency costs more than the smoothness is worth.
+        if (!userChoseFactorCap) {
+            int wanted = static_cast<int>(outputRefreshHz / (nativeFps > 1.0 ? nativeFps : 1.0) + 0.5);
+            if (wanted < 2) wanted = 2;
+            if (wanted > 4) wanted = 4;
+            if (wanted != maxFactor) {
+                FrameBoostBeta::Logger::Log("[FrameBoostBeta] Factor cap follows the source: up to "
+                    + std::to_string(wanted) + "x (native " + std::to_string(nativeFps)
+                    + " FPS, display " + std::to_string(outputRefreshHz) + " Hz).");
+                maxFactor = wanted;
+                candidateFactorHeldFrames = 0;
+            }
+        }
+
         auto relativeError = [&](int factor) {
             return std::abs(factor * nativeFps - outputRefreshHz) / outputRefreshHz;
         };
@@ -884,6 +910,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         bool f6IsDown = HotkeyDown(VK_F6);
         if (f6IsDown && !f6WasDown) {
             maxFactor = (maxFactor == 2) ? 3 : 2;
+            userChoseFactorCap = true;
             candidateFactorHeldFrames = 0;
             if (generationFactor > maxFactor) generationFactor = maxFactor;
             FrameBoostBeta::Logger::Log(maxFactor == 2
