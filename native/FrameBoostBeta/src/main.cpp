@@ -985,11 +985,51 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // took to fetch, not the true capture latency (see below).
         lastCaptureMs = static_cast<double>(captureEnd.QuadPart - captureStart.QuadPart) / qpcFreq.QuadPart * 1000.0;
 
-        // Real additional latency: how old the frame WGC handed us actually
-        // is, measured against the same 100ns-since-boot clock WGC itself
-        // uses for SystemRelativeTime - this is the honest number, not the
-        // poll time above.
-        if (frameTimestamp100ns > 0) {
+        // Whether this iteration brought genuinely new content to estimate
+        // from. Either way the slot below is still presented - it just shows
+        // the real frame when there is nothing new to interpolate toward.
+        // Feeding an unchanged frame into the estimator would produce a zero
+        // motion field and poison its previous-frame reference.
+        bool haveNewContent = (capturedTex != nullptr) && isNewFrame;
+
+        if (haveNewContent) {
+            presenter.Resize(frameW, frameH);
+            presenter.TrackOverlayTarget(); // follow the window if it moves/resizes
+        }
+
+        // A recomposited-but-unchanged frame carries no new information.
+        // Interpolating against it yields a zero motion field and a
+        // byte-identical "generated" frame - the output counter rises while
+        // nothing gets smoother. Skip it entirely and wait for content that
+        // actually changed, so interpolation always runs between two
+        // genuinely different frames.
+        //
+        // This runs BEFORE the timing below, and that ordering is the whole
+        // point. It used to come after, so the "real frame interval" was
+        // measured between arrivals rather than between frames that differ -
+        // and with Desktop Duplication the two are nothing alike: the
+        // compositor republishes an unchanged screen ~144 times a second, so
+        // a game capped at 60 measured as a ~14 ms source instead of ~16.7 ms.
+        // Everything downstream took that number at face value: generated
+        // frames were placed at the midpoint of an interval shorter than the
+        // real one, and the doubling check computed 2 x 72 = 144 and switched
+        // generation off on a display that could have shown 2 x 60 = 120
+        // comfortably. Seen live as "Doubling fits display" flipping yes/no
+        // every second while only 6-10 frames a second carried new content.
+        if (haveNewContent && duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
+            ++duplicateFramesSinceReport;
+            // Recomposited but unchanged: no new content to estimate from, so
+            // it is treated exactly like "no new frame". The slot below still
+            // gets presented - skipping the present made the output look
+            // frozen on a static screen, which is indistinguishable from a
+            // crash to the viewer.
+            haveNewContent = false;
+        }
+
+        // Real additional latency: how old the frame handed to us actually is,
+        // measured against the same 100ns-since-boot clock the capture path
+        // timestamps with - the honest number, not the poll time above.
+        if (frameTimestamp100ns > 0 && haveNewContent) {
             // WGC's SystemRelativeTime uses the QueryPerformanceCounter
             // clock domain (confirmed empirically - QueryInterruptTimePrecise
             // was consistently ~14ms off, a different clock entirely), so
@@ -1071,34 +1111,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // otherwise never be reconsidered and would still read 1x when
             // motion resumes.
             EvaluateGenerationFactor();
-        }
-
-        // Whether this iteration brought genuinely new content to estimate
-        // from. Either way the slot below is still presented - it just shows
-        // the real frame when there is nothing new to interpolate toward.
-        // Feeding an unchanged frame into the estimator would produce a zero
-        // motion field and poison its previous-frame reference.
-        bool haveNewContent = (capturedTex != nullptr) && isNewFrame;
-
-        if (haveNewContent) {
-            presenter.Resize(frameW, frameH);
-            presenter.TrackOverlayTarget(); // follow the window if it moves/resizes
-        }
-
-        // A recomposited-but-unchanged frame carries no new information.
-        // Interpolating against it yields a zero motion field and a
-        // byte-identical "generated" frame - the output counter rises while
-        // nothing gets smoother. Skip it entirely and wait for content that
-        // actually changed, so interpolation always runs between two
-        // genuinely different frames.
-        if (haveNewContent && duplicateDetector.IsDuplicate(device.get(), context.get(), capturedTex)) {
-            ++duplicateFramesSinceReport;
-            // Recomposited but unchanged: no new content to estimate from, so
-            // it is treated exactly like "no new frame". The slot below still
-            // gets presented - skipping the present made the output look
-            // frozen on a static screen, which is indistinguishable from a
-            // crash to the viewer.
-            haveNewContent = false;
         }
 
         // While degraded, DON'T run motion estimation at all except a
