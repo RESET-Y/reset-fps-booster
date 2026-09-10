@@ -408,6 +408,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // outcome this feature must never produce.
     double generationCostEmaMs = -1.0;
     bool gpuHasRoom = true;
+    int gpuRoomHoldFrames = 0;
+    // About half a second at a typical source rate - long enough that a swing in
+    // the measured interval cannot toggle the overlay, short enough that a game
+    // genuinely running out of GPU is left alone quickly.
+    static constexpr int kGpuRoomHoldFrames = 30;
 
     // Standing aside has to mean getting out of the way COMPLETELY.
     //
@@ -704,6 +709,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // longer lands on the display.s grid - and produced a backwards step.
     // "doublerate" re-enables it for further work.
     const bool doubleRateOutput = HasArg(L"doublerate");
+    const bool snapToRefreshGrid = HasArg(L"refreshsnap");
     bool f4WasDown = false;
     bool f12WasDown = false;
     bool autoDumpDone = false;
@@ -1462,7 +1468,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     const bool hasRoom = gpuHasRoom
                         ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.5)   // leave once clearly over
                         : (generationCostEmaMs < realFrameIntervalEmaMs * 0.3);  // return only with margin
-                    if (hasRoom != gpuHasRoom) {
+
+                    // ...and only after the verdict has held for about half a
+                    // second. Without this it flipped twice within the same
+                    // second - "has room" at a 32 ms interval, "no room" at 18 ms,
+                    // both at the same cost - because the measured source rate
+                    // swings, and each flip shows or hides the overlay. A guard
+                    // that blinks is worse than the problem it guards against.
+                    if (hasRoom == gpuHasRoom) gpuRoomHoldFrames = 0;
+                    else ++gpuRoomHoldFrames;
+
+                    if (hasRoom != gpuHasRoom && gpuRoomHoldFrames >= kGpuRoomHoldFrames) {
+                        gpuRoomHoldFrames = 0;
                         gpuHasRoom = hasRoom;
                         std::ostringstream oss;
                         oss << "[FrameBoostBeta] " << (hasRoom ? "GPU has room again" : "GPU has no room")
@@ -1540,6 +1557,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // costs up to one refresh interval of latency (3.5 ms on average),
             // which is cheap against 2.7 ms of total added latency today.
             auto WaitForRefreshBoundary = [&]() {
+                // OFF by default: the output follows the SOURCE, not the display.
+                //
+                // Snapping every present to the panel.s grid ties the whole
+                // feature to the refresh rate: doubling 62 FPS gives 124, which
+                // does not divide 144, so frames were held for one refresh or
+                // two and the content advanced in steps between 3.7 and 20.2 ms.
+                // The cure for that was always a demand on the user - cap the
+                // game, or set the monitor to 120 Hz - and a tool that only
+                // works at the right refresh rate is not a general tool.
+                //
+                // Without snapping, frames go out at twice the source rate, from
+                // the source.s own timestamps, and the display shows what it can
+                // reach. That is what doubling means, on any monitor.
+                // "refreshsnap" restores the old behaviour.
+                if (!snapToRefreshGrid) return;
                 if (outputSlotMs <= 0.0) return;
                 if (refreshAnchorMs <= 0.0) refreshAnchorMs = NowMs();
                 const double t = NowMs();
