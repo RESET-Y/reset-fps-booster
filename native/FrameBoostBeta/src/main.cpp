@@ -546,6 +546,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Timestamps of the two real frames the motion field spans, in the same
     // clock as NowMs(). The output is driven from these, not from a counter.
     double phaseSumForReport = 0.0;
+    double lastShownContentMs = 0.0;
+    double contentStepSum = 0.0, contentStepSumSq = 0.0;
+    double contentStepMin = 1e9, contentStepMax = -1e9;
+    uint64_t contentStepCount = 0, contentStepBackwards = 0;
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
@@ -852,6 +856,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR - generation off" : "steady")
                 : std::string("N/A"))
             << " | Queue depth: " << queueCount << " (dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
+            << " | Content step: " << (contentStepCount ? contentStepSum / contentStepCount : -1.0) << " ms mean, min "
+            << (contentStepCount ? contentStepMin : -1.0) << ", max " << (contentStepCount ? contentStepMax : -1.0)
+            << ", sd " << (contentStepCount > 1
+                ? std::sqrt((std::max)(0.0, contentStepSumSq / contentStepCount
+                    - (contentStepSum / contentStepCount) * (contentStepSum / contentStepCount)))
+                : -1.0)
+            << ", backwards " << contentStepBackwards
             << " | Phase avg: " << (phaseCountForReport ? phaseSumForReport / phaseCountForReport : -1.0)
             << " | Timeline slots: " << (phaseCountForReport ? 100.0 * timelineSlotsForReport / phaseCountForReport : -1.0) << "%"
             << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
@@ -893,6 +904,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         captureArrivalsSinceReport = 0;
         queueDroppedSinceReport = 0;
         phaseSumForReport = 0.0; phaseCountForReport = 0; timelineSlotsForReport = 0;
+        contentStepSum = 0.0; contentStepSumSq = 0.0; contentStepCount = 0;
+        contentStepMin = 1e9; contentStepMax = -1e9; contentStepBackwards = 0;
         gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
         phaseIterationMsSum = 0.0;
@@ -1688,6 +1701,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         constexpr double kRealFrameEpsilon = 0.04;
         const bool wantGenerated = haveTimeline && !inDegradedMode && !forcePassthroughOnly && !(sourceIsIrregular && !bufferOneFrame) // the buffer is what makes an uneven source usable
             && phase > kRealFrameEpsilon && phase < 1.0 - kRealFrameEpsilon;
+
+        // How evenly the content actually advances, which is what the eye reads
+        // as smoothness - not the frame count.
+        //
+        // Content time is the pair.s own timeline: phase 0 is the older real
+        // frame, 1 the newer, so (prev + phase * interval) is the moment being
+        // shown. If that moment advances by the same amount every output frame,
+        // motion is even however the source arrived. If it jumps, motion speeds
+        // up and slows down - visible as judder while every counter looks right.
+        if (haveTimeline) {
+            const double shownContentMs = motionPrevTimestampMs + phase * realIntervalMs;
+            if (lastShownContentMs > 0.0) {
+                const double step = shownContentMs - lastShownContentMs;
+                if (step > -50.0 && step < 100.0) {
+                    contentStepSum += step;
+                    contentStepSumSq += step * step;
+                    ++contentStepCount;
+                    if (step < contentStepMin) contentStepMin = step;
+                    if (step > contentStepMax) contentStepMax = step;
+                    if (step < 0.0) ++contentStepBackwards;
+                }
+            }
+            lastShownContentMs = shownContentMs;
+        }
 
         phaseSumForReport += phase;
         ++phaseCountForReport;
