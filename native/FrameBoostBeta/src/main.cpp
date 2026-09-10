@@ -387,34 +387,51 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // measured from here, so capture latency is not counted twice.
     double motionCurrArrivalMs = 0.0;
 
-    // One-frame buffer (F5). See the comment at the estimator feed for why.
+    // Frame QUEUE (F5), not a single slot.
+    //
+    // A single slot holds only the newest frame, so every frame that arrives
+    // while the clock is still replaying the current pair is overwritten and
+    // lost. That is not a small waste - it is self-reinforcing: the pair then
+    // spans several source intervals, which takes proportionally longer to
+    // replay, which loses proportionally more frames. Measured with the single
+    // slot: frames arriving every 18 ms but pairs spanning 62-69 ms, so two
+    // frames in three were discarded and the interpolation had to bridge gaps
+    // three times longer than it should.
+    //
+    // A queue keeps them in order, and the clock consumes them one at a time.
     bool bufferOneFrame = true;
     bool f5WasDown = false;
-    ID3D11Texture2D* pendingTex = nullptr;
-    double pendingTimestampMs = 0.0;
-    bool havePendingFrame = false;
-    UINT pendingWidth = 0, pendingHeight = 0;
+    constexpr int kFrameQueueSize = 4;
+    ID3D11Texture2D* queueTex[kFrameQueueSize] = {};
+    double queueTimestampMs[kFrameQueueSize] = {};
+    int queueHead = 0;   // next to be fed to the estimator
+    int queueCount = 0;
+    UINT queueWidth = 0, queueHeight = 0;
+    uint64_t queueDroppedSinceReport = 0;
 
-    auto EnsurePendingTexture = [&](ID3D11Texture2D* like) -> bool {
+    auto EnsureFrameQueue = [&](ID3D11Texture2D* like) -> bool {
         if (!like) return false;
         D3D11_TEXTURE2D_DESC desc{};
         like->GetDesc(&desc);
-        if (pendingTex && desc.Width == pendingWidth && desc.Height == pendingHeight) return true;
+        if (queueTex[0] && desc.Width == queueWidth && desc.Height == queueHeight) return true;
 
-        if (pendingTex) { pendingTex->Release(); pendingTex = nullptr; }
-        havePendingFrame = false;
+        for (auto& t : queueTex) { if (t) { t->Release(); t = nullptr; } }
+        queueHead = 0;
+        queueCount = 0;
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
         desc.CPUAccessFlags = 0;
         desc.MiscFlags = 0;
         desc.MipLevels = 1;
-        if (FAILED(device->CreateTexture2D(&desc, nullptr, &pendingTex))) {
-            FrameBoostBeta::Logger::Log("[FrameBoostBeta] Could not create the frame buffer texture - "
-                "running without the one-frame buffer.");
-            return false;
+        for (auto& t : queueTex) {
+            if (FAILED(device->CreateTexture2D(&desc, nullptr, &t))) {
+                FrameBoostBeta::Logger::Log("[FrameBoostBeta] Could not create the frame queue - "
+                    "running without buffering.");
+                return false;
+            }
         }
-        pendingWidth = desc.Width;
-        pendingHeight = desc.Height;
+        queueWidth = desc.Width;
+        queueHeight = desc.Height;
         return true;
     };
 
@@ -599,6 +616,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR - generation off" : "steady")
                 : std::string("N/A"))
+            << " | Queue depth: " << queueCount << " (dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
             << " | Phase avg: " << (phaseCountForReport ? phaseSumForReport / phaseCountForReport : -1.0)
             << " | Timeline slots: " << (phaseCountForReport ? 100.0 * timelineSlotsForReport / phaseCountForReport : -1.0) << "%"
             << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
@@ -633,6 +651,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         phaseComputeMsSum = 0.0;
         presentAgeSumMs = 0.0; presentAgeMaxMs = 0.0; presentAgeSamples = 0;
         captureArrivalsSinceReport = 0;
+        queueDroppedSinceReport = 0;
         phaseSumForReport = 0.0; phaseCountForReport = 0; timelineSlotsForReport = 0;
         gapSumMs = 0.0; gapSumSqMs = 0.0; gapMinMs = 1e9; gapMaxMs = 0.0; gapSamples = 0; gapMissed = 0;
         phasePresentMsSum = 0.0;
@@ -662,7 +681,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         bool f5IsDown = HotkeyDown(VK_F5);
         if (f5IsDown && !f5WasDown) {
             bufferOneFrame = !bufferOneFrame;
-            havePendingFrame = false;
+            queueHead = 0; queueCount = 0;
             presentOffsetMs = -1.0;
             FrameBoostBeta::Logger::Log(bufferOneFrame
                 ? "[FrameBoostBeta] F5: ONE-FRAME BUFFER on - the displayed pair is fully in the past, so an uneven source no longer freezes and jumps. Costs one frame of latency."
@@ -909,7 +928,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // fully in the past: its duration is known exactly, and the frame
             // that ends it is already in hand. Costs one frame of latency,
             // which is why it is a toggle (F5).
-            if (bufferOneFrame && EnsurePendingTexture(capturedTex)) {
+            if (bufferOneFrame && EnsureFrameQueue(capturedTex)) {
                 // Buffered: the frame is only parked here. Whether it becomes
                 // the next pair is decided by the presentation CLOCK further
                 // down, not by its arrival.
@@ -920,9 +939,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // advance to, so it freezes exactly as before. Measured with
                 // that version: average phase 0.67-1.00, pinned at 1 whenever
                 // a frame ran late.
-                context->CopyResource(pendingTex, capturedTex);
-                pendingTimestampMs = frameTimestamp100ns / 10000.0;
-                havePendingFrame = true;
+                if (queueCount == kFrameQueueSize) {
+                    // Full: the clock has fallen far enough behind that the
+                    // oldest entry is stale. Drop it rather than the newest -
+                    // dropping the newest would stall the timeline entirely.
+                    queueHead = (queueHead + 1) % kFrameQueueSize;
+                    --queueCount;
+                    ++queueDroppedSinceReport;
+                }
+                const int tail = (queueHead + queueCount) % kFrameQueueSize;
+                context->CopyResource(queueTex[tail], capturedTex);
+                queueTimestampMs[tail] = frameTimestamp100ns / 10000.0;
+                ++queueCount;
             } else {
                 haveMotionField = estimator.ProcessFrame(device.get(), context.get(), capturedTex);
                 ranEstimationThisTick = true;
@@ -987,17 +1015,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // the current one - driven by the clock, never by frame arrivals. This
         // is what actually absorbs an irregular source: a frame that arrives
         // late was already buffered, and one that arrives early simply waits.
-        if (bufferOneFrame && havePendingFrame && presentOffsetMs > 0.0) {
+        if (bufferOneFrame && queueCount > 0 && presentOffsetMs > 0.0) {
             const double contentTimeMs = NowMs() - presentOffsetMs;
             const bool pairConsumed = (motionCurrTimestampMs <= 0.0) || (contentTimeMs >= motionCurrTimestampMs);
-            if (pairConsumed && pendingTimestampMs > motionCurrTimestampMs) {
-                if (estimator.ProcessFrame(device.get(), context.get(), pendingTex)) {
+            // The OLDEST queued frame, so no real frame is skipped: consuming
+            // the newest instead makes the pair span several source intervals
+            // and discards everything in between.
+            if (pairConsumed && queueTimestampMs[queueHead] > motionCurrTimestampMs) {
+                if (estimator.ProcessFrame(device.get(), context.get(), queueTex[queueHead])) {
                     haveMotionField = true;
                     motionPrevTimestampMs = motionCurrTimestampMs;
-                    motionCurrTimestampMs = pendingTimestampMs;
+                    motionCurrTimestampMs = queueTimestampMs[queueHead];
                     motionCurrArrivalMs = NowMs();
                 }
-                havePendingFrame = false;
+                queueHead = (queueHead + 1) % kFrameQueueSize;
+                --queueCount;
             }
         }
 
@@ -1106,7 +1138,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         ReportTelemetryIfDue();
     }
 
-    if (pendingTex) pendingTex->Release();
+    for (auto& t : queueTex) if (t) t->Release();
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window closed - shutting down cleanly.");
     capture.Stop();
     return 0;
