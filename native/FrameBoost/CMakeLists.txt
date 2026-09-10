@@ -19,6 +19,8 @@ endif()
 
 set(MOTION_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_estimation.hlsl")
 set(MOTION_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_cs.h")
+set(COARSE_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_estimation_coarse.hlsl")
+set(COARSE_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_estimation_coarse_cs.h")
 set(SMOOTH_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/motion_smooth.hlsl")
 set(SMOOTH_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/motion_smooth_cs.h")
 set(INTERP_SHADER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/frame_interpolation.hlsl")
@@ -29,6 +31,12 @@ add_custom_command(
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${MOTION_SHADER_HEADER}" /Vn g_MotionEstimationCS "${MOTION_SHADER_SRC}"
     DEPENDS "${MOTION_SHADER_SRC}"
     COMMENT "Compiling motion_estimation.hlsl -> motion_estimation_cs.h"
+)
+add_custom_command(
+    OUTPUT "${COARSE_SHADER_HEADER}"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${COARSE_SHADER_HEADER}" /Vn g_MotionEstimationCoarseCS "${COARSE_SHADER_SRC}"
+    DEPENDS "${COARSE_SHADER_SRC}"
+    COMMENT "Compiling motion_estimation_coarse.hlsl -> motion_estimation_coarse_cs.h"
 )
 add_custom_command(
     OUTPUT "${SMOOTH_SHADER_HEADER}"
@@ -42,7 +50,7 @@ add_custom_command(
     DEPENDS "${INTERP_SHADER_SRC}"
     COMMENT "Compiling frame_interpolation.hlsl -> frame_interpolation_cs.h"
 )
-add_custom_target(CompileShaders DEPENDS "${MOTION_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
+add_custom_target(CompileShaders DEPENDS "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
 
 # Milestone 1 target: a d3d11.dll proxy that sits next to Watch_Dogs.exe.
 # It forwards every real export to the system d3d11.dll so the game keeps

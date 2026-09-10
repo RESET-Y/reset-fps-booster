@@ -34,27 +34,35 @@ RWTexture2D<float2> MotionVectors : register(u0);
 // same vector wherever they meet, and one of the two is always wrong.
 static const int kBlockSize = 16;
 static const int kBlockSampleStride = 4;
-// Raised from 6 after live measurement showed the search saturating: with
-// radius 6 the reported maximum motion magnitude sat at exactly 8.5 px
-// frame after frame, which is sqrt(6^2 + 6^2) - the diagonal corner of the
-// search window. A maximum pinned to the window's own edge means content
-// was moving FURTHER than the search could look, so those blocks got the
-// closest wrong answer instead of the right one. That is precisely the kind
-// of wrong vector that produces visible interpolation artefacts.
+// FINE stage of the pyramid. The search no longer starts from zero: it
+// starts from the coarse stage's result (motion_estimation_coarse.hlsl,
+// which searches +-48 px on a quarter-resolution mip) and only refines it
+// locally.
 //
-// One thread per candidate, so the group is kSearchWindow^2 threads: radius
-// 12 gives 625, still inside D3D11's 1024-thread limit (radius 15 would be
-// 961 - the practical ceiling for this design).
-static const int kSearchRadius = 12;
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 25
-static const int kCandidateCount = kSearchWindow * kSearchWindow; // 625
+// That is why the radius here is small again. Growing the single-stage
+// radius had run out of road: one thread per candidate means radius 15
+// already hits D3D11's 1024-thread group limit, and measurement still
+// showed 18-23% of moving blocks pinned to the edge of a radius-12 window
+// during motion - ~2600 blocks per frame whose vector was wrong by
+// construction. Reach is now 48 + 6 = 54 px while costing LESS: 169
+// candidates per block instead of 625.
+static const int kSearchRadius = 6;
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
+static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
+
+// One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
+// vectors are stored in mip-2 texels.
+static const int kCoarseBlockRatio = 4;
+static const int kCoarseToFineScale = 4;
+
+Texture2D<float2> CoarseMotionVectors : register(t2);
 
 cbuffer FrameDims : register(b0)
 {
     uint FrameWidth;
     uint FrameHeight;
-    uint _pad0;
-    uint _pad1;
+    uint CoarseWidth;
+    uint CoarseHeight;
 };
 
 groupshared float g_sad[kCandidateCount];
@@ -90,7 +98,14 @@ float BlockSAD(int2 currBlockOrigin, int2 candidateOffset)
 void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
 {
     int2 blockOrigin = int2(groupId.xy) * kBlockSize;
-    int2 candidateOffset = int2(groupThreadId.xy) - kSearchRadius;
+
+    // Seed from the coarse stage: which coarse block this fine block sits in,
+    // scaled from mip-2 texels back to full-resolution pixels.
+    int2 coarseIndex = clamp(int2(groupId.xy) / kCoarseBlockRatio,
+        int2(0, 0), int2(max(CoarseWidth, 1u), max(CoarseHeight, 1u)) - 1);
+    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)))) * kCoarseToFineScale;
+
+    int2 candidateOffset = seed + int2(groupThreadId.xy) - kSearchRadius;
 
     g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset);
     GroupMemoryBarrierWithGroupSync();
@@ -110,7 +125,8 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             }
         }
 
-        int2 bestOffset = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        // Relative to the coarse seed, so the final vector is seed + refinement.
+        int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         MotionVectors[groupId.xy] = float2(bestOffset);
     }
 }

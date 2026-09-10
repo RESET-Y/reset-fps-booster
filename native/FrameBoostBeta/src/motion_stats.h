@@ -48,7 +48,9 @@ private:
     double m_saturatedPercent = -1.0;
 
     // Must match kSearchRadius in motion_estimation.hlsl.
-    static constexpr double kSearchRadiusPixels = 12.0;
+    // Total reach of the pyramid search: coarse stage 48 px (radius 12 on a
+    // quarter-resolution mip) plus the fine stage refining 6 px around it.
+    static constexpr double kSearchRadiusPixels = 54.0;
 };
 
 } // namespace FrameBoostBeta

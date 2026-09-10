@@ -51,6 +51,8 @@ private:
     bool m_initialized = false;
     UINT m_width = 0, m_height = 0;
     UINT m_blockCountX = 0, m_blockCountY = 0;
+    // Coarse pyramid level: one coarse block per 4x4 fine blocks.
+    UINT m_coarseCountX = 0, m_coarseCountY = 0;
 
     ID3D11Texture2D* m_prevFrameTex = nullptr;
     ID3D11Texture2D* m_currFrameTex = nullptr;
@@ -69,6 +71,14 @@ private:
 
     ID3D11ComputeShader* m_computeShader = nullptr;
     ID3D11ComputeShader* m_smoothShader = nullptr;
+    ID3D11ComputeShader* m_coarseShader = nullptr;
+
+    // Quarter-resolution search stage. Its output seeds the fine search, so
+    // the fine stage only has to refine locally - which is what makes a 54px
+    // reach cheaper than the old 12px one.
+    ID3D11Texture2D* m_coarseMotionTex = nullptr;
+    ID3D11UnorderedAccessView* m_coarseMotionUAV = nullptr;
+    ID3D11ShaderResourceView* m_coarseMotionSRV = nullptr;
     ID3D11Buffer* m_frameDimsCB = nullptr;
     ID3D11Buffer* m_blockGridDimsCB = nullptr;
 
