@@ -1785,24 +1785,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     RecordPresentAge();
                 }
 
-                realFrameDueAtMs = nowMs + realFrameIntervalEmaMs
+                // And then the real frame itself, at the end of the interval it
+                // belongs to - waited out here rather than left pending.
+                //
+                // It used to be deferred to a later pass of the loop, tested
+                // against a timestamp taken before the generated frame was made.
+                // That worked only while every present also waited for a refresh
+                // boundary, because the waiting was what made the old timestamp
+                // late enough to pass the test. With the output paced off the
+                // source instead, nothing consumed that time any more, the test
+                // stopped passing, and the next arrival overwrote the frame:
+                // measured 0-2 real frames per second against 73 generated ones.
+                // Every frame on screen was a guess, and the output was the
+                // source rate rather than twice it.
+                //
+                // The wait is bounded by half a source interval - about 7 ms -
+                // and capture keeps running through it.
+                const double realDueAtMs = nowMs + realFrameIntervalEmaMs
                     * (static_cast<double>(outputPerReal - 1) / outputPerReal);
-                realFramePendingSimple = true;
-            }
+                while (NowMs() < realDueAtMs) { ddCapture.Pump(); }
 
-            // Deliberately the timestamp read BEFORE the generated frame was
-            // made and paced, not a fresh one.
-            //
-            // Reading it fresh looks obviously more correct, and it does put
-            // more real frames on screen - measured 50 -> 64 per second, output
-            // 105 -> 128. It also made the picture worse to watch, twice tested:
-            // a real frame shown the moment its slot passes lands wherever the
-            // loop happens to be, so the spacing follows our own timing noise
-            // instead of the source.s rhythm. The stale timestamp effectively
-            // defers such a frame to the next pass, which is a coarser but far
-            // steadier grid. Smoothness beat the frame count by eye, and the eye
-            // is what this is for.
-            if (realFramePendingSimple && nowMs >= realFrameDueAtMs) {
                 WaitForRefreshBoundary();
                 if (transparentRealFrames && presenter.SupportsTransparency()) {
                     presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
@@ -1810,9 +1812,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
                 }
                 ++nativeFramesSinceReport;
-                realFramePendingSimple = false;
-                // The newer real frame of the pair: content time is its own
-                // capture timestamp.
                 RecordContentStep(motionCurrTimestampMs);
                 RecordPresentGap(NowMs());
                 RecordPresentAge();
