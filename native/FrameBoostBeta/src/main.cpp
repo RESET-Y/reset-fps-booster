@@ -10,6 +10,7 @@
 // image via WGC. If anything here fails, this process logs it and exits -
 // the target application is completely unaffected either way.
 #include <windows.h>
+#include <timeapi.h>
 #include <d3d11.h>
 #include <winrt/base.h>
 #include <sstream>
@@ -145,6 +146,25 @@ bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3
 } // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
+    // Ask Windows for a 1 ms scheduler tick before anything else.
+    //
+    // Without this, Sleep(1) does not sleep 1 ms - it sleeps until the next
+    // scheduler tick, which defaults to 15.6 ms. Both output waits pump the
+    // capture between sleeps precisely so no frame is missed while waiting,
+    // and that was silently defeated: the capture was only asked roughly once
+    // every 15 ms, while the compositor presents every 6.9 ms.
+    //
+    // Measured with it missing: 51-59 updates per second arriving already
+    // coalesced by the OS - a frame Windows had to merge because we had not
+    // collected the previous one. That is why a game sitting exactly on its
+    // 72 fps cap was read as a wandering 56-70, reported directly as the
+    // booster showing a different number every second while the game did not
+    // move off 72. Frames lost this way are lost unevenly, which is the one
+    // thing the period lock cannot repair.
+    //
+    // System-wide and released on exit. The engine only runs while the user
+    // has the booster switched on.
+    const bool haveHighResTimer = (timeBeginPeriod(1) == TIMERR_NOERROR);
     int argc = 0;
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     // Arguments are read by keyword rather than by position, and a window
@@ -2197,5 +2217,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window closed - shutting down cleanly.");
     capture.Stop();
     ddCapture.Stop();
+    // Systemwide setting - give it back, or every other process on the
+    // machine keeps paying for our scheduler tick after we are gone.
+    if (haveHighResTimer) timeEndPeriod(1);
     return 0;
 }

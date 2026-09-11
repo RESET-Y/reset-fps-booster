@@ -75,7 +75,7 @@ target_include_directories(FrameBoostBeta PRIVATE
 )
 
 target_compile_definitions(FrameBoostBeta PRIVATE UNICODE _UNICODE)
-target_link_libraries(FrameBoostBeta PRIVATE d3d11.lib dxgi.lib dcomp.lib windowsapp.lib)
+target_link_libraries(FrameBoostBeta PRIVATE d3d11.lib dxgi.lib dcomp.lib windowsapp.lib winmm.lib)
 add_dependencies(FrameBoostBeta CompileBetaShaders)
 
 set_target_properties(FrameBoostBeta PROPERTIES

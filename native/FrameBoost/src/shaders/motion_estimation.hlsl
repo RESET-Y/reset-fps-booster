@@ -323,12 +323,18 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         int2 bestRefinementForError = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         float bestMatchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinementForError));
 
+        // Set when the search result is discarded in favour of "did not move".
+        // Sub-pixel refinement must not run on those: a block that was judged
+        // still has no error surface around its winner to interpolate.
+        bool snappedToZero = false;
+
         // Standing still wins only when it is CLEARLY better, so ordinary
         // noise in a moving scene cannot make blocks stick.
         if (g_zeroMotionSad * kZeroMotionMargin < bestMatchSad)
         {
             bestOffset = int2(0, 0);
             bestMatchSad = g_zeroMotionSad;
+            snappedToZero = true;
         }
 
         // Full resolution has the last word on standing still. A block this
@@ -338,6 +344,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         {
             bestOffset = int2(0, 0);
             bestMatchSad = min(bestMatchSad, g_zeroMotionSadFull);
+            snappedToZero = true;
         }
 
         // .z carries how WELL that best candidate actually matched, as a mean
@@ -358,7 +365,57 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // Back to full-resolution pixels: everything above was counted in
         // mip-1 texels, and every consumer of this field - the smoothing pass,
         // the interpolation shader, the statistics - works in real pixels.
-        MotionVectors[groupId.xy] = float4(float2(bestOffset * kMipScale),
+        // SUB-PIXEL refinement, by fitting a parabola through the error surface.
+        //
+        // Without this the whole engine is quantised to whole texels, and
+        // because the search runs on mip 1 that is TWO full-resolution pixels.
+        // The interpolated frame needs half of each vector, so the finest
+        // motion it can express is one pixel - and anything slower than two
+        // pixels per frame rounds to zero, which makes the generated frame a
+        // copy of the real one. Two identical pictures in a row are not 144
+        // fps, they are 72 shown twice, and that is what a slow camera pan was
+        // reported as: better than before, but still "not 144 yet", and
+        // strangest of all at low speeds - exactly where rounding to zero bites.
+        //
+        // The three SAD values around the winner describe a curve with its
+        // minimum between the samples. Fitting a parabola and taking its
+        // vertex recovers that fraction analytically - no extra search, no
+        // extra texture reads, just three numbers already in shared memory.
+        // Clamped to +-0.5 texel because a vertex outside the interval means
+        // the curve was not a minimum and the fit says nothing.
+        //
+        // The values carry the neighbourhood bias, which grows with distance
+        // from the seed and so tilts the fitted curve slightly. It is the same
+        // small tilt on both sides of the winner in the common case, and
+        // removing it would mean recomputing three lengths per axis for a
+        // correction well under the quantisation this is recovering - so it is
+        // left in deliberately, not overlooked.
+        float2 subTexel = float2(0.0, 0.0);
+        if (!snappedToZero)
+        {
+            const int bx = bestIndex % kSearchWindow;
+            const int by = bestIndex / kSearchWindow;
+            const float centreSad = g_sad[bestIndex];
+
+            if (bx > 0 && bx < kSearchWindow - 1)
+            {
+                const float left  = g_sad[by * kSearchWindow + bx - 1];
+                const float right = g_sad[by * kSearchWindow + bx + 1];
+                const float curvature = left - 2.0 * centreSad + right;
+                if (curvature > 1e-7)
+                    subTexel.x = clamp(0.5 * (left - right) / curvature, -0.5, 0.5);
+            }
+            if (by > 0 && by < kSearchWindow - 1)
+            {
+                const float up   = g_sad[(by - 1) * kSearchWindow + bx];
+                const float down = g_sad[(by + 1) * kSearchWindow + bx];
+                const float curvature = up - 2.0 * centreSad + down;
+                if (curvature > 1e-7)
+                    subTexel.y = clamp(0.5 * (up - down) / curvature, -0.5, 0.5);
+            }
+        }
+
+        MotionVectors[groupId.xy] = float4((float2(bestOffset) + subTexel) * kMipScale,
             max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
 }
