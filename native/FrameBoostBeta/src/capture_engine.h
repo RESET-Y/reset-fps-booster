@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <d3d11.h>
+#include <d3d11_4.h>
 #include <winrt/Windows.Graphics.h>
 #include <winrt/Windows.Graphics.Capture.h>
 #include <winrt/Windows.Graphics.DirectX.Direct3D11.h>
@@ -67,6 +68,13 @@ public:
     // evidence of where added latency is coming from, not a guess.
     int LastDiscardedStaleFrames() const { return m_lastDiscardedStaleFrames; }
 
+private:
+    // Runs on the frame pool.s worker thread: drains the pool and copies each
+    // frame into the ring. Declared here, used from the FrameArrived handler.
+    void CollectArrivedFrames();
+
+public:
+
     // --- Pipeline audit counters -------------------------------------------
     //
     // The one number the engine never had: how many frames Windows Graphics
@@ -117,6 +125,31 @@ private:
     winrt::Windows::Graphics::Capture::GraphicsCaptureSession m_session{ nullptr };
     winrt::com_ptr<ID3D11Texture2D> m_lastFrameTex;
     winrt::com_ptr<ID3D11Device> m_device;
+    winrt::com_ptr<ID3D11DeviceContext> m_context;
+
+    // Frames are COPIED OUT in FrameArrived, on the pool.s own worker thread,
+    // into this ring - rather than being fetched when the main loop happens to
+    // ask for one.
+    //
+    // That is the whole reason for moving to this capture path. Desktop
+    // Duplication has to be asked, and while the loop spends 4-10 ms
+    // generating and presenting a frame it is not asking, so Windows merges
+    // what arrives in the meantime: 25 frames a second, measured, against a
+    // compositor producing one every 6.9 ms. Here Windows delivers, and the
+    // delivery does not care what the main thread is doing.
+    //
+    // Four slots, with the one the consumer holds protected, so a frame being
+    // read is never overwritten underneath it.
+    static constexpr int kSlotCount = 4;
+    winrt::com_ptr<ID3D11Texture2D> m_slotTex[kSlotCount];
+    int64_t m_slotTimestamp100ns[kSlotCount] = {};
+    int m_newestSlot = -1;
+    int m_inUseSlot = -1;
+    uint64_t m_newestSerial = 0;
+    uint64_t m_consumedSerial = 0;
+    std::mutex m_slotMutex;
+    UINT m_width = 0;
+    UINT m_height = 0;
     bool m_capturing = false;
     // The size the frame pool's buffers are CURRENTLY allocated at. Windows
     // Graphics Capture does not automatically resize the pool when the

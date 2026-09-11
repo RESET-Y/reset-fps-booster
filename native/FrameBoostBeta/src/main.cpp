@@ -338,11 +338,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //   Windows Graphics Capture  44.60 frames/s produced, 0 lost in our pool
     //   Desktop Duplication       90.20 presents/s, spacing 11.09 ms, max 1 coalesced
     //
-    // WGC was not being read too slowly - it announced 892 frames and we
-    // retrieved all 892. It simply hands out about half of what the compositor
-    // presents, and the interpolator can only work with what it is given.
-    // "wgc" on the command line selects the old path for comparison.
-    bool useDesktopDuplication = monitorMode && !HasArg(L"wgc");
+    // That conclusion was WRONG, and the reason is worth recording: the 44.60
+    // was a defect with a one-line fix, not a property of the API.
+    // GraphicsCaptureSession.MinUpdateInterval caps capture near 50 frames a
+    // second at its default of 0, and at any value below 1 ms; at exactly
+    // 1000 us it delivers the display.s full rate. Sunshine and Apollo carry
+    // the same fix. 44.60 sits right on the broken value - the measurement
+    // was real, the inference from it was not.
+    //
+    // Re-measured with it set, against the same game on its 72 fps cap:
+    //
+    //   Windows Graphics Capture  720 produced, 720 retrieved, 0 lost,
+    //                             0 duplicates, 13.89 ms mean spacing
+    //   Desktop Duplication       722 acquired - just as good, in an audit
+    //                             that does nothing else
+    //
+    // Both are perfect when the loop is idle, and that is the point: in
+    // actual use the loop spends 4-10 ms per frame generating and presenting,
+    // and only one of these two keeps collecting during it. Desktop
+    // Duplication has to be ASKED, and Microsoft states plainly that it
+    // "accumulates monitor updates until you request them" and "is not
+    // designed to capture every update" - measured at 25 merged frames a
+    // second. Windows Graphics Capture DELIVERS, on its own thread, and no
+    // longer cares what the main thread is doing.
+    //
+    // It also removes the duplicate guessing entirely: 35-110 frames a second
+    // were being discarded as suspected duplicates, each one a chance to
+    // throw away a real frame. WGC reported zero duplicates over ten seconds.
+    //
+    // "dxgi" on the command line selects Desktop Duplication for comparison.
+    bool useDesktopDuplication = monitorMode && HasArg(L"dxgi");
 
     bool captureStarted = useDesktopDuplication
         ? ddCapture.StartMonitor(targetMonitor, device.get(), context.get())
@@ -354,9 +379,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // working all along - halved frame rate is still better than no boost.
     if (!captureStarted && useDesktopDuplication) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] Desktop Duplication could not start - falling back to"
-            " Windows Graphics Capture (about half the source frame rate).");
+            " Windows Graphics Capture.");
         useDesktopDuplication = false;
         captureStarted = capture.StartMonitor(targetMonitor, device.get());
+    }
+    // And the other way round: WGC needs Windows 10 1903 and a supported
+    // compositor. If it will not start, Desktop Duplication is still a
+    // working capture path, just one that loses frames under load.
+    if (!captureStarted && !useDesktopDuplication && monitorMode) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] Windows Graphics Capture could not start - falling back"
+            " to Desktop Duplication.");
+        useDesktopDuplication = true;
+        captureStarted = ddCapture.StartMonitor(targetMonitor, device.get(), context.get());
     }
     if (!captureStarted) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: capture failed to start - target window may be unsupported or closed. Falling back safely (no display, exiting).");

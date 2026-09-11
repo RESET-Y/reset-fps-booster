@@ -81,6 +81,21 @@ bool CaptureEngine::Start(HWND targetWindow, ID3D11Device* device) {
 bool CaptureEngine::StartFromItem(ID3D11Device* device) {
     try {
         m_device.copy_from(device);
+        // The immediate context is used from the pool.s worker thread as well
+        // as from the main loop, so D3D11 has to be told - without this it is
+        // explicitly not safe, and the failure mode is corruption rather than
+        // an error.
+        //
+        // An earlier attempt at a capture thread collapsed the output to 3-7
+        // FPS and this was blamed. It was not the cause: that thread used
+        // Desktop Duplication with a blocking AcquireNextFrame, which is
+        // documented to pause OTHER threads in the process until a frame is
+        // available. Nothing blocks here - the work on this thread is one
+        // CopyResource per frame.
+        device->GetImmediateContext(m_context.put());
+        if (auto multithread = m_context.try_as<ID3D11Multithread>())
+            multithread->SetMultithreadProtected(TRUE);
+
         auto wrappedDevice = WrapD3DDevice(device);
         auto size = m_item.Size();
         m_poolSize = size;
@@ -100,11 +115,13 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
             wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, size);
         m_poolBufferCount = 6;
 
-        // Counter only - deliberately does NOT call TryGetNextFrame, so the
-        // polling path behaves exactly as it did before this was added.
+        // Consumes the frame here, on the pool.s worker thread, instead of
+        // leaving it for the main loop to fetch. See the ring buffer in the
+        // header for why.
         m_frameArrivedRevoker = m_framePool.FrameArrived(winrt::auto_revoke,
             [this](auto&&, auto&&) {
                 m_framesProduced.fetch_add(1, std::memory_order_relaxed);
+                CollectArrivedFrames();
 
                 LARGE_INTEGER now{}, freq{};
                 QueryPerformanceCounter(&now);
@@ -124,6 +141,56 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
         // Best-effort - not all Windows versions/hardware support hiding
         // the cursor from capture; failing to set this is not fatal.
         try { m_session.IsCursorCaptureEnabled(false); } catch (...) {}
+        // No capture border, and one less reason for the compositor to treat
+        // this as a window that needs decorating.
+        try { m_session.IsBorderRequired(false); } catch (...) {}
+
+        // MinUpdateInterval = 1000 microseconds. NOT zero, and not less.
+        //
+        // The default of 0 - and any value below 1 ms - caps this API at
+        // roughly 50 frames a second. It is a defect, not a documented limit:
+        // 1000 us captures the display.s full rate while 999 us captures 50.
+        // Sunshine and Apollo both carry the same one-line fix.
+        //
+        // This matters here because that cap is why this capture path was
+        // abandoned. Measured against a game running at 90 FPS, Desktop
+        // Duplication delivered 90.20 and this delivered 44.60, and the
+        // conclusion drawn was that the API could not keep up. 44.60 sits
+        // exactly on the documented broken value, so the measurement was
+        // real and the conclusion was wrong.
+        //
+        // Worth retrying because Desktop Duplication has a structural problem
+        // this one does not: it accumulates updates by design - Microsoft
+        // states plainly that it "is not designed to capture every update" -
+        // and roughly 25 frames a second arrive already merged, which is what
+        // breaks the content timeline.
+        //
+        // Guarded because the property only exists on Windows 11 24H2 and
+        // later. On older builds this throws and the capture runs as before.
+        // Reached through the raw interface: the property lives on
+        // IGraphicsCaptureSession5, which this SDK.s C++/WinRT projection does
+        // not expose yet even though the ABI header declares it.
+        {
+            struct __declspec(uuid("67c0ea62-1f85-5061-925a-239be0ac09cb")) IGraphicsCaptureSession5
+                : ::IInspectable
+            {
+                virtual HRESULT STDMETHODCALLTYPE get_MinUpdateInterval(INT64* value) = 0;
+                virtual HRESULT STDMETHODCALLTYPE put_MinUpdateInterval(INT64 value) = 0;
+            };
+
+            // 1000 microseconds expressed in 100 ns units, which is what a
+            // Windows.Foundation.TimeSpan carries.
+            constexpr INT64 kOneMillisecondIn100ns = 10000;
+
+            auto session5 = m_session.try_as<IGraphicsCaptureSession5>();
+            if (session5 && SUCCEEDED(session5->put_MinUpdateInterval(kOneMillisecondIn100ns))) {
+                Logger::Log("[FrameBoostBeta] WGC: MinUpdateInterval set to 1000 us - the default of 0"
+                            " caps this API near 50 FPS.");
+            } else {
+                Logger::Log("[FrameBoostBeta] WGC: MinUpdateInterval unavailable (needs Windows 11 24H2);"
+                            " capture may be capped near 50 FPS.");
+            }
+        }
 
         m_session.StartCapture();
         m_capturing = true;
@@ -140,81 +207,107 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
     }
 }
 
-ID3D11Texture2D* CaptureEngine::PollLatestFrame(UINT& outWidth, UINT& outHeight, int64_t& outFrameTimestamp100ns, bool& outIsNewFrame) {
-    outIsNewFrame = false;
-    if (!m_capturing || !m_framePool) return nullptr;
+void CaptureEngine::CollectArrivedFrames() {
+    if (!m_capturing || !m_framePool || !m_context) return;
 
     try {
-        // Drain the pool to the NEWEST available frame instead of taking one
-        // frame per call. Our processing loop runs slower than the target
-        // application renders, so taking a single queued frame per tick
-        // built up a backlog of stale frames - measured at ~78ms of pure
-        // "the picture you are looking at is already old" latency during
-        // the first live A/B test, which is exactly what still felt laggy
-        // after the presentation-latency fix. Everything older than the
-        // newest frame is deliberately discarded: showing an old frame has
-        // no value, and dropping them is what keeps latency bounded.
-        winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame frame{ nullptr };
-        int discardedStaleFrames = -1;
+        // Drain rather than take one: the pool can hold several by the time
+        // this runs, and every one of them is a frame the game drew.
         for (;;) {
-            auto next = m_framePool.TryGetNextFrame();
-            if (!next) break;
-            frame = next;
-            ++discardedStaleFrames;
+            auto frame = m_framePool.TryGetNextFrame();
+            if (!frame) break;
+
+            const auto contentSize = frame.ContentSize();
+            if (contentSize.Width <= 0 || contentSize.Height <= 0) continue;
+
+            auto surface = frame.Surface();
+            auto access = surface.as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
+            winrt::com_ptr<ID3D11Texture2D> tex;
+            if (FAILED(access->GetInterface(IID_PPV_ARGS(tex.put())))) continue;
+
+            D3D11_TEXTURE2D_DESC desc{};
+            tex->GetDesc(&desc);
+
+            int slot = -1;
+            {
+                std::lock_guard<std::mutex> lock(m_slotMutex);
+                for (int i = 0; i < kSlotCount; ++i)
+                    if (i != m_inUseSlot && i != m_newestSlot) { slot = i; break; }
+                if (slot < 0) slot = (m_newestSlot + 1) % kSlotCount;
+            }
+
+            if (!m_slotTex[slot]) {
+                D3D11_TEXTURE2D_DESC copyDesc = desc;
+                copyDesc.Usage = D3D11_USAGE_DEFAULT;
+                copyDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+                copyDesc.CPUAccessFlags = 0;
+                copyDesc.MiscFlags = 0;
+                if (FAILED(m_device->CreateTexture2D(&copyDesc, nullptr, m_slotTex[slot].put())))
+                    continue;
+            } else {
+                D3D11_TEXTURE2D_DESC slotDesc{};
+                m_slotTex[slot]->GetDesc(&slotDesc);
+                if (slotDesc.Width != desc.Width || slotDesc.Height != desc.Height) {
+                    m_slotTex[slot] = nullptr;
+                    D3D11_TEXTURE2D_DESC copyDesc = desc;
+                    copyDesc.Usage = D3D11_USAGE_DEFAULT;
+                    copyDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+                    copyDesc.CPUAccessFlags = 0;
+                    copyDesc.MiscFlags = 0;
+                    if (FAILED(m_device->CreateTexture2D(&copyDesc, nullptr, m_slotTex[slot].put())))
+                        continue;
+                }
+            }
+
+            // The surface belongs to the pool and is recycled as soon as the
+            // frame is released, so it is copied into a texture of our own.
+            // Nothing else happens on this thread - a copy is short enough
+            // that sharing the immediate context costs less than a second
+            // device and cross-device sharing would.
+            m_context->CopyResource(m_slotTex[slot].get(), tex.get());
+
+            {
+                std::lock_guard<std::mutex> lock(m_slotMutex);
+                m_slotTimestamp100ns[slot] = frame.SystemRelativeTime().count();
+                m_newestSlot = slot;
+                ++m_newestSerial;
+                m_width = static_cast<UINT>(contentSize.Width);
+                m_height = static_cast<UINT>(contentSize.Height);
+            }
+            m_framesRetrieved.fetch_add(1, std::memory_order_relaxed);
         }
-        if (!frame) { outFrameTimestamp100ns = 0; return m_lastFrameTex.get(); } // no new frame yet
-        m_lastDiscardedStaleFrames = discardedStaleFrames;
-
-        auto contentSize = frame.ContentSize();
-
-        // The real fix for the resolution-transition performance cliff seen
-        // on the first live test: when the captured window's content size
-        // no longer matches the frame pool's allocated buffer size (window
-        // resize, fullscreen/windowed transition, etc.), recreate the pool
-        // at the new size BEFORE reading this frame's surface, instead of
-        // silently working with mismatched dimensions frame after frame.
-        if (contentSize.Width != m_poolSize.Width || contentSize.Height != m_poolSize.Height) {
-            Logger::Log("[FrameBoostBeta] Capture content size changed "
-                + std::to_string(m_poolSize.Width) + "x" + std::to_string(m_poolSize.Height) + " -> "
-                + std::to_string(contentSize.Width) + "x" + std::to_string(contentSize.Height)
-                + " - recreating frame pool.");
-            auto wrappedDevice = WrapD3DDevice(m_device.get());
-            // Six buffers here too. This path used to recreate the pool with
-            // TWO, silently undoing the depth chosen at startup - and it runs
-            // on exactly the transitions worth measuring: a resolution change,
-            // or a game moving between windowed, borderless and exclusive
-            // fullscreen. Every measurement taken after such a switch was
-            // therefore taken on a two-buffer pool.
-            m_framePool.Recreate(wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, contentSize);
-            m_poolSize = contentSize;
-            m_poolBufferCount = 6;
-        }
-
-        auto surface = frame.Surface();
-        auto access = surface.as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
-        winrt::com_ptr<ID3D11Texture2D> tex;
-        winrt::check_hresult(access->GetInterface(IID_PPV_ARGS(tex.put())));
-
-        outWidth = static_cast<UINT>(contentSize.Width);
-        outHeight = static_cast<UINT>(contentSize.Height);
-        // SystemRelativeTime is a TimeSpan in 100ns ticks since system boot -
-        // the real moment WGC captured this frame, not when we got around
-        // to polling for it.
-        outFrameTimestamp100ns = frame.SystemRelativeTime().count();
-
-        m_lastFrameTex = tex;
-        outIsNewFrame = true;
-        // Everything the drain loop above pulled out counts as retrieved, not
-        // just the newest one: the stale ones were read by us and thrown away
-        // by us, which is a different loss from the pool overwriting them.
-        m_framesRetrieved.fetch_add(static_cast<uint64_t>(discardedStaleFrames) + 1, std::memory_order_relaxed);
-        return m_lastFrameTex.get();
-    } catch (const winrt::hresult_error& ex) {
-        Logger::Log("[FrameBoostBeta] PollLatestFrame failed: " + winrt::to_string(ex.message()));
-        return nullptr;
     } catch (...) {
-        return nullptr;
+        // A capture that fails must never take the engine down with it.
     }
+}
+
+ID3D11Texture2D* CaptureEngine::PollLatestFrame(UINT& outWidth, UINT& outHeight, int64_t& outFrameTimestamp100ns, bool& outIsNewFrame) {
+    // Reads the ring that FrameArrived fills; it no longer talks to the frame
+    // pool itself. The pool is drained on its own thread, so a slow turn of
+    // the main loop no longer costs frames.
+    outIsNewFrame = false;
+    outWidth = m_width;
+    outHeight = m_height;
+    outFrameTimestamp100ns = 0;
+
+    std::lock_guard<std::mutex> lock(m_slotMutex);
+    if (m_newestSlot < 0) return nullptr;
+
+    ID3D11Texture2D* tex = m_slotTex[m_newestSlot].get();
+    outFrameTimestamp100ns = m_slotTimestamp100ns[m_newestSlot];
+
+    if (m_newestSerial != m_consumedSerial) {
+        // Everything between the last consumed serial and this one was
+        // overtaken - counted so the cost of a slow loop stays visible.
+        m_lastDiscardedStaleFrames =
+            static_cast<int>(m_newestSerial - m_consumedSerial) - 1;
+        m_consumedSerial = m_newestSerial;
+        m_inUseSlot = m_newestSlot;
+        outIsNewFrame = true;
+    } else {
+        m_lastDiscardedStaleFrames = 0;
+    }
+    return tex;
 }
 
 CaptureEngine::IntervalStats CaptureEngine::ProducedIntervalStats() const {
