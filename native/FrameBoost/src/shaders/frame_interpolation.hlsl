@@ -161,20 +161,44 @@ float3 LinearToSrgb(float3 c)
 // pixels: in a grey industrial scene two entirely different places often
 // differ by less than the per-pixel test`s threshold, so it waves them
 // through and the two get blended into a ghost.
-// The four block vectors around a pixel, so a pixel can choose between them
-// instead of being handed their average.
-void GatherBlockMotion(float2 pixelCenter, uint2 blockCount, out float3 corners[4])
+// The block vectors around a pixel, so a pixel can choose between them instead
+// of being handed their average.
+//
+// Nine: the whole 3x3 neighbourhood of the block the pixel sits in.
+//
+// Four corners reach only 8 px in each direction, narrower than the band the
+// bilinear blending itself spoils, so a pixel in the middle of that band could
+// not always see a block holding the right answer.
+//
+// This was reverted twice on cost, the second time even with a whole extra
+// source period of latency behind it - which failed for a reason worth
+// keeping: latency buys a later DEADLINE, not THROUGHPUT. Seventy-two
+// generated frames a second at 9 ms each is 650 ms of graphics card per
+// second, so the game starved and its own rate fell from 72 to 63 while the
+// engine still reported "doubling: on". Reported live as "unbelievably choppy".
+//
+// It is affordable now for a different reason: only pixels whose existing
+// vector already fails pay for it, which is a thin band around moving edges
+// rather than the whole screen. Breadth where it matters, nothing where it
+// does not.
+static const int kMotionCandidates = 9;
+
+void GatherBlockMotion(float2 pixelCenter, uint2 blockCount, out float3 candidates[kMotionCandidates])
 {
-    float2 gridPos = pixelCenter / BlockSize - 0.5;
-    float2 baseF = floor(gridPos);
+    const int2 centre = clamp(int2(floor(pixelCenter / BlockSize)),
+                              int2(0, 0), int2(blockCount) - 1);
+    const int2 maxBlock = int2(blockCount) - 1;
 
-    int2 b00 = clamp(int2(baseF), int2(0, 0), int2(blockCount) - 1);
-    int2 b11 = clamp(b00 + int2(1, 1), int2(0, 0), int2(blockCount) - 1);
-
-    corners[0] = MotionVectors.Load(int3(b00, 0)).xyz;
-    corners[1] = MotionVectors.Load(int3(int2(b11.x, b00.y), 0)).xyz;
-    corners[2] = MotionVectors.Load(int3(int2(b00.x, b11.y), 0)).xyz;
-    corners[3] = MotionVectors.Load(int3(b11, 0)).xyz;
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            const int2 b = clamp(centre + int2(x, y), int2(0, 0), maxBlock);
+            candidates[(y + 1) * 3 + (x + 1)] = MotionVectors.Load(int3(b, 0)).xyz;
+        }
+    }
 }
 
 float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
@@ -198,9 +222,10 @@ float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
     return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
 }
 
-// How badly the two frames disagree at this pixel when read along v. Zero
+// How badly the two frames disagree around this pixel when read along v. Zero
 // means both frames show the same content there, which is what a correct
 // vector produces.
+//
 float Residual(float2 pixelCenter, float2 dims, float2 v)
 {
     const float3 p = PrevFrame.SampleLevel(LinearClamp, (pixelCenter + (1.0 - PhaseT) * v) / dims, 0).rgb;
@@ -248,25 +273,70 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // than smoothing the vector field, which cannot help: the field is not
     // noisy, it is correct on both sides and undefined in between.
     {
-        float3 corners[4];
-        GatherBlockMotion(pixelCenter, blockCount, corners);
 
         // The interpolated vector is the incumbent: it starts as the winner, so
-        // a corner has to be strictly better to displace it.
+        // a neighbour has to be strictly better to displace it.
         float bestResidual = Residual(pixelCenter, dims, mv);
         float2 bestMv = mv;
         float bestError = blockMatchError;
 
-        [unroll]
-        for (int c = 0; c < 4; ++c)
+        // Only pixels the incumbent FAILS pay for the rest.
+        //
+        // Where the blended vector already brings the two frames into
+        // agreement, no other candidate can do better than agreement, and the
+        // search is nine residuals spent to confirm what one already said. That
+        // is most of the picture: the interior of every object and of the
+        // background, where all the neighbouring blocks agree anyway.
+        //
+        // Triggering on how much the neighbouring VECTORS differ was tried
+        // first and does not work - during a camera pan, neighbouring blocks
+        // differ by several pixels from perspective alone, everywhere at once,
+        // so it fired across the whole picture and saved nothing. The residual
+        // asks the question that actually matters: not "do the blocks around me
+        // disagree" but "is what I have wrong HERE".
+        //
+        // 0.045 is a mean absolute difference of 1.5% per channel across three
+        // channels - comfortably above sampling noise on a clean match, well
+        // below the disagreement at an edge where two motions meet.
+        const float kIncumbentTolerance = 0.045;
+        if (bestResidual > kIncumbentTolerance)
         {
-            const float residual = Residual(pixelCenter, dims, corners[c].xy);
+            float3 candidates[kMotionCandidates];
+            GatherBlockMotion(pixelCenter, blockCount, candidates);
+
+
+        [unroll]
+        for (int c = 0; c < kMotionCandidates; ++c)
+        {
+            const float residual = Residual(pixelCenter, dims, candidates[c].xy);
             if (residual < bestResidual)
             {
                 bestResidual = residual;
-                bestMv = corners[c].xy;
-                bestError = corners[c].z;
+                bestMv = candidates[c].xy;
+                bestError = candidates[c].z;
             }
+        }
+
+        // STANDING STILL is always a candidate, whatever the blocks report.
+        //
+        // A crosshair, an ammo counter, a health bar: screen-space overlays do
+        // not move while the camera sweeps the world behind them at 100 px a
+        // frame. Every block covering them is dominated by that world, so no
+        // block reports "still" and until now no pixel could choose it - the
+        // HUD was dragged along with the scene. The estimator has a zero-motion
+        // candidate for the same reason; this is its per-pixel counterpart, and
+        // it costs one more residual.
+        //
+        // It has to be clearly better, not merely equal: where the picture is
+        // flat, standing still looks as good as any real motion, and letting it
+        // win ties would freeze smooth surfaces.
+        const float stillResidual = Residual(pixelCenter, dims, float2(0.0, 0.0));
+        if (stillResidual < bestResidual * 0.8)
+        {
+            bestResidual = stillResidual;
+            bestMv = float2(0.0, 0.0);
+        }
+
         }
 
         mv = bestMv;

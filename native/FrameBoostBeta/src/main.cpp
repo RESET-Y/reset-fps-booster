@@ -1794,6 +1794,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The case this exists for is nowhere near the new line
                     // either: in a GPU-bound game the same figures read 59 ms
                     // against 22 ms, which trips it several times over.
+                    // A "quality" mode that added a whole source period of latency to
+                    // move this line was tried and removed. Latency buys a later
+                    // deadline, not throughput: 72 generated frames a second at
+                    // 9 ms each is 650 ms of graphics card per second, the game
+                    // starves, and its own rate fell from 72 to 63 while this
+                    // still read "on". The guard was right; the work was too
+                    // expensive per frame, and no deadline changes that.
                     const bool hasRoom = gpuHasRoom
                         ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.7)   // leave once clearly over
                         : (generationCostEmaMs < realFrameIntervalEmaMs * 0.5);  // return only with margin
