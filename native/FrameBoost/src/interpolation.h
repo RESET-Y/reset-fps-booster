@@ -24,7 +24,9 @@ public:
 
     // Developer aid: tints generated frames so it is visually unambiguous
     // which frames on screen are generated (and whether they arrive at all).
-    void SetDebugTint(bool enabled) { m_debugTint = enabled; }
+    /// 0 = off, 1 = tint generated frames red, 2 = paint the pixels the
+    /// occlusion test distrusts green.
+    void SetDebugTint(unsigned int mode) { m_debugTint = mode; }
 
     // Where the next generated frame sits between the two real source
     // frames: 0 = the previous frame, 1 = the current one. 0.5 gives the
@@ -67,8 +69,8 @@ private:
     ID3D11ComputeShader* m_computeShader = nullptr;
     ID3D11SamplerState* m_linearClampSampler = nullptr;
     ID3D11Buffer* m_paramsCB = nullptr;
-    bool m_debugTint = false;
-    bool m_debugTintInBuffer = false;
+    unsigned int m_debugTint = 0;
+    unsigned int m_debugTintInBuffer = 0xFFFFFFFFu;
     float m_phaseT = 0.5f;          // midpoint - the 2x case
     float m_phaseTInBuffer = -1.0f; // forces the first upload
 

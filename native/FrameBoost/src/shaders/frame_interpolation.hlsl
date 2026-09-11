@@ -30,7 +30,7 @@ cbuffer InterpolationParams : register(b0)
     uint FrameWidth;
     uint FrameHeight;
     uint BlockSize;
-    uint DebugTintGenerated; // 1 = tint generated frames red (developer aid)
+    uint DebugTintGenerated; // 1 = tint generated frames red, 2 = show occluded pixels green
 
     // Where on the timeline between the two real frames this generated
     // frame sits: 0 = exactly the previous frame, 1 = exactly the current
@@ -85,11 +85,23 @@ cbuffer InterpolationParams : register(b0)
 // smaller lie than a ghost of something that has already moved on.
 static const float kMismatchSensitivity = 14.0;
 
-// How sharply disagreement between a vector and the field it points into turns
-// into distrust. At 0.08 a disagreement of 4 px still counts as honest motion
-// (blocks never agree perfectly), while 12 px halves the confidence and 25 px -
-// the width of a moving object against still ground - removes it entirely.
-static const float kOcclusionSensitivity = 0.08;
+// How sharply a RELATIVE disagreement between a vector and the field it points
+// into turns into distrust - the ratio of that disagreement to the local
+// motion speed, not a pixel count.
+//
+// At 2.2. The relative test aimed correctly from the first live run - camera
+// turns stopped being flagged, the weapon stayed calm, the trail stood alone -
+// and it shortened the trail. Raising it to 3.0 then changed nothing at all,
+// which says the trail pixels already sat at zero confidence and are already
+// showing the real frame. Strictness beyond that buys no removal, only the
+// risk of freezing edges, so this sits just above where it saturated.
+//
+// During a camera turn of 40 px, a neighbour differing by 6 px scores
+// 0.14 and still keeps 57% of its confidence, so the scene interpolates.
+// Against still ground, a vector pointing into something moving 6 px already
+// scores 1.2 and keeps nothing - and that is the faint tail end of the trail
+// which 1.5 was still letting through.
+static const float kOcclusionSensitivity = 2.2;
 
 // How quickly a block`s own match error turns into distrust. Measured in a
 // game: a clean match scores 0.002-0.015, while a block that found nothing
@@ -208,8 +220,24 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // for the search that produced it.
     const float3 motionAtSource = SampleMotionBilinear(pixelCenter + mv, blockCount);
     const float2 motionDisagreement = motionAtSource.xy - mv;
-    const float occlusionDistance = length(motionDisagreement);
-    const float occlusionConfidence = saturate(1.0 - occlusionDistance * kOcclusionSensitivity);
+
+    // Judged RELATIVE to how fast this area is moving, not in absolute pixels.
+    //
+    // An absolute threshold marked the whole picture as occluded during any
+    // camera movement, which the diagnostic showed directly: the trail lit up
+    // green, and so did every surface in the scene as soon as the view turned.
+    // Of course it did - a turning camera moves the entire image, and
+    // perspective makes neighbouring areas differ by several pixels while
+    // every one of those vectors is correct. At 40 px of camera motion, 6 px
+    // of difference is agreement; against still ground, 20 px is an object
+    // that does not belong there.
+    //
+    // Dividing by the local speed asks the right question: not "how
+    // different", but "how different compared to what is happening here". The
+    // 4 px floor keeps a still area from dividing by nearly zero.
+    const float localSpeed = length(mv) + 4.0;
+    const float relativeDisagreement = length(motionDisagreement) / localSpeed;
+    const float occlusionConfidence = saturate(1.0 - relativeDisagreement * kOcclusionSensitivity);
 
     // Motion-compensated sample positions - THIS is what makes this real
     // interpolation rather than a static blend: both samples are pulled
@@ -266,12 +294,32 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // found it is high regardless of how similar two individual pixels happen
     // to look.
     float blockConfidence = saturate(1.0 - blockMatchError * kBlockErrorSensitivity);
-    // The strictest of the three decides. Each catches a different failure:
-    // the pixel test catches content that is simply not in both frames, the
-    // block test catches a search that found nothing, and the occlusion test
-    // catches the case where both vectors are right and the content behind
-    // them still does not exist in one of the two frames.
-    float confidence = min(min(pixelConfidence, blockConfidence), occlusionConfidence);
+
+    // The stricter of the pixel and block tests decides how far to fall back
+    // to an UNWARPED real frame. Both describe content that is not properly
+    // present in both frames, and for those a still patch is the least bad
+    // answer.
+    //
+    // The occlusion test is deliberately NOT part of this minimum, although it
+    // was at first, and that was the bug behind the trail.
+    //
+    // Painting the fallback magenta showed it immediately: magenta covered
+    // every moving object, not just the area being uncovered behind one. That
+    // is what the cross-check actually detects - an object's own vectors point
+    // back into a region the field describes differently, so the whole object
+    // disagrees, not only its trailing edge. Feeding that into the static
+    // fallback froze each moving object on its previous position for one
+    // generated frame, so it appeared twice in the same place and then jumped.
+    // That doubling IS the trail: it was reported as trailing behind moving
+    // bots, it disappeared when the booster was switched off, and raising the
+    // strictness from 1.5 to 3.0 changed nothing because the whole object was
+    // already pinned at zero.
+    //
+    // An occluded pixel is not missing content - it is content that one of the
+    // two frames shows properly and the other does not. So it still gets
+    // motion compensation; it just stops being an average of both frames and
+    // is taken from the nearer one alone, below.
+    float confidence = min(pixelConfidence, blockConfidence);
 
     // Where the motion vector cannot be trusted, fall back to the real frame
     // this generated frame is NEARER TO IN TIME - not always the current one.
@@ -286,6 +334,23 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float4 safeFallback = (PhaseT < 0.5)
         ? PrevFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0)
         : CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+
+    // Diagnostic (DebugTintGenerated == 3): paint the FALLBACK itself, not the
+    // pixels the occlusion test flags.
+    //
+    // Every reading so far agreed that trail pixels end at zero confidence and
+    // are therefore replaced by the untouched real frame - which contains no
+    // trail. The trail survives anyway, and raising the strictness from 1.5 to
+    // 3.0 changed nothing. One assumption in that chain was never tested: that
+    // the region the detector marks IS the region the trail occupies. They
+    // only looked alike on screen.
+    //
+    // Colouring the replacement answers it without ambiguity. If the trail
+    // comes out magenta, those pixels really are being replaced. If the trail
+    // keeps its normal colours while magenta sits somewhere else, the detector
+    // has been marking the wrong place all along.
+    if (DebugTintGenerated == 3)
+        safeFallback.rgb = float3(1.0, 0.0, 1.0);
 
     // Both mixes - the temporal blend and the confidence fallback - are done
     // in linear light and converted back once at the end. See the transfer
@@ -310,7 +375,53 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // symmetric midpoint: reported directly, "low latency mode is better",
     // and it stayed better after the latency gap was closed to ~5 ms.
     float nearestSource = (PhaseT < 0.5) ? 0.0 : 1.0; // 0 = previous frame
-    float sourceWeight = lerp(nearestSource, 0.5, confidence);
+    // Occlusion was applied here for one build, and that was worse again: the
+    // cross-check fires on every moving pixel, so half the picture switched to
+    // a single source on generated frames and pulsed against the real ones -
+    // reported as everything flickering, "like a trail effect was put on top".
+    //
+    // The test does not detect occlusion. It detects MOTION, which is why both
+    // ways of consuming it hurt: as a fallback it froze moving objects, as a
+    // source selector it de-blended them. A signal that fires on every moving
+    // pixel carries no information to act on, so it now drives nothing and is
+    // kept only for the "showocclusion" diagnostic.
+    //
+    // Worth recording plainly: the trail existed before this test was written.
+    // It was an attempted fix, never the cause, and it fixed nothing.
+    //
+    // How much of the FARTHER frame is allowed into the mix at full confidence.
+    //
+    // 0.5 - a straight average - is the textbook answer and is right only when
+    // the vectors are exact. They never are: a few pixels of error in a
+    // detailed scene lays two slightly offset views of the same content on top
+    // of each other, which is the definition of blur. Sharp real frames then
+    // alternate with soft generated ones, and the eye reads the pair as one
+    // blurred image rather than two crisp ones - reported exactly that way,
+    // "like 30 fps with high motion blur".
+    //
+    // 0.3 was tried and reverted. It did reduce the blur, but the generated
+    // frame is supposed to stand in the MIDDLE between two real ones, and
+    // weighting it toward the nearer source moves it there in space as well as
+    // in colour. The output then arrives in pairs - two nearly identical
+    // pictures, a jump, two more - which is worse than softness. Reported as
+    // looking worse the SLOWER the camera moved, which fits exactly: at speed
+    // the pairing is lost in the motion, while a slow pan lets the eye track
+    // an edge and see it stall.
+    //
+    // The blur is real, but the cure is better vectors or sharpening, not a
+    // weight that buys sharpness by putting the frame at the wrong instant.
+    //
+    // Originally: at 0.3 the generated frame is mostly the temporally nearer source,
+    // motion-compensated to this instant, with the other frame contributing
+    // enough to cancel sampling noise but not enough to ghost. Applied
+    // uniformly across the whole picture, unlike the per-pixel switch that
+    // produced a flickering patchwork.
+    static const float kFarFrameWeight = 0.5;
+    // Mirrored around which source is the nearer one: at a phase below 0.5 the
+    // previous frame leads, so the far weight belongs to the current frame.
+    const float trustedWeight = (nearestSource > 0.5) ? (1.0 - kFarFrameWeight)
+                                                      : kFarFrameWeight;
+    float sourceWeight = lerp(nearestSource, trustedWeight, confidence);
     float3 blendedLinear = lerp(prevLinear, currLinear, sourceWeight);
     float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);
 
@@ -381,8 +492,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         }
     }
 
-    if (DebugTintGenerated != 0)
+    // 1 = paint every generated frame red, so it is obvious which frames are
+    // ours. 2 = paint only the pixels the occlusion test distrusts, so it is
+    // obvious WHERE it fires: the trail behind a moving object either lights up
+    // green - the detector sees it and the fallback is too weak - or it does
+    // not, and no amount of tuning the constant will help. Guessing between
+    // those two has already cost several rounds.
+    if (DebugTintGenerated == 1)
         result.rgb = lerp(result.rgb, float3(1.0, 0.0, 0.0), 0.45);
+    else if (DebugTintGenerated == 2 && occlusionConfidence < 0.5)
+        result.rgb = lerp(result.rgb, float3(0.0, 1.0, 0.0), 0.8);
 
     GeneratedFrame[id.xy] = result;
 }

@@ -173,7 +173,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "tint": paint every generated frame red, so it is unmistakable on screen
     // which frames are ours. The one test that settles whether generated frames
     // reach the display as distinct pictures at all.
-    const bool tintGeneratedFrames = HasArg(L"tint");
+    // "tint" paints generated frames red; "showocclusion" paints the pixels the
+    // occlusion test distrusts green; "showfallback" paints the replacement
+    // pixels magenta - which answers whether the region the detector marks is
+    // the region the artefact actually occupies.
+    const unsigned int debugTintMode = HasArg(L"showfallback") ? 3u
+        : HasArg(L"showocclusion") ? 2u
+        : HasArg(L"tint") ? 1u : 0u;
     // "dupcheck": keep comparing frames on the GPU even when the capture API
     // reports dirty rectangles, so the two can be compared against each other.
     const bool useDirtyRectsOnly = HasArg(L"dirtyonly");
@@ -369,7 +375,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // never reached the shader. The one diagnostic that answers "do our frames
     // reach the screen at all" silently did nothing, and its blank result was
     // nearly taken as evidence that they do not.
-    interpolator.SetDebugTint(tintGeneratedFrames);
+    interpolator.SetDebugTint(debugTintMode);
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     FrameBoostBeta::MotionStats motionStats;
     uint64_t duplicateFramesSinceReport = 0;
@@ -470,7 +476,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // reaching the screen?" instantly and unambiguously - a question that
     // could not be settled by screenshots, because the overlay shows a copy
     // of the captured window and therefore looks identical either way.
-    bool debugTint = tintGeneratedFrames; // handed to the interpolator once it exists, below
+    unsigned int debugTint = debugTintMode;
     bool f11WasDown = false;
 
     // Frame pacing. Measured: presenting with syncInterval 1 blocked ~34ms
@@ -1046,7 +1052,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
-                ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR - generation off" : "steady")
+                ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR (generation continues - the one-frame buffer covers it)" : "steady")
                 : std::string("N/A"))
             << " | Queue depth: " << queueCount << " (dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
             << " | Presents lost to collision: " << (gapSamples ? 100.0 * gapCollapsed / gapSamples : -1.0) << "%"
@@ -1231,7 +1237,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         bool f11IsDown = HotkeyDown(VK_F11);
         if (f11IsDown && !f11WasDown) {
-            debugTint = !debugTint;
+            debugTint = debugTint ? 0u : 1u;
             interpolator.SetDebugTint(debugTint);
             FrameBoostBeta::Logger::Log(debugTint
                 ? "[FrameBoostBeta] F11: DEBUG TINT ON - generated frames are tinted red."
@@ -1444,8 +1450,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         << " (interval " << realFrameIntervalEmaMs << " ms +- " << intervalDeviationEmaMs
                         << " ms, " << (100.0 * ratio) << "%) - "
                         << (sourceIsIrregular
-                            ? "generation off, passing frames through untouched: interpolating an uneven "
-                              "interval turns it into uneven motion speed and looks worse than the source."
+                            ? "generation continues - the one-frame buffer is what makes an uneven source usable. "
+                              "This only reports the source; it does not switch anything off."
                             : "generation back on.");
                     FrameBoostBeta::Logger::Log(oss.str());
                 }

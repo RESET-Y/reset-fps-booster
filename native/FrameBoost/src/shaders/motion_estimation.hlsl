@@ -98,9 +98,27 @@ static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as b
 // during motion - ~2600 blocks per frame whose vector was wrong by
 // construction. Reach is now 48 + 6 = 54 px while costing LESS: 169
 // candidates per block instead of 625.
-static const int kSearchRadius = 6;
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
-static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
+// Reduced from 6 to 3 after measuring where the frame time actually goes.
+//
+// This stage costs 12.4 ms of GPU time per frame, measured on an idle desktop
+// with 0.19% of blocks moving - the price is paid for the search itself, not
+// for the content. Against a real frame interval of 16 ms that is fatal: a
+// generated frame has to be finished inside HALF an interval, so the engine
+// kept standing aside for lack of GPU room and the output dropped to nothing,
+// or to 36 -> 73 when it did run. Reported as feeling like 30 fps, which is
+// what 28 ms of generation cost per frame actually is.
+//
+// The arithmetic behind the cost: at 2560x1440 this dispatches 57,600 blocks,
+// and at radius 6 each searches 169 candidates - 9.7 million block matches per
+// frame. Radius 3 leaves 49, a third of the work.
+//
+// Quality should barely notice, because this stage does not FIND motion - the
+// two coarser levels already did, with a reach of 240 px. It only refines
+// their answer, and a refinement window of +-3 texels is +-6 full-resolution
+// pixels around a vector that is already close.
+static const int kSearchRadius = 3;
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 7
+static const int kCandidateCount = kSearchWindow * kSearchWindow; // 49
 
 // Cost per pixel of straying from the neighbourhood`s estimate. Deliberately
 // small: a block matching 16 samples across 3 channels typically scores well
