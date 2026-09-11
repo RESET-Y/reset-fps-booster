@@ -67,6 +67,15 @@ private:
 
     // Smoothed (3x3-averaged) motion field - this is what downstream
     // consumers (visualization now, interpolation from Milestone 4) read.
+    // The BACKWARD motion field: the same search run with the two frames
+    // swapped, so it says where the previous frame.s content went rather than
+    // where the current frame.s content came from. Comparing the two is the
+    // only reliable way to find content that was not visible before - see the
+    // consistency test in motion_smooth.hlsl.
+    ID3D11Texture2D* m_motionVectorBackwardTex = nullptr;
+    ID3D11UnorderedAccessView* m_motionVectorBackwardUAV = nullptr;
+    ID3D11ShaderResourceView* m_motionVectorBackwardSRV = nullptr;
+
     ID3D11Texture2D* m_motionVectorSmoothTex = nullptr;
     ID3D11UnorderedAccessView* m_motionVectorSmoothUAV = nullptr;
     ID3D11ShaderResourceView* m_motionVectorSmoothSRV = nullptr;

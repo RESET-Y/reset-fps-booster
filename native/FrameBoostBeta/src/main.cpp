@@ -197,7 +197,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // occlusion test distrusts green; "showfallback" paints the replacement
     // pixels magenta - which answers whether the region the detector marks is
     // the region the artefact actually occupies.
-    const unsigned int debugTintMode = HasArg(L"showfallback") ? 3u
+    const unsigned int debugTintMode = HasArg(L"showmotion") ? 4u
+        : HasArg(L"showfallback") ? 3u
         : HasArg(L"showocclusion") ? 2u
         : HasArg(L"tint") ? 1u : 0u;
     // "dupcheck": keep comparing frames on the GPU even when the capture API
@@ -2085,7 +2086,45 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
 
-        const double realIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+        // Snapped to a whole number of source periods before the phase is
+        // computed from it.
+        //
+        // The raw difference between two capture timestamps is not the time
+        // between two game frames. Those timestamps come from the compositor
+        // and are quantised to ITS refresh grid - 6.94 ms at 144 Hz - while a
+        // 72 fps game draws every 13.89 ms. That does not fit the grid, so the
+        // same constant interval is reported alternately as two or three grid
+        // steps. Measured against a game locked at 72 fps: 12.43, 14.00,
+        // 14.51, 16.36, 13.42, 14.45 ms - a swing of 18% from a source that
+        // was not varying at all.
+        //
+        // The phase is a fraction of this interval, so a wrong denominator
+        // does not cost a frame - it changes the SPEED the content is shown
+        // at, frame by frame, in step with the rounding error. The output can
+        // be perfectly paced and still judder, which is what every clean
+        // timing measurement next to a bad-looking picture has been saying.
+        //
+        // The true period is already known to within 2% from the lock, and a
+        // game.s frame period is a constant. So the measurement is rounded to
+        // the nearest whole multiple of it. Whole MULTIPLE, not the period
+        // itself: when a frame is lost to coalescing the pair genuinely spans
+        // two periods, the content really is twice as far apart, and forcing
+        // that to one period would play it back at double speed.
+        //
+        // Pairs that span a gap are still interpolated rather than skipped.
+        // Skipping would leave a hole exactly where a frame is already
+        // missing, which is the one place the output can least afford one.
+        double realIntervalMs = motionCurrTimestampMs - motionPrevTimestampMs;
+        if (lockedPeriodMs > 1.0 && realIntervalMs > 0.0) {
+            const double steps = realIntervalMs / lockedPeriodMs;
+            const double nearest = std::floor(steps + 0.5);
+            // Within a third of a period of a whole multiple, this is that
+            // multiple seen through the grid. Further out, the source really
+            // did something else (a stall, a scene change) and the measurement
+            // is the better answer.
+            if (nearest >= 1.0 && std::abs(steps - nearest) < 0.34)
+                realIntervalMs = nearest * lockedPeriodMs;
+        }
         const bool haveTimeline = haveMotionField && realIntervalMs > 1.0 && realIntervalMs < 200.0;
 
         // The interval between the two real frames is replayed over the wall
@@ -2161,6 +2200,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const double presentStartMs = NowMs();
         bool presentedGenerated = false;
 
+        // Collect whatever the compositor has produced while this loop was
+        // busy, immediately before the work starts and again after it.
+        //
+        // Every other Pump in this file sits inside a wait, so the capture was
+        // asked constantly while the loop had nothing to do and not once while
+        // it worked - and generating plus presenting a frame takes 4 to 10 ms,
+        // against a compositor that produces one every 6.9 ms. Frames landing
+        // in that window were merged by the OS before we ever saw them: 25 per
+        // second, measured.
+        //
+        // Those losses are what break the content timeline. Measured across
+        // twelve seconds, the single second in which native FPS read exactly
+        // 72.0 had a content step of 6.94 ms with a standard deviation of
+        // 0.22 - textbook. Every second that lost even one frame had a
+        // deviation between 2.5 and 4.3 ms, with steps ranging from 0.4 to 19
+        // ms. One missing frame does not cost one frame: it leaves a gap of
+        // twice the period for the phase to cross, and the content lurches.
+        if (useDesktopDuplication) ddCapture.Pump();
+
         if (wantGenerated) {
             interpolator.SetPhase(static_cast<float>(phase));
             interpolator.SetStatusFlags((maxFactor == 2 ? 1u : 0u)
@@ -2195,6 +2253,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
             }
         }
+
+        if (useDesktopDuplication) ddCapture.Pump();
 
         const double presentEndMs = NowMs();
         if (presentedGenerated) ++generatedFramesSinceReport;

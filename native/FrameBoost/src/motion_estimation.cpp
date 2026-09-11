@@ -37,6 +37,9 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     SafeRelease(m_currFrameTex); m_currFrameTex = nullptr;
     SafeRelease(m_prevFrameSRV); m_prevFrameSRV = nullptr;
     SafeRelease(m_currFrameSRV); m_currFrameSRV = nullptr;
+    SafeRelease(m_motionVectorBackwardTex); m_motionVectorBackwardTex = nullptr;
+    SafeRelease(m_motionVectorBackwardUAV); m_motionVectorBackwardUAV = nullptr;
+    SafeRelease(m_motionVectorBackwardSRV); m_motionVectorBackwardSRV = nullptr;
     SafeRelease(m_motionVectorRawTex); m_motionVectorRawTex = nullptr;
     SafeRelease(m_motionVectorRawUAV); m_motionVectorRawUAV = nullptr;
     SafeRelease(m_motionVectorRawSRV); m_motionVectorRawSRV = nullptr;
@@ -108,6 +111,14 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     device->CreateShaderResourceView(m_motionVectorRawTex, nullptr, &m_motionVectorRawSRV);
     device->CreateUnorderedAccessView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothUAV);
     device->CreateShaderResourceView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothSRV);
+
+    // The backward field, same shape as the forward one.
+    if (FAILED(device->CreateTexture2D(&mvDesc, nullptr, &m_motionVectorBackwardTex))) {
+        Logger::Log("[FrameBoost] Motion estimation: failed to create the backward motion field.");
+        return false;
+    }
+    device->CreateUnorderedAccessView(m_motionVectorBackwardTex, nullptr, &m_motionVectorBackwardUAV);
+    device->CreateShaderResourceView(m_motionVectorBackwardTex, nullptr, &m_motionVectorBackwardSRV);
 
     if (FAILED(device->CreateTexture2D(&mvDesc, nullptr, &m_motionVectorHistoryTex))) {
         Logger::Log("[FrameBoost] Motion estimation: failed to create the motion history texture.");
@@ -244,7 +255,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         context->Begin(q.disjoint);
         context->End(q.start);
 
-        ID3D11ShaderResourceView* nullSrvs[3] = { nullptr, nullptr, nullptr };
+        ID3D11ShaderResourceView* nullSrvs[4] = { nullptr, nullptr, nullptr, nullptr };
         ID3D11UnorderedAccessView* nullUav = nullptr;
 
         // Pass 1a: COARSEST search on mip 4 (one sixteenth resolution). One
@@ -268,34 +279,95 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         context->CSSetShader(m_coarseShader, nullptr, 0);
         context->Dispatch(m_coarseCountX, m_coarseCountY, 1);
 
-        context->CSSetShaderResources(0, 3, nullSrvs);
+        context->CSSetShaderResources(0, 4, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
 
         // Pass 1b: FINE search at full resolution, seeded by the coarse
         // result and only refining +-6 px around it. Total reach 54 px, at
         // 169 candidates per block instead of the 625 the old single-stage
         // search needed for a reach of 12.
-        ID3D11ShaderResourceView* fineSrvs[3] = { m_prevFrameSRV, m_currFrameSRV, m_coarseMotionSRV };
-        context->CSSetShaderResources(0, 3, fineSrvs);
+        // t3 is last frame.s finished field, used as a predictor - see the 3DRS
+        // discussion in motion_estimation.hlsl. Null on the first frame, which
+        // reads as zero and simply loses to the search.
+        ID3D11ShaderResourceView* fineSrvs[4] = { m_prevFrameSRV, m_currFrameSRV, m_coarseMotionSRV,
+                                                  m_haveMotionHistory ? m_motionVectorHistorySRV : nullptr };
+        context->CSSetShaderResources(0, 4, fineSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorRawUAV, nullptr);
         context->CSSetShader(m_computeShader, nullptr, 0);
         context->Dispatch(m_blockCountX, m_blockCountY, 1);
 
-        context->CSSetShaderResources(0, 3, nullSrvs);
+        context->CSSetShaderResources(0, 4, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
 
         // Pass 2: 5x5 spatial smoothing plus temporal blending against the
         // previous frame's field - the fix for speckle noise and for the
         // "wiggling" reported in a game, where the image warped slightly
         // differently from frame to frame.
+
+        // The BACKWARD field: the same three passes with the two frames
+        // swapped, so it answers "where did the previous frame's content go?"
+        // instead of "where did this content come from?".
+        //
+        // This is the only signal that finds ground a moving object has just
+        // uncovered. Measured with the field on screen: that ground glows as
+        // strongly as the object itself, because it was hidden in the previous
+        // frame, so "where was this before?" has no correct answer and the
+        // best available match is the object that was standing there. The
+        // vector is therefore WELL matched and wrong, which is why the
+        // confidence fallback, the spatial median and the temporal carry-over
+        // all left the resulting trail untouched.
+        //
+        // A cheaper proxy was tried first - letting every block claim the
+        // place it came from and marking the loser where two collided. It
+        // worked for a slowly walking bot and failed completely for a fast
+        // one: at speed the wrong vectors spread out enough to land in
+        // different source blocks, so nothing collided and nothing was
+        // detected. Reported exactly that way - "wenn er sich schnell bewegt
+        // leuchtet es unfassbar stark, wenn er normal geht bisschen bis gar
+        // nicht".
+        //
+        // Affordable only since the fine search dropped from 12.4 ms to
+        // 1.5 ms: a second pass costs about the same again, roughly 3 ms of a
+        // 6.9 ms budget. Before that it would have been 25 ms.
+        //
+        // The coarse and coarsest buffers are scratch and are reused - the
+        // forward result is already in m_motionVectorRawTex by this point.
         {
-            struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, pad1; };
-            BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, 0 };
+            ID3D11ShaderResourceView* swappedSrvs[2] = { m_currFrameSRV, m_prevFrameSRV };
+            context->CSSetShaderResources(0, 2, swappedSrvs);
+            context->CSSetUnorderedAccessViews(0, 1, &m_coarsestMotionUAV, nullptr);
+            context->CSSetConstantBuffers(0, 1, &m_frameDimsCB);
+            context->CSSetShader(m_coarsestShader, nullptr, 0);
+            context->Dispatch(m_coarsestCountX, m_coarsestCountY, 1);
+            context->CSSetShaderResources(0, 2, nullSrvs);
+            context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+
+            ID3D11ShaderResourceView* swappedCoarse[3] = { m_currFrameSRV, m_prevFrameSRV, m_coarsestMotionSRV };
+            context->CSSetShaderResources(0, 3, swappedCoarse);
+            context->CSSetUnorderedAccessViews(0, 1, &m_coarseMotionUAV, nullptr);
+            context->CSSetShader(m_coarseShader, nullptr, 0);
+            context->Dispatch(m_coarseCountX, m_coarseCountY, 1);
+            context->CSSetShaderResources(0, 4, nullSrvs);
+            context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+
+            // No predictor for the backward pass: last frame.s field describes the
+            // forward direction and would pull this one the wrong way.
+            ID3D11ShaderResourceView* swappedFine[4] = { m_currFrameSRV, m_prevFrameSRV, m_coarseMotionSRV, nullptr };
+            context->CSSetShaderResources(0, 4, swappedFine);
+            context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorBackwardUAV, nullptr);
+            context->CSSetShader(m_computeShader, nullptr, 0);
+            context->Dispatch(m_blockCountX, m_blockCountY, 1);
+            context->CSSetShaderResources(0, 4, nullSrvs);
+            context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+        }
+        {
+            struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, blockSizePixels; };
+            BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, kBlockSize };
             context->UpdateSubresource(m_blockGridDimsCB, 0, nullptr, &gridDims, 0, 0);
         }
 
-        ID3D11ShaderResourceView* smoothSrvs[2] = { m_motionVectorRawSRV, m_motionVectorHistorySRV };
-        context->CSSetShaderResources(0, 2, smoothSrvs);
+        ID3D11ShaderResourceView* smoothSrvs[3] = { m_motionVectorRawSRV, m_motionVectorHistorySRV, m_motionVectorBackwardSRV };
+        context->CSSetShaderResources(0, 3, smoothSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorSmoothUAV, nullptr);
         context->CSSetConstantBuffers(0, 1, &m_blockGridDimsCB);
         context->CSSetShader(m_smoothShader, nullptr, 0);
@@ -303,8 +375,8 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         UINT groupsY = (m_blockCountY + 7) / 8;
         context->Dispatch(groupsX, groupsY, 1);
 
-        ID3D11ShaderResourceView* nullSrv2[2] = { nullptr, nullptr };
-        context->CSSetShaderResources(0, 2, nullSrv2);
+        ID3D11ShaderResourceView* nullSrv2[3] = { nullptr, nullptr, nullptr };
+        context->CSSetShaderResources(0, 3, nullSrv2);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
 
         // Keep this field as history for the next frame's temporal blend.

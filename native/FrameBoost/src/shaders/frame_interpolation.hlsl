@@ -502,6 +502,31 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         result.rgb = lerp(result.rgb, float3(1.0, 0.0, 0.0), 0.45);
     else if (DebugTintGenerated == 2 && occlusionConfidence < 0.5)
         result.rgb = lerp(result.rgb, float3(0.0, 1.0, 0.0), 0.8);
+    // Mode 4: show the MOTION FIELD itself instead of the picture.
+    //
+    // Four hypotheses about the trail have now been tested and all four were
+    // wrong - the confidence fallback, the occlusion cross-check, the temporal
+    // carry-over and the spatial averaging. Every one of them judged the
+    // OUTPUT. None of them looked at what the field says where the trail is,
+    // which is the input that everything else is derived from.
+    //
+    // Still content must read black. If the ground a bot has just crossed
+    // glows while the rest of the still scene stays dark, the field claims
+    // motion where there is none and the trail is made in the estimator. If
+    // that ground is black, the field is right and the trail is made after it
+    // - in the warp or the blend - and no amount of work on the estimator
+    // will touch it.
+    //
+    // Green is horizontal speed, red vertical, blue the total, each saturating
+    // at 20 px so slow motion is still clearly visible.
+    else if (DebugTintGenerated == 4)
+    {
+        const float2 m = mv;
+        const float speed = length(m);
+        result.rgb = float3(saturate(abs(m.y) / 20.0),
+                            saturate(abs(m.x) / 20.0),
+                            saturate(speed / 20.0));
+    }
 
     GeneratedFrame[id.xy] = result;
 }

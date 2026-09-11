@@ -146,6 +146,9 @@ static const int kCoarseBlockRatio = 8;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);
+// Last frame.s finished motion field, used as a PREDICTOR - see the candidate
+// evaluation below. Zero on the first frame after a resolution change.
+Texture2D<float4> PreviousMotionField : register(t3);
 
 cbuffer FrameDims : register(b0)
 {
@@ -171,6 +174,46 @@ groupshared float g_zeroMotionSad;
 // one extra comparison settles it. It costs 16 samples per block, once,
 // against 169 candidates for the search itself.
 groupshared float g_zeroMotionSadFull;
+
+// PREDICTED candidates: vectors that were right somewhere else, offered to the
+// search for free.
+//
+// The refinement window is +-3 texels, which is +-6 full-resolution pixels
+// around whatever the coarse level proposed. For a camera pan that is plenty,
+// because the coarse level finds the pan. For a bot running across a still
+// background it is hopeless: a coarse block covers 64 pixels and is dominated
+// by the motionless ground around the bot, so the seed says "still" and the
+// fine stage cannot reach the bot.s real 20 px however well it refines. The
+// bot then gets a near-zero vector, the generated frame leaves it almost
+// where the real frame has it, and the two show up as one object drawn twice
+// a few pixels apart - reported exactly as duplicating itself slightly offset.
+//
+// Widening the search is not available: radius 6 alongside the backward field
+// measured 11 ms against a 6.9 ms budget and the engine stood aside entirely.
+//
+// So instead of searching wider, the search is given good guesses. This is the
+// 3DRS idea from television frame-rate conversion: a small candidate set drawn
+// from where this motion has already been seen - the same block one frame ago,
+// and its neighbours one frame ago. A bot that was tracked once stays tracked,
+// and a correct vector spreads sideways across the object a block per frame,
+// without any candidate ever costing more than one block comparison.
+// Switched OFF after measuring it live: no visible change to the duplicated
+// object at all, while generation cost went from 3.7 to between 3.5 and 9.6 ms
+// and crossed the 6.9 ms budget repeatedly - including one drop to 32 native
+// FPS when the engine stood aside. Five predictors read five arbitrary places
+// in the picture per block, which is exactly the access pattern a GPU cache
+// handles worst.
+//
+// The code is kept because the reasoning behind it still holds - a bot moving
+// 20 px genuinely cannot be represented by a +-6 px refinement of a seed that
+// says "still" - but the conclusion has to be that this is not WHY the object
+// duplicates, since giving the search the right vector for free changed
+// nothing. Re-enabling it needs a cheaper form (one predictor, or only where
+// the coarse seed matches badly) and a reason to expect a different result.
+static const bool kUsePredictors = false;
+static const int kPredictorCount = 5;
+groupshared float g_predictorSad[kPredictorCount];
+groupshared float2 g_predictorVector[kPredictorCount];
 
 // THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
 // same 16 full-resolution pixels, so the motion field keeps its granularity.
@@ -301,6 +344,32 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     {
         g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
     }
+
+    // Five predictors, one thread each, evaluated while the rest of the group
+    // is already waiting at the barrier - so they are free in wall-clock terms.
+    // The block.s own vector from last frame, and its four neighbours.: motion
+    // is continuous in time and coherent in space, so a vector that was right
+    // next door or a frame ago is the best guess available that costs nothing
+    // to produce.
+    if (kUsePredictors && groupIndex >= 8 && groupIndex < 8 + kPredictorCount)
+    {
+        const int slot = groupIndex - 8;
+        const int2 offsets[kPredictorCount] = {
+            int2(0, 0), int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1)
+        };
+        const int2 blockGrid = int2(((int)FrameWidth + kBlockSize - 1) / kBlockSize,
+                                   ((int)FrameHeight + kBlockSize - 1) / kBlockSize);
+        const int2 neighbourBlock = clamp(int2(groupId.xy) + offsets[slot],
+            int2(0, 0), max(blockGrid - 1, int2(0, 0)));
+
+        // The field is in full-resolution pixels; the search works in mip-1
+        // texels.
+        const float2 predictedPixels = PreviousMotionField.Load(int3(neighbourBlock, 0)).xy;
+        const int2 predicted = int2(round(predictedPixels / kMipScale));
+
+        g_predictorVector[slot] = float2(predicted);
+        g_predictorSad[slot] = BlockSAD(blockOrigin, predicted);
+    }
     GroupMemoryBarrierWithGroupSync();
 
     // Cheap serial reduction over already-computed SAD values (no more
@@ -318,6 +387,19 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             }
         }
 
+        // The predictors compete on equal terms, without the neighbourhood bias:
+        // that bias exists to settle ties in favour of the coarse seed, and a
+        // predictor.s whole purpose is to beat a seed that is wrong.
+        int bestPredictor = -1;
+        for (int k = 0; kUsePredictors && k < kPredictorCount; ++k)
+        {
+            if (g_predictorSad[k] < bestSad)
+            {
+                bestSad = g_predictorSad[k];
+                bestPredictor = k;
+            }
+        }
+
         // Relative to the coarse seed, so the final vector is seed + refinement.
         int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
         int2 bestRefinementForError = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
@@ -326,6 +408,19 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // Set when the search result is discarded in favour of "did not move".
         // Sub-pixel refinement must not run on those: a block that was judged
         // still has no error surface around its winner to interpolate.
+        // A predictor won: take its vector whole. It is an absolute vector, not
+        // a refinement of the seed, and it carries its own unbiased error.
+        if (bestPredictor >= 0)
+        {
+            bestOffset = int2(g_predictorVector[bestPredictor]);
+            bestMatchSad = g_predictorSad[bestPredictor];
+        }
+
+        // Set when the search result is discarded in favour of "did not move".
+        // Sub-pixel refinement must not run on those: a block that was judged
+        // still has no error surface around its winner to interpolate. A
+        // predictor win counts too - its vector did not come from this
+        // block.s own error surface, so there is nothing there to fit.
         bool snappedToZero = false;
 
         // Standing still wins only when it is CLEARLY better, so ordinary
@@ -391,7 +486,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // correction well under the quantisation this is recovering - so it is
         // left in deliberately, not overlooked.
         float2 subTexel = float2(0.0, 0.0);
-        if (!snappedToZero)
+        if (!snappedToZero && bestPredictor < 0)
         {
             const int bx = bestIndex % kSearchWindow;
             const int by = bestIndex / kSearchWindow;

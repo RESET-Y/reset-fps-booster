@@ -25,6 +25,7 @@
 
 Texture2D<float4> RawMotionVectors : register(t0);
 Texture2D<float4> PreviousMotionVectors : register(t1);
+Texture2D<float4> BackwardMotionVectors : register(t2);
 RWTexture2D<float4> SmoothedMotionVectors : register(u0);
 
 cbuffer BlockGridDims : register(b0)
@@ -32,8 +33,61 @@ cbuffer BlockGridDims : register(b0)
     uint BlockCountX;
     uint BlockCountY;
     uint HavePreviousField; // 0 on the first frame after a resolution change
-    uint _pad1;
+    uint BlockSizePixels;
 };
+
+// How far the round trip may miss before the block counts as content that was
+// not visible in the previous frame.
+//
+// Relative to the motion, because a 6 px discrepancy is nothing at 60 px of
+// travel and everything at 3 px, with a floor so still areas are not judged
+// against nearly zero - and a CEILING, which the first version lacked.
+//
+// Without the ceiling the allowance grew without limit: at 80 px of motion it
+// permitted a 31 px miss, and a real disocclusion typically misses by around
+// 20, so it passed as consistent. That showed up precisely as the test
+// working at a distance and failing as the player walked closer - the same
+// bot at the same speed covers far more pixels up close. Reported exactly
+// that way: dark when far away, "komme ich naeher wird es genauso".
+//
+// 12 px is wider than the noise between two honest fields (a few pixels) and
+// narrower than the disagreement at an uncovered edge, which is the size of
+// the object.s own displacement.
+static const float kRoundTripTolerance = 0.35;
+static const float kRoundTripFloorPx = 3.0;
+static const float kRoundTripCeilingPx = 12.0;
+
+// The forward-backward consistency test, in the direction that actually means
+// something.
+//
+// Follow this block.s vector back to where it claims to have come from, and
+// ask the BACKWARD field what the content at that spot says it did. If both
+// describe the same movement, the round trip returns here and the two cancel:
+// F(x) + B(x + F(x)) is about zero. Where an object has uncovered ground, it
+// does not - this block points at the object, and the object points somewhere
+// else entirely, because the object moved on while the ground stayed put.
+//
+// An earlier version of this test compared F(x) with the forward field at
+// x + F(x) and expected them to AGREE. That is a smoothness test, not a
+// consistency test: it fires on every moving pixel, which is exactly what was
+// observed when the result was painted on screen, and it led to the wrong
+// conclusion that the whole idea was useless. The idea was right; it needed
+// the second field, which did not exist yet.
+bool IsDisoccluded(int2 blockPos, float2 motion)
+{
+    const float2 sourcePixel = float2(blockPos) * BlockSizePixels + motion;
+    const int2 sourceBlock = int2(round(sourcePixel / BlockSizePixels));
+    if (sourceBlock.x < 0 || sourceBlock.y < 0 ||
+        sourceBlock.x >= (int)BlockCountX || sourceBlock.y >= (int)BlockCountY)
+        return true; // came from outside the picture: not visible before
+
+    const float2 backward = BackwardMotionVectors.Load(int3(sourceBlock, 0)).xy;
+    const float2 roundTrip = motion + backward;
+    const float miss = length(roundTrip);
+    const float allowed = min(kRoundTripFloorPx + kRoundTripTolerance * length(motion),
+                              kRoundTripCeilingPx);
+    return miss > allowed;
+}
 
 static const int kSpatialRadius = 2; // 5x5
 
@@ -41,6 +95,24 @@ static const int kSpatialRadius = 2; // 5x5
 // not to average motion away. At 0.7 a wrong vector decays to ~3% influence
 // after three real frames, while a genuine change in motion is 70% applied
 // immediately.
+// Back to 0.7 after testing 1.0 live. Switching the carry-over off shortened
+// the trail only slightly and cost a lot of smoothness - reported as feeling
+// like 20 fps - so the temporal term is not what makes the trail, and it is
+// earning its keep. The trail is spatial: see kMotionDifferenceSensitivity.
+//
+// At 0.7 a block keeps 30% of last frame.s vector, 9% the frame after. Where
+// a moving object has just passed, the background it uncovered goes on
+// carrying a fading remnant of that object.s motion - which is a trail, in the
+// time domain. That is the one place nothing else in the pipeline reaches:
+// finer blocks, edge-aware smoothing, a stricter blend threshold and a
+// confidence fallback to the real frame all left it untouched, and falling
+// back to the real frame not helping proves the trail is made of CONFIDENT
+// WRONG vectors rather than of blocks that failed to match.
+//
+// If the trail goes and flicker returns, the mechanism is confirmed and the
+// fix is to re-add this as a search CANDIDATE (3DRS-style: the previous
+// vector competes on match error and has to win) rather than as a blend on
+// the result, which cannot be outvoted by anything.
 static const float kNewFieldWeight = 0.7;
 
 // How sharply a poor match reduces a block`s influence. At 30, a block whose
@@ -92,8 +164,33 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // about the same motion and which belong to something else entirely.
     const float4 centre = RawMotionVectors.Load(int3(id.xy, 0));
 
-    float2 sum = float2(0, 0);
-    float weightSum = 0.0;
+    // A weighted vector MEDIAN, not a weighted average.
+    //
+    // The average was the trail. Averaging "the object moves 30 px" with "the
+    // background is still" gives 15 px - a vector no block reported and no
+    // content actually has. Every block in the 5x5 window straddling an object
+    // boundary got one of those, and at 8 px blocks this window reaches 40 px
+    // in every direction, so a 40 px apron of still background around a moving
+    // object was warped as if it were moving. That is a trail, and it is the
+    // one mechanism consistent with everything measured: it is made of
+    // CONFIDENT vectors (so falling back to the real frame on low confidence
+    // never touched it), it is spatial (so switching off the temporal
+    // carry-over barely shortened it), and it sits beside the object rather
+    // than only behind it (reported on the weapon and the surroundings too).
+    //
+    // A median cannot invent a value: it picks one of the vectors that was
+    // actually reported. Inside an object, where neighbours agree, it still
+    // removes outliers exactly as the average did. At a boundary it lands on
+    // whichever side is in the majority, instead of halfway between two
+    // things that are both real.
+    //
+    // Implemented as the weighted geometric median over the window: the
+    // candidate whose total weighted distance to all the others is smallest.
+    // Pure ALU on values already loaded, no extra texture reads.
+    const int kWindow = (2 * kSpatialRadius + 1) * (2 * kSpatialRadius + 1);
+    float2 candidate[kWindow];
+    float candidateWeight[kWindow];
+    int candidateCount = 0;
 
     [unroll]
     for (int dy = -kSpatialRadius; dy <= kSpatialRadius; ++dy)
@@ -107,31 +204,53 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
             float4 neighbour = RawMotionVectors.Load(int3(p, 0));
             // Match error 0 gives weight 1; a thoroughly unmatched block
-            // (error ~0.3) gives ~0.1, so it still contributes, but its
+            // (error ~0.3) gives ~0.1, so it still has a say, but its
             // neighbours decide.
             float weight = 1.0 / (1.0 + kMatchErrorSensitivity * neighbour.z);
 
-            // A neighbour moving somewhere else entirely barely counts.
-            //
-            // Averaging across a motion boundary is what drags a moving object.s
-            // vector into the still background beside it, and at 8 px blocks
-            // this window reaches 40 px in every direction. Reported from a live
-            // game as a trail behind moving bots: the background they crossed
-            // inherited their motion and was pulled along with them.
-            //
-            // Averaging still smooths noise inside an object, where neighbours
-            // agree, and stops at the edge, where they do not - which is where
-            // the smoothing was doing harm rather than good.
+            // A neighbour moving somewhere else entirely barely counts. This
+            // still matters with a median: it decides which side of a boundary
+            // holds the majority, and a badly matched block should not be the
+            // one casting that vote.
             const float2 delta = neighbour.xy - centre.xy;
             const float distance = sqrt(dot(delta, delta));
             weight *= 1.0 / (1.0 + kMotionDifferenceSensitivity * distance);
 
-            sum += neighbour.xy * weight;
-            weightSum += weight;
+            // A disoccluded neighbour does not get a vote. Its vector belongs
+            // to the object that uncovered it, not to the ground it covers,
+            // and letting it vote is what let whole uncovered regions agree
+            // on the wrong answer and out-vote the background around them.
+            if (IsDisoccluded(p, neighbour.xy))
+                continue;
+
+            candidate[candidateCount] = neighbour.xy;
+            candidateWeight[candidateCount] = weight;
+            ++candidateCount;
         }
     }
 
-    float2 spatial = weightSum > 0.0 ? sum / weightSum : float2(0, 0);
+    // Nothing but disoccluded neighbours: keep this block.s own vector rather
+    // than inventing one. Rare, and the confidence below marks it anyway.
+    float2 spatial = centre.xy;
+    float bestCost = 1e30;
+    for (int i = 0; i < candidateCount; ++i)
+    {
+        float cost = 0.0;
+        for (int j = 0; j < candidateCount; ++j)
+        {
+            const float2 d = candidate[i] - candidate[j];
+            cost += candidateWeight[j] * sqrt(dot(d, d));
+        }
+        // A candidate that matched badly is a worse representative of the
+        // neighbourhood even when it sits centrally, so its own weight
+        // discounts its cost as well.
+        cost /= max(candidateWeight[i], 1e-4);
+        if (cost < bestCost)
+        {
+            bestCost = cost;
+            spatial = candidate[i];
+        }
+    }
 
     if (HavePreviousField != 0)
     {
@@ -163,5 +282,24 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // block`s own match quality, and averaging it with its neighbours` would
     // blur exactly the localisation the metric exists to provide.
     float matchError = RawMotionVectors.Load(int3(id.xy, 0)).z;
+
+    // A disoccluded block is NOT marked as a bad match, although it was for one
+    // build and that looked reasonable.
+    //
+    // Raising its error drove the interpolator.s confidence to zero, which
+    // makes it fall back to the unwarped real frame - and that freezes those
+    // pixels for one generated frame. Painting the fallback magenta showed
+    // where it landed: a strip directly behind the moving bot. But in the
+    // generated frame the bot is supposed to be HALFWAY along, so its trailing
+    // edge still sits in that strip. Freezing it replaced the bot.s tail with
+    // ground it has not uncovered yet, so the bot was cut off at the back and
+    // drawn twice - a trail again, in the same place, produced by the repair
+    // rather than by the estimator.
+    //
+    // Nothing more is needed here: the median above has already given these
+    // blocks the motion of their non-disoccluded neighbours, which is the
+    // background.s own motion, and that is what uncovered ground actually
+    // does. It is still ground; it just was not visible before.
+
     SmoothedMotionVectors[id.xy] = float4(spatial, matchError, 0.0);
 }

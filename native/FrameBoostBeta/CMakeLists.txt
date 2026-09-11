@@ -49,6 +49,7 @@ add_custom_command(OUTPUT "${THUMB_SHADER_HEADER}"
     DEPENDS "${THUMB_SHADER_SRC}" COMMENT "Compiling thumbnail.hlsl")
 add_custom_target(CompileBetaShaders DEPENDS "${THUMB_SHADER_HEADER}" "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${COARSEST_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
 
+
 add_executable(FrameBoostBeta WIN32
     src/main.cpp
     src/logger.cpp
