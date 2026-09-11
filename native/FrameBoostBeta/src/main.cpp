@@ -197,6 +197,33 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // occlusion test distrusts green; "showfallback" paints the replacement
     // pixels magenta - which answers whether the region the detector marks is
     // the region the artefact actually occupies.
+    // "measureoutput": KNOWN BROKEN - it reports exactly 0.000000 for both
+    // real and generated frames while the capture.s own detector reports 18 to
+    // 61 on the same motion. Copying both kinds into one scratch texture to
+    // stop the detector rebuilding its buffers did not fix it. Do not read
+    // anything into its output until that is understood.
+    //
+    // It is left in place because the question it asks is still the right one,
+    // and because the question turned out to be answerable without it: during
+    // the same movement the motion field reported 40 to 112 px, and a
+    // generated frame is displaced by half of that. A picture shifted by 20 to
+    // 56 px is not a copy of its neighbour, so the extra frames do carry real
+    // intermediate motion. What is wrong with them is their CONTENT, not their
+    // existence.
+    //
+    // Originally: compares each PRESENTED frame with the one before it,
+    // in pixels.
+    //
+    // Every smoothness metric in this engine so far measures TIME - when a
+    // frame was shown, and what timestamp its content claims. None of them
+    // has ever checked that a generated frame actually looks different from
+    // the real frame beside it. If it does not, the content-step metric still
+    // reports a perfect 6.94 ms while the eye sees each picture twice, which
+    // is exactly "144 on the counter, feels like half".
+    //
+    // Forces generation into our own texture rather than straight into the
+    // back buffer, because the back buffer cannot be read back.
+    const bool measureOutputDiff = HasArg(L"measureoutput");
     const unsigned int debugTintMode = HasArg(L"showmotion") ? 4u
         : HasArg(L"showfallback") ? 3u
         : HasArg(L"showocclusion") ? 2u
@@ -432,6 +459,48 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // nearly taken as evidence that they do not.
     interpolator.SetDebugTint(debugTintMode);
     FrameBoostBeta::DuplicateDetector duplicateDetector;
+    // Separate instance, fed the PRESENTED frames in the order they go out, so
+    // each comparison is between two consecutive output frames.
+    FrameBoostBeta::DuplicateDetector outputDiff;
+    double realDiffSum = 0.0, generatedDiffSum = 0.0;
+    uint64_t realDiffCount = 0, generatedDiffCount = 0;
+    // Both kinds of frame are copied into ONE scratch texture before being
+    // measured. The detector rebuilds its buffers whenever the format or size
+    // of what it is given changes, and that throws away the previous frame it
+    // was going to compare against - so feeding it two different textures in
+    // alternation produced a comparison every time against nothing, and a
+    // difference of exactly 0.000000 while the capture.s own detector was
+    // simultaneously reporting 36.9 and 56.8 on the same motion. A measuring
+    // device that reads zero during visible movement is not measuring.
+    winrt::com_ptr<ID3D11Texture2D> outputDiffScratch;
+    auto MeasureOutputFrame = [&](ID3D11Texture2D* frame, double& sum, uint64_t& count) {
+        if (!frame) return;
+        D3D11_TEXTURE2D_DESC src{};
+        frame->GetDesc(&src);
+
+        if (outputDiffScratch) {
+            D3D11_TEXTURE2D_DESC have{};
+            outputDiffScratch->GetDesc(&have);
+            if (have.Width != src.Width || have.Height != src.Height || have.Format != src.Format)
+                outputDiffScratch = nullptr;
+        }
+        if (!outputDiffScratch) {
+            D3D11_TEXTURE2D_DESC desc = src;
+            desc.MipLevels = 1;
+            desc.ArraySize = 1;
+            desc.Usage = D3D11_USAGE_DEFAULT;
+            desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+            desc.CPUAccessFlags = 0;
+            desc.MiscFlags = 0;
+            if (FAILED(device->CreateTexture2D(&desc, nullptr, outputDiffScratch.put()))) return;
+        }
+
+        // Mip 0 only - the source may carry a chain, the scratch never does.
+        context->CopySubresourceRegion(outputDiffScratch.get(), 0, 0, 0, 0, frame, 0, nullptr);
+        outputDiff.IsDuplicate(device.get(), context.get(), outputDiffScratch.get());
+        sum += outputDiff.LastDifference();
+        ++count;
+    };
     FrameBoostBeta::MotionStats motionStats;
     uint64_t duplicateFramesSinceReport = 0;
     // Snapshot of the capture.s own unchanged-frame counter at the last report,
@@ -891,6 +960,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double queueTimestampMs[kFrameQueueSize] = {};
     int queueHead = 0;   // next to be fed to the estimator
     int queueCount = 0;
+    // Sampled every turn of the loop, not once a second: the depth is the
+    // buffer that absorbs a late frame, and a single snapshot cannot tell a
+    // queue that is always empty from one that is merely empty at that moment.
+    int queueDepthMin = 9999, queueDepthMax = 0;
+    double queueDepthSum = 0.0;
+    uint64_t queueDepthSamples = 0;
     UINT queueWidth = 0, queueHeight = 0;
     uint64_t queueDroppedSinceReport = 0;
 
@@ -1157,7 +1232,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR (generation continues - the one-frame buffer covers it)" : "steady")
                 : std::string("N/A"))
-            << " | Queue depth: " << queueCount << " (dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
+            << (measureOutputDiff
+                ? " | Output pixel change: real " + std::to_string(realDiffCount ? realDiffSum / realDiffCount : 0.0)
+                  + ", generated " + std::to_string(generatedDiffCount ? generatedDiffSum / generatedDiffCount : 0.0)
+                  + " (mean per-tile difference, 0-255; equal values mean both carry real motion,"
+                  + " generated near 0 means the extra frames are copies)"
+                : std::string(""))
+            << " | Queue depth: " << queueCount
+            << " (min " << (queueDepthSamples ? queueDepthMin : 0)
+            << ", max " << queueDepthMax
+            << ", mean " << (queueDepthSamples ? queueDepthSum / queueDepthSamples : 0.0)
+            << ", dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
             << " | Presents lost to collision: " << (gapSamples ? 100.0 * gapCollapsed / gapSamples : -1.0) << "%"
             << " | Content step: " << (contentStepCount ? contentStepSum / contentStepCount : -1.0) << " ms mean, min "
             << (contentStepCount ? contentStepMin : -1.0) << ", max " << (contentStepCount ? contentStepMax : -1.0)
@@ -1194,6 +1279,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         FrameBoostBeta::Logger::Log(oss.str());
 
+        realDiffSum = generatedDiffSum = 0.0; realDiffCount = generatedDiffCount = 0;
+        queueDepthMin = 9999; queueDepthMax = 0; queueDepthSum = 0.0; queueDepthSamples = 0;
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         duplicateFramesSinceReport = 0;
@@ -1899,6 +1986,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     } else if (estimator.CurrFrameTexture()) {
                         presenter.PresentFrame(context.get(), estimator.CurrFrameTexture(), presentSyncInterval);
                     }
+                    if (measureOutputDiff) MeasureOutputFrame(estimator.CurrFrameTexture(), realDiffSum, realDiffCount);
                     ++nativeFramesSinceReport;
                     RecordContentStep(motionCurrTimestampMs);
                     RecordPresentGap(NowMs());
@@ -1923,7 +2011,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     interpolator.SetPhase(0.5f);
                     interpolator.SetStatusFlags((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u);
 
-                    ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
+                    ID3D11UnorderedAccessView* uav = measureOutputDiff
+                        ? nullptr
+                        : presenter.AcquireBackBufferUAV(device.get());
                     if (interpolator.GenerateFrame(device.get(), context.get(),
                             estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                             desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
@@ -1934,6 +2024,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                         else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                        if (measureOutputDiff) MeasureOutputFrame(interpolator.GeneratedFrameTexture(), generatedDiffSum, generatedDiffCount);
                         ++generatedFramesSinceReport;
                         RecordContentStep(generatedContentMs);
                         RecordPresentGap(NowMs());
@@ -2102,6 +2193,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // the current one - driven by the clock, never by frame arrivals. This
         // is what actually absorbs an irregular source: a frame that arrives
         // late was already buffered, and one that arrives early simply waits.
+        if (queueCount < queueDepthMin) queueDepthMin = queueCount;
+        if (queueCount > queueDepthMax) queueDepthMax = queueCount;
+        queueDepthSum += queueCount;
+        ++queueDepthSamples;
+
         if (bufferOneFrame && queueCount > 0 && presentOffsetMs > 0.0) {
             const double contentTimeMs = NowMs() - presentOffsetMs;
             const bool pairConsumed = (motionCurrTimestampMs <= 0.0) || (contentTimeMs >= motionCurrTimestampMs);
@@ -2201,10 +2297,41 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // slowly and falls when it runs too fast, so a gentle pull
                 // toward a target depth holds the content moving at a constant
                 // rate.
+                // Proportional, with a hard brake when the queue runs dry.
+                //
+                // A flat 0.02 ms per frame is 2.9 ms of correction per second,
+                // which cannot answer a queue that has just emptied. And an
+                // empty queue is not a small error: the clock has nothing to
+                // advance to, so the content STOPS, and when the next frame
+                // arrives it jumps the whole accumulated distance at once.
+                //
+                // Measured over 471 seconds against the simple path: this mode
+                // is three times steadier on average (content-step deviation
+                // 0.79 against 2.38) and has five times as many hard stalls
+                // (28% of seconds contain a jump above 14 ms, against 5.7%).
+                // Both halves were reported in the same breath - "smoother"
+                // and "unbelievable stutters" - and the queue.s minimum depth
+                // of 0 is where the second half comes from.
+                //
+                // So the correction scales with how far off the depth is, and
+                // an empty queue gets 0.5 ms at once. That slows the content
+                // clock briefly, which is visible as a slight slowdown rather
+                // than as a stall followed by a jump - the better of the two.
+                // 3 was tried and measured no better: the mean depth stayed at 1.5
+                // either way, because frames arrive and are consumed at the
+                // same rate and the depth is set by the clock offset, not by
+                // the target. Content steps above 14 ms became slightly more
+                // frequent, so it went back.
                 constexpr int kTargetQueueDepth = 2;
                 constexpr double kClockNudgeMs = 0.02;
-                if (queueCount > kTargetQueueDepth) presentOffsetMs -= kClockNudgeMs;
-                else if (queueCount < kTargetQueueDepth) presentOffsetMs += kClockNudgeMs;
+                constexpr double kEmptyQueueBrakeMs = 0.5;
+                if (queueCount == 0) {
+                    presentOffsetMs += kEmptyQueueBrakeMs;
+                } else if (queueCount > kTargetQueueDepth) {
+                    presentOffsetMs -= kClockNudgeMs * (queueCount - kTargetQueueDepth);
+                } else if (queueCount < kTargetQueueDepth) {
+                    presentOffsetMs += kClockNudgeMs * (kTargetQueueDepth - queueCount);
+                }
 
                 const double minOffset = realIntervalMs * 0.6;
                 const double maxOffset = realIntervalMs * 3.0;
