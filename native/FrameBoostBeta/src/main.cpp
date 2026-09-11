@@ -16,6 +16,8 @@
 #include <sstream>
 #include <utility>
 #include <string>
+#include <algorithm>
+#include <iomanip>
 #include <vector>
 #include <cmath>
 #include <functional>
@@ -593,6 +595,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Taking frames away from someone who asked for more of them is the one
     // outcome this feature must never produce.
     double generationCostEmaMs = -1.0;
+
+    // HEADROOM CHECK: does this machine actually have time to do the work?
+    //
+    // A generated frame is due half a source period after the real one it
+    // follows, and that deadline is not the same on every machine. At 72 fps on
+    // a 144 Hz panel it is 6.9 ms; at 120 fps on a 240 Hz panel it is 4.2 ms,
+    // and 120 of them have to be produced every second rather than 72. The same
+    // engine that is comfortable here can be hopeless there, and the user has
+    // no way to tell which - they only see stutter and blame the tool.
+    //
+    // So the cost is kept as a distribution, not an average. The average is
+    // what the guard uses to decide whether to stand aside, but the question
+    // "will this work for you" is decided by the BAD frames: an engine that
+    // makes its deadline 90% of the time misses it 12 times a second.
+    //
+    // Content-dependent, so it has to be measured on content - the same
+    // lesson that cost two wrong verdicts today, both taken on an idle
+    // desktop where the expensive paths are never entered.
+    // TWO constraints, and they are not the same question - which the first
+    // version of this check got wrong, and said so loudly: it reported "NOT
+    // ENOUGH" on a machine that had just been described as very smooth.
+    //
+    // The DEADLINE belongs to interpolation alone. Motion estimation runs once
+    // per real frame, when that frame arrives - it is finished long before the
+    // generated frame is due. Charging it against the half-period deadline
+    // counts work that happens in the other half.
+    //
+    // THROUGHPUT is both of them together, against the whole period: every
+    // source frame costs one estimation and one interpolation, and whatever
+    // that adds up to is taken from the game.
+    static constexpr int kCostHistorySize = 600; // ~8 s of generated frames
+    double costHistory[kCostHistorySize] = {};      // estimation + interpolation
+    double interpHistory[kCostHistorySize] = {};    // interpolation alone
+    int costHistoryCount = 0;
+    int costHistoryNext = 0;
+
+    // Returns the verdict as a line meant for a human, not for a log reader.
     bool gpuHasRoom = true;
     double gpuRoomVerdictSinceMs = 0.0;
     double lastInterpolationRunMs = 0.0;
@@ -888,6 +927,44 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // tracked with a slow average, and pacing uses THAT, not the per-pair
     // measurement. Jitter in the capture stops reaching the output at all.
     double lockedPeriodMs = -1.0;
+    auto HeadroomVerdict = [&]() -> std::string {
+        if (costHistoryCount < 60 || lockedPeriodMs <= 1.0)
+            return "measuring - play for a few seconds";
+
+        std::vector<double> totals(costHistory, costHistory + costHistoryCount);
+        std::sort(totals.begin(), totals.end());
+        const double medianTotal = totals[totals.size() / 2];
+
+        std::vector<double> interps(interpHistory, interpHistory + costHistoryCount);
+        std::sort(interps.begin(), interps.end());
+        const double medianInterp = interps[interps.size() / 2];
+        const double p95Interp = interps[(interps.size() * 95) / 100];
+
+        const double deadlineMs = lockedPeriodMs * 0.5;
+        const double sourceFps = 1000.0 / lockedPeriodMs;
+        // Share of every second this engine takes from the graphics card - the
+        // other way it can fail, by starving the game rather than by missing a
+        // deadline. One estimation and one interpolation per source frame.
+        const double gpuSharePercent = medianTotal * sourceFps / 10.0;
+
+        int overDeadline = 0;
+        for (double c : interps) if (c > deadlineMs) ++overDeadline;
+        const double missPercent = 100.0 * overDeadline / costHistoryCount;
+
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(1);
+        if (missPercent < 2.0 && gpuSharePercent < 35.0)
+            oss << "COMFORTABLE";
+        else if (missPercent < 15.0 && gpuSharePercent < 55.0)
+            oss << "TIGHT";
+        else
+            oss << "NOT ENOUGH";
+        oss << " - interpolation " << medianInterp << " ms median, " << p95Interp
+            << " ms at the 95th percentile, against a " << deadlineMs << " ms deadline ("
+            << missPercent << "% late); estimation plus interpolation takes "
+            << gpuSharePercent << "% of the graphics card at " << sourceFps << " source FPS";
+        return oss.str();
+    };
     auto UpdateSourcePeriod = [&](double intervalMs) {
         if (!(intervalMs > 1.0 && intervalMs < 100.0)) return;
         // A plain slow average, with no tolerance window around the current
@@ -1274,6 +1351,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Headroom: " << HeadroomVerdict()
             << " | Locked source period: " << lockedPeriodMs << " ms (" << (lockedPeriodMs > 0 ? 1000.0 / lockedPeriodMs : 0.0) << " FPS)"
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR (generation continues - the one-frame buffer covers it)" : "steady")
@@ -1902,6 +1980,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             const double interpMs = interpFresh ? interpolator.LastGpuTimeMs() : meGpuMs;
             const double costMs = (meGpuMs >= 0.0 ? meGpuMs : 0.0) + (interpMs >= 0.0 ? interpMs : 0.0);
             if (costMs > 0.0) {
+                costHistory[costHistoryNext] = costMs;
+                interpHistory[costHistoryNext] = (interpMs >= 0.0) ? interpMs : 0.0;
+                costHistoryNext = (costHistoryNext + 1) % kCostHistorySize;
+                if (costHistoryCount < kCostHistorySize) ++costHistoryCount;
+
                 generationCostEmaMs = generationCostEmaMs < 0.0
                     ? costMs
                     : generationCostEmaMs * 0.8 + costMs * 0.2;
