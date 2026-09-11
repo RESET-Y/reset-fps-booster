@@ -161,6 +161,22 @@ float3 LinearToSrgb(float3 c)
 // pixels: in a grey industrial scene two entirely different places often
 // differ by less than the per-pixel test`s threshold, so it waves them
 // through and the two get blended into a ghost.
+// The four block vectors around a pixel, so a pixel can choose between them
+// instead of being handed their average.
+void GatherBlockMotion(float2 pixelCenter, uint2 blockCount, out float3 corners[4])
+{
+    float2 gridPos = pixelCenter / BlockSize - 0.5;
+    float2 baseF = floor(gridPos);
+
+    int2 b00 = clamp(int2(baseF), int2(0, 0), int2(blockCount) - 1);
+    int2 b11 = clamp(b00 + int2(1, 1), int2(0, 0), int2(blockCount) - 1);
+
+    corners[0] = MotionVectors.Load(int3(b00, 0)).xyz;
+    corners[1] = MotionVectors.Load(int3(int2(b11.x, b00.y), 0)).xyz;
+    corners[2] = MotionVectors.Load(int3(int2(b00.x, b11.y), 0)).xyz;
+    corners[3] = MotionVectors.Load(int3(b11, 0)).xyz;
+}
+
 float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
 {
     // Position within the block grid, offset by half a block so that a
@@ -182,6 +198,16 @@ float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
     return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
 }
 
+// How badly the two frames disagree at this pixel when read along v. Zero
+// means both frames show the same content there, which is what a correct
+// vector produces.
+float Residual(float2 pixelCenter, float2 dims, float2 v)
+{
+    const float3 p = PrevFrame.SampleLevel(LinearClamp, (pixelCenter + (1.0 - PhaseT) * v) / dims, 0).rgb;
+    const float3 q = CurrFrame.SampleLevel(LinearClamp, (pixelCenter - PhaseT * v) / dims, 0).rgb;
+    return dot(abs(p - q), float3(1.0, 1.0, 1.0));
+}
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
@@ -198,6 +224,54 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float3 motionAndError = SampleMotionBilinear(pixelCenter, blockCount);
     float2 mv = motionAndError.xy;
     float blockMatchError = motionAndError.z;
+
+    // PER-PIXEL vector selection, between the interpolated vector and the four
+    // block vectors it was interpolated from.
+    //
+    // The interpolated vector is right in the middle of an object and right in
+    // the middle of the background, and wrong along the boundary between them -
+    // where it is a mixture of two motions that no content actually has. A
+    // pixel there is pulled to a position that belongs to neither, which is
+    // what draws a moving object a second time a few pixels off. Blocks are 8
+    // px and the interpolation spans two of them, so this band is 16 px wide
+    // around every moving edge in the picture.
+    //
+    // A pixel can settle this for itself without any search: a vector is right
+    // for this pixel when the two frames, sampled along it, agree HERE. So the
+    // candidates are tested and the one with the smallest disagreement wins.
+    // Five candidates, no extra motion-field reads beyond the four corners,
+    // and every pixel inside an object keeps the vector it already had,
+    // because there all five candidates are the same.
+    //
+    // This is the standard answer in frame-rate conversion for exactly this
+    // artefact - per-pixel selection among neighbouring block vectors rather
+    // than smoothing the vector field, which cannot help: the field is not
+    // noisy, it is correct on both sides and undefined in between.
+    {
+        float3 corners[4];
+        GatherBlockMotion(pixelCenter, blockCount, corners);
+
+        // The interpolated vector is the incumbent: it starts as the winner, so
+        // a corner has to be strictly better to displace it.
+        float bestResidual = Residual(pixelCenter, dims, mv);
+        float2 bestMv = mv;
+        float bestError = blockMatchError;
+
+        [unroll]
+        for (int c = 0; c < 4; ++c)
+        {
+            const float residual = Residual(pixelCenter, dims, corners[c].xy);
+            if (residual < bestResidual)
+            {
+                bestResidual = residual;
+                bestMv = corners[c].xy;
+                bestError = corners[c].z;
+            }
+        }
+
+        mv = bestMv;
+        blockMatchError = bestError;
+    }
 
     // OCCLUSION, found in the motion field itself rather than in the colours.
     //
