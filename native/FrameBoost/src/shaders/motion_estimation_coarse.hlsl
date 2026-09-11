@@ -23,20 +23,46 @@ RWTexture2D<float4> CoarseMotionVectors : register(u0);
 // Blocks and offsets below are in MIP-2 texels throughout.
 static const int kMipLevel = 2;
 static const int kMipScale = 4;              // 1 texel here = 4 full-res pixels
-static const int kBlockSize = 16;            // = 64 full-resolution pixels
+// 8 texels at mip 2 = 32 full-resolution pixels, halved from 64.
+//
+// At 64 px a moving object smaller than that sits entirely inside one coarse
+// block together with the background around it, and the block reports whatever
+// covers more of it - the background. Every fine block on the object then
+// starts from "the background moves like this" and may refine it by +-6 px,
+// so an object moving differently from the scene behind it is unrepresentable.
+// Measured during live movement: the motion field reported 40 to 112 px, and
+// an enemy crossing that scene was reported as duplicating itself a few pixels
+// away - a generated frame that leaves the object almost where the real frame
+// has it, which is what an unreachable vector looks like.
+//
+// At 32 px an object of that size dominates its own block instead of being
+// outvoted by its surroundings. Four times as many coarse blocks, but this
+// level runs at quarter resolution and is a small part of the total.
+static const int kBlockSize = 8;             // = 32 full-resolution pixels
 static const int kBlockSampleStride = 4;     // 4x4 = 16 samples per candidate
 // Radius reduced from 12 now that a coarsest level (mip 4) runs first: this
 // stage only refines around that result instead of searching from zero, so it
 // needs to cover the coarsest level's step size (16 full-resolution pixels =
 // 4 texels here) plus a margin. Six texels = 24 full-resolution pixels is
 // ample, and costs 169 candidates per block instead of 625.
-static const int kSearchRadius = 6;          // = 24 full-resolution pixels
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 13
+// 4 texels = 16 full-resolution pixels, cut from 6 (24 px).
+//
+// This stage does not have to FIND motion, only bridge the step of the level
+// above it, and that step is 16 full-resolution pixels - which radius 4 covers
+// exactly. Radius 6 bought margin that halving the block size made
+// unaffordable: four times as many blocks at 169 candidates each took motion
+// estimation from 3.5 ms to 9 ms, past the 6.9 ms a generated frame has. At
+// radius 4 it is 81 candidates.
+static const int kSearchRadius = 4;          // = 16 full-resolution pixels
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 9
 static const int kCandidateCount = kSearchWindow * kSearchWindow; // 169
 
 // One coarsest block covers 4x4 of this level's blocks, and its vectors are
 // stored in mip-4 texels - four of this level's texels each.
-static const int kCoarsestBlockRatio = 4;
+// 256 px coarsest block / 32 px coarse block. Was 4 when the coarse block
+// was 64 px wide; halving that block doubled how many of them one coarsest
+// block spans.
+static const int kCoarsestBlockRatio = 8;
 static const int kCoarsestToCoarseScale = 4;
 
 Texture2D<float4> CoarsestMotionVectors : register(t2);

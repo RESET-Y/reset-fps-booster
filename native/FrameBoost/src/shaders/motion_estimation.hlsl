@@ -142,7 +142,7 @@ static const float kStaticBlockSad = 0.5;
 // vectors are stored in mip-2 texels.
 // One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
 // it now covers 8 of them per axis rather than 4.
-static const int kCoarseBlockRatio = 8;
+static const int kCoarseBlockRatio = 4;
 static const int kCoarseToFineScale = 4;
 
 Texture2D<float4> CoarseMotionVectors : register(t2);

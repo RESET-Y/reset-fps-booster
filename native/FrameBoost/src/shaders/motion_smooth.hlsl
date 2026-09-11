@@ -34,6 +34,10 @@ cbuffer BlockGridDims : register(b0)
     uint BlockCountY;
     uint HavePreviousField; // 0 on the first frame after a resolution change
     uint BlockSizePixels;
+    uint HaveBackwardField; // 0 when the backward pass did not run
+    uint _pad0;
+    uint _pad1;
+    uint _pad2;
 };
 
 // How far the round trip may miss before the block counts as content that was
@@ -75,6 +79,10 @@ static const float kRoundTripCeilingPx = 12.0;
 // the second field, which did not exist yet.
 bool IsDisoccluded(int2 blockPos, float2 motion)
 {
+    // Without the backward pass there is nothing to compare against, and the
+    // stale contents of that texture would mark almost everything.
+    if (HaveBackwardField == 0) return false;
+
     const float2 sourcePixel = float2(blockPos) * BlockSizePixels + motion;
     const int2 sourceBlock = int2(round(sourcePixel / BlockSizePixels));
     if (sourceBlock.x < 0 || sourceBlock.y < 0 ||

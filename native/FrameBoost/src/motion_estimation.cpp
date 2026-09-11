@@ -20,8 +20,20 @@ constexpr UINT kBlockSize = 8; // see the cost discussion in motion_estimation.h
 // blocks, so one coarse block covers 64 full-resolution pixels = 4x4 fine
 // blocks. MUST stay in sync with motion_estimation_coarse.hlsl.
 constexpr UINT kMipLevels = 5; // full, 1/2, 1/4, 1/8, 1/16 - the pyramid needs mip 4
-constexpr UINT kCoarseBlockRatio = 8; // 64px coarse block / 8px fine block
-constexpr UINT kCoarsestBlockRatio = 4; // coarsest blocks per coarse block, each axis
+constexpr UINT kCoarseBlockRatio = 4; // 32px coarse block / 8px fine block
+// The backward motion field costs as much again as the forward one, and it
+// exists only to feed the disocclusion test in motion_smooth.hlsl. That test
+// works - the field behind a moving object goes dark in the diagnostic - but
+// the artefact it was built for was still reported as present afterwards, so
+// what it buys is unproven while what it costs is measured.
+//
+// Halving the coarse block size needs that budget and targets the artefact
+// that IS reported: an object whose motion the search cannot represent at all.
+// Generation cost with both: 8-9 ms against the 6.9 ms a generated frame has.
+// So this is off, and kept rather than deleted.
+constexpr bool kUseBackwardField = false;
+
+constexpr UINT kCoarsestBlockRatio = 8; // coarsest blocks per coarse block, each axis
 
 void SafeRelease(IUnknown* obj) {
     if (obj) obj->Release();
@@ -189,8 +201,12 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     D3D11_SUBRESOURCE_DATA cbInit{ &frameDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &cbInit, &m_frameDimsCB);
 
-    struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, pad1; };
-    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, 0 }; // no history yet
+    // The buffer is sized from FrameDimsCB (eight UINTs), so there is room.
+    struct BlockGridDimsCB {
+        UINT blockCountX, blockCountY, havePrevious, blockSizePixels;
+        UINT haveBackwardField, pad0, pad1, pad2;
+    };
+    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, kBlockSize, 0, 0, 0, 0 }; // no history yet
     D3D11_SUBRESOURCE_DATA gridCbInit{ &gridDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &gridCbInit, &m_blockGridDimsCB);
 
@@ -304,6 +320,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         // "wiggling" reported in a game, where the image warped slightly
         // differently from frame to frame.
 
+        // OFF unless asked for - see kUseBackwardField below.
         // The BACKWARD field: the same three passes with the two frames
         // swapped, so it answers "where did the previous frame's content go?"
         // instead of "where did this content come from?".
@@ -332,7 +349,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         //
         // The coarse and coarsest buffers are scratch and are reused - the
         // forward result is already in m_motionVectorRawTex by this point.
-        {
+        if (kUseBackwardField) {
             ID3D11ShaderResourceView* swappedSrvs[2] = { m_currFrameSRV, m_prevFrameSRV };
             context->CSSetShaderResources(0, 2, swappedSrvs);
             context->CSSetUnorderedAccessViews(0, 1, &m_coarsestMotionUAV, nullptr);
@@ -361,8 +378,12 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
             context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
         }
         {
-            struct BlockGridDimsCB { UINT blockCountX, blockCountY, havePrevious, blockSizePixels; };
-            BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, kBlockSize };
+            struct BlockGridDimsCB {
+                UINT blockCountX, blockCountY, havePrevious, blockSizePixels;
+                UINT haveBackwardField, pad0, pad1, pad2;
+            };
+            BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, kBlockSize,
+                                      kUseBackwardField ? 1u : 0u, 0, 0, 0 };
             context->UpdateSubresource(m_blockGridDimsCB, 0, nullptr, &gridDims, 0, 0);
         }
 
