@@ -697,7 +697,53 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // sat for 36 seconds without writing a single telemetry line. On screen
     // that is one frozen frame: reported as "stuck again". The same guard
     // covers a pause, an alt-tab or a loading screen.
+    // The source's TRUE period, locked on rather than followed.
+    //
+    // Pacing used to take the raw interval between the two frames of the
+    // current pair. That interval is what the capture reports, and the capture
+    // is not a clock: measured live against a game sitting steadily on its
+    // 72 fps cap, it delivered 13.66 ms +- 2.47, 18.03 +- 8.44, and at times
+    // 25.57 +- 15.32 - deviations of 18% to 60% on a source that was not
+    // varying at all.
+    //
+    // That interval is then replayed uniformly across the output slots it
+    // spans, so a wrong interval does not cost a frame, it changes the SPEED
+    // the motion is shown at. Alternating fast and slow playback is read by
+    // the eye as stutter, and it is read that way even when every present
+    // lands on its refresh - which is why the output measured a clean 144 and
+    // was still described as feeling like 20-30 fps.
+    //
+    // A game.s frame period is a physical constant over the second or two that
+    // matters here: a 72 fps cap is 13.889 ms and stays there. So the period is
+    // tracked with a slow average, and pacing uses THAT, not the per-pair
+    // measurement. Jitter in the capture stops reaching the output at all.
+    double lockedPeriodMs = -1.0;
+    auto UpdateSourcePeriod = [&](double intervalMs) {
+        if (!(intervalMs > 1.0 && intervalMs < 100.0)) return;
+        // A plain slow average, with no tolerance window around the current
+        // value.
+        //
+        // The window was the bug. It was there to reject outliers, but the
+        // arithmetic mean of the intervals IS the true period by definition -
+        // total elapsed time over the number of frames - so a stall is not a
+        // distortion to be rejected, it is part of the answer. Rejecting
+        // samples relative to the current estimate rejects them asymmetrically
+        // instead, which locks in whatever bias the estimate already has: it
+        // was measured stuck at 19.3 ms (51.8 FPS) against a source delivering
+        // 63.6, and could not walk back to it.
+        //
+        // 0.03 gives a time constant of about 30 real frames - half a second
+        // at these rates. Long enough that per-frame capture jitter never
+        // reaches the output, short enough to follow a genuine rate change
+        // without needing a special case for one.
+        lockedPeriodMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
+            ? lockedPeriodMs * 0.97 + intervalMs * 0.03
+            : intervalMs;
+    };
+
     auto PacingInterval = [&]() {
+        // The lock, not the measurement - see UpdateSourcePeriod above.
+        if (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0) return lockedPeriodMs;
         const double raw = motionCurrTimestampMs - motionPrevTimestampMs;
         if (raw > 1.0 && raw < 100.0) return raw;
         if (realFrameIntervalEmaMs > 1.0 && realFrameIntervalEmaMs < 100.0) return realFrameIntervalEmaMs;
@@ -991,6 +1037,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (elapsed < 1.0) return;
 
         double nativeFps = nativeFramesSinceReport / elapsed;
+
         double generatedFps = generatedFramesSinceReport / elapsed;
         double outputFps = nativeFps + generatedFps;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
@@ -1051,6 +1098,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Locked source period: " << lockedPeriodMs << " ms (" << (lockedPeriodMs > 0 ? 1000.0 / lockedPeriodMs : 0.0) << " FPS)"
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
                 ? std::to_string(100.0 * intervalDeviationEmaMs / realFrameIntervalEmaMs) + "% deviation, " + (sourceIsIrregular ? "IRREGULAR (generation continues - the one-frame buffer covers it)" : "steady")
                 : std::string("N/A"))
@@ -1403,6 +1451,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     realFrameIntervalEmaMs = realFrameIntervalEmaMs < 0.0
                         ? intervalMs
                         : realFrameIntervalEmaMs * 0.8 + intervalMs * 0.2;
+                    // The interval between two REAL frames - the thing pacing
+                    // has to reproduce. Not the capture.s publish rate, which
+                    // counts overlays and cursor updates the game never drew,
+                    // and which locked the period at 124 FPS against a 68 FPS
+                    // source.
+                    UpdateSourcePeriod(intervalMs);
                 }
             }
             // The source rate is taken from the CAPTURE, where every published
@@ -1426,6 +1480,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (useDesktopDuplication) {
                 const double published = ddCapture.PublishedIntervalMs();
                 if (published > 0.5 && published < 100.0) pacingIntervalMs = published;
+                // And it is what the period lock tracks. It is measured AT the
+                // capture, where every published frame is seen, so it does not
+                // depend on how fast this loop manages to pace its output -
+                // which an earlier attempt did, producing a feedback loop that
+                // stabilised the whole engine at 73 FPS.
             }
 
             lastFrameTimestamp100ns = frameTimestamp100ns;
