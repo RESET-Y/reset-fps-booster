@@ -57,6 +57,7 @@ add_executable(FrameBoostBeta WIN32
     src/beta_presenter.cpp
     src/duplicate_detector.cpp
     src/motion_stats.cpp
+    src/mouse_tracker.cpp
     src/pipeline_audit.cpp
     src/desktop_duplication_capture.cpp
     src/frame_dump.cpp

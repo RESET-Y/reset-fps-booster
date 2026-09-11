@@ -38,6 +38,11 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
 
     size_t movingBlocks = 0, totalBlocks = 0, saturatedBlocks = 0, poorMatchBlocks = 0;
     double magnitudeSum = 0.0, magnitudeMax = 0.0;
+    // SIGNED sum, unlike the magnitude above: a camera pan moves the whole
+    // picture the same way, and that direction is what can be compared against
+    // a mouse movement. Magnitudes cannot - they are positive whichever way
+    // the scene went.
+    double vectorSumX = 0.0, vectorSumY = 0.0;
     double matchErrorSum = 0.0, matchErrorMax = 0.0;
 
     // Mean absolute difference per channel, above which the best candidate is
@@ -60,6 +65,8 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
             if (magnitude >= 0.5) {
                 ++movingBlocks;
                 magnitudeSum += magnitude;
+                vectorSumX += mx;
+                vectorSumY += my;
                 if (magnitude > magnitudeMax) magnitudeMax = magnitude;
 
                 // Either component sitting at the COARSEST stage.s per-axis limit
@@ -84,6 +91,8 @@ bool MotionStats::SampleIfDue(ID3D11Device* device, ID3D11DeviceContext* context
     if (totalBlocks == 0) return false;
     m_movingPercent = 100.0 * static_cast<double>(movingBlocks) / static_cast<double>(totalBlocks);
     m_meanMagnitude = movingBlocks ? magnitudeSum / static_cast<double>(movingBlocks) : 0.0;
+    m_meanVectorX = movingBlocks ? vectorSumX / static_cast<double>(movingBlocks) : 0.0;
+    m_meanVectorY = movingBlocks ? vectorSumY / static_cast<double>(movingBlocks) : 0.0;
     m_maxMagnitude = magnitudeMax;
     m_saturatedPercent = movingBlocks ? 100.0 * static_cast<double>(saturatedBlocks) / static_cast<double>(movingBlocks) : 0.0;
     m_meanMatchError = totalBlocks ? matchErrorSum / static_cast<double>(totalBlocks) : 0.0;

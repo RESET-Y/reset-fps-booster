@@ -30,7 +30,17 @@ constexpr UINT kCoarseBlockRatio = 4; // 32px coarse block / 8px fine block
 // Halving the coarse block size needs that budget and targets the artefact
 // that IS reported: an object whose motion the search cannot represent at all.
 // Generation cost with both: 8-9 ms against the 6.9 ms a generated frame has.
-// So this is off, and kept rather than deleted.
+// OFF again, and this time with the cost measured in a game rather than on a
+// desktop: motion estimation ran at 6.6 to 9.7 ms with it, against a 6.9 ms
+// budget for the whole generated frame. It was switched back on when that same
+// measurement, taken while nothing moved, read 2.35 ms.
+//
+// It remains the only measure that has ever visibly moved the trail - with the
+// motion field on screen, the ground behind a walking bot went dark. But it
+// doubles the search for a benefit that has never survived to the picture, and
+// the budget it takes is now wanted for the mouse prediction, which is cheap
+// and can be judged directly.
+
 constexpr bool kUseBackwardField = false;
 
 constexpr UINT kCoarsestBlockRatio = 8; // coarsest blocks per coarse block, each axis

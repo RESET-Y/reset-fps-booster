@@ -26,6 +26,10 @@ public:
     double MovingBlockPercent() const { return m_movingPercent; }  // blocks with a non-zero vector
     double MeanMagnitudePixels() const { return m_meanMagnitude; } // averaged over MOVING blocks only
     double MaxMagnitudePixels() const { return m_maxMagnitude; }
+    // The average vector WITH its sign - the direction the picture as a whole
+    // moved. A camera pan shows up here; scattered local motion cancels out.
+    double MeanVectorX() const { return m_meanVectorX; }
+    double MeanVectorY() const { return m_meanVectorY; }
 
     // Share of MOVING blocks whose vector sits on the edge of the search
     // window. Those blocks did not find their match - the search ran out of
@@ -56,6 +60,8 @@ private:
     double m_movingPercent = -1.0;
     double m_meanMagnitude = -1.0;
     double m_maxMagnitude = -1.0;
+    double m_meanVectorX = 0.0;
+    double m_meanVectorY = 0.0;
     double m_saturatedPercent = -1.0;
     double m_meanMatchError = -1.0;
     double m_maxMatchError = -1.0;

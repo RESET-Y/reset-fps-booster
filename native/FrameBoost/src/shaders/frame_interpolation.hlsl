@@ -54,6 +54,10 @@ cbuffer InterpolationParams : register(b0)
     // later frame to copy it from - so revealed areas can only be filled with
     // what the current frame already shows there.
     float ExtrapolateAhead;
+    // Where the camera is being turned, in pixels of expected screen shift,
+    // derived from raw mouse movement. Zero when unknown.
+    float2 MousePrediction;
+    float2 _mousePad;
 
     // Status indicator, drawn as small squares in the top-left corner so the
     // active modes are visible on screen. Needed because the hotkeys had no
@@ -233,6 +237,13 @@ float Residual(float2 pixelCenter, float2 dims, float2 v)
     return dot(abs(p - q), float3(1.0, 1.0, 1.0));
 }
 
+// A five-tap window version of this lived here and was removed with the
+// per-pixel search it was built for. It broke ties honestly - on a wall, in
+// sky, in smoke, a dozen vectors land on the same colour and a single pixel
+// lets noise pick the winner - but five times the samples is five times the
+// cost on exactly the pixels that already cost the most, and in a moving game
+// that is most of the screen.
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
@@ -305,6 +316,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             GatherBlockMotion(pixelCenter, blockCount, candidates);
 
 
+
         [unroll]
         for (int c = 0; c < kMotionCandidates; ++c)
         {
@@ -336,6 +348,58 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             bestResidual = stillResidual;
             bestMv = float2(0.0, 0.0);
         }
+
+        // THE MOUSE is a candidate too.
+        //
+        // Every other candidate here comes from two frames that are already in
+        // the past. None of them can know that the player has just flicked
+        // right, because no rendered frame shows it yet - the input exists a
+        // whole frame before the picture it eventually produces, and in a
+        // shooter the mouse IS the camera, so it is the dominant motion of the
+        // next frame. This is what VR calls reprojection.
+        //
+        // Offering it as a candidate rather than applying it is what makes it
+        // safe, and it also sidesteps a calibration that measurement showed we
+        // cannot get exactly: mouse counts convert to pixels through the game.s
+        // sensitivity and field of view, and fitting that against measured
+        // picture motion gave a vertical factor stable to 1% but a horizontal
+        // one wandering by a factor of two - because horizontal picture motion
+        // comes from strafing as well as from turning, while vertical motion is
+        // almost purely the mouse.
+        //
+        // As a candidate it needs no precision. If the prediction is right it
+        // wins on residual and the generated frame shows input the game has not
+        // drawn yet; if it is wrong - because the player was strafing, or the
+        // pixel belongs to a weapon or an enemy rather than the world - it
+        // loses and costs one comparison. The picture judges, not the
+        // calibration.
+        if (any(MousePrediction != 0.0))
+        {
+            const float mouseResidual = Residual(pixelCenter, dims, MousePrediction);
+            if (mouseResidual < bestResidual)
+            {
+                bestResidual = mouseResidual;
+                bestMv = MousePrediction;
+            }
+        }
+
+        // A per-pixel SEARCH around the winner was tried here and removed.
+        //
+        // The idea is sound and nothing else covers it: everything above is
+        // selection, so an object narrower than a block, or moving unlike every
+        // block that overlaps it, never had its vector estimated at all. A
+        // weapon barrel or an arm is exactly that.
+        //
+        // It cost too much, and the reason the first measurements missed that
+        // is worth more than the feature: they were taken on an idle desktop,
+        // where almost nothing moves, almost no pixel fails and the expensive
+        // branch is almost never entered - 0.5 ms. In a game half the screen is
+        // moving, the branch fires across all of it, and the same code measured
+        // up to 18.5 ms with 59 of 212 seconds over budget and eight stalls.
+        // Reported as the booster switching itself off, which it was.
+        //
+        // Anything whose cost depends on picture content has to be measured on
+        // picture content.
 
         }
 

@@ -15,6 +15,11 @@ namespace FrameBoostBeta {
 // queue behind it.
 class Presenter {
 public:
+    // Set by the engine so raw mouse input reaches the tracker. The window
+    // procedure is static and owns no engine state, so this is the hand-off
+    // point - see WM_INPUT in beta_presenter.cpp.
+    static void SetRawInputSink(void* tracker);
+
     // overlayTarget: when non-null, the window is created as a click-through,
     // never-activating, always-on-top overlay positioned exactly over that
     // window instead of as a normal standalone window.

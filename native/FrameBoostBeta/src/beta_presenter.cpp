@@ -1,4 +1,5 @@
 #include "beta_presenter.h"
+#include "mouse_tracker.h"
 #include "logger.h"
 
 #include <winrt/base.h>
@@ -11,7 +12,20 @@ constexpr wchar_t kWindowClassName[] = L"ResetFrameBoostBetaWindow";
 Presenter* g_instanceForWndProc = nullptr; // single window per process for this beta
 }
 
+namespace { FrameBoostBeta::MouseTracker* g_rawInputSink = nullptr; }
+
+void Presenter::SetRawInputSink(void* tracker) {
+    g_rawInputSink = static_cast<FrameBoostBeta::MouseTracker*>(tracker);
+}
+
 LRESULT CALLBACK Presenter::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    // Raw mouse movement, for predicting where the camera is being turned
+    // before the game has drawn the frame that shows it.
+    if (msg == WM_INPUT && g_rawInputSink) {
+        g_rawInputSink->OnRawInput(lParam);
+        return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
+
     if (msg == WM_CLOSE || msg == WM_DESTROY) {
         if (g_instanceForWndProc) g_instanceForWndProc->m_shouldClose = true;
         if (msg == WM_DESTROY) PostQuitMessage(0);

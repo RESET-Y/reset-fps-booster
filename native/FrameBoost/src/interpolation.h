@@ -45,6 +45,12 @@ public:
     /// pays nothing for it: the real frame goes out the moment it arrives.
     /// What it cannot do is know what is behind a moving object, because there
     /// is no later frame to copy that from.
+    // Where the camera is being turned, in PIXELS of expected screen shift for
+    // the instant this frame represents - derived from raw mouse movement that
+    // no rendered frame has shown yet. Offered to the shader as one more
+    // candidate vector, so a wrong prediction simply loses and costs nothing.
+    void SetMousePrediction(float x, float y) { m_mousePredictX = x; m_mousePredictY = y; }
+
     void SetExtrapolateAhead(float a) { m_extrapolateAhead = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a); }
 
     // Draws small status squares in the generated frames' top-left corner:
@@ -79,6 +85,10 @@ private:
     // change could only be confirmed by reading the log file.
     unsigned int m_statusFlags = 0;
     float m_extrapolateAhead = 0.0f;
+    float m_mousePredictX = 0.0f;
+    float m_mousePredictY = 0.0f;
+    float m_mousePredictXInBuffer = -1.0f;
+    float m_mousePredictYInBuffer = -1.0f;
     float m_extrapolateAheadInBuffer = -1.0f;
     unsigned int m_statusFlagsInBuffer = 0xFFFFFFFFu;
 
