@@ -62,6 +62,10 @@ public:
 
     void SetExtrapolateAhead(float a) { m_extrapolateAhead = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a); }
 
+    // Pixels per real-frame interval above which no pixel is displaced at all.
+    // 0 disables the cutoff, which is the default.
+    void SetMotionCutoff(float c) { m_motionCutoff = c < 0.0f ? 0.0f : c; }
+
     // Draws small status squares in the generated frames' top-left corner:
     // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
     void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
@@ -100,6 +104,8 @@ private:
     float m_mousePredictYInBuffer = -1.0f;
     float m_qualityRelief = 1.0f;
     float m_qualityReliefInBuffer = -1.0f;
+    float m_motionCutoff = 0.0f;
+    float m_motionCutoffInBuffer = -1.0f;
     float m_extrapolateAheadInBuffer = -1.0f;
     unsigned int m_statusFlagsInBuffer = 0xFFFFFFFFu;
 

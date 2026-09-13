@@ -278,6 +278,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // wrong suspect.
     const bool noWarpDiagnostic = HasArg(L"nowarp");
 
+    // "cutoff=N": refuse to displace anything moving faster than N pixels per
+    // real-frame interval, and cross-fade the two real frames there instead.
+    // 0 (the default) leaves it off. A command-line value rather than a shader
+    // constant because the right number depends entirely on how fast the
+    // content moves, which can only be found by trying it in a running game.
+    double motionCutoffPx = 0.0;
+    for (const auto& a : args) {
+        if (a.rfind(L"cutoff=", 0) == 0) {
+            motionCutoffPx = _wtof(a.substr(7).c_str());
+            if (motionCutoffPx < 0.0) motionCutoffPx = 0.0;
+        }
+    }
+
     const bool measureOutputDiff = HasArg(L"measureoutput");
     // "showblend" paints blue wherever vector validation refused to displace a
     // pixel and fell back to cross-fading the two real frames. The amount of
@@ -1501,6 +1514,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // eye notices the change more than the level.
         UpdateQualityRelief();
         interpolator.SetQualityRelief(static_cast<float>(qualityRelief));
+        interpolator.SetMotionCutoff(static_cast<float>(motionCutoffPx));
 
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);

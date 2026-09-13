@@ -105,10 +105,43 @@ bool Interpolator::EnsureResources(ID3D11Device* device, UINT width, UINT height
         device->CreateSamplerState(&sampDesc, &m_linearClampSampler);
     }
 
-    struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float extrapolateAhead; float pad;
-                      float mousePredictX, mousePredictY, qualityRelief, mousePad1; };
-    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint, m_phaseT, m_statusFlags, m_extrapolateAhead, 0.0f,
-                         m_mousePredictX, m_mousePredictY, m_qualityRelief, 0.0f };
+    // Field order and padding MUST match the HLSL cbuffer register for
+    // register, which this did not.
+    //
+    // HLSL packs constant buffers into 16-byte registers and no field may
+    // straddle one. The declared order there is PhaseT, ExtrapolateAhead,
+    // MousePrediction.xy | QualityRelief, MotionCutoff, StatusFlags. This
+    // struct had statusFlags third, so every field from byte 20 on was read as
+    // the wrong one:
+    //
+    //   byte 20  C++ statusFlags      -> shader ExtrapolateAhead
+    //   byte 24  C++ extrapolateAhead -> shader MousePrediction.x
+    //   byte 28  C++ pad (zero)       -> shader MousePrediction.y
+    //   byte 32  C++ mousePredictX    -> shader QualityRelief
+    //   byte 40  C++ qualityRelief    -> shader StatusFlags
+    //
+    // MousePrediction was therefore ALWAYS (0, 0), so the shader's
+    // "if (any(MousePrediction != 0.0))" never fired once and the mouse was
+    // never offered as a motion candidate - while the engine went on measuring
+    // and logging a calibration it could not use (3700 samples, correlation
+    // 0.74). And StatusFlags read the bit pattern of 1.0f, 0x3F800000, whose
+    // bit 2 is clear, which is why the green badge was never drawn.
+    //
+    // It survived this long because the two fields that would have been
+    // visibly wrong both landed on harmless values: ExtrapolateAhead read
+    // small integer flags as a float, and those are denormals that D3D11
+    // flushes to zero, so the extrapolation branch stayed off; QualityRelief
+    // read a number that max(x, 1.0) turns into 1.0, which is what it is
+    // pinned at anyway.
+    struct ParamsCB {
+        UINT width, height, blockSize, debugTint;                            // b0
+        float phaseT, extrapolateAhead, mousePredictX, mousePredictY;        // b1
+        float qualityRelief, motionCutoff; UINT statusFlags; float _pad0;    // b2
+        float _pad1[4];                                                      // b3
+    };
+    ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint,
+                     m_phaseT, m_extrapolateAhead, m_mousePredictX, m_mousePredictY,
+                     m_qualityRelief, m_motionCutoff, m_statusFlags, 0.0f, { 0.0f, 0.0f, 0.0f, 0.0f } };
     m_debugTintInBuffer = m_debugTint;
     m_phaseTInBuffer = m_phaseT;
     m_statusFlagsInBuffer = m_statusFlags;
@@ -170,11 +203,18 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
             || m_mousePredictX != m_mousePredictXInBuffer
             || m_mousePredictY != m_mousePredictYInBuffer
             || m_qualityRelief != m_qualityReliefInBuffer
+            || m_motionCutoff != m_motionCutoffInBuffer
             || m_statusFlags != m_statusFlagsInBuffer) && m_paramsCB) {
-        struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float extrapolateAhead; float pad;
-                      float mousePredictX, mousePredictY, qualityRelief, mousePad1; };
-        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint, m_phaseT, m_statusFlags, m_extrapolateAhead, 0.0f,
-                         m_mousePredictX, m_mousePredictY, m_qualityRelief, 0.0f };
+        // Same layout as at creation - see the comment there.
+    struct ParamsCB {
+        UINT width, height, blockSize, debugTint;                            // b0
+        float phaseT, extrapolateAhead, mousePredictX, mousePredictY;        // b1
+        float qualityRelief, motionCutoff; UINT statusFlags; float _pad0;    // b2
+        float _pad1[4];                                                      // b3
+    };
+        ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint,
+                     m_phaseT, m_extrapolateAhead, m_mousePredictX, m_mousePredictY,
+                     m_qualityRelief, m_motionCutoff, m_statusFlags, 0.0f, { 0.0f, 0.0f, 0.0f, 0.0f } };
         context->UpdateSubresource(m_paramsCB, 0, nullptr, &params, 0, 0);
         m_debugTintInBuffer = m_debugTint;
         m_phaseTInBuffer = m_phaseT;
@@ -182,6 +222,7 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
         m_mousePredictXInBuffer = m_mousePredictX;
         m_mousePredictYInBuffer = m_mousePredictY;
         m_qualityReliefInBuffer = m_qualityRelief;
+        m_motionCutoffInBuffer = m_motionCutoff;
         m_statusFlagsInBuffer = m_statusFlags;
     }
 

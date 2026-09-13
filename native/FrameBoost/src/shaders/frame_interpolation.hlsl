@@ -61,7 +61,14 @@ cbuffer InterpolationParams : register(b0)
     // measured headroom, so the same build runs at full quality where there is
     // time and backs off where there is not, instead of missing its deadline.
     float QualityRelief;
-    float _mousePad;
+
+    // Hard displacement cutoff in pixels per real-frame interval, 0 = off.
+    // Above it the vector is treated as zero and the two real frames are
+    // cross-faded instead. Set from the command line ("cutoff=24") so the
+    // threshold can be tried against live gameplay without a rebuild - the
+    // only way this number can be chosen, since it depends entirely on how
+    // fast the content actually moves.
+    float MotionCutoff;
 
     // Status indicator, drawn as small squares in the top-left corner so the
     // active modes are visible on screen. Needed because the hotkeys had no
@@ -493,10 +500,22 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // the generated frame rate - the shape of every per-pixel switch that has
     // been tried in this shader and reverted.
     //
-    // Full trust up to the limit, zero at twice it. How much of this pixel's
-    // displacement is allowed to happen.
+    // Full trust up to the limit, zero at twice it.
     const float coherenceLimit = kCoherenceFloor + motionMagnitude * kCoherenceSlope;
-    const float vectorTrust = saturate(2.0 - coherenceSpread / max(coherenceLimit, 1e-3));
+    const float coherenceTrust = saturate(2.0 - coherenceSpread / max(coherenceLimit, 1e-3));
+
+    // How much of this pixel's displacement is allowed to happen.
+    //
+    // MotionCutoff is a hard override on top of it: above that many pixels of
+    // displacement nothing is moved at all, whatever the coherence says.
+    //
+    // Measured context for choosing it - in Apex the MEAN motion is 44 px with
+    // peaks over 300, so a cutoff of 24 disables displacement almost
+    // permanently and what is left is two real frames cross-faded. That is not
+    // motion blur: real blur integrates a continuum, two samples give two
+    // copies. It trades a hard double image for a soft one.
+    const float vectorTrust = (MotionCutoff > 0.0 && motionMagnitude > MotionCutoff)
+        ? 0.0 : coherenceTrust;
 
     // Where nothing may be displaced, nothing is COMPUTED either.
     //
