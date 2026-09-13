@@ -22,6 +22,10 @@ public:
     // Blocks until the display is ready for another frame.
     void WaitForPresentSlot();
 
+    // Off for window capture: the overlay is not part of the captured window,
+    // so hiding it from capture only blinds outside measurement.
+    void SetExcludeFromCapture(bool exclude) { m_excludeFromCapture = exclude; }
+
     // overlayTarget: when non-null, the window is created as a click-through,
     // never-activating, always-on-top overlay positioned exactly over that
     // window instead of as a normal standalone window.
@@ -108,6 +112,7 @@ private:
     // queue gets to them.
     HANDLE m_frameLatencyWaitable = nullptr;
     bool m_tearingSupported = false;
+    bool m_excludeFromCapture = true;
     UINT m_width = 0, m_height = 0;
     bool m_shouldClose = false;
     std::wstring m_baseTitle;

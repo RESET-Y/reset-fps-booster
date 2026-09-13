@@ -488,6 +488,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             initialHeight = static_cast<UINT>(mi.rcMonitor.bottom - mi.rcMonitor.top);
         }
     }
+    presenter.SetExcludeFromCapture(monitorMode);
     if (!presenter.Create(device.get(), initialWidth, initialHeight, L"RESET FRAMEBOOST - BETA", monitorMode ? nullptr : targetWindow)) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: could not create the presentation window/swapchain.");
         return 4;
@@ -646,6 +647,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // schedule names. Seeded below any plausible value so the first sample
     // sets it outright.
     double presentBiasEmaMs = -1000.0;
+
+    // REMOVED: a self-correcting term that shifted the generated frame by half
+    // the measured asymmetry between the two spacings.
+    //
+    // The asymmetry is real - both frames hang on the capture clock, their
+    // spacings sum to exactly one source period, and they split 7.19 / 9.61
+    // instead of 8.4 / 8.4, identically across every second. Measuring the
+    // result and removing it looked safer than guessing at the cause a fourth
+    // time.
+    //
+    // It was much worse live - "jetzt haengt alles hinterher". Delaying the
+    // generated frame to centre it in its pair adds latency to the half of the
+    // stream that was on time, which is felt immediately, while the evenness
+    // it buys is not. The asymmetry costs less than the correction for it.
+    //
+    // Whatever causes the 1.2 ms has to be found rather than compensated.
     double generationCostEmaMs = -1.0;
 
     // HEADROOM CHECK: does this machine actually have time to do the work?
@@ -2085,7 +2102,33 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
                 // Eased in only once there is enough to fit, and only where the
                 // fit has something to divide by.
-                if (mouseFitLongSamples > 120) {
+                // Only where the mouse actually predicts the picture.
+                //
+                // In a shooter the mouse IS the camera and the relationship is
+                // strong - measured correlation 0.50 in Apex. In a flight game
+                // the mouse steers the aircraft and the view follows with its
+                // own delay and its own scale: 0.06 in War Thunder, which is
+                // no relationship at all. Predicting from it there produces a
+                // candidate that is wrong by construction, and every pixel
+                // pays a residual test to reject it.
+                //
+                // 0.35 sits well above what was measured where the idea does
+                // not apply and well below what was measured where it does.
+                // The engine can tell the two apart from its own data, so it
+                // should, rather than being told which game it is in.
+                const double fitCorrelation =
+                    (mouseFitLongMouseSq > 0.0 && mouseFitLongMotionSq > 0.0)
+                        ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
+                        : 0.0;
+                const bool mousePredictsPicture = fitCorrelation > 0.35;
+
+                if (!mousePredictsPicture) {
+                    // Eased to zero rather than switched off, so a game that
+                    // drifts across the threshold does not flicker between two
+                    // behaviours.
+                    mousePixelsPerCountX *= 0.95;
+                    mousePixelsPerCountY *= 0.95;
+                } else if (mouseFitLongSamples > 120) {
                     if (mouseFitLongDenX > 0.0) {
                         const double fitX = mouseFitLongNumX / mouseFitLongDenX;
                         mousePixelsPerCountX = mousePixelsPerCountX == 0.0

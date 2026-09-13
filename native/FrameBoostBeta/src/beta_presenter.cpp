@@ -85,9 +85,16 @@ bool Presenter::TryCreateCompositionWindow(ID3D11Device* device, UINT width, UIN
     // counted as an occluder and is invisible in practice.
     SetLayeredWindowAttributes(m_hwnd, 0, 254, LWA_ALPHA);
 
-    // Still hide ourselves from capture: in monitor mode we would otherwise
-    // capture our own output and feed it back into the next frame.
-    if (!SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+    // Hidden from capture only when capturing a MONITOR, where we would
+    // otherwise record our own output and feed it back into the next frame.
+    //
+    // With window capture the game.s window is the source, so this overlay is
+    // not in it anyway - and the exclusion then does active harm: it makes our
+    // output invisible to any outside measurement, including the audit used to
+    // compare against another product. That produced a completely wrong
+    // conclusion earlier today, since the audit reported the game.s 60 frames
+    // a second as if it were ours, even with every generated frame tinted red.
+    if (m_excludeFromCapture && !SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
         Logger::Log("[FrameBoostBeta] Presenter: could not exclude the overlay from capture "
             "(needs Windows 10 2004+). Monitor capture would feed back on itself.");
     }
@@ -164,7 +171,7 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
         // monitor-capture mode: without it we would capture our own output
         // and feed it back into the next frame (a capture feedback loop).
         // Same mechanism capture tools use to hide their own preview.
-        if (m_hwnd && !SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+        if (m_hwnd && m_excludeFromCapture && !SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
             Logger::Log("[FrameBoostBeta] Presenter: could not exclude the overlay from capture "
                 "(needs Windows 10 2004+). Monitor capture would feed back on itself.");
         }
