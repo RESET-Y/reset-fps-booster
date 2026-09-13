@@ -607,6 +607,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // Taking frames away from someone who asked for more of them is the one
     // outcome this feature must never produce.
+    // How much later the real frame actually appears than the moment its own
+    // schedule names. Seeded below any plausible value so the first sample
+    // sets it outright.
+    double presentBiasEmaMs = -1000.0;
     double generationCostEmaMs = -1.0;
 
     // HEADROOM CHECK: does this machine actually have time to do the work?
@@ -1186,7 +1190,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double gapMinMs = 1e9, gapMaxMs = 0.0;
     uint64_t gapSamples = 0, gapMissed = 0, gapCollapsed = 0;
 
-    auto RecordPresentGap = [&](double presentEndMs) {
+    // Gaps split by WHAT was presented, not just averaged.
+    //
+    // The overall average cannot see the failure being looked for here: a real
+    // frame followed 5 ms later by a generated one, followed 11 ms later by
+    // the next real one, averages to a perfect 8 ms while the eye sees a limp.
+    // Reported exactly that way - "als waere zwischen den generierten und
+    // nicht generierten ein ungleichmaessiger abstand".
+    //
+    // realToGen is the wait from a real frame to the generated one after it;
+    // genToReal from a generated frame to the next real one. At a factor of
+    // two these must be equal, and each half the source period.
+    double realToGenSum = 0.0, genToRealSum = 0.0;
+    uint64_t realToGenCount = 0, genToRealCount = 0;
+    bool lastPresentWasGenerated = false;
+
+    auto RecordPresentGap = [&](double presentEndMs, bool thisOneGenerated) {
         if (lastPresentAtMs > 0.0) {
             const double gap = presentEndMs - lastPresentAtMs;
             gapSumMs += gap;
@@ -1197,7 +1216,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (outputSlotMs > 0.0 && std::abs(gap - outputSlotMs) > outputSlotMs * 0.5) ++gapMissed;
             // Closer than one refresh: counted by us, never seen by anyone.
             if (outputSlotMs > 0.0 && gap < outputSlotMs * 0.9) ++gapCollapsed;
+
+            if (thisOneGenerated && !lastPresentWasGenerated) {
+                realToGenSum += gap;
+                ++realToGenCount;
+            } else if (!thisOneGenerated && lastPresentWasGenerated) {
+                genToRealSum += gap;
+                ++genToRealCount;
+            }
         }
+        lastPresentWasGenerated = thisOneGenerated;
         lastPresentAtMs = presentEndMs;
     };
 
@@ -1417,6 +1445,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << ", mean " << (queueDepthSamples ? queueDepthSum / queueDepthSamples : 0.0)
             << ", dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
             << " | Presents lost to collision: " << (gapSamples ? 100.0 * gapCollapsed / gapSamples : -1.0) << "%"
+            << " | Real->generated " << (realToGenCount ? realToGenSum / realToGenCount : -1.0)
+            << " ms, generated->real " << (genToRealCount ? genToRealSum / genToRealCount : -1.0) << " ms"
             << " | Content step: " << (contentStepCount ? contentStepSum / contentStepCount : -1.0) << " ms mean, min "
             << (contentStepCount ? contentStepMin : -1.0) << ", max " << (contentStepCount ? contentStepMax : -1.0)
             << ", sd " << (contentStepCount > 1
@@ -1453,6 +1483,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Match error mean/max: " << motionStats.MeanMatchError() << "/" << motionStats.MaxMatchError()
             << " | Blocks with no real match: " << motionStats.PoorMatchPercent() << "%"
             << " | Displayed/submitted: " << displayedPerSecond << "/" << submittedPerSecond
+            << " | ME stages: coarsest " << estimator.LastCoarsestMs()
+            << " ms, coarse " << estimator.LastCoarseMs()
+            << " ms, fine " << estimator.LastFineMs()
+            << " ms, smooth " << estimator.LastSmoothMs() << " ms"
             << " | Motion estimation GPU: " << estimator.LastGpuTimeMs() << " ms"
             << " | Interpolation GPU: " << interpolator.LastGpuTimeMs() << " ms";
         if (gapSamples > 1) {
@@ -2252,12 +2286,52 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (measureOutputDiff) MeasureOutputFrame(estimator.CurrFrameTexture(), realDiffSum, realDiffCount);
                     ++nativeFramesSinceReport;
                     RecordContentStep(motionCurrTimestampMs);
-                    RecordPresentGap(NowMs());
+                    RecordPresentGap(NowMs(), false);
                     RecordPresentAge();
 
-                    // The prediction belongs half an interval AFTER the frame it
-                    // was made from - it is the future, not an in-between.
-                    generatedDueAtMs = motionCurrTimestampMs + pairIntervalMs * 0.5 + offsetMs;
+                    // Half an interval after the real frame ACTUALLY APPEARED, not
+                    // after the timestamp it was captured with.
+                    //
+                    // Those are not the same moment. Between a frame being
+                    // drawn by the game and being shown by us lies the
+                    // capture, the wait for a refresh boundary, and whatever
+                    // else the loop was doing - and the real frame absorbs all
+                    // of it while the generated one, planned from the original
+                    // timestamp, did not. It therefore arrived late by exactly
+                    // that delay, every single time.
+                    //
+                    // Measured with the two spacings separated, at a 13.9 ms
+                    // source period where both should be 6.94 ms:
+                    // real -> generated 10.00 ms, generated -> real 7.55 ms,
+                    // identical to two decimals across every second. Not
+                    // jitter, not refresh quantisation - a constant 3 ms of
+                    // bias. Reported before it was measured, as the spacing
+                    // between generated and real frames being uneven.
+                    // Anchored to the capture clock as before, but corrected by how
+                    // late the real frame actually appeared - averaged, not
+                    // taken from this one frame.
+                    //
+                    // Re-anchoring directly to "when the real frame appeared"
+                    // did equalise the two spacings - 10.00 ms became 7.13
+                    // against 7.54 - and made everything else worse: native FPS
+                    // 69.6-71.5 -> 64.2-67.0, content-step deviation 1.16-1.97
+                    // -> 2.54-3.49. A late real frame pushed the generated one
+                    // with it, which delayed the next real frame, which pushed
+                    // again. A clock that follows its own output has nothing
+                    // left to correct against.
+                    //
+                    // The bias is real and worth removing; the jitter around it
+                    // is not worth inheriting. So the delay is measured slowly
+                    // and applied as a constant, and the schedule stays tied to
+                    // the capture timestamps, which do not drift.
+                    const double shownLateByMs = NowMs() - (motionCurrTimestampMs + offsetMs);
+                    if (shownLateByMs > -20.0 && shownLateByMs < 20.0) {
+                        presentBiasEmaMs = presentBiasEmaMs < -100.0
+                            ? shownLateByMs
+                            : presentBiasEmaMs * 0.9 + shownLateByMs * 0.1;
+                    }
+                    generatedDueAtMs = motionCurrTimestampMs + pairIntervalMs * 0.5 + offsetMs
+                                     + presentBiasEmaMs;
                     generatedContentMs = motionCurrTimestampMs + pairIntervalMs * 0.5;
                     generatedPendingSimple = haveMotionField;
                 }
@@ -2303,7 +2377,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         if (measureOutputDiff) MeasureOutputFrame(interpolator.GeneratedFrameTexture(), generatedDiffSum, generatedDiffCount);
                         ++generatedFramesSinceReport;
                         RecordContentStep(generatedContentMs);
-                        RecordPresentGap(NowMs());
+                        RecordPresentGap(NowMs(), true);
                         RecordPresentAge();
                     }
                     generatedPendingSimple = false;
@@ -2404,7 +2478,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // Half way between the two real frames of this pair, in the
                     // source.s own timeline.
                     RecordContentStep(motionPrevTimestampMs + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs));
-                    RecordPresentGap(NowMs());
+                    RecordPresentGap(NowMs(), true);
                     RecordPresentAge();
                 }
 
@@ -2445,7 +2519,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
                 ++nativeFramesSinceReport;
                 RecordContentStep(motionCurrTimestampMs);
-                RecordPresentGap(NowMs());
+                RecordPresentGap(NowMs(), false);
                 RecordPresentAge();
             }
 
@@ -2699,7 +2773,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const double presentEndMs = NowMs();
         if (presentedGenerated) ++generatedFramesSinceReport;
         else ++nativeFramesSinceReport;
-        RecordPresentGap(presentEndMs);
+        RecordPresentGap(presentEndMs, presentedGenerated);
         RecordPresentAge();
         // Present time is the present alone. A leftover second addition here
         // also counted the slot wait, and reported a "present" of 9.5 ms

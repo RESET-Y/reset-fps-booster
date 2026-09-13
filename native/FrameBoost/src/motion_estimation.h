@@ -21,6 +21,12 @@ public:
     // Real, measured GPU time (in milliseconds) the last motion-estimation
     // dispatch took, via D3D11 timestamp queries. Returns -1 if not yet
     // available (queries are read a few frames late to avoid stalling).
+    // Per-stage breakdown of the above, -1 until measured.
+    double LastCoarsestMs() const { return m_lastCoarsestMs; }
+    double LastCoarseMs() const { return m_lastCoarseMs; }
+    double LastFineMs() const { return m_lastFineMs; }
+    double LastSmoothMs() const { return m_lastSmoothMs; }
+
     double LastGpuTimeMs() const { return m_lastGpuTimeMs; }
 
     // For debug visualization / Milestone 3 validation only. Returns the
@@ -114,15 +120,27 @@ private:
     // waiting on the GPU - we only read a query's result several frames
     // after it was issued, by which point it is essentially always ready.
     static constexpr int kQueryRingSize = 4;
+    // Timestamps BETWEEN the three pyramid stages as well as around them, so
+    // the cost can be attributed instead of guessed. The total dropped from
+    // 12.4 ms to about 1.35 ms over three changes, and the next candidate -
+    // running the coarsest stage every other frame - is only worth building if
+    // that stage is actually a meaningful share of what is left.
     struct QuerySet {
         ID3D11Query* disjoint = nullptr;
         ID3D11Query* start = nullptr;
+        ID3D11Query* afterCoarsest = nullptr;
+        ID3D11Query* afterCoarse = nullptr;
+        ID3D11Query* afterFine = nullptr;
         ID3D11Query* end = nullptr;
         bool pending = false;
     };
     QuerySet m_queries[kQueryRingSize];
     int m_queryWriteIndex = 0;
     double m_lastGpuTimeMs = -1.0;
+    double m_lastCoarsestMs = -1.0;
+    double m_lastCoarseMs = -1.0;
+    double m_lastFineMs = -1.0;
+    double m_lastSmoothMs = -1.0;
 };
 
 } // namespace FrameBoost::MotionEstimation

@@ -103,7 +103,22 @@ bool IsDisoccluded(int2 blockPos, float2 motion)
     return miss > allowed;
 }
 
-static const int kSpatialRadius = 2; // 5x5
+// 3x3, cut from 5x5 after measuring what this pass costs.
+//
+// The geometric median compares every candidate in the window with every
+// other, so the cost is the SQUARE of the window: 625 comparisons at 5x5, 81
+// at 3x3. Timestamps between the pyramid stages showed this pass taking
+// 1.2-1.7 ms - as much as the entire motion search beside it, which is 2.1 ms
+// at 90% of blocks moving. It had never been measured on its own.
+//
+// What 5x5 was for is in the comment above: at 16 px blocks a 3x3 window
+// covered only 48 px, less than the motion being measured. Blocks are 8 px
+// now, and the median does not average across a boundary the way the mean it
+// replaced did, so the reason for the wider window is largely spent.
+//
+// The median itself stays. Its point is that it cannot invent a vector no
+// block reported, and that holds at any window size.
+static const int kSpatialRadius = 1; // 3x3
 
 // Weight of the new field. Deliberately high: the point is to damp flicker,
 // not to average motion away. At 0.7 a wrong vector decays to ~3% influence

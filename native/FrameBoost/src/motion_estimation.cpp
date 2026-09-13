@@ -239,6 +239,9 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
             D3D11_QUERY_DESC timestampDesc{ D3D11_QUERY_TIMESTAMP, 0 };
             device->CreateQuery(&disjointDesc, &q.disjoint);
             device->CreateQuery(&timestampDesc, &q.start);
+            device->CreateQuery(&timestampDesc, &q.afterCoarsest);
+            device->CreateQuery(&timestampDesc, &q.afterCoarse);
+            device->CreateQuery(&timestampDesc, &q.afterFine);
             device->CreateQuery(&timestampDesc, &q.end);
         }
     }
@@ -264,6 +267,19 @@ void Estimator::ResolvePendingGpuTiming(ID3D11DeviceContext* context) {
     UINT64 start = 0, end = 0;
     if (context->GetData(q.start, &start, sizeof(start), 0) != S_OK) return;
     if (context->GetData(q.end, &end, sizeof(end), 0) != S_OK) return;
+
+    UINT64 tCoarsest = 0, tCoarse = 0, tFine = 0;
+    const bool haveStages =
+        context->GetData(q.afterCoarsest, &tCoarsest, sizeof(tCoarsest), 0) == S_OK &&
+        context->GetData(q.afterCoarse, &tCoarse, sizeof(tCoarse), 0) == S_OK &&
+        context->GetData(q.afterFine, &tFine, sizeof(tFine), 0) == S_OK;
+    if (haveStages) {
+        const double toMs = 1000.0 / disjointData.Frequency;
+        m_lastCoarsestMs = static_cast<double>(tCoarsest - start) * toMs;
+        m_lastCoarseMs = static_cast<double>(tCoarse - tCoarsest) * toMs;
+        m_lastFineMs = static_cast<double>(tFine - tCoarse) * toMs;
+        m_lastSmoothMs = static_cast<double>(end - tFine) * toMs;
+    }
 
     q.pending = false;
     if (disjointData.Disjoint || disjointData.Frequency == 0) return;
@@ -306,6 +322,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         context->CSSetConstantBuffers(0, 1, &m_frameDimsCB);
         context->CSSetShader(m_coarsestShader, nullptr, 0);
         context->Dispatch(m_coarsestCountX, m_coarsestCountY, 1);
+        context->End(q.afterCoarsest);
 
         context->CSSetShaderResources(0, 2, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
@@ -320,6 +337,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
 
         context->CSSetShaderResources(0, 4, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+        context->End(q.afterCoarse);
 
         // Pass 1b: FINE search at full resolution, seeded by the coarse
         // result and only refining +-6 px around it. Total reach 54 px, at
@@ -337,6 +355,7 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
 
         context->CSSetShaderResources(0, 4, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+        context->End(q.afterFine);
 
         // Pass 2: 5x5 spatial smoothing plus temporal blending against the
         // previous frame's field - the fix for speckle noise and for the
