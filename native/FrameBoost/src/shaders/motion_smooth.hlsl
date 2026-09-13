@@ -35,9 +35,9 @@ cbuffer BlockGridDims : register(b0)
     uint HavePreviousField; // 0 on the first frame after a resolution change
     uint BlockSizePixels;
     uint HaveBackwardField; // 0 when the backward pass did not run
-    uint _pad0;
-    uint _pad1;
-    uint _pad2;
+    uint CoarseBlockRatio; // fine blocks per coarse block, each axis
+    uint CoarseCountX;
+    uint CoarseCountY;
 };
 
 // How far the round trip may miss before the block counts as content that was
@@ -89,7 +89,13 @@ bool IsDisoccluded(int2 blockPos, float2 motion)
         sourceBlock.x >= (int)BlockCountX || sourceBlock.y >= (int)BlockCountY)
         return true; // came from outside the picture: not visible before
 
-    const float2 backward = BackwardMotionVectors.Load(int3(sourceBlock, 0)).xy;
+    // The backward field is COARSE: one entry per 32-pixel block, and its
+    // vectors are in mip-2 texels rather than pixels. Both conversions happen
+    // here rather than in the estimator, so the forward path stays untouched.
+    const int2 coarseBlock = clamp(sourceBlock / (int)max(CoarseBlockRatio, 1u),
+                                   int2(0, 0),
+                                   int2(max(CoarseCountX, 1u), max(CoarseCountY, 1u)) - 1);
+    const float2 backward = BackwardMotionVectors.Load(int3(coarseBlock, 0)).xy * 4.0;
     const float2 roundTrip = motion + backward;
     const float miss = length(roundTrip);
     const float allowed = min(kRoundTripFloorPx + kRoundTripTolerance * length(motion),

@@ -30,16 +30,25 @@ constexpr UINT kCoarseBlockRatio = 4; // 32px coarse block / 8px fine block
 // Halving the coarse block size needs that budget and targets the artefact
 // that IS reported: an object whose motion the search cannot represent at all.
 // Generation cost with both: 8-9 ms against the 6.9 ms a generated frame has.
-// OFF again, and this time with the cost measured in a game rather than on a
-// desktop: motion estimation ran at 6.6 to 9.7 ms with it, against a 6.9 ms
-// budget for the whole generated frame. It was switched back on when that same
-// measurement, taken while nothing moved, read 2.35 ms.
+// OFF, after three attempts at disocclusion detection over two days. The
+// signal is real - with the motion field displayed, the ground behind a
+// walking bot goes dark when this runs - and it has never once improved the
+// picture:
 //
-// It remains the only measure that has ever visibly moved the trail - with the
-// motion field on screen, the ground behind a walking bot went dark. But it
-// doubles the search for a benefit that has never survived to the picture, and
-// the budget it takes is now wanted for the mouse prediction, which is cheap
-// and can be judged directly.
+//   claim collisions   worked on a walking bot, blind to a running one
+//   full backward field cost 6.6-9.7 ms in a game against a 6.9 ms budget;
+//                      the trail was reported unchanged afterwards
+//   coarse backward    affordable at 1.8-2.1 ms, but marking whole 32 px
+//                      blocks as disoccluded and handing them their
+//                      neighbours motion made surfaces FLICKER, and the
+//                      trail was still there
+//
+// Each attempt was a better detector than the last and none of them made the
+// output better, which is the argument for stopping rather than for a fourth.
+// What a disoccluded block should be GIVEN is the open question - every
+// answer tried so far has been worse than leaving it alone.
+//
+// The code stays because the detector itself is sound and cheap in this form.
 
 constexpr bool kUseBackwardField = false;
 
@@ -59,9 +68,9 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     SafeRelease(m_currFrameTex); m_currFrameTex = nullptr;
     SafeRelease(m_prevFrameSRV); m_prevFrameSRV = nullptr;
     SafeRelease(m_currFrameSRV); m_currFrameSRV = nullptr;
-    SafeRelease(m_motionVectorBackwardTex); m_motionVectorBackwardTex = nullptr;
-    SafeRelease(m_motionVectorBackwardUAV); m_motionVectorBackwardUAV = nullptr;
-    SafeRelease(m_motionVectorBackwardSRV); m_motionVectorBackwardSRV = nullptr;
+    SafeRelease(m_backwardCoarseTex); m_backwardCoarseTex = nullptr;
+    SafeRelease(m_backwardCoarseUAV); m_backwardCoarseUAV = nullptr;
+    SafeRelease(m_backwardCoarseSRV); m_backwardCoarseSRV = nullptr;
     SafeRelease(m_motionVectorRawTex); m_motionVectorRawTex = nullptr;
     SafeRelease(m_motionVectorRawUAV); m_motionVectorRawUAV = nullptr;
     SafeRelease(m_motionVectorRawSRV); m_motionVectorRawSRV = nullptr;
@@ -134,13 +143,16 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     device->CreateUnorderedAccessView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothUAV);
     device->CreateShaderResourceView(m_motionVectorSmoothTex, nullptr, &m_motionVectorSmoothSRV);
 
-    // The backward field, same shape as the forward one.
-    if (FAILED(device->CreateTexture2D(&mvDesc, nullptr, &m_motionVectorBackwardTex))) {
+    // The backward field, at COARSE resolution.
+    D3D11_TEXTURE2D_DESC backwardDesc = mvDesc;
+    backwardDesc.Width = m_coarseCountX;
+    backwardDesc.Height = m_coarseCountY;
+    if (FAILED(device->CreateTexture2D(&backwardDesc, nullptr, &m_backwardCoarseTex))) {
         Logger::Log("[FrameBoost] Motion estimation: failed to create the backward motion field.");
         return false;
     }
-    device->CreateUnorderedAccessView(m_motionVectorBackwardTex, nullptr, &m_motionVectorBackwardUAV);
-    device->CreateShaderResourceView(m_motionVectorBackwardTex, nullptr, &m_motionVectorBackwardSRV);
+    device->CreateUnorderedAccessView(m_backwardCoarseTex, nullptr, &m_backwardCoarseUAV);
+    device->CreateShaderResourceView(m_backwardCoarseTex, nullptr, &m_backwardCoarseSRV);
 
     if (FAILED(device->CreateTexture2D(&mvDesc, nullptr, &m_motionVectorHistoryTex))) {
         Logger::Log("[FrameBoost] Motion estimation: failed to create the motion history texture.");
@@ -214,9 +226,10 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     // The buffer is sized from FrameDimsCB (eight UINTs), so there is room.
     struct BlockGridDimsCB {
         UINT blockCountX, blockCountY, havePrevious, blockSizePixels;
-        UINT haveBackwardField, pad0, pad1, pad2;
+        UINT haveBackwardField, coarseBlockRatio, coarseCountX, coarseCountY;
     };
-    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, kBlockSize, 0, 0, 0, 0 }; // no history yet
+    BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, 0, kBlockSize, 0, kCoarseBlockRatio,
+                              m_coarseCountX, m_coarseCountY }; // no history yet
     D3D11_SUBRESOURCE_DATA gridCbInit{ &gridDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &gridCbInit, &m_blockGridDimsCB);
 
@@ -353,7 +366,17 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         // leuchtet es unfassbar stark, wenn er normal geht bisschen bis gar
         // nicht".
         //
-        // Affordable only since the fine search dropped from 12.4 ms to
+        // COARSE LEVELS ONLY. Disocclusion is an object-sized event - whether
+        // an enemy has uncovered the ground behind it is decided on the scale
+        // of the enemy, not of an 8 px block - so the fine stage is not run
+        // backwards at all. That stage is the expensive one; the two coarse
+        // levels run at a quarter and a sixteenth of the resolution.
+        //
+        // The full-resolution version of this had to be switched off twice on
+        // cost, the second time after measuring 6.6-9.7 ms in a game against a
+        // 6.9 ms budget.
+        //
+        // Previously: affordable only since the fine search dropped from 12.4 ms to
         // 1.5 ms: a second pass costs about the same again, roughly 3 ms of a
         // 6.9 ms budget. Before that it would have been 25 ms.
         //
@@ -371,33 +394,24 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
 
             ID3D11ShaderResourceView* swappedCoarse[3] = { m_currFrameSRV, m_prevFrameSRV, m_coarsestMotionSRV };
             context->CSSetShaderResources(0, 3, swappedCoarse);
-            context->CSSetUnorderedAccessViews(0, 1, &m_coarseMotionUAV, nullptr);
+            context->CSSetUnorderedAccessViews(0, 1, &m_backwardCoarseUAV, nullptr);
             context->CSSetShader(m_coarseShader, nullptr, 0);
             context->Dispatch(m_coarseCountX, m_coarseCountY, 1);
-            context->CSSetShaderResources(0, 4, nullSrvs);
-            context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
-
-            // No predictor for the backward pass: last frame.s field describes the
-            // forward direction and would pull this one the wrong way.
-            ID3D11ShaderResourceView* swappedFine[4] = { m_currFrameSRV, m_prevFrameSRV, m_coarseMotionSRV, nullptr };
-            context->CSSetShaderResources(0, 4, swappedFine);
-            context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorBackwardUAV, nullptr);
-            context->CSSetShader(m_computeShader, nullptr, 0);
-            context->Dispatch(m_blockCountX, m_blockCountY, 1);
             context->CSSetShaderResources(0, 4, nullSrvs);
             context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
         }
         {
             struct BlockGridDimsCB {
                 UINT blockCountX, blockCountY, havePrevious, blockSizePixels;
-                UINT haveBackwardField, pad0, pad1, pad2;
+                UINT haveBackwardField, coarseBlockRatio, coarseCountX, coarseCountY;
             };
             BlockGridDimsCB gridDims{ m_blockCountX, m_blockCountY, m_haveMotionHistory ? 1u : 0u, kBlockSize,
-                                      kUseBackwardField ? 1u : 0u, 0, 0, 0 };
+                                      kUseBackwardField ? 1u : 0u, kCoarseBlockRatio,
+                                      m_coarseCountX, m_coarseCountY };
             context->UpdateSubresource(m_blockGridDimsCB, 0, nullptr, &gridDims, 0, 0);
         }
 
-        ID3D11ShaderResourceView* smoothSrvs[3] = { m_motionVectorRawSRV, m_motionVectorHistorySRV, m_motionVectorBackwardSRV };
+        ID3D11ShaderResourceView* smoothSrvs[3] = { m_motionVectorRawSRV, m_motionVectorHistorySRV, m_backwardCoarseSRV };
         context->CSSetShaderResources(0, 3, smoothSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &m_motionVectorSmoothUAV, nullptr);
         context->CSSetConstantBuffers(0, 1, &m_blockGridDimsCB);

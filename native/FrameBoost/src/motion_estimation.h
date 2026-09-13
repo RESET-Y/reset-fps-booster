@@ -72,9 +72,16 @@ private:
     // where the current frame.s content came from. Comparing the two is the
     // only reliable way to find content that was not visible before - see the
     // consistency test in motion_smooth.hlsl.
-    ID3D11Texture2D* m_motionVectorBackwardTex = nullptr;
-    ID3D11UnorderedAccessView* m_motionVectorBackwardUAV = nullptr;
-    ID3D11ShaderResourceView* m_motionVectorBackwardSRV = nullptr;
+    // COARSE resolution only - one entry per 32-pixel block, not per 8-pixel
+    // one. Disocclusion is an object-sized event: whether an enemy has
+    // uncovered the ground behind it is decided on the scale of the enemy, not
+    // of an 8 px block. A full-resolution backward pass doubled the whole
+    // search and had to be switched off twice; the coarse levels alone are a
+    // fraction of that, because they run at a quarter and a sixteenth of the
+    // resolution.
+    ID3D11Texture2D* m_backwardCoarseTex = nullptr;
+    ID3D11UnorderedAccessView* m_backwardCoarseUAV = nullptr;
+    ID3D11ShaderResourceView* m_backwardCoarseSRV = nullptr;
 
     ID3D11Texture2D* m_motionVectorSmoothTex = nullptr;
     ID3D11UnorderedAccessView* m_motionVectorSmoothUAV = nullptr;
