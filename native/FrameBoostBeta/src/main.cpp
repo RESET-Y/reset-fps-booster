@@ -21,6 +21,8 @@
 #include <vector>
 #include <cmath>
 #include <functional>
+#include <fstream>
+#include <cstdlib>
 
 #include "logger.h"
 #include "capture_engine.h"
@@ -144,6 +146,92 @@ bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3
         }
     }
     return true;
+}
+
+} // namespace
+
+namespace {
+
+// WHERE THE MOUSE CALIBRATION LIVES BETWEEN RUNS.
+//
+// The factor that converts raw mouse counts into pixels of picture motion is
+// measured, not assumed - and measuring it takes a couple of minutes of real
+// play. Every restart threw that away and started from zero, which is not a
+// theoretical cost: on 2026-09-14 the double images vanished in a run that had
+// settled at 0.40, three restarts later the same build measured 0.26, and they
+// came back worse. A factor that is too small is worse than none at all, so a
+// warm-up period where it is merely WRONG is a period of visible damage.
+//
+// The accumulators are stored, not just the result. A least-squares fit is a
+// sum, so restoring the sums lets the next session CONTINUE the measurement
+// rather than restart it - a hundred fresh samples then refine a number built
+// from thousands instead of replacing it.
+//
+// Plain key=value text on purpose: this file is meant to be readable, and
+// editable by hand when a value needs pinning for a test.
+struct MouseCalibration {
+    double samples = 0.0;
+    double numX = 0.0, denX = 0.0;
+    double numY = 0.0, denY = 0.0;
+    double sumXY = 0.0, sumMouseSq = 0.0, sumMotionSq = 0.0;
+    double pixelsPerCountX = 0.0, pixelsPerCountY = 0.0;
+};
+
+std::wstring MouseCalibrationPath() {
+    const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
+    if (!localAppData || !*localAppData) return std::wstring();
+    std::wstring dir = std::wstring(localAppData) + L"\\ResetFpsBooster";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    return dir + L"\\mouse_calibration.ini";
+}
+
+bool LoadMouseCalibration(MouseCalibration& out) {
+    const std::wstring path = MouseCalibrationPath();
+    if (path.empty()) return false;
+    std::ifstream file(path);
+    if (!file.is_open()) return false;
+
+    std::string line;
+    bool any = false;
+    while (std::getline(file, line)) {
+        const size_t eq = line.find('=');
+        if (eq == std::string::npos || line.empty() || line[0] == '#') continue;
+        const std::string key = line.substr(0, eq);
+        const double value = atof(line.c_str() + eq + 1);
+        if (key == "samples") out.samples = value;
+        else if (key == "numX") out.numX = value;
+        else if (key == "denX") out.denX = value;
+        else if (key == "numY") out.numY = value;
+        else if (key == "denY") out.denY = value;
+        else if (key == "sumXY") out.sumXY = value;
+        else if (key == "sumMouseSq") out.sumMouseSq = value;
+        else if (key == "sumMotionSq") out.sumMotionSq = value;
+        else if (key == "pixelsPerCountX") out.pixelsPerCountX = value;
+        else if (key == "pixelsPerCountY") out.pixelsPerCountY = value;
+        else continue;
+        any = true;
+    }
+    return any;
+}
+
+void SaveMouseCalibration(const MouseCalibration& c) {
+    const std::wstring path = MouseCalibrationPath();
+    if (path.empty()) return;
+    std::ofstream file(path, std::ios::trunc);
+    if (!file.is_open()) return;
+    file.precision(10);
+    file << "# RESET FRAMEBOOST - measured mouse-to-picture calibration.\n"
+         << "# Delete this file to measure from scratch. Editing pixelsPerCountX/Y\n"
+         << "# pins a value only until the next save overwrites it; to pin one for a\n"
+         << "# test, run with \"nomouse\" off and this file read-only.\n"
+         << "samples=" << c.samples << "\n"
+         << "numX=" << c.numX << "\n" << "denX=" << c.denX << "\n"
+         << "numY=" << c.numY << "\n" << "denY=" << c.denY << "\n"
+         << "sumXY=" << c.sumXY << "\n"
+         << "sumMouseSq=" << c.sumMouseSq << "\n"
+         << "sumMotionSq=" << c.sumMotionSq << "\n"
+         << "pixelsPerCountX=" << c.pixelsPerCountX << "\n"
+         << "pixelsPerCountY=" << c.pixelsPerCountY << "\n";
 }
 
 } // namespace
@@ -595,6 +683,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // several milliseconds later, and whatever the hand did in between is
     // exactly what no rendered frame can know.
     double mouseAnchorX = 0.0, mouseAnchorY = 0.0;
+
+    // Pick up where the last run left off.
+    //
+    // The sums are restored, not just the result, so this session CONTINUES
+    // the measurement instead of restarting it - and the factor is live from
+    // the first frame rather than after two minutes of warm-up during which it
+    // is not merely unknown but WRONG, which is worse than off.
+    double mouseSaveDueAtMs = 0.0;
+    if (!mousePredictionOff) {
+        MouseCalibration stored;
+        if (LoadMouseCalibration(stored) && stored.samples > 0.0) {
+            mouseFitLongNumX = stored.numX;   mouseFitLongDenX = stored.denX;
+            mouseFitLongNumY = stored.numY;   mouseFitLongDenY = stored.denY;
+            mouseFitLongXY = stored.sumXY;
+            mouseFitLongMouseSq = stored.sumMouseSq;
+            mouseFitLongMotionSq = stored.sumMotionSq;
+            mouseFitLongSamples = static_cast<uint64_t>(stored.samples);
+            mousePixelsPerCountX = stored.pixelsPerCountX;
+            mousePixelsPerCountY = stored.pixelsPerCountY;
+
+            std::ostringstream oss;
+            oss << "[FrameBoostBeta] Mouse calibration restored: " << mouseFitLongSamples
+                << " samples, X " << mousePixelsPerCountX << ", Y " << mousePixelsPerCountY
+                << ". Measured over previous sessions rather than guessed again.";
+            FrameBoostBeta::Logger::Log(oss.str());
+        } else {
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] No stored mouse calibration - measuring from scratch."
+                        " The prediction stays off until it is trustworthy.");
+        }
+    }
 
     FrameBoost::MotionEstimation::Estimator estimator;
     FrameBoost::Interpolation::Interpolator interpolator;
@@ -1696,6 +1814,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
+
+        // Keep the measurement, every ten seconds, and only when it is worth
+        // keeping. Writing a bad fit over a good one is the failure this whole
+        // file exists to prevent, so both gates matter: enough samples that the
+        // sums mean something, and a correlation that says the mouse really does
+        // predict this game's picture.
+        //
+        // Never while "nomouse" is set - that run is deliberately not measuring.
+        if (!mousePredictionOff && NowMs() >= mouseSaveDueAtMs && mouseFitLongSamples > 500) {
+            const double corr = (mouseFitLongMouseSq > 0.0 && mouseFitLongMotionSq > 0.0)
+                ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
+                : 0.0;
+            if (corr > 0.5) {
+                MouseCalibration c;
+                c.samples = static_cast<double>(mouseFitLongSamples);
+                c.numX = mouseFitLongNumX; c.denX = mouseFitLongDenX;
+                c.numY = mouseFitLongNumY; c.denY = mouseFitLongDenY;
+                c.sumXY = mouseFitLongXY;
+                c.sumMouseSq = mouseFitLongMouseSq;
+                c.sumMotionSq = mouseFitLongMotionSq;
+                c.pixelsPerCountX = mousePixelsPerCountX;
+                c.pixelsPerCountY = mousePixelsPerCountY;
+                SaveMouseCalibration(c);
+                mouseSaveDueAtMs = NowMs() + 10000.0;
+            }
+        }
         duplicateFramesSinceReport = 0;
         ddUnchangedAtReport = ddCapture.UnchangedFrames();
         duplicateCheckMsSum = 0.0;
@@ -2204,6 +2348,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 mouseFitLongMouseSq += mouseDx * mouseDx;
                 mouseFitLongMotionSq += motionX * motionX;
                 ++mouseFitLongSamples;
+
+                // Old measurements must not outvote new ones forever. Once the
+                // sums hold 40000 samples they are halved, which keeps the fit
+                // stable but lets a changed sensitivity or a different game
+                // move it within a few minutes instead of never. Without this,
+                // a stored calibration would harden into a wrong constant the
+                // moment the player touched their DPI switch.
+                if (mouseFitLongSamples > 40000) {
+                    mouseFitLongNumX *= 0.5; mouseFitLongDenX *= 0.5;
+                    mouseFitLongNumY *= 0.5; mouseFitLongDenY *= 0.5;
+                    mouseFitLongXY *= 0.5;
+                    mouseFitLongMouseSq *= 0.5; mouseFitLongMotionSq *= 0.5;
+                    mouseFitLongSamples /= 2;
+                }
 
                 // Eased in only once there is enough to fit, and only where the
                 // fit has something to divide by.
