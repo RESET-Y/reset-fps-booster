@@ -118,7 +118,25 @@ bool IsDisoccluded(int2 blockPos, float2 motion)
 //
 // The median itself stays. Its point is that it cannot invent a vector no
 // block reported, and that holds at any window size.
-static const int kSpatialRadius = 1; // 3x3
+// Back to 5x5 after seeing what 3x3 costs in field stability.
+//
+// It was cut to 3x3 to save time - the median compares every candidate with
+// every other, so the cost is the square of the window: 625 comparisons at
+// 5x5 against 81, measured as 1.2-1.7 ms against 0.04 ms. At the time the
+// engine was pressed against its budget and that mattered.
+//
+// It is not pressed any more: the whole pipeline now takes 9-16% of the card.
+// And the motion field displayed on screen during gentle movement is
+// flickering and speckled - vectors jumping from frame to frame, so the same
+// object is displaced differently in consecutive generated frames. Two
+// different displacements of one object in rapid alternation is exactly what
+// reads as a double image, which is the artefact that survived switching off
+// blending, switching off warping, presenting both frames ourselves, and
+// disabling the game.s own temporal upscaler.
+//
+// Rejecting outliers is what this pass is for, and a 3x3 window has eight
+// neighbours to do it with.
+static const int kSpatialRadius = 2; // 5x5
 
 // Weight of the new field. Deliberately high: the point is to damp flicker,
 // not to average motion away. At 0.7 a wrong vector decays to ~3% influence

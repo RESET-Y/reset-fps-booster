@@ -815,7 +815,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Where that happens the answer is not to blend more carefully but to
     // stop blending: take the temporally nearer sample alone, still motion
     // compensated. One slightly wrong picture beats two overlaid.
-    const float blendTrust = saturate(1.0 - mismatch * 6.0);
+    // 12.0: blending stops at roughly an 8% disagreement between the two
+    // samples. Averaging two samples that disagree is what a double image is.
+    const float blendTrust = saturate(1.0 - mismatch * 12.0);
     float sourceWeight = lerp(nearestSource, trustedWeight, min(confidence, blendTrust));
     float3 blendedLinear = lerp(prevLinear, currLinear, sourceWeight);
     float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);

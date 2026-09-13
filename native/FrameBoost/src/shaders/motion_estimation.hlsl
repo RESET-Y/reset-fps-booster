@@ -116,16 +116,38 @@ static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as b
 // two coarser levels already did, with a reach of 240 px. It only refines
 // their answer, and a refinement window of +-3 texels is +-6 full-resolution
 // pixels around a vector that is already close.
+// 3. Widening to 6 was tried against a flickering motion field in a
+// low-altitude pass and did not calm it, while generation cost went from 3 ms
+// to 8-11 ms against an 8.3 ms deadline.
+//
+// So the flicker there is not the fine stage failing to reach the right
+// answer - it finds what it looks for, and looking further finds no better.
+// What is left is that the answer itself is ambiguous: ground texture at
+// speed offers many near-equal matches, and which one wins is decided by
+// noise.
 static const int kSearchRadius = 3;
 static const int kSearchWindow = kSearchRadius * 2 + 1; // 7
 static const int kCandidateCount = kSearchWindow * kSearchWindow; // 49
 
-// Cost per pixel of straying from the neighbourhood`s estimate. Deliberately
-// small: a block matching 16 samples across 3 channels typically scores well
-// under 1.0 when it matches cleanly, so 0.01 per pixel adds at most 0.06 over
-// the whole search window - enough to settle ties, not enough to override a
-// real match.
-static const float kNeighbourhoodBias = 0.01;
+// Cost per pixel of straying from the neighbourhood.s estimate.
+//
+// Raised from 0.01 to 0.05 against an ambiguous match rather than a missing
+// one. Ground texture at speed, and foliage at any speed, offer a block dozens
+// of nearly identical candidates; the SAD surface is almost flat and noise
+// decides which wins. A different one wins next frame, the same object is
+// displaced differently in consecutive generated frames, and that is what
+// reads as a double image.
+//
+// Searching wider does not help - that was measured, at 8-11 ms against an
+// 8.3 ms deadline, with no improvement - because the problem is not that the
+// right answer is out of reach. It is that several answers look equally
+// right. When they do, the one agreeing with the neighbourhood should win.
+//
+// At 0.05 the whole search window adds at most 0.3, which still loses to any
+// genuinely better match: a clean block scores well under 1.0 across 16
+// samples and 3 channels, and a real difference between candidates is far
+// larger than that.
+static const float kNeighbourhoodBias = 0.05;
 
 // How much better "not moving" has to be before it is believed. At 1.15 it
 // needs to beat the searched winner by 15%, which a genuinely static overlay
@@ -210,7 +232,27 @@ groupshared float g_zeroMotionSadFull;
 // duplicates, since giving the search the right vector for free changed
 // nothing. Re-enabling it needs a cheaper form (one predictor, or only where
 // the coarse seed matches badly) and a reason to expect a different result.
-static const bool kUsePredictors = false;
+// ON again, and the reason it was off no longer applies.
+//
+// It was switched off at midday because it "changed nothing visible" while
+// pushing generation cost past the budget. Both halves of that have since
+// turned out to be circumstances rather than facts: at the time two
+// confidence constants were discarding roughly 90% of every generated frame,
+// so nothing about the field COULD become visible - and the pipeline was
+// pressed against its deadline, where it now takes 9-16% of the card.
+//
+// What it is for is exactly the problem now on screen. Displaying the motion
+// field during gentle flight shows heavy flicker over trees and lighter
+// flicker over fields: foliage offers a block dozens of nearly identical
+// matches, noise picks the winner, and a different one wins next frame. The
+// same object is then displaced differently in consecutive generated frames,
+// which is what reads as a double image.
+//
+// Offering the vector this block had last frame as a candidate means a block
+// that was right stays right, instead of being re-decided from scratch
+// against a field of ties. That is the 3DRS idea from television frame-rate
+// conversion, and ambiguity in repetitive texture is the case it exists for.
+static const bool kUsePredictors = true;
 static const int kPredictorCount = 5;
 groupshared float g_predictorSad[kPredictorCount];
 groupshared float2 g_predictorVector[kPredictorCount];
@@ -261,6 +303,21 @@ float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
     const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
                              max((int)FrameHeight / kMipScale, 1)) - 1;
 
+    // A plain difference of colours, which assumes the same object keeps the
+    // same brightness between frames. Games break that: a G-force blackout
+    // darkens everything, a cloud shadow passes, a flash lights the scene -
+    // reported directly, the whole motion field lighting up when the screen
+    // dims under G-load, because every block looks changed.
+    //
+    // Subtracting each block.s mean first would leave only the pattern and fix
+    // that. Implemented by storing sixteen samples per thread, it cost the
+    // fine stage 17-30 ms against 1.2 - 49 threads per group each holding
+    // sixteen float3s blows the register budget and the GPU spills to memory.
+    //
+    // The idea is right and the implementation has to avoid keeping samples
+    // around: either two fetch passes with no storage, or a gradient-based
+    // measure, which cancels a brightness offset without needing the mean at
+    // all.
     float sad = 0.0;
     [unroll]
     for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)

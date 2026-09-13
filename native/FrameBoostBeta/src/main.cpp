@@ -267,6 +267,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // frame. "nobadge" hides it, for screenshots and recordings.
     const unsigned int badgeFlag = HasArg(L"nobadge") ? 0u : 4u;
 
+    // "nowarp": the generated frame becomes an exact copy of the previous real
+    // frame - phase 0, no motion compensation at all.
+    //
+    // A diagnostic, not a mode. Doubling survived switching the blend off
+    // entirely, which rules out averaging two pictures. What is left is that a
+    // single warped picture puts content in the wrong place. If the doubling
+    // also survives having nothing warped at all, then it is not the
+    // interpolation - and everything we have been adjusting for hours is the
+    // wrong suspect.
+    const bool noWarpDiagnostic = HasArg(L"nowarp");
+
     const bool measureOutputDiff = HasArg(L"measureoutput");
     const unsigned int debugTintMode = HasArg(L"showmotion") ? 4u
         : HasArg(L"showfallback") ? 3u
@@ -2555,8 +2566,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // of the stream that was on time. Moving the content to
                     // match the timing costs nothing: the interpolator can
                     // produce any phase, and 0.428 is no harder than 0.5.
-                    float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
-                    if (realToGenCount > 10 && pairIntervalMs > 1.0) {
+                    float phaseForStep = noWarpDiagnostic
+                        ? 0.0f
+                        : static_cast<float>(step) / static_cast<float>(outputPerReal);
+                    if (!noWarpDiagnostic && realToGenCount > 10 && pairIntervalMs > 1.0) {
                         const double measured = (realToGenSum / realToGenCount) / pairIntervalMs;
                         // Clamped well inside the pair: a phase at either end
                         // is a copy of a real frame, which is what this whole
