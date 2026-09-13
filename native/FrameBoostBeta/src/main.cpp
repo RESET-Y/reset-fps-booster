@@ -639,6 +639,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     QueryPerformanceCounter(&lastReport);
     uint64_t nativeFramesSinceReport = 0;
     uint64_t generatedFramesSinceReport = 0;
+    // Frames predicted forward to cover a source that was late. Counted
+    // separately from generated frames: they are a different promise, and a
+    // rising number means the game is stuttering, not that we are working.
+    uint64_t gapFillsSinceReport = 0;
+    int gapFillsInARow = 0;
+    static constexpr int kMaxGapFills = 8;
     double lastCaptureMs = -1.0;
     double duplicateCheckMsSum = 0.0;
     uint64_t duplicateCheckSamples = 0;
@@ -1579,6 +1585,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
@@ -1668,6 +1675,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         queueDepthMin = 9999; queueDepthMax = 0; queueDepthSum = 0.0; queueDepthSamples = 0;
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
+        gapFillsSinceReport = 0;
         duplicateFramesSinceReport = 0;
         ddUnchangedAtReport = ddCapture.UnchangedFrames();
         duplicateCheckMsSum = 0.0;
@@ -2399,6 +2407,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
             const double nowMs = NowMs();
 
+            // A real frame ends the famine, whatever it contained.
+            if (haveNewContent) gapFillsInARow = 0;
+
             // Always exactly double: one generated frame per real frame, at the
             // midpoint of the interval the source itself sets.
             //
@@ -2754,6 +2765,92 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 RecordContentStep(motionCurrTimestampMs);
                 RecordPresentGap(NowMs(), false);
                 RecordPresentAge();
+            }
+
+            // GAP FILLER: keep the picture moving while the source is late.
+            //
+            // Measured on screen, twice over. The engine's own telemetry: jitter
+            // 10.4 ms in a second whose source deviation was 34.5% and whose
+            // largest content step was 72.5 ms. The independent audit, which
+            // generates and presents nothing of its own: unique-content spacing
+            // 8.45 ms mean but max 27.78 ms. The game delivers its ~72 frames
+            // but bunched - one long pause, then the rest. Reported as "manchmal
+            // hab ich das gefuehl es dropt auf 30 fps", and for 72 ms it is
+            // worse than that: it is 14.
+            //
+            // Nothing in our scheduling causes it and nothing in our scheduling
+            // can repair it after the fact. PacingInterval() returns the LOCKED
+            // period, not the raw pair interval, so a long gap does not stretch
+            // the hold on the newest real frame - that was checked before this
+            // was written, because it would have been the cheaper fix. During
+            // those 72 ms the loop simply has nothing new to show and the screen
+            // holds its last picture.
+            //
+            // So put something there. The newest real frame is carried FORWARD
+            // along the motion it already had - the same prediction the
+            // "extrapolate" mode uses, applied only where interpolation has
+            // nothing to offer because the second frame does not exist yet.
+            // This is what a VR headset does when a frame misses its deadline,
+            // and for the same reason: a picture that keeps moving beats a
+            // picture that is briefly correct and frozen.
+            //
+            // Bounded on both sides. It starts only once the source is a third
+            // of an interval late, so ordinary jitter never triggers it, and it
+            // stops after kMaxGapFills frames - about 55 ms - because a
+            // prediction drifts further from the truth the longer it runs, and
+            // a genuinely paused game should look paused.
+            if (!extrapolateMode && !forcePassthroughOnly && !inDegradedMode && gpuHasRoom
+                    && outputSlotMs > 0.0 && lockedPeriodMs > 1.0
+                    && motionCurrTimestampMs > 0.0 && lastPresentAtMs > 0.0
+                    && gapFillsInARow < kMaxGapFills
+                    && estimator.PrevFrameSRV() && estimator.CurrFrameSRV()
+                    && estimator.MotionVectorSRV()) {
+                const double fillNowMs = NowMs();
+                const double sinceRealMs = fillNowMs - (motionCurrTimestampMs + arrivalLagEmaMs);
+                const double sincePresentMs = fillNowMs - lastPresentAtMs;
+
+                if (sinceRealMs > lockedPeriodMs * 1.3 && sincePresentMs >= outputSlotMs) {
+                    D3D11_TEXTURE2D_DESC fillDesc{};
+                    if (ID3D11Texture2D* curTex = estimator.CurrFrameTexture())
+                        curTex->GetDesc(&fillDesc);
+
+                    if (fillDesc.Width > 0 && fillDesc.Height > 0) {
+                        // How far past the newest real frame this picture sits,
+                        // as a fraction of one interval - which is exactly the
+                        // unit the motion field is in, since it measures the
+                        // displacement across one interval.
+                        const double ahead = sinceRealMs / lockedPeriodMs;
+                        interpolator.SetExtrapolateAhead(
+                            static_cast<float>(ahead > 1.0 ? 1.0 : ahead));
+
+                        ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
+                        if (interpolator.GenerateFrame(device.get(), context.get(),
+                                estimator.PrevFrameSRV(), estimator.CurrFrameSRV(),
+                                estimator.MotionVectorSRV(),
+                                fillDesc.Width, fillDesc.Height,
+                                DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                            if (uav) presenter.PresentBackBuffer(presentSyncInterval);
+                            else presenter.PresentFrame(context.get(),
+                                    interpolator.GeneratedFrameTexture(), presentSyncInterval);
+                            ++generatedFramesSinceReport;
+                            ++gapFillsSinceReport;
+                            ++gapFillsInARow;
+                            lastInterpolationRunMs = NowMs();
+                            // Its content sits ahead of the newest real frame,
+                            // so the content step is recorded there and not at
+                            // the frame it was predicted from.
+                            RecordContentStep(motionCurrTimestampMs + ahead * lockedPeriodMs);
+                            RecordPresentGap(NowMs(), true);
+                            RecordPresentAge();
+                        }
+
+                        // Back to interpolation for everything else. Left set,
+                        // this would send the next ordinary generated frame down
+                        // the extrapolation branch, which returns early and
+                        // skips the whole interpolation path.
+                        interpolator.SetExtrapolateAhead(0.0f);
+                    }
+                }
             }
 
             Sleep(0); // yield without burning a core; the pacing is by clock above
