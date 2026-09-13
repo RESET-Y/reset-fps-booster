@@ -49,6 +49,11 @@ public:
     // the instant this frame represents - derived from raw mouse movement that
     // no rendered frame has shown yet. Offered to the shader as one more
     // candidate vector, so a wrong prediction simply loses and costs nothing.
+    // How far the per-pixel search should back off, from measured headroom.
+    // 1 = full quality. Higher means only badly broken pixels pay for the
+    // search - worse pixels on time, rather than better pixels too late.
+    void SetQualityRelief(float r) { m_qualityRelief = r < 1.0f ? 1.0f : (r > 6.0f ? 6.0f : r); }
+
     void SetMousePrediction(float x, float y) { m_mousePredictX = x; m_mousePredictY = y; }
 
     void SetExtrapolateAhead(float a) { m_extrapolateAhead = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a); }
@@ -89,6 +94,8 @@ private:
     float m_mousePredictY = 0.0f;
     float m_mousePredictXInBuffer = -1.0f;
     float m_mousePredictYInBuffer = -1.0f;
+    float m_qualityRelief = 1.0f;
+    float m_qualityReliefInBuffer = -1.0f;
     float m_extrapolateAheadInBuffer = -1.0f;
     unsigned int m_statusFlagsInBuffer = 0xFFFFFFFFu;
 

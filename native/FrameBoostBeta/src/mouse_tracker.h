@@ -40,6 +40,13 @@ public:
     // caller sees the movement that happened during its own frame.
     void TakeDelta(double& outDx, double& outDy);
 
+    // Signed running totals, never cleared. The prediction needs "how far has
+    // the mouse moved since THIS moment", and a moment is recorded by taking
+    // these and subtracting later - which the clearing TakeDelta cannot do,
+    // because the calibration consumes the same numbers.
+    double TotalX() const { return m_totalX.load(std::memory_order_relaxed); }
+    double TotalY() const { return m_totalY.load(std::memory_order_relaxed); }
+
     // Totals, for telemetry that should not disturb the per-frame accounting.
     double TotalAbsX() const { return m_totalAbsX.load(std::memory_order_relaxed); }
     double TotalAbsY() const { return m_totalAbsY.load(std::memory_order_relaxed); }
@@ -54,6 +61,8 @@ private:
     // measured rather than assumed. See the calibration in main.cpp.
     std::atomic<double> m_accumX{ 0.0 };
     std::atomic<double> m_accumY{ 0.0 };
+    std::atomic<double> m_totalX{ 0.0 };
+    std::atomic<double> m_totalY{ 0.0 };
     std::atomic<double> m_totalAbsX{ 0.0 };
     std::atomic<double> m_totalAbsY{ 0.0 };
     std::atomic<uint64_t> m_events{ 0 };

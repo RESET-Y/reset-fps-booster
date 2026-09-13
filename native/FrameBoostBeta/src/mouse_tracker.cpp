@@ -75,6 +75,8 @@ void MouseTracker::OnRawInput(LPARAM lParam) {
     // read half a frame late costs nothing here.
     m_accumX.store(m_accumX.load(std::memory_order_relaxed) + dx, std::memory_order_relaxed);
     m_accumY.store(m_accumY.load(std::memory_order_relaxed) + dy, std::memory_order_relaxed);
+    m_totalX.store(m_totalX.load(std::memory_order_relaxed) + dx, std::memory_order_relaxed);
+    m_totalY.store(m_totalY.load(std::memory_order_relaxed) + dy, std::memory_order_relaxed);
     m_totalAbsX.store(m_totalAbsX.load(std::memory_order_relaxed) + (dx < 0 ? -dx : dx),
                       std::memory_order_relaxed);
     m_totalAbsY.store(m_totalAbsY.load(std::memory_order_relaxed) + (dy < 0 ? -dy : dy),

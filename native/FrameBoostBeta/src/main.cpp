@@ -226,6 +226,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // Forces generation into our own texture rather than straight into the
     // back buffer, because the back buffer cannot be read back.
+    // The green badge in the corner, on unless switched off. It is the only
+    // way the user can tell that the booster is running without opening a log,
+    // and it reports the thing itself: it can only be drawn by a generated
+    // frame. "nobadge" hides it, for screenshots and recordings.
+    const unsigned int badgeFlag = HasArg(L"nobadge") ? 0u : 4u;
+
     const bool measureOutputDiff = HasArg(L"measureoutput");
     const unsigned int debugTintMode = HasArg(L"showmotion") ? 4u
         : HasArg(L"showfallback") ? 3u
@@ -494,9 +500,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // predicted and the engine behaves exactly as before.
     double mousePixelsPerCountX = 0.0;
     double mousePixelsPerCountY = 0.0;
-    // Mouse movement since the last real frame, kept for the prediction rather
-    // than consumed by the calibration - both need the same numbers.
-    double mouseRecentDx = 0.0, mouseRecentDy = 0.0;
+    // Where the running mouse totals stood when the last real frame arrived.
+    // The prediction is the movement SINCE then, read fresh at the moment the
+    // generated frame is built.
+    //
+    // It used to use the movement up to the last real frame instead, which is
+    // the interval the picture already shows - the one piece of mouse data
+    // with no predictive value left in it. The generated frame is produced
+    // several milliseconds later, and whatever the hand did in between is
+    // exactly what no rendered frame can know.
+    double mouseAnchorX = 0.0, mouseAnchorY = 0.0;
 
     FrameBoost::MotionEstimation::Estimator estimator;
     FrameBoost::Interpolation::Interpolator interpolator;
@@ -927,6 +940,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // tracked with a slow average, and pacing uses THAT, not the per-pair
     // measurement. Jitter in the capture stops reaching the output at all.
     double lockedPeriodMs = -1.0;
+    // How far the per-pixel search has to back off to make its deadline.
+    //
+    // Driven by the SAME measurement the headroom verdict reports, so the
+    // engine acts on what it already knows instead of only complaining about
+    // it. Adjusted slowly: quality that oscillates is worse than quality that
+    // is merely lower, because the eye notices the change more than the level.
+    double qualityRelief = 1.0;
+
+    auto UpdateQualityRelief = [&]() {
+        if (costHistoryCount < 60 || lockedPeriodMs <= 1.0) return;
+
+        std::vector<double> interps(interpHistory, interpHistory + costHistoryCount);
+        std::sort(interps.begin(), interps.end());
+        const double p95 = interps[(interps.size() * 95) / 100];
+        const double deadlineMs = lockedPeriodMs * 0.5;
+
+        // Aim for the 95th percentile to sit at 70% of the deadline. Not at
+        // 100%: a budget that is exactly met is missed as soon as anything
+        // else on the machine twitches.
+        const double target = deadlineMs * 0.7;
+        const double wanted = (p95 > target)
+            ? qualityRelief * (p95 / target)   // too slow: give the search less to do
+            : qualityRelief * 0.97;            // room to spare: drift back toward full
+
+        qualityRelief = qualityRelief * 0.95 + wanted * 0.05;
+        if (qualityRelief < 1.0) qualityRelief = 1.0;
+        if (qualityRelief > 6.0) qualityRelief = 6.0;
+    };
+
     auto HeadroomVerdict = [&]() -> std::string {
         if (costHistoryCount < 60 || lockedPeriodMs <= 1.0)
             return "measuring - play for a few seconds";
@@ -1284,6 +1326,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     double submittedPerSecond = -1.0, displayedPerSecond = -1.0;
 
     auto ReportTelemetryIfDue = [&]() {
+        // Slow regulator, once per report rather than per frame: quality that
+        // oscillates is worse than quality that is merely lower, because the
+        // eye notices the change more than the level.
+        UpdateQualityRelief();
+        interpolator.SetQualityRelief(static_cast<float>(qualityRelief));
+
         LARGE_INTEGER now{};
         QueryPerformanceCounter(&now);
         double elapsed = static_cast<double>(now.QuadPart - lastReport.QuadPart) / qpcFreq.QuadPart;
@@ -1351,6 +1399,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
+            << " | Quality relief: " << qualityRelief
             << " | Headroom: " << HeadroomVerdict()
             << " | Locked source period: " << lockedPeriodMs << " ms (" << (lockedPeriodMs > 0 ? 1000.0 / lockedPeriodMs : 0.0) << " FPS)"
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
@@ -1905,8 +1954,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ranEstimationThisTick && mouseTracker.IsRunning()) {
             double mouseDx = 0.0, mouseDy = 0.0;
             mouseTracker.TakeDelta(mouseDx, mouseDy);
-            mouseRecentDx = mouseDx;
-            mouseRecentDy = mouseDy;
+            mouseAnchorX = mouseTracker.TotalX();
+            mouseAnchorY = mouseTracker.TotalY();
 
             const double motionX = motionStats.MeanVectorX();
             const double motionY = motionStats.MeanVectorY();
@@ -2228,13 +2277,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The sign is inverted because a motion vector points from
                     // where content is now to where it WAS: turning right moves
                     // the world left, so the vector points right.
+                    const double sinceAnchorX = mouseTracker.TotalX() - mouseAnchorX;
+                    const double sinceAnchorY = mouseTracker.TotalY() - mouseAnchorY;
                     interpolator.SetMousePrediction(
-                        static_cast<float>(-mouseRecentDx * mousePixelsPerCountX * 0.5),
-                        static_cast<float>(-mouseRecentDy * mousePixelsPerCountY * 0.5));
+                        static_cast<float>(-sinceAnchorX * mousePixelsPerCountX),
+                        static_cast<float>(-sinceAnchorY * mousePixelsPerCountY));
 
                     interpolator.SetExtrapolateAhead(0.5f);
                     interpolator.SetPhase(0.5f);
-                    interpolator.SetStatusFlags((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u);
+                    interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 
                     ID3D11UnorderedAccessView* uav = measureOutputDiff
                         ? nullptr
@@ -2308,7 +2359,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 for (int step = 1; step < outputPerReal; ++step) {
                     const float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
                     interpolator.SetPhase(phaseForStep);
-                    interpolator.SetStatusFlags((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u);
+                    interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 
                     ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
                     if (!interpolator.GenerateFrame(device.get(), context.get(),
@@ -2607,10 +2658,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         if (wantGenerated) {
             interpolator.SetMousePrediction(
-                static_cast<float>(-mouseRecentDx * mousePixelsPerCountX * phase),
-                static_cast<float>(-mouseRecentDy * mousePixelsPerCountY * phase));
+                static_cast<float>(-(mouseTracker.TotalX() - mouseAnchorX) * mousePixelsPerCountX),
+                static_cast<float>(-(mouseTracker.TotalY() - mouseAnchorY) * mousePixelsPerCountY));
             interpolator.SetPhase(static_cast<float>(phase));
-            interpolator.SetStatusFlags((maxFactor == 2 ? 1u : 0u)
+            interpolator.SetStatusFlags(badgeFlag | (maxFactor == 2 ? 1u : 0u)
                 | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);

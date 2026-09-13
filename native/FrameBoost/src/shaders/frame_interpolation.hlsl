@@ -57,7 +57,11 @@ cbuffer InterpolationParams : register(b0)
     // Where the camera is being turned, in pixels of expected screen shift,
     // derived from raw mouse movement. Zero when unknown.
     float2 MousePrediction;
-    float2 _mousePad;
+    // 1 = full quality, higher = the per-pixel search gives up sooner. Set from
+    // measured headroom, so the same build runs at full quality where there is
+    // time and backs off where there is not, instead of missing its deadline.
+    float QualityRelief;
+    float _mousePad;
 
     // Status indicator, drawn as small squares in the top-left corner so the
     // active modes are visible on screen. Needed because the hotkeys had no
@@ -309,7 +313,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         // 0.045 is a mean absolute difference of 1.5% per channel across three
         // channels - comfortably above sampling noise on a clean match, well
         // below the disagreement at an edge where two motions meet.
-        const float kIncumbentTolerance = 0.045;
+        // Scaled by the measured headroom. At relief 1 this is the tolerance the
+        // quality work was tuned with; at 4 only badly broken pixels still pay
+        // for the search, which is the difference between a game where we have
+        // a third of the graphics card and one where we have a tenth.
+        //
+        // Backing off beats missing the deadline: a slightly worse pixel is
+        // shown on time, and a better one that arrives late is not shown at
+        // all. Measured in War Thunder before this existed - 40% of generated
+        // frames late, 80-91% of the card taken from a game that needed it.
+        const float kIncumbentTolerance = 0.045 * max(QualityRelief, 1.0);
         if (bestResidual > kIncumbentTolerance)
         {
             float3 candidates[kMotionCandidates];
@@ -476,6 +489,23 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
         float4 outColor = float4(LinearToSrgb(aheadResult), 1.0);
         if (DebugTintGenerated) outColor.r = min(outColor.r + 0.35, 1.0);
+
+        // The badge has to be drawn here as well.
+        //
+        // This branch writes its frame and returns, and everything below it -
+        // including the status drawing at the end - is skipped. Since this is
+        // the branch the engine uses by default, the badge was never drawn at
+        // all: reported as "kein Balken" while 59-64 frames a second were
+        // being generated. A status light behind an early return reports
+        // nothing about anything.
+        if ((StatusFlags & 4u) != 0)
+        {
+            const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
+            const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+            if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
+                outColor.rgb = float3(0.1, 0.95, 0.3);
+        }
+
         GeneratedFrame[id.xy] = outColor;
         return;
     }
@@ -680,6 +710,30 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     // Developer aid: makes it unambiguous on screen whether generated frames
     // are actually reaching the display, and which ones they are.
+    // THE BADGE: a green bar in the top-left corner while the booster is
+    // actually doubling.
+    //
+    // It is honest by construction rather than by care. This shader runs only
+    // when a generated frame is being produced, so the bar cannot be drawn
+    // while nothing is being generated - and when the engine stands aside for
+    // lack of GPU room it hides its overlay entirely, so the bar disappears
+    // with it. A status light that is wired to the thing it reports, not to a
+    // variable that says what the thing is supposed to be doing.
+    //
+    // Bit 2 of StatusFlags. Bits 0 and 1 stay the small amber and cyan squares
+    // beside it.
+    if ((StatusFlags & 4u) != 0)
+    {
+        const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
+        const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+        if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
+        {
+            // Drawn over whatever is underneath rather than blended, so it
+            // reads the same on a bright sky and in a dark corridor.
+            result.rgb = float3(0.1, 0.95, 0.3);
+        }
+    }
+
     // Status squares: 14x14 px each, 4 px apart, starting 12 px from the
     // top-left corner. Amber = low latency, cyan = transparency. Drawn only
     // into generated frames, which is all we produce - enough to read at a

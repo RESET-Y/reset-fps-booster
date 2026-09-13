@@ -106,9 +106,9 @@ bool Interpolator::EnsureResources(ID3D11Device* device, UINT width, UINT height
     }
 
     struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float extrapolateAhead; float pad;
-                      float mousePredictX, mousePredictY, mousePad0, mousePad1; };
+                      float mousePredictX, mousePredictY, qualityRelief, mousePad1; };
     ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint, m_phaseT, m_statusFlags, m_extrapolateAhead, 0.0f,
-                         m_mousePredictX, m_mousePredictY, 0.0f, 0.0f };
+                         m_mousePredictX, m_mousePredictY, m_qualityRelief, 0.0f };
     m_debugTintInBuffer = m_debugTint;
     m_phaseTInBuffer = m_phaseT;
     m_statusFlagsInBuffer = m_statusFlags;
@@ -169,17 +169,19 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
             || m_extrapolateAhead != m_extrapolateAheadInBuffer
             || m_mousePredictX != m_mousePredictXInBuffer
             || m_mousePredictY != m_mousePredictYInBuffer
+            || m_qualityRelief != m_qualityReliefInBuffer
             || m_statusFlags != m_statusFlagsInBuffer) && m_paramsCB) {
         struct ParamsCB { UINT width, height, blockSize, debugTint; float phaseT; UINT statusFlags; float extrapolateAhead; float pad;
-                      float mousePredictX, mousePredictY, mousePad0, mousePad1; };
+                      float mousePredictX, mousePredictY, qualityRelief, mousePad1; };
         ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint, m_phaseT, m_statusFlags, m_extrapolateAhead, 0.0f,
-                         m_mousePredictX, m_mousePredictY, 0.0f, 0.0f };
+                         m_mousePredictX, m_mousePredictY, m_qualityRelief, 0.0f };
         context->UpdateSubresource(m_paramsCB, 0, nullptr, &params, 0, 0);
         m_debugTintInBuffer = m_debugTint;
         m_phaseTInBuffer = m_phaseT;
         m_extrapolateAheadInBuffer = m_extrapolateAhead;
         m_mousePredictXInBuffer = m_mousePredictX;
         m_mousePredictYInBuffer = m_mousePredictY;
+        m_qualityReliefInBuffer = m_qualityRelief;
         m_statusFlagsInBuffer = m_statusFlags;
     }
 
