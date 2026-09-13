@@ -216,7 +216,16 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     // an intermediate texture and then copied - 14 MB per frame, 144 times a
     // second, for nothing.
     scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS;
-    scDesc.BufferCount = 3; // extra slack so the immediate (syncInterval 0) generated-frame present never stalls waiting for a free buffer
+    // 2 - the minimum a flip-model swapchain allows. DXGI refuses 1 outright:
+    // one buffer is being scanned out, so there has to be a second to draw
+    // into.
+    //
+    // Was 3, for slack so an immediate (syncInterval 0) present never stalls
+    // waiting for a free buffer. With two there is no slack: if the display is
+    // still reading the front buffer, the next present waits. That is the
+    // lowest latency the API offers and also the easiest way to lose
+    // throughput, so it is worth measuring rather than assuming.
+    scDesc.BufferCount = 2;
     // Waitable: lets us block until the display is ready for the next frame,
     // instead of handing DXGI a frame and letting it queue up to three before
     // any of them is shown. See m_frameLatencyWaitable in the header.
