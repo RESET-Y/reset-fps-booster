@@ -140,7 +140,19 @@ private:
     //
     // Four slots, with the one the consumer holds protected, so a frame being
     // read is never overwritten underneath it.
+    // The captured frames are HELD, not copied.
+    //
+    // A full-frame copy is 14 MB at 1440p, and at 60 frames a second that is
+    // 840 MB/s of pure copying - bandwidth taken from the game as much as from
+    // us. The frame pool owns its surfaces and recycles them when the frame
+    // object is released, so keeping the frame object alive keeps the surface
+    // valid and it can be bound directly.
+    //
+    // Safe because the pool has six buffers and this holds at most four, and
+    // because a slot is never reused while the consumer is reading it.
     static constexpr int kSlotCount = 4;
+    winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame m_slotFrame[kSlotCount]
+        { nullptr, nullptr, nullptr, nullptr };
     winrt::com_ptr<ID3D11Texture2D> m_slotTex[kSlotCount];
     int64_t m_slotTimestamp100ns[kSlotCount] = {};
     int m_newestSlot = -1;

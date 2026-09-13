@@ -259,11 +259,23 @@ void CaptureEngine::CollectArrivedFrames() {
                 }
             }
 
-            // The surface belongs to the pool and is recycled as soon as the
-            // frame is released, so it is copied into a texture of our own.
-            // Nothing else happens on this thread - a copy is short enough
-            // that sharing the immediate context costs less than a second
-            // device and cross-device sharing would.
+            // COPIED, not held.
+            //
+            // Holding the frame object instead would save a full-frame copy -
+            // 14 MB at 1440p, 840 MB/s at 60 frames a second, bandwidth taken
+            // from the game as much as from us - because the pool.s surface
+            // stays valid as long as the frame is alive.
+            //
+            // It was tried and it stopped the capture dead: source FPS frozen
+            // at one value, nothing retrieved, nothing generated. Holding four
+            // frames out of a six-buffer pool leaves the pool unable to
+            // continue, so "six minus four leaves two" does not hold in
+            // practice. Noticed because the output suddenly felt TOO smooth -
+            // which is what the raw game looks like when the booster has
+            // quietly stopped.
+            //
+            // Worth retrying only with a much larger pool, and only with this
+            // failure mode in mind.
             m_context->CopyResource(m_slotTex[slot].get(), tex.get());
 
             {
@@ -341,6 +353,17 @@ void CaptureEngine::ResetAuditCounters() {
 void CaptureEngine::Stop() {
     if (m_session) { try { m_session.Close(); } catch (...) {} }
     m_frameArrivedRevoker.revoke();
+
+    // Held frames must go back before the pool does, or the pool is closed
+    // while we still own surfaces from it.
+    {
+        std::lock_guard<std::mutex> lock(m_slotMutex);
+        for (auto& f : m_slotFrame) f = nullptr;
+        for (auto& t : m_slotTex) t = nullptr;
+        m_newestSlot = -1;
+        m_inUseSlot = -1;
+    }
+
     if (m_framePool) { try { m_framePool.Close(); } catch (...) {} }
     m_capturing = false;
 }
