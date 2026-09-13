@@ -235,42 +235,106 @@ float3 LinearToSrgb(float3 c)
 // The block vectors around a pixel, so a pixel can choose between them instead
 // of being handed their average.
 //
-// Nine: the whole 3x3 neighbourhood of the block the pixel sits in.
+// Four - the blocks this pixel.s own vector was interpolated from.
 //
-// Four corners reach only 8 px in each direction, narrower than the band the
-// bilinear blending itself spoils, so a pixel in the middle of that band could
-// not always see a block holding the right answer.
+// It was nine, the full 3x3 neighbourhood, which reaches further into the
+// band that bilinear blending spoils. But nine candidates plus standstill
+// plus the mouse is eleven residuals of two samples each, and with the
+// quality regulator no longer suppressing it that put interpolation at 10.5-
+// 11.4 ms against a 6.94 ms deadline - output collapsed from 144 to 52 while
+// motion estimation sat at a comfortable 1.4-2.1 ms.
 //
-// This was reverted twice on cost, the second time even with a whole extra
-// source period of latency behind it - which failed for a reason worth
-// keeping: latency buys a later DEADLINE, not THROUGHPUT. Seventy-two
-// generated frames a second at 9 ms each is 650 ms of graphics card per
-// second, so the game starved and its own rate fell from 72 to 63 while the
-// engine still reported "doubling: on". Reported live as "unbelievably choppy".
-//
-// It is affordable now for a different reason: only pixels whose existing
-// vector already fails pay for it, which is a thin band around moving edges
-// rather than the whole screen. Breadth where it matters, nothing where it
-// does not.
-static const int kMotionCandidates = 9;
+// Four candidates is the version that measured 0.55 ms and was reported as
+// clearly better when it first appeared. The move to nine was never A/B
+// tested on its own - it went in together with other changes, and the
+// regulator hid its cost immediately afterwards.
+static const int kMotionCandidates = 4;
 
-void GatherBlockMotion(float2 pixelCenter, uint2 blockCount, out float3 candidates[kMotionCandidates])
+// The four block vectors around a pixel, read ONCE.
+//
+// They were being read three times over: four Loads for the bilinear vector,
+// four more for the candidate list, four more for the occlusion diagnostic.
+// The same four texels every time. One read, three uses.
+void LoadBlockMotion(float2 pixelCenter, uint2 blockCount,
+                     out float3 corners[kMotionCandidates], out float2 frac)
 {
-    const int2 centre = clamp(int2(floor(pixelCenter / BlockSize)),
-                              int2(0, 0), int2(blockCount) - 1);
-    const int2 maxBlock = int2(blockCount) - 1;
+    // Position within the block grid, offset by half a block so that a block's
+    // vector is anchored at the block's CENTRE.
+    const float2 gridPos = pixelCenter / BlockSize - 0.5;
+    const float2 baseF = floor(gridPos);
+    frac = gridPos - baseF;
 
-    [unroll]
-    for (int y = -1; y <= 1; ++y)
-    {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            const int2 b = clamp(centre + int2(x, y), int2(0, 0), maxBlock);
-            candidates[(y + 1) * 3 + (x + 1)] = MotionVectors.Load(int3(b, 0)).xyz;
-        }
-    }
+    const int2 b00 = clamp(int2(baseF), int2(0, 0), int2(blockCount) - 1);
+    const int2 b11 = clamp(b00 + int2(1, 1), int2(0, 0), int2(blockCount) - 1);
+
+    corners[0] = MotionVectors.Load(int3(b00, 0)).xyz;                  // 00
+    corners[1] = MotionVectors.Load(int3(int2(b11.x, b00.y), 0)).xyz;   // 10
+    corners[2] = MotionVectors.Load(int3(int2(b00.x, b11.y), 0)).xyz;   // 01
+    corners[3] = MotionVectors.Load(int3(b11, 0)).xyz;                  // 11
 }
+
+float3 BilinearFromCorners(float3 corners[kMotionCandidates], float2 frac)
+{
+    return lerp(lerp(corners[0], corners[1], frac.x),
+                lerp(corners[2], corners[3], frac.x), frac.y);
+}
+
+// ---------------------------------------------------------------------------
+// VECTOR VALIDATION - two questions asked BEFORE a pixel is moved at all.
+//
+// Everything else in this shader judges a vector by its RESULT: sample the two
+// frames along it and see whether they agree. That test has a blind spot, and
+// it is the one behind "in Apex ist jetzt alles komplett doppelt". When the
+// camera whips around, a block moves further between two frames than the
+// estimator can reliably resolve; the vector it returns is then not a
+// measurement but a guess, and a wrong vector in a detailed scene can still
+// make two arbitrary patches of texture agree well enough to pass the test.
+// The result is content moved to a place it never was - a hard, displaced
+// second copy.
+//
+// These two ask about the VECTOR ITSELF rather than about its result, and
+// where they fail the pixel is not moved at all. See the cross-fade below.
+// ---------------------------------------------------------------------------
+
+// 1. MAGNITUDE. Beyond this much displacement per real-frame interval, a
+//    vector is not trusted to move anything.
+//
+//    Being precise about what this is and is not: the pyramid can REACH 240 px
+//    (mip 4, radius 15). Reach is not reliability. The coarsest level matches
+//    8 px blocks on a sixteenth-resolution image, where a block is half a texel
+//    of actual content - at that scale a "match" is a colour coincidence. The
+//    fine stage can only correct such an answer by +-6 px, so a coarse vector
+//    wrong by 40 px stays wrong by 34.
+//
+//    64 px, with the ramp starting at 48. At 72 fps in a shooter that is a
+//    camera turn fast enough that the eye cannot resolve detail anyway - which
+//    is exactly when a soft frame costs nothing and a displaced copy costs
+//    everything.
+//
+//    This is a starting point to be measured, not a derivation. Run with
+//    "showblend" and look at how much of the screen turns blue.
+static const float kMaxTrustedMotion = 64.0;
+static const float kMotionRampStart  = 48.0;
+
+// 2. COHERENCE. How far the four surrounding block vectors may disagree with
+//    the one this pixel was handed.
+//
+//    Real motion is shared: an object moves as one, a camera pan moves the
+//    whole picture together. Four neighbouring blocks pointing four different
+//    ways is not a scene that does that - it is a search that found nothing
+//    and returned noise. Which is precisely the case in foliage at speed and
+//    in ground texture during a low pass, where the SAD surface is almost flat
+//    and a different candidate wins in every block.
+//
+//    Judged RELATIVE to how fast this area is moving, for the reason the
+//    occlusion work established the hard way: during a camera pan neighbouring
+//    blocks differ by several pixels from perspective alone, everywhere at
+//    once. An absolute threshold fires across the whole screen the moment the
+//    view turns, which is worthless. 6 px of floor plus a quarter of the local
+//    speed asks "disagreeing by more than this scene's own perspective can
+//    explain".
+static const float kCoherenceFloor = 6.0;
+static const float kCoherenceSlope = 0.25;
 
 float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
 {
@@ -377,9 +441,84 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // mv is defined (see motion_estimation.hlsl) such that
     // CurrFrame(p) approx= PrevFrame(p + mv) - i.e. mv points from this
     // pixel's current position back to where that content was previously.
-    float3 motionAndError = SampleMotionBilinear(pixelCenter, blockCount);
+    float3 blockCorners[kMotionCandidates];
+    float2 blockFrac;
+    LoadBlockMotion(pixelCenter, blockCount, blockCorners, blockFrac);
+
+    float3 motionAndError = BilinearFromCorners(blockCorners, blockFrac);
     float2 mv = motionAndError.xy;
     float blockMatchError = motionAndError.z;
+
+    // --- vector validation, on the vector the block grid handed us ---------
+    //
+    // Deliberately judged BEFORE the per-pixel selection below. A pixel that
+    // picks one of four chaotic neighbours has not found the truth; it has
+    // picked a different piece of noise, and it would pick it ON RESIDUAL - so
+    // the residual test cannot be the one to catch this.
+    const float motionMagnitude = length(mv);
+
+    // The largest disagreement among the four, not their average: an average
+    // hides one wild neighbour among three sane ones, and one wild neighbour
+    // already means the block grid does not know what is happening here.
+    float coherenceSpread = 0.0;
+    [unroll]
+    for (int nb = 0; nb < kMotionCandidates; ++nb)
+        coherenceSpread = max(coherenceSpread, length(blockCorners[nb].xy - mv));
+
+    // Both ramp from 1 to 0 rather than switching. A hard switch would trade
+    // the double image for a visible outline around every fast object, popping
+    // on and off at the generated frame rate - the shape of every per-pixel
+    // switch that has been tried in this shader and reverted.
+    const float magnitudeTrust = saturate(
+        (kMaxTrustedMotion - motionMagnitude)
+        / max(kMaxTrustedMotion - kMotionRampStart, 1e-3));
+
+    // Full trust up to the limit, zero at twice it.
+    const float coherenceLimit = kCoherenceFloor + motionMagnitude * kCoherenceSlope;
+    const float coherenceTrust = saturate(2.0 - coherenceSpread / max(coherenceLimit, 1e-3));
+
+    // One number: how much of this pixel's displacement is allowed to happen.
+    const float vectorTrust = min(magnitudeTrust, coherenceTrust);
+
+    // Where nothing may be displaced, nothing is COMPUTED either.
+    //
+    // This skips the per-pixel candidate search, two Catmull-Rom
+    // reconstructions and an eight-tap unsharp pass - about forty texture
+    // reads - on exactly the pixels that are currently the most expensive,
+    // because fast chaotic motion is what makes the incumbent fail and the
+    // search run. The safety fix and the cost fix are the same edit.
+    if (vectorTrust <= 0.0 && ExtrapolateAhead <= 0.0)
+    {
+        // Weighted by PhaseT rather than a fixed half: at a factor of 2 the
+        // generated frame sits at t = 0.5 and this IS 50/50, but at 3x it sits
+        // at 1/3 and 2/3, where a fixed half would place the picture at the
+        // wrong instant - the same mistake the confidence fallback further
+        // down already had to be corrected for.
+        const float3 pLin = SrgbToLinear(PrevFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb);
+        const float3 cLin = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb);
+        float4 outColor = float4(LinearToSrgb(lerp(pLin, cLin, PhaseT)), 1.0);
+
+        if (DebugTintGenerated == 1) outColor.r = min(outColor.r + 0.35, 1.0);
+        // "showblend": paint every cross-faded pixel blue, so the area this
+        // fallback actually covers can be seen instead of guessed at. If the
+        // screen turns blue during an ordinary turn, the thresholds are wrong
+        // and this is costing picture everywhere rather than rescuing edges.
+        if (DebugTintGenerated == 5) outColor.rgb = float3(0.1, 0.3, 1.0);
+
+        // The badge belongs on every path that writes a frame. It was once
+        // missing from the extrapolation branch and therefore never drawn at
+        // all, while 60 frames a second were being generated.
+        if ((StatusFlags & 4u) != 0)
+        {
+            const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
+            const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+            if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
+                outColor.rgb = float3(0.1, 0.95, 0.3);
+        }
+
+        GeneratedFrame[id.xy] = outColor;
+        return;
+    }
 
     // PER-PIXEL vector selection, between the interpolated vector and the four
     // block vectors it was interpolated from.
@@ -441,8 +580,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         const float kIncumbentTolerance = 0.045 * max(QualityRelief, 1.0);
         if (bestResidual > kIncumbentTolerance)
         {
-            float3 candidates[kMotionCandidates];
-            GatherBlockMotion(pixelCenter, blockCount, candidates);
+            // The same four corners already loaded at the top of CSMain.
+            float3 candidates[kMotionCandidates] = blockCorners;
 
 
 
@@ -875,8 +1014,38 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     static const float kSharpenAmount = 0.15;
     float3 sharpenedLinear = max(blendedLinear + (blendedLinear - blurLinear) * kSharpenAmount, 0.0);
 
+    float3 warpedLinear = lerp(fallbackLinear, sharpenedLinear, confidence);
+
+    // THE OUTER GATE: how much of the displacement this pixel is allowed to
+    // keep, decided at the top of CSMain from the vector rather than from its
+    // result.
+    //
+    // Note what this is NOT mixed with. The confidence fallback above replaces
+    // a pixel with an UNWARPED SINGLE frame - sharp, but frozen for the
+    // duration of the generated frame, which is why it may only ever cover
+    // small patches. This one replaces it with both frames cross-faded: softer,
+    // but it moves, because the two sources are half a frame apart in content.
+    // Over a large area - a fast turn, a low pass over foliage - a soft moving
+    // region is the lesser evil, and a frozen one would read as the picture
+    // sticking.
+    //
+    // Straight, honest statement of the cost: at 130 px of real displacement
+    // this cross-fade IS a double image, just a symmetric and low-contrast one
+    // instead of a hard displaced copy. It is the right answer only while it
+    // stays local. "showblend" exists to check that it does.
+    if (vectorTrust < 1.0)
+    {
+        const float3 pLin = SrgbToLinear(PrevFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb);
+        const float3 cLin = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb);
+        warpedLinear = lerp(lerp(pLin, cLin, PhaseT), warpedLinear, vectorTrust);
+    }
+
     float4 result;
-    result.rgb = LinearToSrgb(lerp(fallbackLinear, sharpenedLinear, confidence));
+    result.rgb = LinearToSrgb(warpedLinear);
+
+    // Diagnostic: the amount of blue IS the amount of displacement given up.
+    if (DebugTintGenerated == 5 && vectorTrust < 1.0)
+        result.rgb = lerp(float3(0.1, 0.3, 1.0), result.rgb, vectorTrust);
     // Fully opaque, NOT the source frames' alpha. The presenter's composition
     // swapchain uses premultiplied alpha, so whatever ends up here decides how
     // much of the screen behind shows through. Captured desktop frames carry

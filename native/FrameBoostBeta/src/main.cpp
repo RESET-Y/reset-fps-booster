@@ -279,7 +279,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     const bool noWarpDiagnostic = HasArg(L"nowarp");
 
     const bool measureOutputDiff = HasArg(L"measureoutput");
-    const unsigned int debugTintMode = HasArg(L"showmotion") ? 4u
+    // "showblend" paints blue wherever vector validation refused to displace a
+    // pixel and fell back to cross-fading the two real frames. The amount of
+    // blue is the amount of picture that is being given up to avoid a double
+    // image - the number that decides whether the thresholds are right.
+    const unsigned int debugTintMode = HasArg(L"showblend") ? 5u
+        : HasArg(L"showmotion") ? 4u
         : HasArg(L"showfallback") ? 3u
         : HasArg(L"showocclusion") ? 2u
         : HasArg(L"tint") ? 1u : 0u;
