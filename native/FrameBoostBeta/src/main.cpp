@@ -192,6 +192,41 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (value && end && *end == L'\0') { targetWindow = reinterpret_cast<HWND>(value); break; }
     }
 
+    // "window": capture the GAME.s window instead of the whole monitor.
+    //
+    // Monitor capture hands us every recomposition of the desktop, not only the
+    // ones the game caused - measured at 62 to 96 duplicates per second that
+    // the duplicate detector has to sort out, and every misjudgement there
+    // costs a real frame. Capturing the window removes that question entirely:
+    // what arrives is what the game drew.
+    //
+    // It was avoided because Windows stops redrawing a window that is fully
+    // covered, and our overlay covers it - observed live as the image freezing
+    // until something forced a repaint. But the product this is being compared
+    // against does exactly this: it requires windowed or borderless mode and
+    // covers the game. So the limitation is evidently avoidable, and the old
+    // observation may have had another cause.
+    //
+    // Waits five seconds and takes whatever is in the foreground then, so the
+    // user can start this and alt-tab into the game.
+    if (HasArg(L"window") && !targetWindow) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] Window mode: switch to the game now - the window in the"
+                                    " foreground in five seconds will be captured.");
+        Sleep(5000);
+        HWND fg = GetForegroundWindow();
+        if (fg) {
+            targetWindow = fg;
+            wchar_t title[256] = {};
+            GetWindowTextW(fg, title, 255);
+            std::wstring w(title);
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capturing window: "
+                + std::string(w.begin(), w.end()));
+        } else {
+            FrameBoostBeta::Logger::Log("[FrameBoostBeta] No foreground window found - falling back to the"
+                                        " whole monitor.");
+        }
+    }
+
     g_hotkeysEnabled = HasArg(L"hotkeys");
     // "tint": paint every generated frame red, so it is unmistakable on screen
     // which frames are ours. The one test that settles whether generated frames
