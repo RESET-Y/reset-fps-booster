@@ -969,10 +969,41 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // uniformly across the whole picture, unlike the per-pixel switch that
     // produced a flickering patchwork.
     static const float kFarFrameWeight = 0.5;
+
+    // ...but only while the two samples land on the SAME content, and that
+    // depends on speed.
+    //
+    // A vector's error scales with its length. At 200 px of displacement a 1%
+    // error is 2 px, and averaging two copies of an edge 2 px apart IS a
+    // double edge - which is what came back the moment the cross-fade stopped
+    // covering fast turns. blendTrust cannot catch this by construction: 2 px
+    // of offset on similar content produces only a small colour difference, so
+    // the test waves it through. The doubling appears exactly where the
+    // diagnostic says the vectors are FINE - coherent neighbours, no search
+    // saturation, low match error. Slightly wrong, not wrong.
+    //
+    // So the mixture narrows as the displacement grows: the far frame's share
+    // falls from a half to an eighth between 24 px and 120 px per interval.
+    //
+    // This is a narrowed form of something already tried and reverted. A flat
+    // 0.3 everywhere failed because it moves the generated frame toward one
+    // source in SPACE as well as in colour, so the output arrives in pairs -
+    // two near-identical pictures, a jump, two more - and it was reported as
+    // looking worse the SLOWER the camera moved, because a slow pan lets the
+    // eye track an edge and see it stall.
+    //
+    // That failure mode is what the threshold is for. Below 24 px per interval
+    // - 1700 px per second at 72 fps - nothing changes and the symmetric
+    // average stands. Above it no eye is tracking an edge, and a sharp frame
+    // taken mostly from one source beats two overlaid copies.
+    const float finalSpeed = length(mv);
+    const float speedFade = saturate((finalSpeed - 24.0) / 96.0);
+    const float farFrameWeight = lerp(kFarFrameWeight, 0.125, speedFade);
+
     // Mirrored around which source is the nearer one: at a phase below 0.5 the
     // previous frame leads, so the far weight belongs to the current frame.
-    const float trustedWeight = (nearestSource > 0.5) ? (1.0 - kFarFrameWeight)
-                                                      : kFarFrameWeight;
+    const float trustedWeight = (nearestSource > 0.5) ? (1.0 - farFrameWeight)
+                                                      : farFrameWeight;
     // WHETHER TO BLEND is judged more strictly than whether to interpolate.
     //
     // Two questions that were sharing one number. "Is this vector usable at
