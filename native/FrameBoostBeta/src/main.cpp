@@ -2461,7 +2461,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // 2.1-2.5 against 2.2-2.6). Two milliseconds of hand-felt
                     // delay for nothing measurable is not a trade worth making,
                     // so the pacing runs off the processing time after all.
-                    const double dueAtMs = nowMs
+                    // Scheduled on the CAPTURE clock, like the real frame beside it.
+                    //
+                    // This read "nowMs + interval * (step-1)/outputPerReal",
+                    // and at a factor of two that second term is exactly zero -
+                    // so the generated frame went out the instant the loop
+                    // noticed the arrival, with no schedule at all. Every
+                    // hiccup of our own loop landed straight in the spacing:
+                    // two arrivals close together sent two frames out close
+                    // together, then a gap. Described from the screen, with the
+                    // generated frames tinted red, as morse code - bursts with
+                    // pauses between them.
+                    //
+                    // The real frame is already anchored to its capture
+                    // timestamp plus the arrival lag plus half an interval.
+                    // The generated frame holds the content halfway between
+                    // this pair, so it belongs exactly half an interval
+                    // earlier - on the same clock, not on ours.
+                    const double dueAtMs = motionCurrTimestampMs + arrivalLagEmaMs
                         + pairIntervalMs * (static_cast<double>(step - 1) / outputPerReal);
                     // Same backstop as below: never wait longer than one source
                     // interval, so no arithmetic mistake can freeze the picture.
