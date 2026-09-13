@@ -292,6 +292,43 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     // written at the end is converted back to full-resolution pixels.
     int2 blockOrigin = int2(groupId.xy) * kBlockTexels;
 
+    // DID THIS BLOCK CHANGE AT ALL? If not, skip the search entirely.
+    //
+    // The search costs 49 block comparisons per block and runs over every
+    // block of the screen, every frame, whether or not anything there moved.
+    // Measured live: 0.19% of blocks moving on a quiet screen and 55-80% in a
+    // firefight - so most of the time most of this work is answering a
+    // question whose answer is zero.
+    //
+    // A sky, a wall, the HUD, the letterbox bars of a cinematic: all of them
+    // are searched at full price today.
+    //
+    // The test itself already existed - it is the same full-resolution
+    // comparison the search uses at the end to decide "this did not move
+    // after all". It was simply asked AFTER paying for the search rather than
+    // before. One thread computes it, the group waits once, and a block whose
+    // content is unchanged writes a zero vector and returns.
+    //
+    // The barrier costs the whole group a synchronisation it did not have
+    // before, which is why this is worth it only because the saving is the
+    // entire search rather than part of it.
+    if (groupIndex == 0)
+        g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (g_zeroMotionSadFull < kStaticBlockSad)
+    {
+        if (groupIndex == 0)
+        {
+            // Zero motion, and the measured error that justifies it - the
+            // smoothing pass and the interpolator both read .z as real match
+            // quality, and this block matched perfectly where it stands.
+            MotionVectors[groupId.xy] = float4(0.0, 0.0,
+                max(g_zeroMotionSadFull, 0.0) / (16.0 * 3.0), 0.0);
+        }
+        return;
+    }
+
     // Seed from the coarse stage: which coarse block this fine block sits in.
     // The coarse vector is in full-resolution pixels, so it is halved to land
     // in this stage's coordinates.
@@ -340,10 +377,8 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     {
         g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
     }
-    if (groupIndex == 2)
-    {
-        g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
-    }
+    // Already computed above, before the search, where it is used to skip the
+    // whole thing for unchanged blocks.
 
     // Five predictors, one thread each, evaluated while the rest of the group
     // is already waiting at the barrier - so they are free in wall-clock terms.
