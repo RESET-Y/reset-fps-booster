@@ -291,6 +291,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
     }
 
+    // Two switches that exist to settle cause, not to configure anything.
+    //
+    // After the constant-buffer fix the double images were reported as "so gut
+    // wie weg". Two changes followed - the gap filler, and the unsharp pass off
+    // - and then they came back, worse. Guessing which one did it is exactly
+    // what has cost this project its worst days, so both are switchable and the
+    // question gets answered by looking.
+    //
+    // "nomouse" carries a real suspicion of its own. The mouse-to-pixel factor
+    // is measured per session and does not agree between sessions: 0.40 in the
+    // run where the doubling vanished, 0.26 in the run where it came back -
+    // with the raw fit and the smoothed value agreeing, so it is the fit itself
+    // and not convergence lag. Horizontal picture motion comes from strafing as
+    // well as from turning, and the mix decides the number. A factor that is
+    // too small is worse than none: it predicts 130 px for a 200 px flick, wins
+    // the residual test on some pixels and loses it on others, and a patchwork
+    // of two displacements IS a double image.
+    const bool mousePredictionOff = HasArg(L"nomouse");
+    const bool gapFillOff = HasArg(L"nogapfill");
+
     const bool measureOutputDiff = HasArg(L"measureoutput");
     // "showblend" paints blue wherever vector validation refused to displace a
     // pixel and fell back to cross-fading the two real frames. The amount of
@@ -2205,7 +2225,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     (mouseFitLongMouseSq > 0.0 && mouseFitLongMotionSq > 0.0)
                         ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
                         : 0.0;
-                const bool mousePredictsPicture = fitCorrelation > 0.35;
+                const bool mousePredictsPicture = !mousePredictionOff && fitCorrelation > 0.35;
 
                 if (!mousePredictsPicture) {
                     // Eased to zero rather than switched off, so a game that
@@ -2799,7 +2819,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // stops after kMaxGapFills frames - about 55 ms - because a
             // prediction drifts further from the truth the longer it runs, and
             // a genuinely paused game should look paused.
-            if (!extrapolateMode && !forcePassthroughOnly && !inDegradedMode && gpuHasRoom
+            if (!extrapolateMode && !gapFillOff && !forcePassthroughOnly && !inDegradedMode && gpuHasRoom
                     && outputSlotMs > 0.0 && lockedPeriodMs > 1.0
                     && motionCurrTimestampMs > 0.0 && lastPresentAtMs > 0.0
                     && gapFillsInARow < kMaxGapFills
