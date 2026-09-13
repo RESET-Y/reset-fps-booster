@@ -283,7 +283,24 @@ groupshared float2 g_predictorVector[kPredictorCount];
 // that no amount of searching can get below, because the sub-pixel parabola is
 // fitted on the halved SAD surface and then multiplied by two.
 //
-// So the search runs at full resolution now. The sample count is unchanged -
+// TRIED AND REVERTED on 2026-09-14. The search ran at full resolution for one
+// build and the output collapsed: 40-135 FPS against a steady 144, with jitter
+// of 164 ms and 113 ms in single seconds. Reported simply as "es ruckelt".
+//
+// The risk this change named beforehand did NOT happen - search saturation
+// stayed at 0%, so reach was never the problem and the fine stage still found
+// what it was looking for, at 0.47-1.81 ms. The cost landed somewhere else
+// entirely: the same 16 samples per block now span four times the memory, so
+// the search window no longer fits the cache the way it did, and the whole
+// pipeline stalled around it.
+//
+// The precision theory is therefore UNTESTED, not disproved - we could not
+// afford to test it this way. A cheaper route to the same end would be to keep
+// the mip-1 search and add a +-1 pixel refinement at full resolution for the
+// winning candidate only: 9 candidates instead of 49, on a window that is
+// already in cache because the block was just read.
+//
+// Left at half resolution. The sample count is unchanged -
 // kSampleStrideTexels follows kMipScale, so a block is still 16 samples - and
 // so is the candidate count. What changes is reach: +-3 texels was +-6 full
 // pixels and is now +-3. That is the real risk of this change, and it is
@@ -291,8 +308,8 @@ groupshared float2 g_predictorVector[kPredictorCount];
 // edge of the window. It read 0% at 308 px peak motion with the old reach. If
 // it climbs now, the fine stage is no longer able to correct the coarse one and
 // this has to be paid for with a wider radius or a third stage.
-static const int kSearchMip = 0;
-static const int kMipScale = 1;                                        // 1 << kSearchMip
+static const int kSearchMip = 1;
+static const int kMipScale = 2;                                        // 1 << kSearchMip
 static const int kBlockTexels = kBlockSize / kMipScale;                // 8 texels
 static const int kSampleStrideTexels = kBlockSampleStride / kMipScale; // 2 -> 4x4 = 16 samples
 
