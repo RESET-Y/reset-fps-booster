@@ -2577,10 +2577,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 //
                 // The wait is bounded by half a source interval - about 7 ms -
                 // and capture keeps running through it.
-                // Same anchor for the real frame: its own capture timestamp
-                // plus the offset.
-                const double realDueAtMs = nowMs + pairIntervalMs
-                    * (static_cast<double>(outputPerReal - 1) / outputPerReal);
+                // The same clock as the generated frames above - the capture
+                // timestamp plus the arrival lag - not "now".
+                //
+                // This read "nowMs + interval * (outputPerReal-1)/outputPerReal"
+                // while the generated frame beside it had already been moved
+                // onto the capture clock, so the two hung on different clocks
+                // again: measured 8.53 ms from real to generated and 9.45 ms
+                // back, where both should be half a source period. The same
+                // mistake as the generated frame had, mirrored, in the twin
+                // branch - fixing one of a pair and not looking for the other.
+                const double realDueAtMs = motionCurrTimestampMs + arrivalLagEmaMs
+                    + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
 
                 // Never wait longer than one source interval, whatever the
                 // arithmetic says. A wait that can grow without bound is how the
