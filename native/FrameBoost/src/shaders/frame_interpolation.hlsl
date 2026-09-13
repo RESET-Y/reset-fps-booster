@@ -181,7 +181,18 @@ static const float kOcclusionSensitivity = 2.2;
 // They were not catching bad interpolation. They were preventing good
 // interpolation, and the picture they fell back to looked cleaner only
 // because a copy of a real frame always does.
-static const float kBlockErrorSensitivity = 1.0;
+// 2.0. At 1.0 a block that matched nothing (error around 0.3) still kept 70%
+// of its interpolation, and that shows up where content CHANGES without
+// moving: a menu entry lighting up under the cursor has no true motion, the
+// search has to name a winner anyway, and the wrong vector it names then warps
+// the still layout around it. Reported as the layout sliding slightly - not
+// judder, a shift, which is what a wrong vector does to text.
+//
+// At 2.0 that same block keeps 40% and a clean match (0.0177) still keeps 96%,
+// so real motion is untouched. The right value sits between the 30 that threw
+// away nearly everything and the 1.0 that trusts a block which matched
+// nothing.
+static const float kBlockErrorSensitivity = 2.0;
 
 // Blending has to happen in LINEAR light, not in the gamma-encoded values
 // the frame is stored in. This was the cause of the contrast loss and
@@ -299,6 +310,59 @@ float Residual(float2 pixelCenter, float2 dims, float2 v)
 // lets noise pick the winner - but five times the samples is five times the
 // cost on exactly the pixels that already cost the most, and in a moving game
 // that is most of the screen.
+
+// Catmull-Rom sampling, for the two motion-compensated reads that become the
+// generated frame.
+//
+// Those reads are at fractional positions - "6.3 pixels left of here" - and
+// bilinear filtering at a fractional position is a low-pass filter: it mixes
+// four neighbours and throws away detail every time. Two such reads, averaged,
+// give a frame measurably softer than either real frame beside it. A soft
+// frame between two sharp ones does not read as a step of motion; the eye
+// takes it for blur on the previous one. That is the difference the tester
+// sees between this and a product whose generated frames are sharp: measured
+// on screen, both deliver about the same number of frames at about the same
+// spacing - 112 against 119 per second - so what is left is what they contain.
+//
+// Catmull-Rom is the standard answer: it reconstructs the value between
+// samples from a cubic through them instead of a straight line, which keeps
+// edges crisp rather than averaging them away. Nine bilinear taps in the
+// usual formulation, five in this one - the corner weights are small enough
+// that dropping them is invisible, and it is the form everyone ships.
+float3 SampleCatmullRom(Texture2D<float4> tex, float2 posPixels, float2 dims)
+{
+    const float2 samplePos = posPixels;
+    const float2 texPos1 = floor(samplePos - 0.5) + 0.5;
+    const float2 f = samplePos - texPos1;
+
+    // Catmull-Rom weights for the four taps along each axis.
+    const float2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    const float2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    const float2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    const float2 w3 = f * f * (-0.5 + 0.5 * f);
+
+    // The middle two taps are fetched as one bilinear sample at a weighted
+    // position - the trick that turns nine taps into five.
+    const float2 w12 = w1 + w2;
+    const float2 offset12 = w2 / max(w12, 1e-5);
+
+    const float2 texPos0 = (texPos1 - 1.0) / dims;
+    const float2 texPos3 = (texPos1 + 2.0) / dims;
+    const float2 texPos12 = (texPos1 + offset12) / dims;
+
+    float3 result = 0.0;
+    result += tex.SampleLevel(LinearClamp, float2(texPos12.x, texPos0.y), 0).rgb * w12.x * w0.y;
+    result += tex.SampleLevel(LinearClamp, float2(texPos0.x, texPos12.y), 0).rgb * w0.x * w12.y;
+    result += tex.SampleLevel(LinearClamp, float2(texPos12.x, texPos12.y), 0).rgb * w12.x * w12.y;
+    result += tex.SampleLevel(LinearClamp, float2(texPos3.x, texPos12.y), 0).rgb * w3.x * w12.y;
+    result += tex.SampleLevel(LinearClamp, float2(texPos12.x, texPos3.y), 0).rgb * w12.x * w3.y;
+
+    // The five taps do not sum to one, so the result is renormalised rather
+    // than left darker or brighter than the source.
+    const float weightSum = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y
+                          + w3.x * w12.y + w12.x * w3.y;
+    return max(result / max(weightSum, 1e-5), 0.0);
+}
 
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -565,8 +629,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float2 prevSamplePos = pixelCenter + (1.0 - PhaseT) * mv;
     float2 currSamplePos = pixelCenter - PhaseT * mv;
 
-    float4 prevColor = PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0);
-    float4 currColor = CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0);
+    // Catmull-Rom for the two reads that actually become the picture. The
+    // candidate tests above stay bilinear - they compare, they do not display,
+    // and a comparison does not need the sharpness.
+    float4 prevColor = float4(SampleCatmullRom(PrevFrame, prevSamplePos, dims), 1.0);
+    float4 currColor = float4(SampleCatmullRom(CurrFrame, currSamplePos, dims), 1.0);
 
     // Confidence in this pixel's motion vector: if the two samples the
     // vector claims are "the same content, half a frame apart" do not
@@ -746,7 +813,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
     // Deliberately gentle: enough to match a real frame's perceived
     // sharpness, not enough to ring on edges.
-    static const float kSharpenAmount = 0.35;
+    // 0.15, down from 0.35, now that the two samples are reconstructed with
+    // Catmull-Rom instead of bilinear. That already keeps the detail this was
+    // compensating for, and the tester suspected slight over-sharpening after
+    // the change - two sharpeners stacked on the same image.
+    static const float kSharpenAmount = 0.15;
     float3 sharpenedLinear = max(blendedLinear + (blendedLinear - blurLinear) * kSharpenAmount, 0.0);
 
     float4 result;

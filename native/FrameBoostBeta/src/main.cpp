@@ -2536,7 +2536,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 simplePresentOffsetMs = arrivalLagEmaMs + pairIntervalMs * 0.5;
 
                 for (int step = 1; step < outputPerReal; ++step) {
-                    const float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
+                    // The phase follows WHEN the frame will actually be shown.
+                    //
+                    // The generated frame carries content from the middle of
+                    // its pair, and it is shown 7.19 ms after the real frame
+                    // where the middle is 8.4 ms - so its content belongs to a
+                    // moment 1.2 ms later than the moment it appears. The eye
+                    // judges smoothness by whether content advances evenly on
+                    // the display.s timeline, and a frame whose content does
+                    // not match its display time is judder however evenly the
+                    // presents themselves are spaced.
+                    //
+                    // Delaying the frame to match its content was tried first
+                    // and was immediately worse - it adds latency to the half
+                    // of the stream that was on time. Moving the content to
+                    // match the timing costs nothing: the interpolator can
+                    // produce any phase, and 0.428 is no harder than 0.5.
+                    float phaseForStep = static_cast<float>(step) / static_cast<float>(outputPerReal);
+                    if (realToGenCount > 10 && pairIntervalMs > 1.0) {
+                        const double measured = (realToGenSum / realToGenCount) / pairIntervalMs;
+                        // Clamped well inside the pair: a phase at either end
+                        // is a copy of a real frame, which is what this whole
+                        // engine exists to avoid.
+                        if (measured > 0.2 && measured < 0.8)
+                            phaseForStep = static_cast<float>(measured);
+                    }
                     interpolator.SetPhase(phaseForStep);
                     interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 

@@ -492,16 +492,26 @@ void Presenter::TrackOverlayTarget() {
     int height = clientRect.bottom - clientRect.top;
     if (width <= 0 || height <= 0) return;
 
-    // Deliberately leave a 1px sliver of the target visible. A window that
-    // Windows considers FULLY occluded gets its presentation throttled -
-    // measured live: covering Watch Dogs completely dropped it from ~37 FPS
-    // to ~25 FPS, starving the very input signal this overlay exists to
-    // improve. One uncovered pixel column is enough to avoid being counted
-    // as fully occluded while being invisible in practice.
-    constexpr int kAntiOcclusionInsetPx = 1;
+    // Exactly over the client area, with no inset.
+    //
+    // There used to be a one-pixel inset here, to keep a sliver of the target
+    // visible: a window Windows considers FULLY occluded has its presentation
+    // throttled, measured live as Watch Dogs dropping from ~37 to ~25 FPS.
+    //
+    // The cost of it was invisible until window capture existed. Shifting the
+    // overlay one pixel right means the generated frames sit one pixel beside
+    // the real ones, and the two alternate sixty times a second - which on
+    // still, sharp menu text looks exactly like the layout sliding slightly.
+    // Reported that way, and confirmed by the fact that presenting both kinds
+    // of frame ourselves made it stop.
+    //
+    // The throttling it avoided belongs to MONITOR capture, where the game
+    // must keep being composited for us to see it. With window capture we
+    // read the window.s own presentation, which continues while it is
+    // covered - as the whole window-capture path demonstrates.
     SetWindowPos(m_hwnd, HWND_TOPMOST,
-        topLeft.x + kAntiOcclusionInsetPx, topLeft.y,
-        width - kAntiOcclusionInsetPx, height,
+        topLeft.x, topLeft.y,
+        width, height,
         SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 }
 

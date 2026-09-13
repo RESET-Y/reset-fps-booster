@@ -545,7 +545,24 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             }
         }
 
-        MotionVectors[groupId.xy] = float4((float2(bestOffset) + subTexel) * kMipScale,
+        // Anything below a real pixel of movement is snapped to a standstill.
+        //
+        // Sub-pixel refinement made this necessary. It gives static content
+        // vectors like 0.3 px - not noise in the estimator.s terms, since the
+        // error surface really does have its minimum slightly off centre, but
+        // enough to shift sharp edges visibly. Reported from a game menu:
+        // hovering over an entry made the whole layout appear to slide a
+        // little. Not judder - a shift, which is exactly what a fraction of a
+        // pixel does to text.
+        //
+        // 0.75 px per frame is 45 px a second at 60 fps: far below anything a
+        // player would call movement, and far above the fractions that make
+        // still text wander.
+        float2 finalMotion = (float2(bestOffset) + subTexel) * kMipScale;
+        if (dot(finalMotion, finalMotion) < 0.75 * 0.75)
+            finalMotion = float2(0.0, 0.0);
+
+        MotionVectors[groupId.xy] = float4(finalMotion,
             max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
 }
