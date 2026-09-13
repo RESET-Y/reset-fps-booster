@@ -91,7 +91,25 @@ cbuffer InterpolationParams : register(b0)
 // The cost is that genuinely difficult pixels stop being interpolated and hold
 // on the nearer real frame. A patch that stands still for one frame is a
 // smaller lie than a ghost of something that has already moved on.
-static const float kMismatchSensitivity = 14.0;
+// 4.0, cut from 14.0 - the same mistake as kBlockErrorSensitivity, at the
+// other of the two tests that can discard an interpolated pixel.
+//
+// This one compares the two motion-compensated samples by COLOUR. At 14 a
+// pixel loses all its confidence at a 7% mean channel difference, and two
+// samples taken from different frames differ by more than that almost
+// everywhere in a moving scene - from lighting, from noise, from the game.s
+// own antialiasing and temporal accumulation, none of which mean the vector
+// is wrong.
+//
+// Loosening the block test alone visibly reduced how much of the screen was
+// being replaced by the real frame, and the result was better but still short
+// of a doubled frame rate. Two gates in series: opening one leaves the other
+// closed.
+//
+// At 4.0 a pixel keeps its interpolation up to a 25% difference, which is far
+// beyond anything ordinary rendering produces between two neighbouring frames
+// and still catches a sample that landed on entirely different content.
+static const float kMismatchSensitivity = 4.0;
 
 // How sharply a RELATIVE disagreement between a vector and the field it points
 // into turns into distrust - the ratio of that disagreement to the local
@@ -129,7 +147,32 @@ static const float kOcclusionSensitivity = 2.2;
 // difficult areas stop being interpolated and simply hold - a small judder in
 // a corner of the picture rather than a wrong shift, which is the better
 // failure of the two.
-static const float kBlockErrorSensitivity = 30.0;
+// 3.0, cut from 30.0 - the single most damaging constant in the engine.
+//
+// This decides how far a block.s match error pushes a pixel away from the
+// interpolated result and onto the unwarped real frame. At 30 a pixel loses
+// ALL confidence at an error of 0.033, and the field measures a mean error of
+// 0.0177 with a maximum of 0.37 - ten times over the line. The average pixel
+// was therefore already half real frame, and most of the picture was entirely
+// real frame.
+//
+// Which means the generated frames were copies of their neighbours. Measured
+// from outside, watching the screen with the same instrument used on a
+// competing product: 59.9 distinct pictures a second reaching the display
+// while the engine reported 144 output FPS, against 118.6 for the other
+// product on the same machine in the same game. That is the whole of "it
+// feels like half the frame rate", and it explains why hours of pacing work
+// changed nothing: the timing of frames that carry no new content cannot
+// matter. Confirmed directly by painting the fallback magenta - almost the
+// entire screen was magenta.
+//
+// The value came from motion_smooth.hlsl, where 30 weights a NEIGHBOUR.s
+// influence and a tenth of the weight at error 0.3 is sensible. Here the same
+// number decides whether a pixel is interpolated at all, which is not the
+// same question. At 3.0 a block with no real match at all (error ~0.3) still
+// falls back completely, while the ordinary 0.0177 keeps 95% of its
+// interpolation.
+static const float kBlockErrorSensitivity = 3.0;
 
 // Blending has to happen in LINEAR light, not in the gamma-encoded values
 // the frame is stored in. This was the cause of the contrast loss and

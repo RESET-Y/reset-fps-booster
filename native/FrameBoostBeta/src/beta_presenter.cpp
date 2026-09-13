@@ -214,6 +214,20 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     // instead of handing DXGI a frame and letting it queue up to three before
     // any of them is shown. See m_frameLatencyWaitable in the header.
     scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+    // Tearing capability, so a frame can be shown the moment it is ready
+    // instead of at the next display boundary. Requested here; whether it is
+    // used is decided per present.
+    {
+        winrt::com_ptr<IDXGIFactory5> factory5;
+        BOOL tearingAllowed = FALSE;
+        if (SUCCEEDED(factory->QueryInterface(IID_PPV_ARGS(factory5.put()))) &&
+            SUCCEEDED(factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+                                                    &tearingAllowed, sizeof(tearingAllowed))) &&
+            tearingAllowed) {
+            scDesc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+            m_tearingSupported = true;
+        }
+    }
 
     IDXGISwapChain1* swapChain = nullptr;
     HRESULT hr = E_FAIL;
@@ -337,7 +351,11 @@ void Presenter::WaitForPresentSlot() {
 HRESULT Presenter::PresentBackBuffer(UINT syncInterval) {
     WaitForPresentSlot();
     if (!m_swapChain) return E_FAIL;
-    return m_swapChain->Present(syncInterval, 0);
+    // Tearing only makes sense without vsync, and only when the swapchain was
+    // created for it.
+    const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
+        ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    return m_swapChain->Present(syncInterval, presentFlags);
 }
 
 HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval) {
@@ -368,7 +386,11 @@ HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext*
     context->ClearRenderTargetView(m_clearRTV, transparent);
     backBuffer->Release();
 
-    return m_swapChain->Present(syncInterval, 0);
+    // Tearing only makes sense without vsync, and only when the swapchain was
+    // created for it.
+    const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
+        ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    return m_swapChain->Present(syncInterval, presentFlags);
 }
 
 HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* sourceTexture, UINT syncInterval) {
@@ -382,7 +404,11 @@ HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* s
     context->CopyResource(backBuffer, sourceTexture);
     backBuffer->Release();
 
-    return m_swapChain->Present(syncInterval, 0);
+    // Tearing only makes sense without vsync, and only when the swapchain was
+    // created for it.
+    const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
+        ? DXGI_PRESENT_ALLOW_TEARING : 0;
+    return m_swapChain->Present(syncInterval, presentFlags);
 }
 
 bool Presenter::QueryPresentStats(UINT& outPresentCount, UINT& outPresentRefreshCount, UINT& outSyncRefreshCount) {

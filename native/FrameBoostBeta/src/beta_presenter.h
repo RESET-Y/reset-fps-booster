@@ -107,6 +107,7 @@ private:
     // Presents that leave here evenly spaced arrive on screen whenever the
     // queue gets to them.
     HANDLE m_frameLatencyWaitable = nullptr;
+    bool m_tearingSupported = false;
     UINT m_width = 0, m_height = 0;
     bool m_shouldClose = false;
     std::wstring m_baseTitle;

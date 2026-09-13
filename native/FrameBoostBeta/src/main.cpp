@@ -728,7 +728,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // instead of being fixed at "every second slot" (a hardcoded 2x).
     double outputSlotMs = outputRefreshHz > 0.0 ? 1000.0 / outputRefreshHz : 0.0;
     double nextPresentDueMs = 0.0;   // absolute deadline for the next present
-    bool refreshLockEnabled = outputSlotMs > 0.0;
+    // "freerun" starts with the refresh lock OFF, so a frame is shown when it
+    // is ready rather than on the next display boundary.
+    //
+    // Snapping to the grid looks like the tidy thing to do and is the wrong
+    // thing whenever the output rate does not divide the refresh rate: a 120
+    // frame stream on a 144 Hz panel has to wait one boundary for some frames
+    // and two for others, alternating forever. That 1-2-1-2 pattern is judder
+    // we create ourselves by trying to be neat, and it is exactly the case the
+    // engine is in whenever the game is not capped at half the refresh.
+    //
+    // The product this was compared against recommends its tearing mode for
+    // the smoothest result, which is the same trade: a torn frame carries the
+    // right content at the right instant, a delayed one does not.
+    bool refreshLockEnabled = (outputSlotMs > 0.0) && !HasArg(L"freerun");
     {
         std::ostringstream oss;
         oss << "[FrameBoostBeta] Display refresh: "
