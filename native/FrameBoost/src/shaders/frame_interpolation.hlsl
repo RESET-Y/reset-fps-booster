@@ -296,25 +296,29 @@ float3 BilinearFromCorners(float3 corners[kMotionCandidates], float2 frac)
 // where they fail the pixel is not moved at all. See the cross-fade below.
 // ---------------------------------------------------------------------------
 
-// 1. MAGNITUDE. Beyond this much displacement per real-frame interval, a
-//    vector is not trusted to move anything.
+// 1. MAGNITUDE - REMOVED, and the measurement is worth keeping.
 //
-//    Being precise about what this is and is not: the pyramid can REACH 240 px
-//    (mip 4, radius 15). Reach is not reliability. The coarsest level matches
-//    8 px blocks on a sixteenth-resolution image, where a block is half a texel
-//    of actual content - at that scale a "match" is a colour coincidence. The
-//    fine stage can only correct such an answer by +-6 px, so a coarse vector
-//    wrong by 40 px stays wrong by 34.
+//    There was a gate here that refused to displace anything moving faster
+//    than 64 px, then 240 px, per real-frame interval. It came from a sound-
+//    sounding premise: during a fast turn the displacement exceeds what the
+//    search can resolve, so the vector is a guess.
 //
-//    64 px, with the ramp starting at 48. At 72 fps in a shooter that is a
-//    camera turn fast enough that the eye cannot resolve detail anyway - which
-//    is exactly when a soft frame costs nothing and a displaced copy costs
-//    everything.
+//    Our own counters do not support it. Measured in Apex during hard turns,
+//    with peak motion of 308 px:
 //
-//    This is a starting point to be measured, not a derivation. Run with
-//    "showblend" and look at how much of the screen turns blue.
-static const float kMaxTrustedMotion = 64.0;
-static const float kMotionRampStart  = 48.0;
+//        search-saturated blocks     0%  (one 1.5% outlier)
+//        blocks with no real match   mostly under 0.3%, 8.5% at the peak
+//
+//    Zero blocks pinned at the edge of the search window means the pyramid is
+//    reaching the motion, not running out of road. And that fits what block
+//    matching is actually good at: a fast camera pan moves the whole picture
+//    TOGETHER, which is the easiest thing a coarse search can find. Large
+//    motion is not the failure case; large INCOHERENT motion is.
+//
+//    So the gate was refusing to displace exactly the frames it estimates
+//    best. On screen: the whole picture blue on every turn, and a stutter with
+//    it, because a cross-fade carries no step of motion. Diagnosed by looking,
+//    which is the only reason the premise ever got tested.
 
 // 2. COHERENCE. How far the four surrounding block vectors may disagree with
 //    the one this pixel was handed.
@@ -330,11 +334,30 @@ static const float kMotionRampStart  = 48.0;
 //    occlusion work established the hard way: during a camera pan neighbouring
 //    blocks differ by several pixels from perspective alone, everywhere at
 //    once. An absolute threshold fires across the whole screen the moment the
-//    view turns, which is worthless. 6 px of floor plus a quarter of the local
-//    speed asks "disagreeing by more than this scene's own perspective can
-//    explain".
-static const float kCoherenceFloor = 6.0;
-static const float kCoherenceSlope = 0.25;
+//    view turns, which is worthless. The floor plus a share of the local speed
+//    asks "disagreeing by more than this scene's own perspective can explain".
+//
+//    16 px, up from 6 and then 12. At 6 the floor sat below ordinary estimator
+//    noise: standing perfectly still, ten pixels of disagreement between two
+//    neighbouring blocks already pulled trust down, and the diagnostic duly
+//    showed blue on a motionless screen. At 12 the weapon in the player's own
+//    hands was still going blue - a near-field object with its own sway
+//    against a still world genuinely does have two motions along its edge, and
+//    that edge is precisely what the per-pixel candidate selection below
+//    already handles well. It does not need rescuing by a cross-fade.
+//
+//    The slope matters more, and is now 1.0 - full proportionality. Perspective
+//    spread grows WITH speed: the near half of a scene sweeps past faster than
+//    the far half, in proportion. A quarter, then a half, understated it at
+//    exactly the speeds this test has to survive, so an honest 200 px pan was
+//    read as chaos.
+//
+//    What survives at 1.0 is only real incoherence: neighbours pointing
+//    OPPOSITE ways, where the spread is about twice the speed rather than a
+//    fraction of it. That is foliage at speed and ground texture in a low pass
+//    - the cases this was built for.
+static const float kCoherenceFloor = 16.0;
+static const float kCoherenceSlope = 1.0;
 
 float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
 {
@@ -465,20 +488,15 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     for (int nb = 0; nb < kMotionCandidates; ++nb)
         coherenceSpread = max(coherenceSpread, length(blockCorners[nb].xy - mv));
 
-    // Both ramp from 1 to 0 rather than switching. A hard switch would trade
-    // the double image for a visible outline around every fast object, popping
-    // on and off at the generated frame rate - the shape of every per-pixel
-    // switch that has been tried in this shader and reverted.
-    const float magnitudeTrust = saturate(
-        (kMaxTrustedMotion - motionMagnitude)
-        / max(kMaxTrustedMotion - kMotionRampStart, 1e-3));
-
-    // Full trust up to the limit, zero at twice it.
+    // A ramp rather than a switch. A hard switch would trade the double image
+    // for a visible outline around every fast object, popping on and off at
+    // the generated frame rate - the shape of every per-pixel switch that has
+    // been tried in this shader and reverted.
+    //
+    // Full trust up to the limit, zero at twice it. How much of this pixel's
+    // displacement is allowed to happen.
     const float coherenceLimit = kCoherenceFloor + motionMagnitude * kCoherenceSlope;
-    const float coherenceTrust = saturate(2.0 - coherenceSpread / max(coherenceLimit, 1e-3));
-
-    // One number: how much of this pixel's displacement is allowed to happen.
-    const float vectorTrust = min(magnitudeTrust, coherenceTrust);
+    const float vectorTrust = saturate(2.0 - coherenceSpread / max(coherenceLimit, 1e-3));
 
     // Where nothing may be displaced, nothing is COMPUTED either.
     //
