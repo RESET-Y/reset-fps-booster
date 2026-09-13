@@ -471,7 +471,26 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         // It has to be clearly better, not merely equal: where the picture is
         // flat, standing still looks as good as any real motion, and letting it
         // win ties would freeze smooth surfaces.
-        const float stillResidual = Residual(pixelCenter, dims, float2(0.0, 0.0));
+        //
+        // And it is only offered where this pixel.s block has ACTUALLY been
+        // standing still for a while - .w counts the frames.
+        //
+        // Without that condition any pixel could take it, and next to a
+        // crosshair that is a real trap: the world rushes past at over a
+        // hundred pixels a frame while the HUD holds perfectly still, so at
+        // that boundary a landscape pixel can find "did not move" a better
+        // match than its own vector by pure coincidence, and freezes. The HUD
+        // stays sharp, the landscape beside it tears - which is exactly how it
+        // was reported from a low-altitude pass in a flight game.
+        //
+        // Eight frames is long enough that an accident does not qualify and
+        // short enough that a menu closing stops being treated as static
+        // almost at once.
+        const float staticFrames = MotionVectors.Load(int3(clamp(int2(pixelCenter / BlockSize),
+            int2(0, 0), int2(blockCount) - 1), 0)).w;
+        const float stillResidual = (staticFrames >= 8.0)
+            ? Residual(pixelCenter, dims, float2(0.0, 0.0))
+            : 1e30;
         if (stillResidual < bestResidual * 0.8)
         {
             bestResidual = stillResidual;
@@ -778,7 +797,26 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // previous frame leads, so the far weight belongs to the current frame.
     const float trustedWeight = (nearestSource > 0.5) ? (1.0 - kFarFrameWeight)
                                                       : kFarFrameWeight;
-    float sourceWeight = lerp(nearestSource, trustedWeight, confidence);
+    // WHETHER TO BLEND is judged more strictly than whether to interpolate.
+    //
+    // Two questions that were sharing one number. "Is this vector usable at
+    // all" should be lenient - being strict there discarded most of every
+    // generated frame and made the output feel like half the frame rate.
+    // "Should these two samples be AVERAGED" is a different question, and
+    // averaging two samples that disagree is precisely what a double image is.
+    //
+    // They disagree wherever one block covers content at two depths: in a
+    // low-altitude pass a near tree crosses the screen at 130 px a frame
+    // while the ground behind it moves 20, and one vector per block cannot be
+    // right for both. The search is not at fault - saturated blocks measure
+    // 0%, so it finds what it looks for - the block simply contains two
+    // motions.
+    //
+    // Where that happens the answer is not to blend more carefully but to
+    // stop blending: take the temporally nearer sample alone, still motion
+    // compensated. One slightly wrong picture beats two overlaid.
+    const float blendTrust = saturate(1.0 - mismatch * 6.0);
+    float sourceWeight = lerp(nearestSource, trustedWeight, min(confidence, blendTrust));
     float3 blendedLinear = lerp(prevLinear, currLinear, sourceWeight);
     float3 fallbackLinear = SrgbToLinear(safeFallback.rgb);
 

@@ -330,5 +330,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // background.s own motion, and that is what uncovered ground actually
     // does. It is still ground; it just was not visible before.
 
-    SmoothedMotionVectors[id.xy] = float4(spatial, matchError, 0.0);
+    // The stillness counter is carried through untouched - it describes this
+    // block.s own history, and averaging it with its neighbours. would smear
+    // exactly the boundary between a static overlay and the moving world that
+    // it exists to mark.
+    const float staticFrames = RawMotionVectors.Load(int3(id.xy, 0)).w;
+    SmoothedMotionVectors[id.xy] = float4(spatial, matchError, staticFrames);
 }

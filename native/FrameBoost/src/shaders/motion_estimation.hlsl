@@ -320,11 +320,36 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     {
         if (groupIndex == 0)
         {
-            // Zero motion, and the measured error that justifies it - the
-            // smoothing pass and the interpolator both read .z as real match
-            // quality, and this block matched perfectly where it stands.
+            // .w counts HOW LONG this block has been standing still.
+            //
+            // A HUD element stands still always; a tree never does. One frame
+            // of stillness means nothing - a bird can pause, a wall can match
+            // itself by accident - but sixty frames of it is a screen-space
+            // overlay. That distinction is what lets the interpolator allow
+            // "did not move" where it is true and refuse it where it is a
+            // coincidence, which is what tears landscape apart along the edge
+            // of a crosshair.
+            //
+            // Capped so it can fall back quickly: a menu that closes must stop
+            // being treated as static within a few frames, not after a second.
+            // The counter needs a far stricter test than the search skip above.
+            //
+            // kStaticBlockSad exists to save work: "close enough that searching
+            // would find nothing". An OVERLAY is a different claim - a HUD is
+            // pixel-identical from frame to frame, while an aircraft filling
+            // the screen barely moves relative to the display and still
+            // changes constantly through lighting, vibration and fine texture.
+            // At the loose threshold the aircraft qualified as static after
+            // eight frames and was handed the HUD treatment, so its edges tore
+            // against the landscape exactly as the crosshair.s had.
+            //
+            // A quarter of the threshold is the difference between "would not
+            // repay a search" and "did not change at all".
+            const float wasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+            const bool identicalToLastFrame = g_zeroMotionSadFull < kStaticBlockSad * 0.25;
             MotionVectors[groupId.xy] = float4(0.0, 0.0,
-                max(g_zeroMotionSadFull, 0.0) / (16.0 * 3.0), 0.0);
+                max(g_zeroMotionSadFull, 0.0) / (16.0 * 3.0),
+                identicalToLastFrame ? min(wasStatic + 1.0, 30.0) : 0.0);
         }
         return;
     }
@@ -562,6 +587,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         if (dot(finalMotion, finalMotion) < 0.75 * 0.75)
             finalMotion = float2(0.0, 0.0);
 
+        // Moving: the stillness counter resets to zero.
         MotionVectors[groupId.xy] = float4(finalMotion,
             max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
