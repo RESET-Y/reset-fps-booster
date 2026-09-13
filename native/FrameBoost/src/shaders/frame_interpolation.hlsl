@@ -1059,7 +1059,30 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // detail that is not already in the source frames - it restores local
     // contrast the resampling removed, using the same motion-compensated
     // neighbourhood the pixel itself came from.
+    // 0.0 - the unsharp pass is OFF, and this is an experiment with a number
+    // attached, not a quality decision.
+    //
+    // Measured: estimation plus interpolation takes 39-45% of the graphics
+    // card at 72 source FPS. Our own output is fine at that price - 144 fps,
+    // 0.3 ms jitter, doubling never pausing - but Apex is left with barely
+    // half a card and swings between 52 and 80 source FPS as the scene gets
+    // heavy. Reported as "als wuerde meine Grafikkarte 100% arbeiten und dann
+    // auf einmal hop nur 50%". The deadline is no longer the problem; the game
+    // is, and every millisecond we give back is a millisecond it renders with.
+    //
+    // These eight taps are about a quarter of the per-pixel texture reads, for
+    // a 0.15 unsharp mask. They were removed once before, TOGETHER with
+    // Catmull-Rom, and the double images came straight back - so both went back
+    // in. What that actually proved is that Catmull-Rom is needed. This half
+    // has never been tested on its own.
+    //
+    // If the generated frames now look softer than the real ones - a sharpness
+    // that pulses at 72 Hz - put it back at 0.15. If nothing is visible, it was
+    // a quarter of the pass for nothing.
+    static const float kSharpenAmount = 0.0;
+
     float3 blurLinear = float3(0.0, 0.0, 0.0);
+    if (kSharpenAmount > 0.0)
     {
         const float2 offsets[4] = {
             float2(-1.0, 0.0), float2(1.0, 0.0), float2(0.0, -1.0), float2(0.0, 1.0)
@@ -1079,7 +1102,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Catmull-Rom instead of bilinear. That already keeps the detail this was
     // compensating for, and the tester suspected slight over-sharpening after
     // the change - two sharpeners stacked on the same image.
-    static const float kSharpenAmount = 0.15;
     float3 sharpenedLinear = max(blendedLinear + (blendedLinear - blurLinear) * kSharpenAmount, 0.0);
 
     float3 warpedLinear = lerp(fallbackLinear, sharpenedLinear, confidence);
