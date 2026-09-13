@@ -574,7 +574,16 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     //
     // One extra motion-field read per pixel, against 169 candidates per block
     // for the search that produced it.
-    const float3 motionAtSource = SampleMotionBilinear(pixelCenter + mv, blockCount);
+    // Only computed when the diagnostic that uses it is on.
+    //
+    // This costs four motion-field reads per pixel and its result drives
+    // nothing: occlusionConfidence was taken out of the confidence calculation
+    // after three attempts at using it all made the picture worse, and it now
+    // feeds only the "showocclusion" tint. Four reads per pixel on every pixel
+    // of every generated frame, to colour a diagnostic nobody is looking at.
+    const float3 motionAtSource = (DebugTintGenerated == 2)
+        ? SampleMotionBilinear(pixelCenter + mv, blockCount)
+        : float3(0.0, 0.0, 0.0);
     const float2 motionDisagreement = motionAtSource.xy - mv;
 
     // Judged RELATIVE to how fast this area is moving, not in absolute pixels.
@@ -648,9 +657,19 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float2 prevSamplePos = pixelCenter + (1.0 - PhaseT) * mv;
     float2 currSamplePos = pixelCenter - PhaseT * mv;
 
-    // Catmull-Rom for the two reads that actually become the picture. The
-    // candidate tests above stay bilinear - they compare, they do not display,
-    // and a comparison does not need the sharpness.
+    // Catmull-Rom, and it earns its ten texture reads after all.
+    //
+    // It was removed as dead weight: it is the better reconstruction filter,
+    // but tested on its own it made no visible difference, and at five reads
+    // per sample against one it was a third of an interpolation pass that had
+    // grown to 9 ms against an 8.3 ms deadline.
+    //
+    // Removing it brought the double images straight back. Bilinear filtering
+    // at a fractional position mixes four neighbours, so each of the two
+    // warped samples is smeared before they are combined - and two smeared
+    // samples that disagree even slightly overlap visibly, where two sharp
+    // ones do not. It was not invisible; it was invisible in isolation, at a
+    // time when the doubling had other causes large enough to hide it.
     float4 prevColor = float4(SampleCatmullRom(PrevFrame, prevSamplePos, dims), 1.0);
     float4 currColor = float4(SampleCatmullRom(CurrFrame, currSamplePos, dims), 1.0);
 
@@ -843,10 +862,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         {
             float3 p = SrgbToLinear(PrevFrame.SampleLevel(LinearClamp, (prevSamplePos + offsets[i]) / dims, 0).rgb);
             float3 c = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, (currSamplePos + offsets[i]) / dims, 0).rgb);
-            // Same weighting as the pixel itself, so the sharpening compares
-            // like with like - a blur built with different weights would push
-            // the result toward the other source instead of just restoring
-            // local contrast.
             blurLinear += lerp(p, c, sourceWeight);
         }
         blurLinear *= 0.25;

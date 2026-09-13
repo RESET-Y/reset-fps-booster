@@ -52,7 +52,11 @@ public:
     // How far the per-pixel search should back off, from measured headroom.
     // 1 = full quality. Higher means only badly broken pixels pay for the
     // search - worse pixels on time, rather than better pixels too late.
-    void SetQualityRelief(float r) { m_qualityRelief = r < 1.0f ? 1.0f : (r > 6.0f ? 6.0f : r); }
+    // Ceiling raised from 6 to 24. At 6 the regulator was pegged at its maximum
+    // while interpolation still measured 13.3 ms against an 8.3 ms deadline,
+    // 62% of frames late and 89% of the card taken - a regulator that cannot
+    // reach the value it needs is not regulating.
+    void SetQualityRelief(float r) { m_qualityRelief = r < 1.0f ? 1.0f : (r > 24.0f ? 24.0f : r); }
 
     void SetMousePrediction(float x, float y) { m_mousePredictX = x; m_mousePredictY = y; }
 

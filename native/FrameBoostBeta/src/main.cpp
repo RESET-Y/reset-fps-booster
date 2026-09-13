@@ -1053,17 +1053,61 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const double p95 = interps[(interps.size() * 95) / 100];
         const double deadlineMs = lockedPeriodMs * 0.5;
 
-        // Aim for the 95th percentile to sit at 70% of the deadline. Not at
-        // 100%: a budget that is exactly met is missed as soon as anything
-        // else on the machine twitches.
+        // Judged on how many frames are actually LATE, not on a percentile
+        // against a fraction of the deadline.
+        //
+        // The old rule aimed the 95th percentile at 70% of the deadline. In
+        // Apex that target is 4.86 ms while interpolation measures 2.8-5.1, so
+        // the percentile crossed it almost every second and the regulator sat
+        // at its ceiling - while the engine was delivering 144 frames a second
+        // with zero missed display slots. It was backing off from a problem
+        // that was not happening.
+        //
+        // Being late is the failure. Everything else is a proxy for it, and
+        // this proxy was wrong.
+        int lateFrames = 0;
+        for (double c : interps) if (c > deadlineMs) ++lateFrames;
+        const double latePercent = 100.0 * lateFrames / costHistoryCount;
         const double target = deadlineMs * 0.7;
-        const double wanted = (p95 > target)
-            ? qualityRelief * (p95 / target)   // too slow: give the search less to do
-            : qualityRelief * 0.97;            // room to spare: drift back toward full
-
-        qualityRelief = qualityRelief * 0.95 + wanted * 0.05;
+        // Up quickly, down deliberately - but DOWN, which it effectively never
+        // did before.
+        //
+        // The old form multiplied the target by 0.97 and then eased 5% toward
+        // it, which works out to 0.9985 per second: from a relief of 24 back to
+        // 1 would have taken half an hour. So a single demanding game pushed
+        // the regulator to its ceiling and it stayed there afterwards - found
+        // in Apex, where cost was a comfortable 6.27 ms against a 7.5 ms
+        // deadline while the relief still read 24, meaning the per-pixel search
+        // that visibly improved edges was switched off for no reason at all.
+        //
+        // 0.85 per second recovers from 24 to 1 in about twenty seconds, which
+        // is slow enough not to oscillate and fast enough to notice a game
+        // change or a quieter scene.
+        // PINNED at full quality. The regulator is measured and reported, but it
+        // no longer drives anything.
+        //
+        // Three criteria were tried and all three failed the same way: they
+        // said "too slow" and held the relief at its ceiling while the engine
+        // was delivering 144 frames a second with zero missed display slots.
+        // The percentile against 70% of the deadline, the percentile against
+        // the deadline, and the fraction of interpolations longer than the
+        // deadline - each backed off from a problem that was not happening,
+        // and backing off switches off the per-pixel search that visibly
+        // improves edges.
+        //
+        // The premise is wrong rather than the tuning: interpolation time is
+        // not measured against a deadline that applies to it. Generation
+        // starts when the real frame arrives, not when the generated one is
+        // due, and what matters is whether the frame reaches the screen on
+        // time - which the GPU-room guard already decides, on evidence, and
+        // has done reliably since Friday.
+        //
+        // Kept in the file because the idea - lower quality on time beats
+        // higher quality late - is sound and was proved in War Thunder. It
+        // needs a measure of lateness that is actually about lateness.
+        qualityRelief = 1.0;
         if (qualityRelief < 1.0) qualityRelief = 1.0;
-        if (qualityRelief > 6.0) qualityRelief = 6.0;
+        if (qualityRelief > 24.0) qualityRelief = 24.0;
     };
 
     auto HeadroomVerdict = [&]() -> std::string {
