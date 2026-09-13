@@ -109,7 +109,10 @@ cbuffer InterpolationParams : register(b0)
 // At 4.0 a pixel keeps its interpolation up to a 25% difference, which is far
 // beyond anything ordinary rendering produces between two neighbouring frames
 // and still catches a sample that landed on entirely different content.
-static const float kMismatchSensitivity = 4.0;
+// 1.5, after testing where the limit actually is. At this value a
+// pixel keeps its interpolation up to a 67% colour difference - effectively
+// only content that is completely unrelated falls back.
+static const float kMismatchSensitivity = 1.5;
 
 // How sharply a RELATIVE disagreement between a vector and the field it points
 // into turns into distrust - the ratio of that disagreement to the local
@@ -172,7 +175,13 @@ static const float kOcclusionSensitivity = 2.2;
 // same question. At 3.0 a block with no real match at all (error ~0.3) still
 // falls back completely, while the ordinary 0.0177 keeps 95% of its
 // interpolation.
-static const float kBlockErrorSensitivity = 3.0;
+// 1.0 - the fallback is now almost never taken, so what is left
+// is whatever the interpolation itself can do. Tested live at these values:
+// smoother AND no new artifacts, which settles what these gates were doing.
+// They were not catching bad interpolation. They were preventing good
+// interpolation, and the picture they fell back to looked cleaner only
+// because a copy of a real frame always does.
+static const float kBlockErrorSensitivity = 1.0;
 
 // Blending has to happen in LINEAR light, not in the gamma-encoded values
 // the frame is stored in. This was the cause of the contrast loss and
