@@ -19,6 +19,8 @@ public:
     // procedure is static and owns no engine state, so this is the hand-off
     // point - see WM_INPUT in beta_presenter.cpp.
     static void SetRawInputSink(void* tracker);
+    // Blocks until the display is ready for another frame.
+    void WaitForPresentSlot();
 
     // overlayTarget: when non-null, the window is created as a click-through,
     // never-activating, always-on-top overlay positioned exactly over that
@@ -97,6 +99,14 @@ public:
 private:
     HWND m_hwnd = nullptr;
     IDXGISwapChain1* m_swapChain = nullptr;
+    // The waitable object of that swapchain, and the queue depth it was set to.
+    //
+    // Without these DXGI queues up to THREE presents before they reach the
+    // display - the documented default - which is up to 21 ms at 144 Hz and,
+    // worse, re-orders in time everything this engine schedules so carefully.
+    // Presents that leave here evenly spaced arrive on screen whenever the
+    // queue gets to them.
+    HANDLE m_frameLatencyWaitable = nullptr;
     UINT m_width = 0, m_height = 0;
     bool m_shouldClose = false;
     std::wstring m_baseTitle;

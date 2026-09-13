@@ -210,6 +210,10 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     // second, for nothing.
     scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS;
     scDesc.BufferCount = 3; // extra slack so the immediate (syncInterval 0) generated-frame present never stalls waiting for a free buffer
+    // Waitable: lets us block until the display is ready for the next frame,
+    // instead of handing DXGI a frame and letting it queue up to three before
+    // any of them is shown. See m_frameLatencyWaitable in the header.
+    scDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
     IDXGISwapChain1* swapChain = nullptr;
     HRESULT hr = E_FAIL;
@@ -218,7 +222,11 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
         // Flip model with premultiplied alpha: the per-refresh delivery path,
         // and the prerequisite for ever showing only the generated frames
         // while the real screen shows through in between.
-        scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        // DISCARD, not SEQUENTIAL: nothing here ever needs an older back buffer
+        // back, and SEQUENTIAL asks the runtime to preserve an ordering we do
+        // not use - which costs a copy on some drivers and can hold buffers
+        // longer than necessary.
+        scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         scDesc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
         hr = factory->CreateSwapChainForComposition(device, &scDesc, nullptr, &swapChain);
         if (FAILED(hr)) {
@@ -257,6 +265,30 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
 
     m_swapChain = swapChain;
 
+    // One frame in flight, and a handle to wait on.
+    //
+    // DXGI.s default is three presents queued before any of them reaches the
+    // display. That is up to 21 ms of latency at 144 Hz, and it also destroys
+    // the pacing this engine works to produce: frames leave here evenly spaced
+    // and arrive on screen whenever the queue gets round to them, which is why
+    // presenting the real frames ourselves felt laggy while the measured
+    // spacing of our own presents looked perfect.
+    //
+    // With the waitable object we block until the display is ready instead,
+    // which is the documented way to keep that queue empty without guessing.
+    {
+        winrt::com_ptr<IDXGISwapChain2> sc2;
+        if (SUCCEEDED(swapChain->QueryInterface(IID_PPV_ARGS(sc2.put())))) {
+            sc2->SetMaximumFrameLatency(1);
+            m_frameLatencyWaitable = sc2->GetFrameLatencyWaitableObject();
+            Logger::Log("[FrameBoostBeta] Presenter: frame latency 1, waitable swapchain - DXGI no longer"
+                        " queues up to three presents ahead of the display.");
+        } else {
+            Logger::Log("[FrameBoostBeta] Presenter: waitable swapchain unavailable; DXGI will queue"
+                        " presents and pacing will be less precise.");
+        }
+    }
+
     Logger::Log(m_usingComposition
         ? "[FrameBoostBeta] Presenter: DirectComposition flip-model swapchain (per-refresh delivery, frame statistics available, per-pixel alpha capable)."
         : "[FrameBoostBeta] Presenter: layered-window BitBlt swapchain (legacy path - no per-refresh guarantee).");
@@ -294,7 +326,16 @@ ID3D11UnorderedAccessView* Presenter::AcquireBackBufferUAV(ID3D11Device* device)
     return m_backBufferUAV;
 }
 
+// Blocks until the display is ready for another frame - see the swapchain
+// setup for why. Bounded, because a wait that can hang forever would freeze
+// the picture on any driver hiccup, and a stale frame beats a frozen one.
+void Presenter::WaitForPresentSlot() {
+    if (!m_frameLatencyWaitable) return;
+    WaitForSingleObjectEx(m_frameLatencyWaitable, 100, TRUE);
+}
+
 HRESULT Presenter::PresentBackBuffer(UINT syncInterval) {
+    WaitForPresentSlot();
     if (!m_swapChain) return E_FAIL;
     return m_swapChain->Present(syncInterval, 0);
 }
@@ -331,6 +372,7 @@ HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext*
 }
 
 HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* sourceTexture, UINT syncInterval) {
+    WaitForPresentSlot();
     if (!m_swapChain || !sourceTexture) return E_FAIL;
 
     ID3D11Texture2D* backBuffer = nullptr;

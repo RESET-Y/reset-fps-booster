@@ -740,10 +740,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     bool f8WasDown = false;
 
-    // F7: transparency mode. Defaults ON where the composition path is
-    // available, because it addresses the one problem that measurement could
-    // not otherwise solve - a covered source stops being drawn by Windows.
-    bool transparentRealFrames = true;
+    // F7: transparency mode, or "opaque" on the command line to start without
+    // it.
+    //
+    // Defaults ON because it addresses a problem measurement could not
+    // otherwise solve - a covered source stops being drawn by Windows. But it
+    // has a consequence that was never weighed against that: in this mode WE
+    // DO NOT SHOW THE REAL FRAMES AT ALL. The overlay simply turns
+    // transparent and lets the game.s own window through, so half the output
+    // stream - every second frame - appears when the GAME presents it, on the
+    // game.s clock, not on the schedule this engine works so hard to keep.
+    //
+    // Which means the spacing telemetry measures when we PRESENT, not when
+    // the picture actually changes: 7.21 and 7.23 ms of perfectly matched
+    // spacing can sit on top of a real frame that appeared whenever it liked.
+    // A competing product that draws both kinds of frame itself was tried
+    // side by side on the same scene and was clearly better, which is what
+    // made this worth questioning.
+    bool transparentRealFrames = !HasArg(L"opaque");
     bool f7WasDown = false;
 
     // Adaptive generation factor. A fixed 2x is wrong in both directions: it
