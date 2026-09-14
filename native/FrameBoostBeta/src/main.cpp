@@ -870,7 +870,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Long enough that a swing in the measured interval cannot toggle the
     // overlay, short enough that a game genuinely out of GPU is left alone
     // quickly.
-    static constexpr double kGpuRoomHoldMs = 500.0;
+    // Two seconds, up from half.
+    //
+    // The guard was switching the booster off and on repeatedly - measured
+    // within thirty seconds: "no room" at 13.0 ms, "room again" at 5.1 ms,
+    // then a still-picture stop and a resume. Each flip shows or hides the
+    // overlay, and the player sees the feature turning itself off. Meanwhile
+    // the engine's own headroom verdict in the same log line read "TIGHT -
+    // interpolation 0.9 ms median against a 17.6 ms deadline, 0.2% late". We
+    // were meeting the deadline essentially always and standing aside anyway.
+    //
+    // Half a second is not long enough to outlast a burst of contention, and
+    // this is a guard against a sustained condition, not a momentary one.
+    static constexpr double kGpuRoomHoldMs = 2000.0;
 
     // Standing aside has to mean getting out of the way COMPLETELY.
     //
@@ -2481,9 +2493,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         std::sort(costs.begin(), costs.end());
                         medianCostMs = costs[costs.size() / 2];
                     }
+                    // The question is whether we can sustain generation at all,
+                    // not whether we are comfortable.
+                    //
+                    // At 0.7 of a source interval the guard fired while the
+                    // engine was hitting its deadline 99.8% of the time. That
+                    // threshold answers "is this getting expensive", and the
+                    // honest consequence of expensive-but-affordable is a
+                    // missed slot here and there, which the pacing already
+                    // reports and the viewer does not notice. Switching the
+                    // whole feature off is not a proportionate response to it -
+                    // and the viewer notices THAT immediately.
+                    //
+                    // Generation genuinely cannot be sustained only when one
+                    // generated frame costs about as much as a whole source
+                    // interval: then the work for frame N is still running when
+                    // frame N+1 arrives and the engine falls permanently
+                    // behind. That is the line worth guarding, and it is 1.0,
+                    // not 0.7. Return at 0.8 keeps the gap that stops it
+                    // oscillating around the threshold.
                     const bool hasRoom = gpuHasRoom
-                        ? (medianCostMs < realFrameIntervalEmaMs * 0.7)   // leave once clearly over
-                        : (medianCostMs < realFrameIntervalEmaMs * 0.5);  // return only with margin
+                        ? (medianCostMs < realFrameIntervalEmaMs * 1.0)   // leave only when we cannot keep up
+                        : (medianCostMs < realFrameIntervalEmaMs * 0.8);  // return with a margin
 
                     // ...and only after the verdict has held for about half a
                     // second. Without this it flipped twice within the same
