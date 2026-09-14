@@ -688,10 +688,27 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
     }
 
-    // The same question with the brightness taken out. One thread, two passes.
+    // The same question with the brightness taken out - but ONLY where its
+    // answer can be used.
+    //
+    // This runs on one thread and takes two full passes over the block, and
+    // the other forty-eight threads sit at the barrier until it finishes. The
+    // cost was defended as "32 reads against the group's 784", which is the
+    // right arithmetic for throughput and the wrong one for latency: it does
+    // not matter that the work is small when the whole group waits for it.
+    //
+    // Measured after it went in: motion estimation at 40.14 ms in a busy scene,
+    // against the 1-3 ms it had run at all day. That is the stutter.
+    //
+    // Its result is only ever read behind "wasStatic >= kFlatZeroMinStatic", so
+    // blocks without a stillness history never needed it. In a moving scene
+    // that is nearly all of them, and they now skip it entirely.
     if (groupIndex == 2)
     {
-        g_zeroMotionSadFlat = BlockSADMeanRemoved(blockOrigin);
+        const float flatWasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+        g_zeroMotionSadFlat = (flatWasStatic >= kFlatZeroMinStatic)
+            ? BlockSADMeanRemoved(blockOrigin)
+            : 1e6;
     }
 
     // TEMPORAL PREDICTORS: this block's own vector from the previous frame and
