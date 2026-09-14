@@ -1211,6 +1211,40 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         lastShownContentMs = shownContentMs;
     };
+
+    // WOULD THIS FRAME PUT THE PICTURE BACK IN TIME?
+    //
+    // The step backwards was measured for weeks and only reported. In the
+    // scene Lukas calls a drop it is not rare:
+    //
+    //   23:50:11  irregular 38.3%  step sd 2.38  backwards 1
+    //   23:50:12  irregular 30.7%  step sd 4.81  backwards 2  missed 13.3%
+    //   23:50:13  irregular 43.5%  step sd 7.24  backwards 7  missed  8.3%
+    //
+    // Seven times in one second the next frame shown carried content from
+    // BEFORE what was already on screen. That is not a missed slot - the
+    // picture visibly jumps back and then forward again, which is what a drop
+    // feels like.
+    //
+    // It happens when the source interval is uneven: the phase is placed
+    // against an expected interval, the real frame then arrives early or late,
+    // and the next pair.s generated frame lands behind the one just shown.
+    //
+    // Showing it cannot help. A frame from the past adds no information the
+    // viewer has not already had, and it costs the jump twice - back, then
+    // forward. Skipping costs one output slot. Framegen, which adapts its
+    // factor rather than insisting on one, says the same thing in its own
+    // terms: take the factor the GPU and compositor actually sustain. Where we
+    // cannot sustain 2x cleanly, the honest answer is 1x for that pair.
+    //
+    // Deliberately only applied to GENERATED frames. A real frame is the truth
+    // and is shown whatever its timestamp says; suppressing one would hold back
+    // the newest picture the game has produced.
+    auto ContentWouldGoBackwards = [&](double shownContentMs) {
+        return lastShownContentMs > 0.0 && shownContentMs < lastShownContentMs;
+    };
+    // Generated frames skipped because their content sat behind the screen.
+    uint64_t generatedSkippedBackwards = 0;
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
@@ -1902,6 +1936,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
+            << " | Skipped backwards: " << (generatedSkippedBackwards / elapsed) << "/s"
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
             << " (moving EMA " << movingEma << ", difference EMA " << diffEma << ")"
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
@@ -1975,6 +2010,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
         generatedDroppedLate = 0;
+        generatedSkippedBackwards = 0;
         stillSecondsSinceReport = 0;
 
         duplicateFramesSinceReport = 0;
@@ -2958,6 +2994,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         const double genCeilingMs = NowMs() + 20.0;
                         while (NowMs() < generatedDueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
 
+                        if (ContentWouldGoBackwards(generatedContentMs)) {
+                            ++generatedSkippedBackwards;
+                        } else {
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                         else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                         if (measureOutputDiff) MeasureOutputFrame(interpolator.GeneratedFrameTexture(), generatedDiffSum, generatedDiffCount);
@@ -2965,6 +3004,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         RecordContentStep(generatedContentMs);
                         RecordPresentGap(NowMs(), true);
                         RecordPresentAge();
+                        }
                     }
                     generatedPendingSimple = false;
                 }
@@ -3129,6 +3169,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         ++generatedDroppedLate;
                         continue;
                     }
+                    // The moment this frame represents, in the source's own
+                    // timeline. Computed before the wait so the skip decision
+                    // does not depend on when we got here.
+                    const double generatedMomentMs = motionPrevTimestampMs
+                        + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs);
+                    if (ContentWouldGoBackwards(generatedMomentMs)) {
+                        ++generatedSkippedBackwards;
+                        continue;
+                    }
+
                     WaitUntilMs(dueAtMs, genCeilingMs);
                     WaitForDisplaySlot();
                     WaitForRefreshBoundary();
@@ -3136,9 +3186,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (uav) presenter.PresentBackBuffer(presentSyncInterval);
                     else presenter.PresentFrame(context.get(), interpolator.GeneratedFrameTexture(), presentSyncInterval);
                     ++generatedFramesSinceReport;
-                    // Half way between the two real frames of this pair, in the
-                    // source.s own timeline.
-                    RecordContentStep(motionPrevTimestampMs + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs));
+                    RecordContentStep(generatedMomentMs);
                     RecordPresentGap(NowMs(), true);
                     RecordPresentAge();
                 }
