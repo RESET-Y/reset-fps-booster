@@ -364,6 +364,22 @@ static const float kFlatZeroSad = 1.2;
 // case only, and says so.
 static const float kFlatZeroMinStatic = 4.0;
 
+// How much better than STANDING STILL a temporal predictor has to be before it
+// may become the search centre.
+//
+// Not a tie-break. A predictor is last frame's answer, and last frame's answer
+// is exactly what a self-perpetuating error is made of: a background vector
+// gets into a block of text, the predictor offers it again next frame, fine
+// text finds a false local minimum at that offset through aliasing, and the
+// block stays caught in a motion it never had while its neighbour sits at
+// zero. That is what tore the War Thunder pause menu into unreadable letters -
+// and it kept happening after the mouse prediction was removed entirely, which
+// is what ruled the mouse out and pointed here.
+//
+// 0.8 means a predictor must be twenty percent better than not moving at all.
+// Continuous motion clears that easily; a stale vector on static text does not.
+static const float kPredictorMustBeatZero = 0.8;
+
 // The point SAD of the coarse seed, and the centre the search will actually
 // use.
 groupshared float g_coarseSeedSad;
@@ -715,6 +731,31 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // Zero has to be clearly better, not merely better. See
         // kZeroCentreMargin - this is the difference between rescuing the
         // viewmodel and freezing the background.
+        // TEMPORAL PREDICTORS FIRST, and they must beat standing still.
+        //
+        // The order here was wrong and it undid both zero rules below. The
+        // predictor loop ran LAST and with no margin at all, so a predictor a
+        // hair better than the winner overturned a block that had just been
+        // judged static - by its own history, or by the brightness test. Last
+        // frame's vector then survived into this frame, where it is offered
+        // again, and a block of fine text finds a false local minimum at that
+        // offset through aliasing. The block stays caught in a motion it never
+        // had while its neighbour sits at zero; that is unreadable text.
+        //
+        // Two changes: predictors are weighed before zero rather than after, so
+        // the zero rules have the last word, and a predictor has to be twenty
+        // percent better than not moving at all - see kPredictorMustBeatZero.
+        for (int k = 0; kUsePredictors && k < kPredictorCount; ++k)
+        {
+            if (g_predictorSad[k] < centreSad
+                && g_predictorSad[k] < g_zeroMotionSad * kPredictorMustBeatZero)
+            {
+                centreSad = g_predictorSad[k];
+                centre = int2(g_predictorVector[k]);
+                which = 2;
+            }
+        }
+
         // The longer this block has stood still, the less zero has to prove.
         const float wasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
         const float zeroMargin = lerp(kZeroCentreMargin, kZeroCentreMarginStatic,
@@ -729,22 +770,12 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // ...and if the PATTERN here is unchanged and only the lighting moved,
         // zero is not a candidate to be weighed at all - it is the answer.
         // Nothing that merely got brighter went anywhere, and no match found
-        // elsewhere can be evidence that it did.
+        // elsewhere can be evidence that it did. Last, so nothing overturns it.
         if (wasStatic >= kFlatZeroMinStatic && g_zeroMotionSadFlat < kFlatZeroSad)
         {
             centreSad = g_zeroMotionSad;
             centre = int2(0, 0);
             which = 1;
-        }
-
-        for (int k = 0; kUsePredictors && k < kPredictorCount; ++k)
-        {
-            if (g_predictorSad[k] < centreSad)
-            {
-                centreSad = g_predictorSad[k];
-                centre = int2(g_predictorVector[k]);
-                which = 2;
-            }
         }
 
         g_searchCentre = centre;
