@@ -2234,17 +2234,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ranEstimationThisTick) {
             // Is this a still picture? Judged over several frames in a row so a
             // single quiet frame during gameplay cannot switch generation off.
+            // A real Schmitt trigger: two different thresholds, not one.
+            //
+            // With a single 5% line and only three moving frames needed to
+            // resume, this flapped - hidden, shown, hidden, shown three times
+            // in five seconds in the War Thunder pause menu, which has a live
+            // 3D background of water, clouds and the aircraft on deck. The
+            // share of moving blocks pendulums around the line, and every
+            // moment it crossed upward we started generating again. The tearing
+            // was in exactly those moments.
+            //
+            // Stop below 5%, resume only above 15%, and require half a second
+            // of it. Gameplay measures 38-86%, so nothing real is kept waiting
+            // by a resume threshold three times the stopping one.
             const double movingPercent = motionStats.MovingBlockPercent();
             if (movingPercent >= 0.0) {
                 if (movingPercent < 5.0) { ++stillFrameRun; movingFrameRun = 0; }
-                else { ++movingFrameRun; stillFrameRun = 0; }
+                else if (movingPercent > 15.0) { ++movingFrameRun; stillFrameRun = 0; }
+                else { /* between the two lines: neither counter advances */ }
 
                 if (!pictureIsStill && stillFrameRun >= 12) {
                     pictureIsStill = true;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (under 5% of blocks moving)"
                         " - standing aside. A generated frame between two identical ones carries no"
                         " information and can only be wrong; menus are where that shows.");
-                } else if (pictureIsStill && movingFrameRun >= 3) {
+                } else if (pictureIsStill && movingFrameRun >= 36) {
                     pictureIsStill = false;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
                 }
@@ -2384,8 +2398,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // partner has somewhere to sit. That half interval IS the added
         // latency, and it is the least any interpolator can manage.
         // Show the overlay only while we are actually adding something.
-        SetOverlayVisible(doublingFitsDisplay && gpuHasRoom && !forcePassthroughOnly
-                          && !pictureIsStill);
+        const bool overlayShowing = doublingFitsDisplay && gpuHasRoom
+                                 && !forcePassthroughOnly && !pictureIsStill;
+        SetOverlayVisible(overlayShowing);
 
         if (simpleDoubleMode) {
             // Every present is snapped to a refresh boundary.
@@ -3099,7 +3114,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
 
-        if (!presentedGenerated) {
+        // Present the real frame only when the overlay is actually on screen,
+        // and only when there is something new in it.
+        //
+        // Without those two conditions this ran on EVERY turn of the loop.
+        // Measured: 1198 native frames per second - the same picture presented
+        // twelve hundred times a second, into an overlay that was hidden
+        // anyway, because vsync is off and nothing here waits for anything.
+        //
+        // Invisible, and not harmless. It closes a loop: no GPU room, so
+        // generation stands aside, so this path runs unthrottled, so there is
+        // still no GPU room. That is most likely why War Thunder sat at
+        // "standing aside (no GPU room)" while the game itself was struggling
+        // at 22-32 fps - we were taking the card with presents nobody could see.
+        if (!presentedGenerated && overlayShowing && haveNewContent) {
             if (transparentRealFrames && presenter.SupportsTransparency() && haveMotionField) {
                 // Show nothing of ours: the real screen underneath is what the
                 // viewer sees, at native quality.
@@ -3114,10 +3142,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (useDesktopDuplication) ddCapture.Pump();
 
         const double presentEndMs = NowMs();
-        if (presentedGenerated) ++generatedFramesSinceReport;
-        else ++nativeFramesSinceReport;
-        RecordPresentGap(presentEndMs, presentedGenerated);
-        RecordPresentAge();
+        // Only count and pace what was actually presented. Counting a present
+        // that did not happen is how "Native FPS: 1198" looked plausible for as
+        // long as it did.
+        const bool presentedSomething = presentedGenerated || (overlayShowing && haveNewContent);
+        if (presentedSomething) {
+            if (presentedGenerated) ++generatedFramesSinceReport;
+            else ++nativeFramesSinceReport;
+            RecordPresentGap(presentEndMs, presentedGenerated);
+            RecordPresentAge();
+        }
         // Present time is the present alone. A leftover second addition here
         // also counted the slot wait, and reported a "present" of 9.5 ms
         // inside a 7.8 ms iteration - a part larger than the whole, which is
