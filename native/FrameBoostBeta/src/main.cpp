@@ -1231,7 +1231,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // higher than Native FPS, the surplus was being discarded unseen.
     int64_t pendingCaptureTimestamp100ns = 0;
     bool havePendingCapture = false;
-    uint64_t captureArrivalsSinceReport = 0;
+    // Filled once per report from the capture engine - see the telemetry below.
+    FrameBoostBeta::CaptureEngine::IntervalStats captureIntervals{};
     double presentAgeSumMs = 0.0, presentAgeMaxMs = 0.0;
     uint64_t presentAgeSamples = 0;
 
@@ -2046,6 +2047,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // path that is a small share by design - a frame whose phase lands mid
         // interval is shown as an interpolation of itself and its neighbour,
         // not skipped - so Source FPS is the number that describes the game.
+        // Read once here, so every field in the line below describes the same
+        // moment. ResetAuditCounters at the end of the report starts the next
+        // window.
+        captureIntervals = capture.ProducedIntervalStats();
+
         oss << "[FrameBoostBeta] Source FPS: " << sourceFps
             << " | Native FPS: " << nativeFps
             << " | Generated FPS: " << generatedFps
@@ -2106,7 +2112,38 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Phase avg: " << (phaseCountForReport ? phaseSumForReport / phaseCountForReport : -1.0)
             << " | Timeline slots: " << (phaseCountForReport ? 100.0 * timelineSlotsForReport / phaseCountForReport : -1.0) << "%"
             << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
-            << " | Capture arrivals/s: " << (captureArrivalsSinceReport / elapsed)
+            // WHAT THE CAPTURE ITSELF IS DOING - previously invisible.
+            //
+            // "Capture arrivals/s" was declared, reported and reset, and never
+            // incremented anywhere. It read 0 in every line of every log, and I
+            // read that as "nothing to see" rather than "nothing measured" -
+            // for a whole evening spent judging whether the source was at
+            // fault.
+            //
+            // Meanwhile CaptureEngine already measured all of this and main.cpp
+            // referenced none of it. The instrumentation was built and never
+            // connected.
+            //
+            // These answer the question directly. Produced/s is how often WGC
+            // ANNOUNCED a frame; the interval statistics are the spacing of
+            // those announcements, timed in the handler with QPC. Lost-in-pool
+            // is frames that existed and were recycled before we read them,
+            // which is the one number that says the delay is OURS.
+            //
+            //   produced steady, spacing tight, our Source FPS swinging
+            //     -> we mis-measure or drain unevenly; look here.
+            //   spacing itself wide
+            //     -> the frames genuinely arrive unevenly; not our pacing.
+            //   lost-in-pool above zero
+            //     -> we are too slow to drain, and that is ours.
+            << " | Capture produced/retrieved: " << capture.FramesProduced()
+            << "/" << capture.FramesRetrieved()
+            << " | Lost in pool: " << capture.FramesLostInPool()
+            << " | Pool buffers: " << capture.PoolBufferCount()
+            << " | Capture arrival spacing: " << captureIntervals.meanMs << " ms mean, min "
+            << captureIntervals.minMs << ", max " << captureIntervals.maxMs
+            << ", sd " << captureIntervals.stdDevMs
+            << " (" << captureIntervals.samples << " samples)"
             << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
@@ -2152,7 +2189,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         latencySamples = 0;
         phaseComputeMsSum = 0.0;
         presentAgeSumMs = 0.0; presentAgeMaxMs = 0.0; presentAgeSamples = 0;
-        captureArrivalsSinceReport = 0;
+        // Per-report window, so the spacing describes the last second rather
+        // than the whole session.
+        capture.ResetAuditCounters();
         queueDroppedSinceReport = 0;
         phaseSumForReport = 0.0; phaseCountForReport = 0; timelineSlotsForReport = 0;
         contentStepSum = 0.0; contentStepSumSq = 0.0; contentStepCount = 0;
