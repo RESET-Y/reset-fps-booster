@@ -1567,8 +1567,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // return. A controller whose recovery is as fast as its retreat cannot
         // settle.
         //
-        // Lossless Scaling describes its own as an "AIMD controller driven by a
-        // leaky-bucket drop detector", and AIMD is the shape this needs:
+        // Framegen describes its own as an "AIMD controller driven by a
+        // leaky-bucket drop detector" - Framegen, not Lossless Scaling, which
+        // this comment credited at first - and AIMD is the shape this needs:
         // congestion is answered fast because frames are being lost now,
         // recovery is slow because nothing is being lost and there is no hurry.
         // It is the rule that makes TCP converge instead of oscillate.
