@@ -785,6 +785,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // hundred between one second and the next. An average is immune to that in
     // a way a run of consecutive samples can never be.
     double movingEma = -1.0;
+    // How much the picture itself changed, smoothed the same way. See where the
+    // still detector uses it: the share of moving BLOCKS alone cannot tell a
+    // menu from a slow scene, and this can.
+    double diffEma = -1.0;
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -1843,6 +1847,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
+            << " (moving EMA " << movingEma << ", difference EMA " << diffEma << ")"
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
@@ -2434,12 +2439,51 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 //
                 // Menus measure 0.02-2.13%, so 2 and 4 separate them with room
                 // to spare and resume within a few frames instead of a minute.
-                if (!pictureIsStill && movingEma < 2.0) {
+                // FEW BLOCKS MOVING IS NOT THE SAME AS NOTHING HAPPENING.
+                //
+                // 2 and 4 still left the booster flapping once a second, and
+                // this time the measurement says plainly why:
+                //
+                //   23:25:45  moving 2.198%  diff 5.49  out   0.0  standing
+                //   23:25:46  moving 2.326%  diff 4.50  out   0.0  standing
+                //   23:25:48  moving 7.422%  diff 6.81  out 123.5  no
+                //   23:25:49  moving 2.653%  diff 4.19  out 109.8  standing
+                //   23:25:54  moving 7.156%  diff 5.03  out  73.3  no
+                //
+                // The content sits in the dead zone between the two lines and
+                // crosses both several times a second. Moving the lines does not
+                // fix that - wherever they go, some scene will sit on them.
+                //
+                // What fixes it is the column beside it. On a REAL still picture,
+                // measured on the desktop at 21:32, the frame-to-frame difference
+                // reads 0.00-0.16. Here it reads 3.6-6.8 - the picture is changing
+                // every single frame. Few blocks cross the motion threshold because
+                // of what that metric counts: a block gets a vector only if it can
+                // be matched, and slow, small or low-contrast motion - a cockpit at
+                // cruise, distant terrain, an animated menu backdrop - moves the
+                // pixels without ever winning a block match.
+                //
+                // So the two questions are different, and standing aside needs both
+                // answered: hardly any block moved AND the picture did not change.
+                // The gap between 0.16 and 3.6 is wide enough that no threshold in
+                // it is delicate; 1.0 sits with a factor of six either side.
+                //
+                // Smoothed because the raw difference spikes - 16.36 appears in the
+                // desktop log between readings of 0.00, and one spike must not
+                // restart generation any more than one quiet frame must stop it.
+                const double diffNow = duplicateDetector.LastDifference();
+                diffEma = (diffEma < 0.0) ? diffNow : diffEma * 0.9 + diffNow * 0.1;
+
+                constexpr double kStillDiff = 1.0;
+                constexpr double kMovingDiff = 2.0;
+
+                if (!pictureIsStill && movingEma < 2.0 && diffEma < kStillDiff) {
                     pictureIsStill = true;
-                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (under 5% of blocks moving)"
-                        " - standing aside. A generated frame between two identical ones carries no"
-                        " information and can only be wrong; menus are where that shows.");
-                } else if (pictureIsStill && movingEma > 4.0) {
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (few blocks moving AND the"
+                        " picture itself unchanged) - standing aside. A generated frame between two"
+                        " identical ones carries no information and can only be wrong; menus are where"
+                        " that shows.");
+                } else if (pictureIsStill && (movingEma > 4.0 || diffEma > kMovingDiff)) {
                     pictureIsStill = false;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
                 }
