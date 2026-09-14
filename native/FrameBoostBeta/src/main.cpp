@@ -1259,6 +1259,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // did not reach the screen. Fed in below at the point each output gap is
     // measured; about 100 slots of memory, which is 0.7 s at 144 Hz.
     double missedSlotEma = -1.0;
+    // When the relief regulator last stepped. It is rated per SECOND, not per
+    // call - see UpdateQualityRelief.
+    double lastReliefStepMs = 0.0;
 
     double qualityRelief = 1.0;
 
@@ -1297,17 +1300,42 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // residuals; at 4 only badly broken pixels do. A slightly worse pixel
         // shown on time beats a better one that is not shown at all.
         //
-        // Up quickly, down deliberately. At 72 calls a second, 1.02 per call
-        // doubles the relief in about half a second when frames start being
-        // dropped; 0.995 returns it to 1 over a couple of seconds once they
-        // stop. The dead band between 1% and 5% is what keeps it from hunting -
-        // and unlike a threshold on scene content, this one is about our own
-        // output, which we control.
-        if (missedSlotEma >= 0.0) {
+        // RATED PER SECOND, NOT PER CALL.
+        //
+        // The first version stepped 1.02 up and 0.995 down per call, on the
+        // assumption this runs once per frame - about 72 times a second. It
+        // does not; it sits in the pacing loop. Working backwards from the log,
+        // where the relief fell from 24 to 1 inside one second, 0.995 has to
+        // have been applied more than six hundred times:
+        //
+        //   23:46:26  rel 24.0
+        //   23:46:31  rel  1.0
+        //   23:46:41  rel 24.0
+        //   23:46:44  rel  1.0
+        //
+        // So "up quickly, down deliberately" was in fact a switch slamming
+        // between 1 and the ceiling every second or two - and at 24 the
+        // per-pixel search is effectively off, so the visible quality was
+        // flapping on and off for no reason the picture could show.
+        //
+        // Tied to the clock instead: about 1.6x per second upward, 0.7x per
+        // second down, whatever the call rate happens to be. From 1 to 24 takes
+        // roughly seven seconds of sustained dropping, and back again about
+        // nine seconds of none.
+        // NowMs is declared below this lambda, so the counter is read directly.
+        LARGE_INTEGER qpcRelief{};
+        QueryPerformanceCounter(&qpcRelief);
+        const double nowReliefMs =
+            static_cast<double>(qpcRelief.QuadPart) / qpcFreq.QuadPart * 1000.0;
+        if (lastReliefStepMs <= 0.0) lastReliefStepMs = nowReliefMs;
+        const double reliefDtSec = (nowReliefMs - lastReliefStepMs) / 1000.0;
+        lastReliefStepMs = nowReliefMs;
+
+        if (missedSlotEma >= 0.0 && reliefDtSec > 0.0 && reliefDtSec < 1.0) {
             if (missedSlotEma > 0.05) {
-                qualityRelief *= 1.02;
+                qualityRelief *= std::pow(1.6, reliefDtSec);
             } else if (missedSlotEma < 0.01) {
-                qualityRelief *= 0.995;
+                qualityRelief *= std::pow(0.7, reliefDtSec);
             }
         }
         if (qualityRelief < 1.0) qualityRelief = 1.0;
