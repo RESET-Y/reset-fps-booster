@@ -727,8 +727,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // highlight animates - and flipping between generating and not at those
     // moments would be its own artefact.
     bool pictureIsStill = false;
-    int stillFrameRun = 0;
-    int movingFrameRun = 0;
+    // A running average, not a run of consecutive frames.
+    //
+    // Counting consecutive frames was the wrong instrument for a value that
+    // jumps. Measured in a War Thunder sortie, one second apart: 6.7, 4.1,
+    // 25.6, 31.8, 2.8, 0.9, 25.0, 0.2 percent of blocks moving. Any frame under
+    // the lower line reset the resume counter, so thirty-six in a row above the
+    // upper one never happened and the booster stayed switched off through
+    // active gameplay - reported as "deaktiviert sich manchmal von selbst und
+    // kommt dann wieder".
+    //
+    // The clean two-orders-of-magnitude separation this was built on came from
+    // Apex against menus. It does not hold in a game whose frames arrive
+    // irregularly, where the share of moving blocks swings by a factor of a
+    // hundred between one second and the next. An average is immune to that in
+    // a way a run of consecutive samples can never be.
+    double movingEma = -1.0;
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -2237,7 +2251,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (ranEstimationThisTick) {
             // Is this a still picture? Judged over several frames in a row so a
             // single quiet frame during gameplay cannot switch generation off.
-            // A real Schmitt trigger: two different thresholds, not one.
+            // A Schmitt trigger on the AVERAGE: two thresholds, one smoothed
+            // signal.
             //
             // With a single 5% line and only three moving frames needed to
             // resume, this flapped - hidden, shown, hidden, shown three times
@@ -2252,16 +2267,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // by a resume threshold three times the stopping one.
             const double movingPercent = motionStats.MovingBlockPercent();
             if (movingPercent >= 0.0) {
-                if (movingPercent < 5.0) { ++stillFrameRun; movingFrameRun = 0; }
-                else if (movingPercent > 15.0) { ++movingFrameRun; stillFrameRun = 0; }
-                else { /* between the two lines: neither counter advances */ }
+                // ~10 frames of memory: long enough to ride out a single quiet
+                // or busy frame, short enough that opening a menu is noticed
+                // within a fifth of a second.
+                movingEma = (movingEma < 0.0) ? movingPercent
+                                              : movingEma * 0.9 + movingPercent * 0.1;
 
-                if (!pictureIsStill && stillFrameRun >= 12) {
+                // A menu averages about 1%; the War Thunder sortie above
+                // averages about 12; Apex gameplay 38-86. Stop under 3, resume
+                // over 8, and neither happens on a single frame.
+                if (!pictureIsStill && movingEma < 3.0) {
                     pictureIsStill = true;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (under 5% of blocks moving)"
                         " - standing aside. A generated frame between two identical ones carries no"
                         " information and can only be wrong; menus are where that shows.");
-                } else if (pictureIsStill && movingFrameRun >= 36) {
+                } else if (pictureIsStill && movingEma > 8.0) {
                     pictureIsStill = false;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
                 }
