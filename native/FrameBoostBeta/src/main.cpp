@@ -215,15 +215,38 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
 
+        // NORMAL by default, and that is a retraction.
+        //
+        // HIGH_PRIORITY_CLASS with a TIME_CRITICAL loop thread went in earlier
+        // today on request. No benefit for it was ever measured, and then this
+        // was: 102-121% of a core spun at HIGH priority, part of it while the
+        // engine was standing aside with output at zero. The pacing loop busy-
+        // waits by design, and a busy-wait above the game's own threads is a
+        // core the game cannot have. Reported as "die Menue-Buttons bleiben
+        // bisschen zurueck" - input handling waiting behind us.
+        //
+        // A change with no measured benefit that correlates with a reported
+        // regression comes out. "highpriority" puts it back for anyone who
+        // wants to measure it properly; "realtime" is still there and still a
+        // bad idea for the reasons below.
         bool wantRealtime = false;
+        bool wantHigh = false;
         for (int i = 1; i < argc; ++i) {
-            if (argv && _wcsicmp(argv[i], L"realtime") == 0) wantRealtime = true;
+            if (!argv) break;
+            if (_wcsicmp(argv[i], L"realtime") == 0) wantRealtime = true;
+            if (_wcsicmp(argv[i], L"highpriority") == 0) wantHigh = true;
         }
 
-        const DWORD cls = wantRealtime ? REALTIME_PRIORITY_CLASS : HIGH_PRIORITY_CLASS;
+        const DWORD cls = wantRealtime ? REALTIME_PRIORITY_CLASS
+                        : wantHigh     ? HIGH_PRIORITY_CLASS
+                                       : NORMAL_PRIORITY_CLASS;
         const BOOL clsOk = SetPriorityClass(GetCurrentProcess(), cls);
         const DWORD actual = GetPriorityClass(GetCurrentProcess());
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+        // Above normal, not time-critical. Enough to be scheduled promptly,
+        // not enough to hold a core against the game.
+        SetThreadPriority(GetCurrentThread(),
+                          (wantRealtime || wantHigh) ? THREAD_PRIORITY_TIME_CRITICAL
+                                                     : THREAD_PRIORITY_ABOVE_NORMAL);
 
         std::ostringstream prio;
         prio << "[FrameBoostBeta] Scheduling: EcoQoS throttling off, thread TIME_CRITICAL, priority class "
@@ -726,6 +749,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Hysteresis because a menu is not perfectly still - a cursor crosses it, a
     // highlight animates - and flipping between generating and not at those
     // moments would be its own artefact.
+    // Whether we are currently doing the work that needs the priority.
+    bool holdingHighPriority = true;
     bool pictureIsStill = false;
     // A running average, not a run of consecutive frames.
     //
@@ -2908,7 +2933,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 }
             }
 
-            Sleep(0); // yield without burning a core; the pacing is by clock above
+            // GIVE THE CORE BACK WHEN WE ARE NOT USING IT.
+            //
+            // The comment that used to sit here said "yield without burning a
+            // core", and it was wrong in the one way that matters. Sleep(0)
+            // yields only to threads of EQUAL OR HIGHER priority. This process
+            // runs at HIGH with a TIME_CRITICAL loop thread, so the game's
+            // ordinary threads are not equal or higher, and Sleep(0) hands them
+            // nothing at all.
+            //
+            // Measured while standing aside with the overlay hidden and output
+            // at zero: 121% of a core, at HIGH priority, for no output
+            // whatever. The game's input handling waits behind that, which is
+            // what "die Menue-Buttons bleiben bisschen zurueck" is.
+            //
+            // So: Sleep(1) whenever there is nothing to pace, which genuinely
+            // releases the core, and the priority itself is dropped to normal
+            // while standing aside - see below. Sleep(0) stays for the case it
+            // was meant for, a loop that is about to present on a schedule.
+            const bool workingNow = !pictureIsStill && gpuHasRoom && !forcePassthroughOnly;
+            if (workingNow != holdingHighPriority) {
+                holdingHighPriority = workingNow;
+                // Only the thread priority moves, and only within the modest
+                // band. The process class is whatever was asked for at start.
+                SetThreadPriority(GetCurrentThread(),
+                                  workingNow ? THREAD_PRIORITY_ABOVE_NORMAL
+                                             : THREAD_PRIORITY_NORMAL);
+                FrameBoostBeta::Logger::Log(workingNow
+                    ? "[FrameBoostBeta] Boosting."
+                    : "[FrameBoostBeta] Standing aside - core released.");
+            }
+            if (workingNow) Sleep(0); else Sleep(1);
             ReportTelemetryIfDue();
             continue;
         }
