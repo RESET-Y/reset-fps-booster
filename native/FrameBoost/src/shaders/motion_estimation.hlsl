@@ -257,6 +257,22 @@ static const int kPredictorCount = 5;
 groupshared float g_predictorSad[kPredictorCount];
 groupshared float2 g_predictorVector[kPredictorCount];
 
+// How much worse than the window's winner a point candidate may be and still
+// earn a search of its own. 2.0 - clearly in the running, without spending a
+// second pass on candidates that are merely not absurd.
+static const float kSecondSeedTolerance = 2.0;
+
+// The second search window, and the state that carries phase 1's result across
+// the barrier to phase 3.
+groupshared float g_sad2[kCandidateCount];
+groupshared int2 g_secondSeed;
+groupshared int g_needSecondPass;
+groupshared int g_p1Index;
+groupshared int2 g_p1Offset;
+groupshared float g_p1MatchSad;
+groupshared int2 g_pointOffset;
+groupshared float g_pointSad;
+
 // THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
 // same 16 full-resolution pixels, so the motion field keeps its granularity.
 //
@@ -527,6 +543,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
     // Cheap serial reduction over already-computed SAD values (no more
     // texture sampling here) - negligible cost compared to the search itself.
+    // PHASE 1 - reduce the searched window, and find the best POINT candidate.
     if (groupIndex == 0)
     {
         float bestSad = g_sad[0];
@@ -540,44 +557,125 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             }
         }
 
-        // The predictors compete on equal terms, without the neighbourhood bias:
-        // that bias exists to settle ties in favour of the coarse seed, and a
-        // predictor.s whole purpose is to beat a seed that is wrong.
-        int bestPredictor = -1;
+        const int2 windowRefinement =
+            int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        g_p1Index    = bestIndex;
+        g_p1Offset   = seed + windowRefinement;
+        // The neighbourhood bias is taken back out: it exists to settle ties in
+        // favour of the coarse seed, and what follows has to be a comparison of
+        // match quality alone.
+        g_p1MatchSad = bestSad - kNeighbourhoodBias * length(float2(windowRefinement));
+
+        // The best of the point candidates - standing still, or one of the five
+        // temporal predictors. Judged unbiased for the same reason.
+        float pointSad = g_zeroMotionSad;
+        int2 pointOffset = int2(0, 0);
         for (int k = 0; kUsePredictors && k < kPredictorCount; ++k)
         {
-            if (g_predictorSad[k] < bestSad)
+            if (g_predictorSad[k] < pointSad)
             {
-                bestSad = g_predictorSad[k];
-                bestPredictor = k;
+                pointSad = g_predictorSad[k];
+                pointOffset = int2(g_predictorVector[k]);
             }
         }
+        g_pointOffset = pointOffset;
+        g_pointSad = pointSad;
 
-        // Relative to the coarse seed, so the final vector is seed + refinement.
-        int2 bestOffset = seed + int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
-        int2 bestRefinementForError = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
-        float bestMatchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinementForError));
+        // DOES THAT CANDIDATE DESERVE A SEARCH OF ITS OWN?
+        //
+        // This is the viewmodel fix, and it comes from looking at a dumped
+        // frame rather than from theory. In Apex the weapon is rigidly attached
+        // to the camera, so during a fast turn the world sweeps past at 100-300
+        // px while the weapon sits almost still - two motions hundreds of pixels
+        // apart inside one picture. The coarse stage works on 64 and 128 px
+        // blocks that mix weapon and world, the bias pulls them to the world,
+        // and the fine stage then refines +-6 px around a seed that is 100 px
+        // wrong. The weapon came out shredded while the HUD stayed perfect.
+        //
+        // Why the existing zero-motion candidate did not rescue it: the window
+        // gets to SEARCH 49 positions for its local optimum, while zero and the
+        // predictors are each evaluated at exactly ONE. A weapon that moved 3 px
+        // always loses that comparison - zero is near its truth but is not its
+        // truth - and kZeroMotionMargin then demands zero be 15% better on top.
+        // Point against search is not a fair test.
+        //
+        // So the point candidate gets the same window. Two conditions, and both
+        // matter for cost: it has to be competitive, and it has to lie OUTSIDE
+        // the window already searched - inside, a second search would only
+        // re-find what the first one has. During a camera pan the predictors sit
+        // on top of the coarse seed, so world blocks skip this entirely and pay
+        // nothing; only blocks with a genuinely unreachable alternative pay.
+        //
+        // Also worth noting what this does NOT rely on: "Search-saturated
+        // blocks" read 0% throughout, which is why reach was ruled out earlier.
+        // That counter sees blocks pinned at the window EDGE. A block seeded 100
+        // px wrong finds a plausible minimum in the middle of its window, on the
+        // wrong content, and reports a low match error. The counter cannot see
+        // this failure at all.
+        const int2 pointFromSeed = abs(pointOffset - seed);
+        const bool alreadyReachable =
+            max(pointFromSeed.x, pointFromSeed.y) <= kSearchRadius;
+        g_needSecondPass =
+            (!alreadyReachable && pointSad < g_p1MatchSad * kSecondSeedTolerance) ? 1 : 0;
+        g_secondSeed = pointOffset;
+    }
+    GroupMemoryBarrierWithGroupSync();
 
-        // Set when the search result is discarded in favour of "did not move".
-        // Sub-pixel refinement must not run on those: a block that was judged
-        // still has no error surface around its winner to interpolate.
-        // A predictor won: take its vector whole. It is an absolute vector, not
-        // a refinement of the seed, and it carries its own unbiased error.
-        if (bestPredictor >= 0)
+    // PHASE 2 - the same search again, centred on the escaping candidate.
+    if (g_needSecondPass != 0)
+    {
+        const int2 candidate2 = g_secondSeed + refinement;
+        g_sad2[groupIndex] = BlockSAD(blockOrigin, candidate2)
+            + kNeighbourhoodBias * length(float2(refinement));
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // PHASE 3 - choose between two searched results on equal terms, then write.
+    if (groupIndex == 0)
+    {
+        int2 bestOffset   = g_p1Offset;
+        float bestMatchSad = g_p1MatchSad;
+        int bestIndex      = g_p1Index;
+        // 0 = first window, 1 = second window, 2 = a bare point (no error
+        // surface of its own, so no sub-pixel refinement).
+        int source = 0;
+
+        if (g_needSecondPass != 0)
         {
-            bestOffset = int2(g_predictorVector[bestPredictor]);
-            bestMatchSad = g_predictorSad[bestPredictor];
+            float bestSad2 = g_sad2[0];
+            int bestIndex2 = 0;
+            for (int j = 1; j < kCandidateCount; ++j)
+            {
+                if (g_sad2[j] < bestSad2)
+                {
+                    bestSad2 = g_sad2[j];
+                    bestIndex2 = j;
+                }
+            }
+
+            const int2 refine2 =
+                int2(bestIndex2 % kSearchWindow, bestIndex2 / kSearchWindow) - kSearchRadius;
+            const float match2 = bestSad2 - kNeighbourhoodBias * length(float2(refine2));
+            if (match2 < bestMatchSad)
+            {
+                bestMatchSad = match2;
+                bestOffset   = g_secondSeed + refine2;
+                bestIndex    = bestIndex2;
+                source       = 1;
+            }
+        }
+        else if (g_pointSad < bestMatchSad)
+        {
+            // Unsearched, but still better than anything the window found -
+            // the case this already handled before the second pass existed.
+            bestMatchSad = g_pointSad;
+            bestOffset   = g_pointOffset;
+            source       = 2;
         }
 
-        // Set when the search result is discarded in favour of "did not move".
-        // Sub-pixel refinement must not run on those: a block that was judged
-        // still has no error surface around its winner to interpolate. A
-        // predictor win counts too - its vector did not come from this
-        // block.s own error surface, so there is nothing there to fit.
+        // Standing still wins only when it is CLEARLY better, so ordinary noise
+        // in a moving scene cannot make blocks stick.
         bool snappedToZero = false;
-
-        // Standing still wins only when it is CLEARLY better, so ordinary
-        // noise in a moving scene cannot make blocks stick.
         if (g_zeroMotionSad * kZeroMotionMargin < bestMatchSad)
         {
             bestOffset = int2(0, 0);
@@ -594,94 +692,60 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             bestMatchSad = min(bestMatchSad, g_zeroMotionSadFull);
             snappedToZero = true;
         }
-
-        // .z carries how WELL that best candidate actually matched, as a mean
-        // absolute difference per colour channel (0 = identical, 1 = maximal).
-        // The vector alone cannot distinguish a confident match from the least
-        // bad of a set of equally wrong ones - and those are different problems
-        // with different fixes: a mis-estimated vector can be corrected, while
-        // content that was simply not present in the previous frame cannot be
-        // interpolated at all.
-        // The neighbourhood bias is taken back out, so .z stays a measurement
-        // of how well the block actually matched rather than of how far its
-        // winner sat from the seed. The smoothing pass and the diagnostics
-        // both read this as real match quality.
-        const int2 bestRefinement = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
-        const float matchSad = bestSad - kNeighbourhoodBias * length(float2(bestRefinement));
+        if (snappedToZero) source = 2;
 
         const float kSamplesPerCandidate = 16.0 * 3.0; // 4x4 samples, 3 channels
-        // Back to full-resolution pixels: everything above was counted in
-        // mip-1 texels, and every consumer of this field - the smoothing pass,
-        // the interpolation shader, the statistics - works in real pixels.
-        // SUB-PIXEL refinement, by fitting a parabola through the error surface.
-        //
-        // Without this the whole engine is quantised to whole texels, and
-        // because the search runs on mip 1 that is TWO full-resolution pixels.
-        // The interpolated frame needs half of each vector, so the finest
-        // motion it can express is one pixel - and anything slower than two
-        // pixels per frame rounds to zero, which makes the generated frame a
-        // copy of the real one. Two identical pictures in a row are not 144
-        // fps, they are 72 shown twice, and that is what a slow camera pan was
-        // reported as: better than before, but still "not 144 yet", and
-        // strangest of all at low speeds - exactly where rounding to zero bites.
-        //
-        // The three SAD values around the winner describe a curve with its
-        // minimum between the samples. Fitting a parabola and taking its
-        // vertex recovers that fraction analytically - no extra search, no
-        // extra texture reads, just three numbers already in shared memory.
-        // Clamped to +-0.5 texel because a vertex outside the interval means
-        // the curve was not a minimum and the fit says nothing.
-        //
-        // The values carry the neighbourhood bias, which grows with distance
-        // from the seed and so tilts the fitted curve slightly. It is the same
-        // small tilt on both sides of the winner in the common case, and
-        // removing it would mean recomputing three lengths per axis for a
-        // correction well under the quantisation this is recovering - so it is
-        // left in deliberately, not overlooked.
+
+        // Sub-pixel refinement, on whichever window actually won. A bare point
+        // has no error surface around it to interpolate, so it gets none.
         float2 subTexel = float2(0.0, 0.0);
-        if (!snappedToZero && bestPredictor < 0)
+        if (source == 0 || source == 1)
         {
             const int bx = bestIndex % kSearchWindow;
             const int by = bestIndex / kSearchWindow;
-            const float centreSad = g_sad[bestIndex];
+            float centreSad, leftSad, rightSad, upSad, downSad;
+            if (source == 0)
+            {
+                centreSad = g_sad[bestIndex];
+                leftSad  = (bx > 0)                ? g_sad[by * kSearchWindow + bx - 1] : centreSad;
+                rightSad = (bx < kSearchWindow - 1) ? g_sad[by * kSearchWindow + bx + 1] : centreSad;
+                upSad    = (by > 0)                ? g_sad[(by - 1) * kSearchWindow + bx] : centreSad;
+                downSad  = (by < kSearchWindow - 1) ? g_sad[(by + 1) * kSearchWindow + bx] : centreSad;
+            }
+            else
+            {
+                centreSad = g_sad2[bestIndex];
+                leftSad  = (bx > 0)                ? g_sad2[by * kSearchWindow + bx - 1] : centreSad;
+                rightSad = (bx < kSearchWindow - 1) ? g_sad2[by * kSearchWindow + bx + 1] : centreSad;
+                upSad    = (by > 0)                ? g_sad2[(by - 1) * kSearchWindow + bx] : centreSad;
+                downSad  = (by < kSearchWindow - 1) ? g_sad2[(by + 1) * kSearchWindow + bx] : centreSad;
+            }
 
             if (bx > 0 && bx < kSearchWindow - 1)
             {
-                const float left  = g_sad[by * kSearchWindow + bx - 1];
-                const float right = g_sad[by * kSearchWindow + bx + 1];
-                const float curvature = left - 2.0 * centreSad + right;
+                const float curvature = leftSad - 2.0 * centreSad + rightSad;
                 if (curvature > 1e-7)
-                    subTexel.x = clamp(0.5 * (left - right) / curvature, -0.5, 0.5);
+                    subTexel.x = clamp(0.5 * (leftSad - rightSad) / curvature, -0.5, 0.5);
             }
             if (by > 0 && by < kSearchWindow - 1)
             {
-                const float up   = g_sad[(by - 1) * kSearchWindow + bx];
-                const float down = g_sad[(by + 1) * kSearchWindow + bx];
-                const float curvature = up - 2.0 * centreSad + down;
+                const float curvature = upSad - 2.0 * centreSad + downSad;
                 if (curvature > 1e-7)
-                    subTexel.y = clamp(0.5 * (up - down) / curvature, -0.5, 0.5);
+                    subTexel.y = clamp(0.5 * (upSad - downSad) / curvature, -0.5, 0.5);
             }
         }
 
-        // Anything below a real pixel of movement is snapped to a standstill.
-        //
-        // Sub-pixel refinement made this necessary. It gives static content
-        // vectors like 0.3 px - not noise in the estimator.s terms, since the
-        // error surface really does have its minimum slightly off centre, but
-        // enough to shift sharp edges visibly. Reported from a game menu:
-        // hovering over an entry made the whole layout appear to slide a
-        // little. Not judder - a shift, which is exactly what a fraction of a
-        // pixel does to text.
-        //
-        // 0.75 px per frame is 45 px a second at 60 fps: far below anything a
-        // player would call movement, and far above the fractions that make
-        // still text wander.
         float2 finalMotion = (float2(bestOffset) + subTexel) * kMipScale;
         if (dot(finalMotion, finalMotion) < 0.75 * 0.75)
             finalMotion = float2(0.0, 0.0);
 
-        // Moving: the stillness counter resets to zero.
+        // .z carries how well the CHOSEN candidate matched, as a mean absolute
+        // difference per colour channel. It used to be recomputed from the first
+        // window's winner even when a predictor or zero had won, so a block that
+        // took a different vector reported someone else's error. The smoothing
+        // pass and the interpolation shader both read this as real match
+        // quality, so it has to describe the vector actually written.
         MotionVectors[groupId.xy] = float4(finalMotion,
-            max(matchSad, 0.0) / kSamplesPerCandidate, 0.0);
+            max(bestMatchSad, 0.0) / kSamplesPerCandidate, 0.0);
     }
 }
