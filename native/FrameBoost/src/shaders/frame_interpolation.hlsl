@@ -399,8 +399,12 @@ float3 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
 //
 float Residual(float2 pixelCenter, float2 dims, float2 v)
 {
-    const float3 p = PrevFrame.SampleLevel(LinearClamp, (pixelCenter + (1.0 - PhaseT) * v) / dims, 0).rgb;
-    const float3 q = CurrFrame.SampleLevel(LinearClamp, (pixelCenter - PhaseT * v) / dims, 0).rgb;
+    // Sampled at the SAME two positions the warp will use, so a candidate is
+    // judged where it will actually be applied. Either weighting compares
+    // points exactly v apart and is a valid test on its own, but only this one
+    // tests the pixel that gets written.
+    const float3 p = PrevFrame.SampleLevel(LinearClamp, (pixelCenter + PhaseT * v) / dims, 0).rgb;
+    const float3 q = CurrFrame.SampleLevel(LinearClamp, (pixelCenter - (1.0 - PhaseT) * v) / dims, 0).rgb;
     return dot(abs(p - q), float3(1.0, 1.0, 1.0));
 }
 
@@ -848,8 +852,43 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    float2 prevSamplePos = pixelCenter + (1.0 - PhaseT) * mv;
-    float2 currSamplePos = pixelCenter - PhaseT * mv;
+    // THE TWO WEIGHTS WERE SWAPPED, and at a factor of two nothing showed it.
+    //
+    // Derivation, from this shader's own definition of mv:
+    //
+    //     CurrFrame(p) ~= PrevFrame(p + mv)
+    //
+    // So content sitting at p in the current frame sat at p + mv in the
+    // previous one - it moved by -mv. Take one piece of content, at a in Prev
+    // and b in Curr, with b = a - mv. At fraction t between them it is at
+    // a - t*mv. The pixel p we are filling at time t therefore holds the
+    // content for which
+    //
+    //     p = a - t*mv        ->  a = p + t*mv
+    //     b = a - mv          ->  b = p - (1 - t)*mv
+    //
+    // which is Prev sampled at p + PhaseT*mv, and Curr at p - (1 - PhaseT)*mv.
+    //
+    // The code had (1 - PhaseT) on the previous frame and PhaseT on the
+    // current one. At PhaseT = 0.5 those are the same expression, which is why
+    // this survived every test: a factor of two puts the generated frame at the
+    // midpoint and the error is identically zero there. At any other phase the
+    // frame is placed at the MIRRORED instant, 1 - t instead of t - so it
+    // drifts the wrong way in time while the real frames advance normally.
+    // Reported as the generated frames appearing to stand still while the real
+    // ones move on, and settling again as soon as the camera stops.
+    //
+    // The phase is not fixed at 0.5 here: it is measured from the actual
+    // real-to-generated display gap and clamped to 0.2-0.8, so it leaves the
+    // midpoint whenever the source is irregular - which is exactly when the
+    // artefact was reported.
+    //
+    // Everything else in the shader already followed the documented convention
+    // - nearestSource and the confidence fallback both read PhaseT < 0.5 as
+    // "nearer to the previous frame" - so the warp was the one place that
+    // disagreed with the rest.
+    float2 prevSamplePos = pixelCenter + PhaseT * mv;
+    float2 currSamplePos = pixelCenter - (1.0 - PhaseT) * mv;
 
     // Catmull-Rom, and it earns its ten texture reads after all.
     //
