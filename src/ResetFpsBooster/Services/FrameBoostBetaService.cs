@@ -90,8 +90,32 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
             string logPath = Path.Combine(AppPaths.LogsFolder, "framebooost_beta.log");
             if (!File.Exists(logPath)) return new FrameBoostBetaTelemetry();
 
+            // READ THE TAIL, NOT THE FILE.
+            //
+            // This used to scan from the first byte on every call, and it is
+            // called from a DispatcherTimer every 500 ms - on the UI thread. The
+            // engine writes a 2.5 KB telemetry line every second, so the log
+            // grows about 9 MB an hour and never stopped: it reached 122 MB in
+            // one evening of testing.
+            //
+            // A quarter of a gigabyte of text parsing per second, on the thread
+            // that draws the window, beside the game the whole product exists to
+            // help. The timer cannot possibly keep its interval, so the number
+            // shown is from whenever the last scan happened to finish - which is
+            // why the panel disagreed with the log it was reading.
+            //
+            // 256 KB is about a hundred telemetry lines, far more than the one
+            // needed, and it does not grow.
+            const int kTailBytes = 256 * 1024;
             using var stream = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (stream.Length > kTailBytes)
+            {
+                stream.Seek(-kTailBytes, SeekOrigin.End);
+            }
             using var reader = new StreamReader(stream);
+            // The first line after a seek is very likely cut in half; skipping it
+            // costs nothing, because the line wanted is the last one.
+            if (stream.Position > 0) reader.ReadLine();
             string? lastMatchLine = null;
             string? line;
             while ((line = reader.ReadLine()) != null)
