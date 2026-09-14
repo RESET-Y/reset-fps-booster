@@ -2939,7 +2939,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // further back. Half an output slot is the tolerance;
                     // beyond that the frame is worth less than the slot it
                     // would occupy.
-                    if (outputSlotMs > 0.0 && NowMs() > dueAtMs + outputSlotMs * 0.5) {
+                    // Drop it only when the REAL frame's own moment has
+                    // arrived - not merely because this one is late.
+                    //
+                    // The first version dropped anything more than half an
+                    // output slot late, on the reasoning that a frame shown
+                    // after its instant adds no smoothness. Measured, that was
+                    // wrong: 8-12 generated frames a second were being thrown
+                    // away, and each one leaves a gap of 20-50 ms where a
+                    // slightly stale picture would have been. The output
+                    // interval ran from 6.7 ms to 56 ms with 42-77% of slots
+                    // missed. The rule was producing the stutter it was written
+                    // to prevent.
+                    //
+                    // A late frame still advances the picture. The only case
+                    // where showing it genuinely hurts is when the real frame
+                    // it precedes is already due, because then it would appear
+                    // out of order - so that, and nothing weaker, is the test.
+                    const double realMomentMs = motionCurrTimestampMs + arrivalLagEmaMs
+                        + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
+                    if (NowMs() > realMomentMs) {
                         ++generatedDroppedLate;
                         continue;
                     }
