@@ -319,6 +319,33 @@ static const float kZeroCentreBias = 0.4;
 // narrow one.
 static const float kZeroCentreMargin = 1.3;
 
+// ...and how far that margin relaxes for a block with a long history of
+// standing still.
+//
+// A different failure from the scroll, reported separately: "wenn sich die
+// Auswahl aendert wenn ich mit meiner Maus irgendwo drueber gehe kommen kleine
+// Tearings". Nothing MOVES when a hover highlight appears - the content
+// CHANGES in place. Block matching has no way to express that. Zero suddenly
+// matches badly, the search finds some other UI element that happens to look
+// similar, scores well on it, and the highlight is drawn where it never was.
+//
+// The counter in .w already knows: it holds how many consecutive frames this
+// block was identical to itself, up to 30, and is used for the static-block
+// shortcut. A block that stood still for sixteen frames and then changed has
+// overwhelmingly swapped its content rather than moved - that IS a menu
+// highlight, a changing ammo counter, a health bar.
+//
+// At 0.6 such a block takes zero even when zero is up to 1.7x WORSE than the
+// best the search found. It is a deliberate refusal to believe the search on
+// content whose history says it does not move.
+//
+// The cost: an object that stood still and genuinely starts moving is believed
+// late. The counter resets on any real motion, and sixteen frames is 0.22 s at
+// 72 fps, so this is a brief stickiness on something beginning to move, paid
+// for a class of UI that never moves at all.
+static const float kZeroCentreMarginStatic = 0.6;
+static const float kStaticHistoryFrames = 16.0;
+
 // The point SAD of the coarse seed, and the centre the search will actually
 // use.
 groupshared float g_coarseSeedSad;
@@ -595,7 +622,11 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         // Zero has to be clearly better, not merely better. See
         // kZeroCentreMargin - this is the difference between rescuing the
         // viewmodel and freezing the background.
-        if (g_zeroMotionSad * kZeroCentreMargin < centreSad)
+        // The longer this block has stood still, the less zero has to prove.
+        const float wasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+        const float zeroMargin = lerp(kZeroCentreMargin, kZeroCentreMarginStatic,
+                                      saturate(wasStatic / kStaticHistoryFrames));
+        if (g_zeroMotionSad * zeroMargin < centreSad)
         {
             centreSad = g_zeroMotionSad;
             centre = int2(0, 0);
