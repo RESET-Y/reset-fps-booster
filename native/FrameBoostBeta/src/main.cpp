@@ -258,6 +258,70 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     const bool haveHighResTimer = (timeBeginPeriod(1) == TIMERR_NOERROR);
     int argc = 0;
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+
+    // SCHEDULING: tell Windows this process is latency-critical.
+    //
+    // Three separate things, and only the last one is a priority.
+    //
+    // EcoQoS first, because it is the one that actually matches "Windows
+    // throttles us in the background". Since Windows 11 the scheduler may park
+    // a process on efficiency cores and cap its clock when it has no visible
+    // foreground window - which is exactly our situation: the game is in front,
+    // our overlay has no title bar and is hidden from the taskbar. Opting out
+    // is a documented, per-process switch that changes nothing for anyone else.
+    //
+    // Then HIGH_PRIORITY_CLASS for the process and TIME_CRITICAL for this
+    // thread, which together put the pacing loop at priority 15 - the band
+    // media and audio engines run in.
+    //
+    // NOT realtime, and that is a deliberate refusal rather than caution for
+    // its own sake. REALTIME_PRIORITY_CLASS with TIME_CRITICAL is priority 31,
+    // above the kernel threads that service input, audio and paging. This loop
+    // BUSY-WAITS - "while (NowMs() < dueAtMs) { ddCapture.Pump(); }" appears
+    // three times in the pacing path - and a spin at 31 on a core the mouse
+    // driver needs is how a machine stops responding entirely. It also needs
+    // SeIncreaseBasePriorityPrivilege: without elevation Windows silently gives
+    // HIGH instead, so the flag usually does nothing at all, and does damage
+    // exactly when it works.
+    //
+    // "realtime" forces it anyway, for someone who wants to measure the
+    // difference on a machine they are willing to hang.
+    {
+        // EcoQoS opt-out. The struct is looked up dynamically so the binary
+        // still runs on Windows 10 builds that lack it.
+        typedef BOOL (WINAPI *SetProcessInformationFn)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
+        if (HMODULE kernel = GetModuleHandleW(L"kernel32.dll")) {
+            if (auto setInfo = reinterpret_cast<SetProcessInformationFn>(
+                    GetProcAddress(kernel, "SetProcessInformation"))) {
+                PROCESS_POWER_THROTTLING_STATE throttling{};
+                throttling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+                throttling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+                throttling.StateMask = 0; // 0 = do not throttle
+                setInfo(GetCurrentProcess(), ProcessPowerThrottling,
+                        &throttling, sizeof(throttling));
+            }
+        }
+
+        bool wantRealtime = false;
+        for (int i = 1; i < argc; ++i) {
+            if (argv && _wcsicmp(argv[i], L"realtime") == 0) wantRealtime = true;
+        }
+
+        const DWORD cls = wantRealtime ? REALTIME_PRIORITY_CLASS : HIGH_PRIORITY_CLASS;
+        const BOOL clsOk = SetPriorityClass(GetCurrentProcess(), cls);
+        const DWORD actual = GetPriorityClass(GetCurrentProcess());
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+        std::ostringstream prio;
+        prio << "[FrameBoostBeta] Scheduling: EcoQoS throttling off, thread TIME_CRITICAL, priority class "
+             << (actual == REALTIME_PRIORITY_CLASS ? "REALTIME"
+                 : actual == HIGH_PRIORITY_CLASS ? "HIGH"
+                 : actual == ABOVE_NORMAL_PRIORITY_CLASS ? "ABOVE_NORMAL" : "NORMAL")
+             << (clsOk ? "" : " (the request was refused)")
+             << (wantRealtime && actual != REALTIME_PRIORITY_CLASS
+                 ? " - realtime was asked for and Windows declined it, which needs elevation." : "");
+        FrameBoostBeta::Logger::Log(prio.str());
+    }
     // Arguments are read by keyword rather than by position, and a window
     // handle is optional. With no handle the engine boosts the whole primary
     // display - which is what the app's switch does, and what a player
