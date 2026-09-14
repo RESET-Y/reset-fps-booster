@@ -1299,10 +1299,40 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // meaningless.
     // The interval is a parameter rather than a capture: lockedPeriodMs is
     // declared below this point, and the two call sites both have it.
-    auto ContentWouldGoBackwards = [&](double shownContentMs, double periodMs) {
+    // ...AND ONLY WHERE THE PICTURE IS ACTUALLY CHANGING.
+    //
+    // The size threshold was not enough. Standing still, with 0.02-0.93% of
+    // blocks moving, the counters still ran together:
+    //
+    //   00:00:47  mv 0.15%  diff  0.74  gap fills 4.0/s  skipped 4.0/s
+    //   00:00:50  mv 0.28%  diff  0.96  gap fills 6.0/s  skipped 6.0/s
+    //   00:00:54  mv 0.17%  diff  1.49  gap fills 9.0/s  skipped 9.0/s
+    //
+    // against fast movement, which is completely clean:
+    //
+    //   00:00:59  mv 62.54%  diff 14.85  gap fills 0.0/s  skipped 0.0/s
+    //   00:01:08  mv 55.73%  diff 28.51  gap fills 0.0/s  skipped 0.0/s
+    //
+    // Standing still is the BAD case, not the easy one. When nothing changes,
+    // frames get skipped as duplicates, the pairs then span uneven stretches of
+    // time, and the phase arithmetic stops producing content moments that climb.
+    //
+    // But look at what the difference column does across those two blocks:
+    // 0.74-1.49 standing still against 14.85-28.51 moving. Where the difference
+    // is that small the two frames ARE nearly the same picture, so a step
+    // backwards cannot be seen - there is almost nothing to see differently.
+    // The gap left by skipping it can: it is a repeated frame, nine times a
+    // second.
+    //
+    // So the guard applies only where a wrong order would actually show. Three
+    // sits between the two measured populations with a factor of two below and
+    // five above.
+    auto ContentWouldGoBackwards = [&](double shownContentMs, double periodMs,
+                                       double frameDifference) {
         if (lastShownContentMs <= 0.0) return false;
         const double back = lastShownContentMs - shownContentMs;
         if (back <= 0.0) return false;
+        if (frameDifference < 3.0) return false;
         const double interval = (periodMs > 1.0 && periodMs < 100.0) ? periodMs : 13.89;
         return back > interval * 0.2;
     };
@@ -3061,7 +3091,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         const double genCeilingMs = NowMs() + 20.0;
                         while (NowMs() < generatedDueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
 
-                        if (ContentWouldGoBackwards(generatedContentMs, lockedPeriodMs)) {
+                        if (ContentWouldGoBackwards(generatedContentMs, lockedPeriodMs,
+                                duplicateDetector.LastDifference())) {
                             ++generatedSkippedBackwards;
                         } else {
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
@@ -3241,7 +3272,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // does not depend on when we got here.
                     const double generatedMomentMs = motionPrevTimestampMs
                         + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs);
-                    if (ContentWouldGoBackwards(generatedMomentMs, lockedPeriodMs)) {
+                    if (ContentWouldGoBackwards(generatedMomentMs, lockedPeriodMs,
+                            duplicateDetector.LastDifference())) {
                         ++generatedSkippedBackwards;
                         continue;
                     }
