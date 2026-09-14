@@ -1639,18 +1639,57 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // 7 ms apart and then nothing came for 15. The output arrives in pairs with
     // a gap behind them, which is uneven however correct the frame count is.
     //
-    // A median of the last three follows a genuine rate change within two
-    // frames and still ignores a single stalled interval - the one case a plain
-    // average of three would smear across the next two pairs.
-    double recentIntervalMs[3] = { 0.0, 0.0, 0.0 };
+    // FIFTEEN INTERVALS, AND A RESET WHEN ONE IS ABSURD.
+    //
+    // This was a median of three. Three is too short for a source that measures
+    // a standard deviation of 1.3-4.9 ms around a 13.88 ms mean: the spacing
+    // estimate jumps with almost every frame, and the phase placed against it
+    // jumps with it. That unsteadiness has been visible all evening as content
+    // steps going backwards and as gap fills.
+    //
+    // Lossless Scaling's shipped config.ini - plain text beside the binary, not
+    // anything taken out of it - carries these two:
+    //
+    //     frametime_buffer_size = 15
+    //     frametime_buffer_reset_multiplier = 6
+    //
+    // Fifteen is about a fifth of a second at 72 fps. Long enough that ordinary
+    // capture jitter averages out; short enough to follow a real rate change
+    // within a fifth of a second.
+    //
+    // The reset multiplier is the half that makes the long window safe, and it
+    // is why a longer window is not simply a slower one. A stall - alt-tab, a
+    // shader compile, a level load - puts one interval of 200 ms into the
+    // buffer, and a median of fifteen would carry that for the next fifteen
+    // frames. Above six times the current estimate the buffer is not smoothed,
+    // it is EMPTIED: whatever came before that gap describes a situation that
+    // has ended.
+    //
+    // Still a median rather than a mean, because the median of fifteen also
+    // survives the one or two outliers that sit below the reset line.
+    // How often the 6x rule fired. Reported, so a window that is constantly
+    // being emptied shows up as that rather than as mysterious unsteadiness.
+    uint64_t intervalResetsSinceReport = 0;
+    static const int kIntervalWindow = 15;
+    static const double kIntervalResetMultiple = 6.0;
+    double recentIntervalMs[kIntervalWindow] = { 0.0 };
     int recentIntervalNext = 0;
     int recentIntervalCount = 0;
 
     auto UpdateSourcePeriod = [&](double intervalMs) {
         if (!(intervalMs > 1.0 && intervalMs < 100.0)) return;
+
+        // ABSURD INTERVAL: throw the window away rather than average it in.
+        if (recentIntervalCount > 0 && lockedPeriodMs > 1.0
+            && intervalMs > lockedPeriodMs * kIntervalResetMultiple) {
+            recentIntervalNext = 0;
+            recentIntervalCount = 0;
+            ++intervalResetsSinceReport;
+        }
+
         recentIntervalMs[recentIntervalNext] = intervalMs;
-        recentIntervalNext = (recentIntervalNext + 1) % 3;
-        if (recentIntervalCount < 3) ++recentIntervalCount;
+        recentIntervalNext = (recentIntervalNext + 1) % kIntervalWindow;
+        if (recentIntervalCount < kIntervalWindow) ++recentIntervalCount;
         // A plain slow average, with no tolerance window around the current
         // value.
         //
@@ -1673,12 +1712,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     };
 
     auto PacingInterval = [&]() {
-        // The median of the last three, so the spacing follows the source
-        // rather than an average of where it used to be. See the ring above.
-        if (recentIntervalCount == 3) {
-            const double a = recentIntervalMs[0], b = recentIntervalMs[1], c = recentIntervalMs[2];
-            const double median = (a < b) ? ((b < c) ? b : ((a < c) ? c : a))
-                                          : ((a < c) ? a : ((b < c) ? c : b));
+        // The median of the window, so the spacing follows the source rather
+        // than an average of where it used to be. See the ring above.
+        //
+        // Sorted into a copy: fifteen doubles on the stack, once per generated
+        // frame, against a source period the whole output is placed against.
+        // Partial selection would be faster and is not worth the second
+        // implementation to get wrong.
+        if (recentIntervalCount >= 3) {
+            double sorted[kIntervalWindow];
+            for (int i = 0; i < recentIntervalCount; ++i) sorted[i] = recentIntervalMs[i];
+            std::sort(sorted, sorted + recentIntervalCount);
+            const double median = sorted[recentIntervalCount / 2];
             if (median > 1.0 && median < 100.0) return median;
         }
         // The lock, not the measurement - see UpdateSourcePeriod above.
@@ -2152,7 +2197,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
-            << " | Skipped backwards: " << (generatedSkippedBackwards / elapsed) << "/s"
+            << " | Skipped backwards: " << (generatedSkippedBackwards / elapsed)
+            << " | Pacing window: " << recentIntervalCount << "/" << kIntervalWindow
+            << ", resets " << intervalResetsSinceReport << "/s" << "/s"
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
             << " (moving EMA " << movingEma << ", difference EMA " << diffEma << ")"
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
@@ -2258,6 +2305,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         gapFillsSinceReport = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
+        intervalResetsSinceReport = 0;
         stillSecondsSinceReport = 0;
 
         duplicateFramesSinceReport = 0;
