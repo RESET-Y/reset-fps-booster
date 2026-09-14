@@ -749,11 +749,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // regulator now runs off missed display slots and backs off on its own when
     // a scene really is too expensive. Paying permanently for a peak the
     // regulator can handle is the wrong trade.
-    interpolator.SetInterpScale(HasArg(L"halfres") ? 2u : 1u);
-    FrameBoostBeta::Logger::Log(HasArg(L"halfres")
-        ? "[FrameBoostBeta] Generated frames at HALF sampling density (halfres) - a quarter of the"
-          " interpolation work, written to 2x2 squares. Cheaper, and visibly softer."
-        : "[FrameBoostBeta] Generated frames at full sampling density.");
+    // MEASURED: FULL DENSITY DOES NOT FIT HERE.
+    //
+    // Switched back to full resolution when the quality was reported as bad,
+    // and the source cap then moved 60 -> 72. Together that is four times the
+    // interpolation work on twenty percent more frames, and the measurement is
+    // unambiguous:
+    //
+    //   00:46:21  relief  9.99  interp median 10.40 ms  deadline 6.90  gpu 86.8%
+    //   00:46:23  relief  4.89  interp median 10.70 ms  deadline 6.90  gpu 88.8%
+    //
+    // Against 2.1-3.5 ms at half density. Interpolation at 2560x1440 costs
+    // 10-12 ms and the budget is half a source interval, 6.9 ms. It does not
+    // fit, and at 86-89% of the card the game that feeds us collapses - source
+    // fell to 14-52 fps with up to 100% of output slots missed.
+    //
+    // The regulator can hide the misses. It cannot give the game its graphics
+    // card back. So half density is the affordable configuration and "fullres"
+    // opts into the expensive one.
+    //
+    // The quality complaint is still valid, and half density is not the real
+    // answer to it: the 2x2 write is NEAREST NEIGHBOUR, the crudest possible
+    // upscale. Framegen renders its inserted frames at 480 lines and upscales
+    // bilinearly. Doing the same here needs a half-resolution intermediate and
+    // a second, cheap pass - not a one-line change, and the honest next piece
+    // of work rather than something to bolt on at midnight.
+    interpolator.SetInterpScale(HasArg(L"fullres") ? 1u : 2u);
+    FrameBoostBeta::Logger::Log(HasArg(L"fullres")
+        ? "[FrameBoostBeta] Generated frames at FULL sampling density (fullres) - measured at 10-12 ms"
+          " against a 6.9 ms deadline and 86-89% of the graphics card. Expect the source to suffer."
+        : "[FrameBoostBeta] Generated frames at half sampling density - a quarter of the interpolation"
+          " work, written to 2x2 squares (nearest neighbour).");
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     // Separate instance, fed the PRESENTED frames in the order they go out, so
     // each comparison is between two consecutive output frames.
@@ -1512,11 +1538,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const double reliefDtSec = (nowReliefMs - lastReliefStepMs) / 1000.0;
         lastReliefStepMs = nowReliefMs;
 
+        // AIMD: MULTIPLICATIVE BACKOFF, ADDITIVE RECOVERY.
+        //
+        // Multiplicative in both directions hunts, and the log shows it doing
+        // exactly that - 24.00, 21.64, 15.14, 14.33, 9.99, 6.99, 4.89 over six
+        // seconds while the interpolation median climbed back 1.0, 8.4, 9.8,
+        // 10.4, 10.6, 10.7. It backs off, the misses stop, it relaxes, they
+        // return. A controller whose recovery is as fast as its retreat cannot
+        // settle.
+        //
+        // Lossless Scaling describes its own as an "AIMD controller driven by a
+        // leaky-bucket drop detector", and AIMD is the shape this needs:
+        // congestion is answered fast because frames are being lost now,
+        // recovery is slow because nothing is being lost and there is no hurry.
+        // It is the rule that makes TCP converge instead of oscillate.
+        //
+        // 1.6x per second up; one unit per second down, so 24 back to 1 takes
+        // twenty-three seconds instead of three.
         if (missedSlotEma >= 0.0 && reliefDtSec > 0.0 && reliefDtSec < 1.0) {
             if (missedSlotEma > 0.05) {
                 qualityRelief *= std::pow(1.6, reliefDtSec);
             } else if (missedSlotEma < 0.01) {
-                qualityRelief *= std::pow(0.7, reliefDtSec);
+                qualityRelief -= 1.0 * reliefDtSec;
             }
         }
         if (qualityRelief < 1.0) qualityRelief = 1.0;
