@@ -587,9 +587,28 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // noisy, it is correct on both sides and undefined in between.
     {
 
+        // ASKED OF EVERY PIXEL, before anything else: are these two frames
+        // showing the SAME pixel here?
+        //
+        // This used to sit inside the search below, which only runs for pixels
+        // whose incumbent vector already failed. A letter being dragged along
+        // by the background behind it often produces a residual UNDER the
+        // tolerance by accident - anti-aliased glyph edges are half background
+        // to begin with - so the pixels that most needed the question were
+        // never asked it. Reported as the tearing receding but not going: the
+        // solid interior of the letters was rescued and their edges were not.
+        //
+        // It costs one residual - two texture samples - on every pixel rather
+        // than on the failing ones. That is the price of asking a question
+        // whose whole value is that it is asked where nothing looks wrong.
+        const float stillResidualEarly = Residual(pixelCenter, dims, float2(0.0, 0.0));
+        const bool pixelIdenticalAtZero = stillResidualEarly < 0.02;
+
         // The interpolated vector is the incumbent: it starts as the winner, so
         // a neighbour has to be strictly better to displace it.
-        float bestResidual = Residual(pixelCenter, dims, mv);
+        float bestResidual = pixelIdenticalAtZero ? stillResidualEarly
+                                                  : Residual(pixelCenter, dims, mv);
+        if (pixelIdenticalAtZero) mv = float2(0.0, 0.0);
         float2 bestMv = mv;
         float bestError = blockMatchError;
 
@@ -621,7 +640,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         // all. Measured in War Thunder before this existed - 40% of generated
         // frames late, 80-91% of the card taken from a game that needed it.
         const float kIncumbentTolerance = 0.045 * max(QualityRelief, 1.0);
-        if (bestResidual > kIncumbentTolerance)
+        if (!pixelIdenticalAtZero && bestResidual > kIncumbentTolerance)
         {
             // The same four corners already loaded at the top of CSMain.
             float3 candidates[kMotionCandidates] = blockCorners;
@@ -670,35 +689,13 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         // almost at once.
         const float staticFrames = MotionVectors.Load(int3(clamp(int2(pixelCenter / BlockSize),
             int2(0, 0), int2(blockCount) - 1), 0)).w;
-        const float stillResidual = Residual(pixelCenter, dims, float2(0.0, 0.0));
+        const float stillResidual = stillResidualEarly;
 
-        // A PIXEL that is identical in both frames did not move, whatever its
-        // block believes.
-        //
-        // The block counter above cannot help static content that sits on a
-        // moving background - and that is most of what a game overlay is. The
-        // War Thunder pause menu draws text over the LIVE sortie: measured
-        // while it was on screen, 40-66% of blocks were moving, because the
-        // aircraft is still flying behind it. A block holding a letter and the
-        // ground rushing past is never identical to itself, so staticFrames
-        // stays at zero there and every zero-motion protection built on it is
-        // inert. The text was dragged along with the ground and came out as
-        // unreadable letters.
-        //
-        // This asks the question at the only granularity that can answer it.
-        // 0.02 is a mean absolute difference of under 0.7% per channel across
-        // three channels - not "a good match" but "the same pixel", which is
-        // what a static overlay produces and what content rushing past never
-        // does by accident.
-        //
-        // Deliberately absolute rather than relative. The existing test asks
-        // whether zero beats the alternatives by a fifth, and on flat ground at
-        // speed it sometimes does, which is why it needed the block counter as
-        // a guard. This one cannot fire there at all: ground that has moved a
-        // hundred pixels does not leave a pixel-perfect match behind.
-        const bool pixelIdenticalAtZero = stillResidual < 0.02;
-
-        if (pixelIdenticalAtZero || (staticFrames >= 8.0 && stillResidual < bestResidual * 0.8))
+        // The block-history rule stays here: where a block has genuinely been
+        // still for a while, zero may win by merely being a fifth better. The
+        // stricter pixel-identity test that used to sit beside it now runs
+        // before the search, for every pixel - see stillResidualEarly.
+        if (staticFrames >= 8.0 && stillResidual < bestResidual * 0.8)
         {
             bestResidual = stillResidual;
             bestMv = float2(0.0, 0.0);
