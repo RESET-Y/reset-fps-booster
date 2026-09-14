@@ -460,7 +460,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // only the C++ build tools. A switch that needs a rebuild to reach is not a
     // switch. So the presence of a file is read instead:
     //
-    //   %LOCALAPPDATA%ResetFpsBoosterlowlatency.on
+    //   %LOCALAPPDATA%\ResetFpsBooster\lowlatency.on
     //
     // Create it and low latency is on at the next start; delete it and it is
     // off. This belongs in the app's own interface and should move there as
@@ -469,7 +469,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
         if (!localAppData) return false;
         const std::wstring marker =
-            std::wstring(localAppData) + L"\ResetFpsBooster\lowlatency.on";
+            std::wstring(localAppData) + L"\\ResetFpsBooster\\lowlatency.on";
         return GetFileAttributesW(marker.c_str()) != INVALID_FILE_ATTRIBUTES;
     };
 
@@ -734,11 +734,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Default on, because the measurement says the deadline is being missed
     // today. "fullres" is there so the two can be compared directly rather than
     // argued about.
-    interpolator.SetInterpScale(HasArg(L"fullres") ? 1u : 2u);
-    FrameBoostBeta::Logger::Log(HasArg(L"fullres")
-        ? "[FrameBoostBeta] Generated frames at full sampling density (fullres)."
-        : "[FrameBoostBeta] Generated frames at half sampling density - a quarter of the"
-          " interpolation work, written to 2x2 squares. Pass \"fullres\" to compare.");
+    // FULL SAMPLING DENSITY AGAIN. "halfres" opts into the cheap one.
+    //
+    // Half density was switched on tonight to stop interpolation overrunning
+    // its deadline - 4.9 ms median and 9.4-10.1 ms at the 95th percentile
+    // against 6.9-7.9 ms. It worked, and it is also visible: the generated
+    // frame is computed at half resolution and written to 2x2 squares, which is
+    // a nearest-neighbour upscale, not the bilinear one Framegen uses. Reported
+    // as the quality looking bad, which is exactly what that trade costs.
+    //
+    // The reason it is no longer needed as a default: the deadline problem was
+    // fixed at its root afterwards. Staging the motion-estimation operands in
+    // groupshared took that stage from 3.19 ms to 0.90-1.07 ms, and the quality
+    // regulator now runs off missed display slots and backs off on its own when
+    // a scene really is too expensive. Paying permanently for a peak the
+    // regulator can handle is the wrong trade.
+    interpolator.SetInterpScale(HasArg(L"halfres") ? 2u : 1u);
+    FrameBoostBeta::Logger::Log(HasArg(L"halfres")
+        ? "[FrameBoostBeta] Generated frames at HALF sampling density (halfres) - a quarter of the"
+          " interpolation work, written to 2x2 squares. Cheaper, and visibly softer."
+        : "[FrameBoostBeta] Generated frames at full sampling density.");
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     // Separate instance, fed the PRESENTED frames in the order they go out, so
     // each comparison is between two consecutive output frames.
