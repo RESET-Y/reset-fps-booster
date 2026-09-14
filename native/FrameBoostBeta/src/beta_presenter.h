@@ -15,10 +15,6 @@ namespace FrameBoostBeta {
 // queue behind it.
 class Presenter {
 public:
-    // Set by the engine so raw mouse input reaches the tracker. The window
-    // procedure is static and owns no engine state, so this is the hand-off
-    // point - see WM_INPUT in beta_presenter.cpp.
-    static void SetRawInputSink(void* tracker);
     // Blocks until the display is ready for another frame.
     void WaitForPresentSlot();
 

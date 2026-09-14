@@ -54,12 +54,18 @@ cbuffer InterpolationParams : register(b0)
     // later frame to copy it from - so revealed areas can only be filled with
     // what the current frame already shows there.
     float ExtrapolateAhead;
-    // Where the camera is being turned, in pixels of expected screen shift,
-    // derived from raw mouse movement. Zero when unknown.
-    float2 MousePrediction;
-    // 1 = full quality, higher = the per-pixel search gives up sooner. Set from
-    // measured headroom, so the same build runs at full quality where there is
-    // time and backs off where there is not, instead of missing its deadline.
+    // MousePrediction sat here - two floats of expected screen shift derived
+    // from raw mouse movement, offered to every failing pixel as an extra
+    // motion candidate. Removed on 2026-09-14; see the note on the C++ side.
+    //
+    // The layout below is what the removal left. Field order and padding must
+    // match ParamsCB in interpolation.cpp register for register - that has been
+    // wrong once already, and the symptom was silent: the mouse never reached
+    // the shader at all and the status badge was never drawn.
+    //
+    //   b0  FrameWidth FrameHeight BlockSize DebugTintGenerated
+    //   b1  PhaseT ExtrapolateAhead QualityRelief MotionCutoff
+    //   b2  StatusFlags + three words of padding
     float QualityRelief;
 
     // Hard displacement cutoff in pixels per real-frame interval, 0 = off.
@@ -78,7 +84,7 @@ cbuffer InterpolationParams : register(b0)
     //   bit 0 - low-latency mode (generation factor capped at 2)
     //   bit 1 - transparency mode (real frames show the actual screen)
     uint StatusFlags;
-    float2 _padTo32Bytes;
+    uint _pad0, _pad1, _pad2;
 };
 
 // How quickly disagreement between the two motion-compensated samples turns
@@ -673,39 +679,29 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             bestMv = float2(0.0, 0.0);
         }
 
-        // THE MOUSE is a candidate too.
+        // THE MOUSE was a candidate here, and is not any more.
         //
-        // Every other candidate here comes from two frames that are already in
-        // the past. None of them can know that the player has just flicked
-        // right, because no rendered frame shows it yet - the input exists a
-        // whole frame before the picture it eventually produces, and in a
-        // shooter the mouse IS the camera, so it is the dominant motion of the
-        // next frame. This is what VR calls reprojection.
+        // Raw mouse movement converted to expected screen shift, offered to
+        // every pixel the block vectors had failed. The idea is sound - input
+        // exists a whole frame before the picture it produces, and in a shooter
+        // the mouse IS the camera, which is what VR calls reprojection.
         //
-        // Offering it as a candidate rather than applying it is what makes it
-        // safe, and it also sidesteps a calibration that measurement showed we
-        // cannot get exactly: mouse counts convert to pixels through the game.s
-        // sensitivity and field of view, and fitting that against measured
-        // picture motion gave a vertical factor stable to 1% but a horizontal
-        // one wandering by a factor of two - because horizontal picture motion
-        // comes from strafing as well as from turning, while vertical motion is
-        // almost purely the mouse.
+        // It was removed because it was MEASURED to do nothing. Running with
+        // the prediction fully disabled and then enabled changed no artefact
+        // anyone could see: "nein nichts". The conversion from mouse counts to
+        // pixels also refused to settle - 0.397 px per count in one session,
+        // 0.185 in the next, with the raw least-squares fit agreeing with the
+        // smoothed value to three digits each time, so it was the measurement
+        // and not convergence. Horizontal picture motion comes from strafing as
+        // well as from turning, and the mix decides the number.
         //
-        // As a candidate it needs no precision. If the prediction is right it
-        // wins on residual and the generated frame shows input the game has not
-        // drawn yet; if it is wrong - because the player was strafing, or the
-        // pixel belongs to a weapon or an enemy rather than the world - it
-        // loses and costs one comparison. The picture judges, not the
-        // calibration.
-        if (any(MousePrediction != 0.0))
-        {
-            const float mouseResidual = Residual(pixelCenter, dims, MousePrediction);
-            if (mouseResidual < bestResidual)
-            {
-                bestResidual = mouseResidual;
-                bestMv = MousePrediction;
-            }
-        }
+        // What it cost while it did nothing: a calibration loop, a file on
+        // disk, a field in the constant buffer, and three separate occasions
+        // where it was blamed for artefacts it had not caused.
+        //
+        // The full implementation is in git before this commit if the idea is
+        // ever worth retrying - with a conversion that does not depend on
+        // fitting against motion the player also produces by strafing.
 
         // A per-pixel SEARCH around the winner was tried here and removed.
         //

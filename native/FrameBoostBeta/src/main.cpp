@@ -29,7 +29,6 @@
 #include "beta_presenter.h"
 #include "duplicate_detector.h"
 #include "motion_stats.h"
-#include "mouse_tracker.h"
 #include "frame_dump.h"
 #include "../../FrameBoost/src/motion_estimation.h"
 #include "../../FrameBoost/src/interpolation.h"
@@ -146,92 +145,6 @@ bool CreateSharedDevice(winrt::com_ptr<ID3D11Device>& device, winrt::com_ptr<ID3
         }
     }
     return true;
-}
-
-} // namespace
-
-namespace {
-
-// WHERE THE MOUSE CALIBRATION LIVES BETWEEN RUNS.
-//
-// The factor that converts raw mouse counts into pixels of picture motion is
-// measured, not assumed - and measuring it takes a couple of minutes of real
-// play. Every restart threw that away and started from zero, which is not a
-// theoretical cost: on 2026-09-14 the double images vanished in a run that had
-// settled at 0.40, three restarts later the same build measured 0.26, and they
-// came back worse. A factor that is too small is worse than none at all, so a
-// warm-up period where it is merely WRONG is a period of visible damage.
-//
-// The accumulators are stored, not just the result. A least-squares fit is a
-// sum, so restoring the sums lets the next session CONTINUE the measurement
-// rather than restart it - a hundred fresh samples then refine a number built
-// from thousands instead of replacing it.
-//
-// Plain key=value text on purpose: this file is meant to be readable, and
-// editable by hand when a value needs pinning for a test.
-struct MouseCalibration {
-    double samples = 0.0;
-    double numX = 0.0, denX = 0.0;
-    double numY = 0.0, denY = 0.0;
-    double sumXY = 0.0, sumMouseSq = 0.0, sumMotionSq = 0.0;
-    double pixelsPerCountX = 0.0, pixelsPerCountY = 0.0;
-};
-
-std::wstring MouseCalibrationPath() {
-    const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
-    if (!localAppData || !*localAppData) return std::wstring();
-    std::wstring dir = std::wstring(localAppData) + L"\\ResetFpsBooster";
-    CreateDirectoryW(dir.c_str(), nullptr);
-    return dir + L"\\mouse_calibration.ini";
-}
-
-bool LoadMouseCalibration(MouseCalibration& out) {
-    const std::wstring path = MouseCalibrationPath();
-    if (path.empty()) return false;
-    std::ifstream file(path);
-    if (!file.is_open()) return false;
-
-    std::string line;
-    bool any = false;
-    while (std::getline(file, line)) {
-        const size_t eq = line.find('=');
-        if (eq == std::string::npos || line.empty() || line[0] == '#') continue;
-        const std::string key = line.substr(0, eq);
-        const double value = atof(line.c_str() + eq + 1);
-        if (key == "samples") out.samples = value;
-        else if (key == "numX") out.numX = value;
-        else if (key == "denX") out.denX = value;
-        else if (key == "numY") out.numY = value;
-        else if (key == "denY") out.denY = value;
-        else if (key == "sumXY") out.sumXY = value;
-        else if (key == "sumMouseSq") out.sumMouseSq = value;
-        else if (key == "sumMotionSq") out.sumMotionSq = value;
-        else if (key == "pixelsPerCountX") out.pixelsPerCountX = value;
-        else if (key == "pixelsPerCountY") out.pixelsPerCountY = value;
-        else continue;
-        any = true;
-    }
-    return any;
-}
-
-void SaveMouseCalibration(const MouseCalibration& c) {
-    const std::wstring path = MouseCalibrationPath();
-    if (path.empty()) return;
-    std::ofstream file(path, std::ios::trunc);
-    if (!file.is_open()) return;
-    file.precision(10);
-    file << "# RESET FRAMEBOOST - measured mouse-to-picture calibration.\n"
-         << "# Delete this file to measure from scratch. Editing pixelsPerCountX/Y\n"
-         << "# pins a value only until the next save overwrites it; to pin one for a\n"
-         << "# test, run with \"nomouse\" off and this file read-only.\n"
-         << "samples=" << c.samples << "\n"
-         << "numX=" << c.numX << "\n" << "denX=" << c.denX << "\n"
-         << "numY=" << c.numY << "\n" << "denY=" << c.denY << "\n"
-         << "sumXY=" << c.sumXY << "\n"
-         << "sumMouseSq=" << c.sumMouseSq << "\n"
-         << "sumMotionSq=" << c.sumMotionSq << "\n"
-         << "pixelsPerCountX=" << c.pixelsPerCountX << "\n"
-         << "pixelsPerCountY=" << c.pixelsPerCountY << "\n";
 }
 
 } // namespace
@@ -443,23 +356,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
     }
 
-    // Two switches that exist to settle cause, not to configure anything.
+    // "nogapfill" exists to settle cause, not to configure anything. After the
+    // constant-buffer fix the double images were "so gut wie weg", two changes
+    // followed - the gap filler, and the unsharp pass off - and they came back
+    // worse. Which one did it is a question for an A/B, not for reasoning.
     //
-    // After the constant-buffer fix the double images were reported as "so gut
-    // wie weg". Two changes followed - the gap filler, and the unsharp pass off
-    // - and then they came back, worse. Guessing which one did it is exactly
-    // what has cost this project its worst days, so both are switchable and the
-    // question gets answered by looking.
-    //
-    // "nomouse" carries a real suspicion of its own. The mouse-to-pixel factor
-    // is measured per session and does not agree between sessions: 0.40 in the
-    // run where the doubling vanished, 0.26 in the run where it came back -
-    // with the raw fit and the smoothed value agreeing, so it is the fit itself
-    // and not convergence lag. Horizontal picture motion comes from strafing as
-    // well as from turning, and the mix decides the number. A factor that is
-    // too small is worse than none: it predicts 130 px for a 200 px flick, wins
-    // the residual test on some pixels and loses it on others, and a patchwork
-    // of two displacements IS a double image.
     // "dump": write the generated frame and its two real sources to disk
     // whenever the picture is moving fast. OFF by default, and that is not
     // tidiness - it is correctness.
@@ -478,7 +379,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // are.
     const bool frameDumpEnabled = HasArg(L"dump");
 
-    const bool mousePredictionOff = HasArg(L"nomouse");
     const bool gapFillOff = HasArg(L"nogapfill");
 
     const bool measureOutputDiff = HasArg(L"measureoutput");
@@ -714,87 +614,23 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     }
     presenter.SetTitleSuffix(L"GENERATING (F9 to toggle)");
 
-    // Raw mouse input, so the engine knows where the camera is being turned
-    // before the game has drawn the frame that shows it. Failure is not fatal:
-    // everything works as before without it.
-    FrameBoostBeta::MouseTracker mouseTracker;
-    FrameBoostBeta::Presenter::SetRawInputSink(&mouseTracker);
-    mouseTracker.Start(presenter.WindowHandle());
-
-    // CALIBRATION, measured rather than assumed.
+    // The raw mouse tracker and its calibration lived here, and are gone.
     //
-    // A raw mouse delta is in device counts. How many pixels the picture moves
-    // per count depends on the game.s sensitivity, its field of view and the
-    // resolution - none of which we can read, and all of which the player can
-    // change. But we already measure the other half: the motion field says how
-    // far the picture actually moved. Correlating the two gives the factor
-    // directly, and tells us first whether it is stable enough to be worth
-    // using at all.
+    // They fed one extra motion candidate to the interpolation shader: where
+    // the camera is being turned, known a whole frame before any rendered
+    // picture shows it. The idea is what VR calls reprojection and it is sound.
     //
-    // A sum of products against a sum of squares - a least-squares fit through
-    // the origin, accumulated over a second, which is the right shape here:
-    // zero mouse movement must mean zero picture movement.
-    double mouseFitNumeratorX = 0.0, mouseFitDenominatorX = 0.0;
-    double mouseFitNumeratorY = 0.0, mouseFitDenominatorY = 0.0;
-    double mouseFitCorrelationSumXY = 0.0, mouseFitSumMouseSq = 0.0, mouseFitSumMotionSq = 0.0;
-    uint64_t mouseFitSamples = 0;
-    // The same fit, never reset - because a factor that only has to be settled
-    // once does not need to be right every second. Per-second values swung by a
-    // factor of three while the correlation reached 0.87 in the cleanest
-    // seconds, which is the signature of a real relationship measured through
-    // noise rather than of no relationship.
-    double mouseFitLongNumX = 0.0, mouseFitLongDenX = 0.0;
-    double mouseFitLongNumY = 0.0, mouseFitLongDenY = 0.0;
-    double mouseFitLongXY = 0.0, mouseFitLongMouseSq = 0.0, mouseFitLongMotionSq = 0.0;
-    uint64_t mouseFitLongSamples = 0;
-
-    // The factor actually used for prediction, eased toward the long-run fit
-    // rather than set from it - a factor that jumps would make the prediction
-    // jump, and a candidate that moves around is worse than one that is
-    // slightly off. Seeded at zero: until enough has been measured, nothing is
-    // predicted and the engine behaves exactly as before.
-    double mousePixelsPerCountX = 0.0;
-    double mousePixelsPerCountY = 0.0;
-    // Where the running mouse totals stood when the last real frame arrived.
-    // The prediction is the movement SINCE then, read fresh at the moment the
-    // generated frame is built.
+    // Removed because it was measured to do nothing. With the prediction fully
+    // disabled and then enabled, no artefact anyone could see changed: "nein
+    // nichts". And the conversion from mouse counts to screen pixels refused to
+    // settle between sessions - 0.397 against 0.185, with the raw fit and the
+    // smoothed value agreeing to three digits each time, so the measurement
+    // itself disagreed rather than lagging. Horizontal picture motion comes
+    // from strafing as well as from turning, and the mix decides the number.
     //
-    // It used to use the movement up to the last real frame instead, which is
-    // the interval the picture already shows - the one piece of mouse data
-    // with no predictive value left in it. The generated frame is produced
-    // several milliseconds later, and whatever the hand did in between is
-    // exactly what no rendered frame can know.
-    double mouseAnchorX = 0.0, mouseAnchorY = 0.0;
-
-    // Pick up where the last run left off.
-    //
-    // The sums are restored, not just the result, so this session CONTINUES
-    // the measurement instead of restarting it - and the factor is live from
-    // the first frame rather than after two minutes of warm-up during which it
-    // is not merely unknown but WRONG, which is worse than off.
-    double mouseSaveDueAtMs = 0.0;
-    if (!mousePredictionOff) {
-        MouseCalibration stored;
-        if (LoadMouseCalibration(stored) && stored.samples > 0.0) {
-            mouseFitLongNumX = stored.numX;   mouseFitLongDenX = stored.denX;
-            mouseFitLongNumY = stored.numY;   mouseFitLongDenY = stored.denY;
-            mouseFitLongXY = stored.sumXY;
-            mouseFitLongMouseSq = stored.sumMouseSq;
-            mouseFitLongMotionSq = stored.sumMotionSq;
-            mouseFitLongSamples = static_cast<uint64_t>(stored.samples);
-            mousePixelsPerCountX = stored.pixelsPerCountX;
-            mousePixelsPerCountY = stored.pixelsPerCountY;
-
-            std::ostringstream oss;
-            oss << "[FrameBoostBeta] Mouse calibration restored: " << mouseFitLongSamples
-                << " samples, X " << mousePixelsPerCountX << ", Y " << mousePixelsPerCountY
-                << ". Measured over previous sessions rather than guessed again.";
-            FrameBoostBeta::Logger::Log(oss.str());
-        } else {
-            FrameBoostBeta::Logger::Log("[FrameBoostBeta] No stored mouse calibration - measuring from scratch."
-                        " The prediction stays off until it is trustworthy.");
-        }
-    }
+    // Git holds the whole implementation, calibration persistence included, if
+    // it is ever worth retrying with a conversion that does not have to be
+    // fitted against motion the player also produces by strafing.
 
     FrameBoost::MotionEstimation::Estimator estimator;
     FrameBoost::Interpolation::Interpolator interpolator;
@@ -1888,24 +1724,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Real interval: " << (motionCurrTimestampMs - motionPrevTimestampMs) << " ms"
             << " | Capture arrivals/s: " << (captureArrivalsSinceReport / elapsed)
             << " | Transparency: " << ((transparentRealFrames && presenter.SupportsTransparency()) ? "on" : "off")
-            << (mouseTracker.IsRunning()
-                ? " | Mouse vs picture: " + std::to_string(mouseFitSamples) + " samples"
-                  + ", px per count X " + std::to_string(mouseFitDenominatorX > 0 ? mouseFitNumeratorX / mouseFitDenominatorX : 0.0)
-                  + ", Y " + std::to_string(mouseFitDenominatorY > 0 ? mouseFitNumeratorY / mouseFitDenominatorY : 0.0)
-                  + ", correlation " + std::to_string(
-                      (mouseFitSumMouseSq > 0 && mouseFitSumMotionSq > 0)
-                          ? mouseFitCorrelationSumXY / std::sqrt(mouseFitSumMouseSq * mouseFitSumMotionSq)
-                          : 0.0)
-                  + " || lifetime: " + std::to_string(mouseFitLongSamples) + " samples"
-                  + ", px per count X " + std::to_string(mouseFitLongDenX > 0 ? mouseFitLongNumX / mouseFitLongDenX : 0.0)
-                  + ", Y " + std::to_string(mouseFitLongDenY > 0 ? mouseFitLongNumY / mouseFitLongDenY : 0.0)
-                  + ", correlation " + std::to_string(
-                      (mouseFitLongMouseSq > 0 && mouseFitLongMotionSq > 0)
-                          ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
-                          : 0.0)
-                  + " || predicting with X " + std::to_string(mousePixelsPerCountX)
-                  + ", Y " + std::to_string(mousePixelsPerCountY)
-                : std::string(""))
             << " | Moving blocks: " << (motionStats.MovingBlockPercent() >= 0 ? std::to_string(motionStats.MovingBlockPercent()) + "%" : "N/A")
             << " | Motion mean/max px: " << motionStats.MeanMagnitudePixels() << "/" << motionStats.MaxMagnitudePixels()
             << " | Search-saturated blocks: " << motionStats.SaturatedBlockPercent() << "%"
@@ -1933,42 +1751,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         FrameBoostBeta::Logger::Log(oss.str());
 
-        mouseFitNumeratorX = mouseFitDenominatorX = 0.0;
-        mouseFitNumeratorY = mouseFitDenominatorY = 0.0;
-        mouseFitCorrelationSumXY = mouseFitSumMouseSq = mouseFitSumMotionSq = 0.0;
-        mouseFitSamples = 0;
-        realDiffSum = generatedDiffSum = 0.0; realDiffCount = generatedDiffCount = 0;
-        queueDepthMin = 9999; queueDepthMax = 0; queueDepthSum = 0.0; queueDepthSamples = 0;
-        nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
         stillSecondsSinceReport = 0;
 
-        // Keep the measurement, every ten seconds, and only when it is worth
-        // keeping. Writing a bad fit over a good one is the failure this whole
-        // file exists to prevent, so both gates matter: enough samples that the
-        // sums mean something, and a correlation that says the mouse really does
-        // predict this game's picture.
-        //
-        // Never while "nomouse" is set - that run is deliberately not measuring.
-        if (!mousePredictionOff && NowMs() >= mouseSaveDueAtMs && mouseFitLongSamples > 500) {
-            const double corr = (mouseFitLongMouseSq > 0.0 && mouseFitLongMotionSq > 0.0)
-                ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
-                : 0.0;
-            if (corr > 0.5) {
-                MouseCalibration c;
-                c.samples = static_cast<double>(mouseFitLongSamples);
-                c.numX = mouseFitLongNumX; c.denX = mouseFitLongDenX;
-                c.numY = mouseFitLongNumY; c.denY = mouseFitLongDenY;
-                c.sumXY = mouseFitLongXY;
-                c.sumMouseSq = mouseFitLongMouseSq;
-                c.sumMotionSq = mouseFitLongMotionSq;
-                c.pixelsPerCountX = mousePixelsPerCountX;
-                c.pixelsPerCountY = mousePixelsPerCountY;
-                SaveMouseCalibration(c);
-                mouseSaveDueAtMs = NowMs() + 10000.0;
-            }
-        }
         duplicateFramesSinceReport = 0;
         ddUnchangedAtReport = ddCapture.UnchangedFrames();
         duplicateCheckMsSum = 0.0;
@@ -2445,102 +2231,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
         }
 
-        // One calibration sample per real frame: the mouse movement since the
-        // last one against the picture movement the estimator just measured.
-        // Taken here so the two cover the same interval.
-        if (ranEstimationThisTick && mouseTracker.IsRunning()) {
-            double mouseDx = 0.0, mouseDy = 0.0;
-            mouseTracker.TakeDelta(mouseDx, mouseDy);
-            mouseAnchorX = mouseTracker.TotalX();
-            mouseAnchorY = mouseTracker.TotalY();
-
-            const double motionX = motionStats.MeanVectorX();
-            const double motionY = motionStats.MeanVectorY();
-
-            // Only frames where something actually happened. A still frame
-            // contributes nothing but noise to a fit through the origin, and
-            // there are far more of those than moving ones.
-            if ((mouseDx != 0.0 || mouseDy != 0.0) && (motionX != 0.0 || motionY != 0.0)) {
-                mouseFitNumeratorX += mouseDx * motionX;
-                mouseFitDenominatorX += mouseDx * mouseDx;
-                mouseFitNumeratorY += mouseDy * motionY;
-                mouseFitDenominatorY += mouseDy * mouseDy;
-
-                // For the correlation coefficient, which is the number that
-                // decides whether this idea works: a slope can be computed
-                // from any cloud of points, but only a tight one means the
-                // mouse really predicts the picture.
-                mouseFitCorrelationSumXY += mouseDx * motionX;
-                mouseFitSumMouseSq += mouseDx * mouseDx;
-                mouseFitSumMotionSq += motionX * motionX;
-                ++mouseFitSamples;
-
-                mouseFitLongNumX += mouseDx * motionX;
-                mouseFitLongDenX += mouseDx * mouseDx;
-                mouseFitLongNumY += mouseDy * motionY;
-                mouseFitLongDenY += mouseDy * mouseDy;
-                mouseFitLongXY += mouseDx * motionX;
-                mouseFitLongMouseSq += mouseDx * mouseDx;
-                mouseFitLongMotionSq += motionX * motionX;
-                ++mouseFitLongSamples;
-
-                // Old measurements must not outvote new ones forever. Once the
-                // sums hold 40000 samples they are halved, which keeps the fit
-                // stable but lets a changed sensitivity or a different game
-                // move it within a few minutes instead of never. Without this,
-                // a stored calibration would harden into a wrong constant the
-                // moment the player touched their DPI switch.
-                if (mouseFitLongSamples > 40000) {
-                    mouseFitLongNumX *= 0.5; mouseFitLongDenX *= 0.5;
-                    mouseFitLongNumY *= 0.5; mouseFitLongDenY *= 0.5;
-                    mouseFitLongXY *= 0.5;
-                    mouseFitLongMouseSq *= 0.5; mouseFitLongMotionSq *= 0.5;
-                    mouseFitLongSamples /= 2;
-                }
-
-                // Eased in only once there is enough to fit, and only where the
-                // fit has something to divide by.
-                // Only where the mouse actually predicts the picture.
-                //
-                // In a shooter the mouse IS the camera and the relationship is
-                // strong - measured correlation 0.50 in Apex. In a flight game
-                // the mouse steers the aircraft and the view follows with its
-                // own delay and its own scale: 0.06 in War Thunder, which is
-                // no relationship at all. Predicting from it there produces a
-                // candidate that is wrong by construction, and every pixel
-                // pays a residual test to reject it.
-                //
-                // 0.35 sits well above what was measured where the idea does
-                // not apply and well below what was measured where it does.
-                // The engine can tell the two apart from its own data, so it
-                // should, rather than being told which game it is in.
-                const double fitCorrelation =
-                    (mouseFitLongMouseSq > 0.0 && mouseFitLongMotionSq > 0.0)
-                        ? mouseFitLongXY / std::sqrt(mouseFitLongMouseSq * mouseFitLongMotionSq)
-                        : 0.0;
-                const bool mousePredictsPicture = !mousePredictionOff && fitCorrelation > 0.35;
-
-                if (!mousePredictsPicture) {
-                    // Eased to zero rather than switched off, so a game that
-                    // drifts across the threshold does not flicker between two
-                    // behaviours.
-                    mousePixelsPerCountX *= 0.95;
-                    mousePixelsPerCountY *= 0.95;
-                } else if (mouseFitLongSamples > 120) {
-                    if (mouseFitLongDenX > 0.0) {
-                        const double fitX = mouseFitLongNumX / mouseFitLongDenX;
-                        mousePixelsPerCountX = mousePixelsPerCountX == 0.0
-                            ? fitX : mousePixelsPerCountX * 0.98 + fitX * 0.02;
-                    }
-                    if (mouseFitLongDenY > 0.0) {
-                        const double fitY = mouseFitLongNumY / mouseFitLongDenY;
-                        mousePixelsPerCountY = mousePixelsPerCountY == 0.0
-                            ? fitY : mousePixelsPerCountY * 0.98 + fitY * 0.02;
-                    }
-                }
-            }
-        }
-
         if (ranEstimationThisTick) {
             // Is this a still picture? Judged over several frames in a row so a
             // single quiet frame during gameplay cannot switch generation off.
@@ -2878,14 +2568,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The sign is inverted because a motion vector points from
                     // where content is now to where it WAS: turning right moves
                     // the world left, so the vector points right.
-                    const double sinceAnchorX = mouseTracker.TotalX() - mouseAnchorX;
-                    const double sinceAnchorY = mouseTracker.TotalY() - mouseAnchorY;
-                    interpolator.SetMousePrediction(
-                        static_cast<float>(-sinceAnchorX * mousePixelsPerCountX),
-                        static_cast<float>(-sinceAnchorY * mousePixelsPerCountY));
-
-                    interpolator.SetExtrapolateAhead(0.5f);
-                    interpolator.SetPhase(0.5f);
                     interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 
                     ID3D11UnorderedAccessView* uav = measureOutputDiff
@@ -3396,10 +3078,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (useDesktopDuplication) ddCapture.Pump();
 
         if (wantGenerated) {
-            interpolator.SetMousePrediction(
-                static_cast<float>(-(mouseTracker.TotalX() - mouseAnchorX) * mousePixelsPerCountX),
-                static_cast<float>(-(mouseTracker.TotalY() - mouseAnchorY) * mousePixelsPerCountY));
-            interpolator.SetPhase(static_cast<float>(phase));
             interpolator.SetStatusFlags(badgeFlag | (maxFactor == 2 ? 1u : 0u)
                 | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
             D3D11_TEXTURE2D_DESC desc{};

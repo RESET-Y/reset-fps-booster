@@ -58,8 +58,6 @@ public:
     // reach the value it needs is not regulating.
     void SetQualityRelief(float r) { m_qualityRelief = r < 1.0f ? 1.0f : (r > 24.0f ? 24.0f : r); }
 
-    void SetMousePrediction(float x, float y) { m_mousePredictX = x; m_mousePredictY = y; }
-
     void SetExtrapolateAhead(float a) { m_extrapolateAhead = a < 0.0f ? 0.0f : (a > 1.0f ? 1.0f : a); }
 
     // Pixels per real-frame interval above which no pixel is displaced at all.
@@ -98,10 +96,6 @@ private:
     // change could only be confirmed by reading the log file.
     unsigned int m_statusFlags = 0;
     float m_extrapolateAhead = 0.0f;
-    float m_mousePredictX = 0.0f;
-    float m_mousePredictY = 0.0f;
-    float m_mousePredictXInBuffer = -1.0f;
-    float m_mousePredictYInBuffer = -1.0f;
     float m_qualityRelief = 1.0f;
     float m_qualityReliefInBuffer = -1.0f;
     float m_motionCutoff = 0.0f;
