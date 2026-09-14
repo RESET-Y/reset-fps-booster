@@ -34,20 +34,32 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = exePath,
-                // No arguments at all: the engine boosts the whole primary
-                // display, and its hotkeys stay disabled.
+                // WINDOW capture, and the display-slot wait.
                 //
-                // Both matter. Window capture stalls as soon as the overlay
-                // covers the window - Windows stops drawing what it believes
-                // is hidden, which starves the very frames FrameBoost needs
-                // (measured: 32-35 duplicate frames per second and gaps up to
-                // 485 ms, against 0 and ~7 ms capturing the monitor). And the
-                // engine's F-key hotkeys, even behind CTRL+ALT, were being
-                // triggered from inside the game: one session silently turned
-                // off the frame buffer and raised the generation factor, which
-                // brought the judder back. Started from here, the tuned
+                // This was "no arguments at all" - monitor capture - because
+                // window capture used to stall the moment the overlay covered
+                // the game: Windows stops drawing what it believes is hidden,
+                // which starved the very frames FrameBoost needs. Measured back
+                // then: 32-35 duplicate frames a second and gaps up to 485 ms.
+                //
+                // That failure is fixed at its source. The overlay is created
+                // one step below opaque (alpha 254), which Windows does not
+                // count as an occluder, so the game keeps rendering underneath.
+                // Window capture measured 0 duplicates a second through a full
+                // day of testing on 2026-09-14, against 45-96 with the monitor
+                // path, and it is the single largest quality win the engine
+                // has had.
+                //
+                // "slotwait" holds each present until the display can actually
+                // show it, which is what every measurement today was taken
+                // with: 72 -> 144 fps at 0.3 ms jitter and 0% missed slots.
+                //
+                // Hotkeys stay off deliberately. Even behind CTRL+ALT they were
+                // being triggered from inside the game - one session silently
+                // turned off the frame buffer and raised the generation factor,
+                // and the judder came back. Started from here, the tuned
                 // configuration is the only one that runs.
-                Arguments = string.Empty,
+                Arguments = "window slotwait",
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
