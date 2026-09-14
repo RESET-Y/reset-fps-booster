@@ -722,6 +722,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // separately from generated frames: they are a different promise, and a
     // rising number means the game is stuttering, not that we are working.
     uint64_t gapFillsSinceReport = 0;
+    // Generated frames thrown away because their moment had already passed.
+    uint64_t generatedDroppedLate = 0;
 
     // STILL PICTURE: stand aside instead of generating.
     //
@@ -1298,8 +1300,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << gpuSharePercent << "% of the graphics card at " << sourceFps << " source FPS";
         return oss.str();
     };
+    // THE LAST THREE SOURCE INTERVALS, for spacing - separate from the lock.
+    //
+    // lockedPeriodMs is an EMA with a time constant of about thirty frames,
+    // half a second, and that is right for what it answers: the source's true
+    // long-run period, where a stall is part of the average rather than an
+    // outlier to reject. It is the wrong answer for where to put THIS pair's
+    // generated frame.
+    //
+    // Measured in the log: the source fell from 72.5 to 45.8 fps inside three
+    // seconds. For half of that the spacing still used 13.9 ms while the real
+    // interval was 22, so the generated frame and its real partner went out
+    // 7 ms apart and then nothing came for 15. The output arrives in pairs with
+    // a gap behind them, which is uneven however correct the frame count is.
+    //
+    // A median of the last three follows a genuine rate change within two
+    // frames and still ignores a single stalled interval - the one case a plain
+    // average of three would smear across the next two pairs.
+    double recentIntervalMs[3] = { 0.0, 0.0, 0.0 };
+    int recentIntervalNext = 0;
+    int recentIntervalCount = 0;
+
     auto UpdateSourcePeriod = [&](double intervalMs) {
         if (!(intervalMs > 1.0 && intervalMs < 100.0)) return;
+        recentIntervalMs[recentIntervalNext] = intervalMs;
+        recentIntervalNext = (recentIntervalNext + 1) % 3;
+        if (recentIntervalCount < 3) ++recentIntervalCount;
         // A plain slow average, with no tolerance window around the current
         // value.
         //
@@ -1322,6 +1348,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     };
 
     auto PacingInterval = [&]() {
+        // The median of the last three, so the spacing follows the source
+        // rather than an average of where it used to be. See the ring above.
+        if (recentIntervalCount == 3) {
+            const double a = recentIntervalMs[0], b = recentIntervalMs[1], c = recentIntervalMs[2];
+            const double median = (a < b) ? ((b < c) ? b : ((a < c) ? c : a))
+                                          : ((a < c) ? a : ((b < c) ? c : b));
+            if (median > 1.0 && median < 100.0) return median;
+        }
         // The lock, not the measurement - see UpdateSourcePeriod above.
         if (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0) return lockedPeriodMs;
         const double raw = motionCurrTimestampMs - motionPrevTimestampMs;
@@ -1777,6 +1811,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
@@ -1847,6 +1882,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
+        generatedDroppedLate = 0;
         stillSecondsSinceReport = 0;
 
         duplicateFramesSinceReport = 0;
@@ -2835,6 +2871,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // A fixed ceiling, not one derived from the interval: a wait
                     // must never be able to inherit a bad measurement.
                     const double genCeilingMs = NowMs() + 20.0;
+                    // ALREADY TOO LATE: drop it rather than show it out of place.
+                    //
+                    // A generated frame carries a specific instant between two
+                    // real ones. Presenting it after that instant has gone does
+                    // not add smoothness - it puts a picture from the past in
+                    // front of the viewer and pushes the real frame behind it
+                    // further back. Half an output slot is the tolerance;
+                    // beyond that the frame is worth less than the slot it
+                    // would occupy.
+                    if (outputSlotMs > 0.0 && NowMs() > dueAtMs + outputSlotMs * 0.5) {
+                        ++generatedDroppedLate;
+                        continue;
+                    }
                     WaitUntilMs(dueAtMs, genCeilingMs);
                     WaitForDisplaySlot();
                     WaitForRefreshBoundary();
