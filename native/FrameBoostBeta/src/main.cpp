@@ -2453,9 +2453,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // starves, and its own rate fell from 72 to 63 while this
                     // still read "on". The guard was right; the work was too
                     // expensive per frame, and no deadline changes that.
+                    // Judged on the MEDIAN cost, not on an average a spike can
+                    // drag up.
+                    //
+                    // Measured while the engine had switched itself off in War
+                    // Thunder: "interpolation 2.8 ms median, 15.1 ms at the 95th
+                    // percentile, against a 8.3 ms deadline". The median says we
+                    // fit three times over. The verdict was being made on an EMA
+                    // that a single 15 ms sample lifts above the line for the
+                    // next several seconds.
+                    //
+                    // And those samples are the least trustworthy ones we have.
+                    // GPU timestamp queries measure ELAPSED time on the GPU
+                    // timeline, not exclusive occupancy, so under contention our
+                    // dispatch appears to take as long as the game's frame it is
+                    // queued behind. The same artefact produced "we take 43% of
+                    // the graphics card" earlier today, which Task Manager put
+                    // at 13%. A tail measured that way is not evidence of
+                    // anything, and a guard built on it switches the feature off
+                    // in exactly the games that need it most.
+                    //
+                    // The median of sixty samples ignores the tail and still
+                    // reacts within a second to a real change in cost.
+                    double medianCostMs = generationCostEmaMs;
+                    if (costHistoryCount >= 15) {
+                        std::vector<double> costs(costHistory, costHistory + costHistoryCount);
+                        std::sort(costs.begin(), costs.end());
+                        medianCostMs = costs[costs.size() / 2];
+                    }
                     const bool hasRoom = gpuHasRoom
-                        ? (generationCostEmaMs < realFrameIntervalEmaMs * 0.7)   // leave once clearly over
-                        : (generationCostEmaMs < realFrameIntervalEmaMs * 0.5);  // return only with margin
+                        ? (medianCostMs < realFrameIntervalEmaMs * 0.7)   // leave once clearly over
+                        : (medianCostMs < realFrameIntervalEmaMs * 0.5);  // return only with margin
 
                     // ...and only after the verdict has held for about half a
                     // second. Without this it flipped twice within the same
