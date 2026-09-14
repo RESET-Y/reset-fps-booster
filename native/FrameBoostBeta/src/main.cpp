@@ -815,6 +815,34 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // When the still state last flipped. A minimum dwell is what actually stops
     // the flapping - see where it is enforced.
     double lastStillFlipMs = 0.0;
+
+    // THE STILL DETECTOR IS OFF BY DEFAULT. "stillguard" turns it back on.
+    //
+    // It was fixed twice in one evening - the frame-difference test, then a
+    // one-second dwell - and it still switched the booster off for seconds at a
+    // time in live gameplay:
+    //
+    //   23:54:30  out   0.0  standing aside
+    //   23:54:31  out   0.0  standing aside
+    //   23:54:32  out   0.0  standing aside
+    //   23:54:33  out  55.8  generating   jitter 518.88 ms
+    //   23:54:36  out  13.9  standing aside
+    //   23:54:37  out 100.8  generating   jitter  98.59 ms
+    //
+    // Three seconds of nothing, half a second of jump, off again. THAT is the
+    // stutter that was reported all evening, and every change made tonight was
+    // aimed at jitter of two milliseconds while this sat in the same log at
+    // five hundred.
+    //
+    // What it is for - not inventing a frame between two identical ones in a
+    // menu - is real but small. What it costs when it is wrong is a frozen
+    // picture. It has now been wrong in every session it has been measured in,
+    // under three different threshold schemes, because the question it asks
+    // cannot be answered reliably from block motion and frame difference alone.
+    //
+    // Off until something answers it correctly. The menu artefacts it used to
+    // prevent are worth less than this.
+    const bool stillGuardEnabled = HasArg(L"stillguard");
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -2564,6 +2592,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // Smoothed because the raw difference spikes - 16.36 appears in the
                 // desktop log between readings of 0.00, and one spike must not
                 // restart generation any more than one quiet frame must stop it.
+                if (!stillGuardEnabled) {
+                    pictureIsStill = false;
+                } else {
                 const double diffNow = duplicateDetector.LastDifference();
                 diffEma = (diffEma < 0.0) ? diffNow : diffEma * 0.9 + diffNow * 0.1;
 
@@ -2612,6 +2643,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     pictureIsStill = false;
                     lastStillFlipMs = nowStillMs;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
+                }
                 }
             }
             if (pictureIsStill) ++stillSecondsSinceReport;
