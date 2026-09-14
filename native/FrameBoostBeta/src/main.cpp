@@ -1405,7 +1405,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     const bool waitForDisplaySlot = HasArg(L"slotwait");
     bool f4WasDown = false;
     bool f12WasDown = false;
-    bool autoDumpDone = false;
+    // The automatic frame dump fires REPEATEDLY, on a cooldown, rather than
+    // once per session.
+    //
+    // Once was enough to find the viewmodel artefact, and then immediately not
+    // enough: the one dump it took landed on a moment with the camera pointing
+    // at the ground, and the weapon - the thing being investigated - was not
+    // even in frame. The hotkey is no answer either. "Ich kann mich nicht
+    // drehen und waehrenddessen so viele Sachen gleichzeitig druecken" is
+    // exactly right: a diagnostic that requires a three-key chord during the
+    // manoeuvre it is meant to capture does not get used.
+    //
+    // So it triggers itself on the measurement, repeatedly, and overwrites the
+    // same three files - the newest fast turn is always on disk, and nothing
+    // accumulates.
+    double nextAutoDumpAtMs = 0.0;
     bool realFramePendingSimple = false;
 
     // Extrapolation is the default: the real frame is never held back, which is
@@ -1887,10 +1901,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // removes the dependency entirely and catches exactly the case worth
         // looking at - the fast motion where the picture breaks down - rather
         // than whatever happened to be on screen when a key was pressed.
-        const bool fastTurnToDump = !autoDumpDone
-            && motionStats.MeanMagnitudePixels() > 30.0
-            && haveMotionField;
-        if (fastTurnToDump) autoDumpDone = true;
+        // 80 px of MEAN motion, not 30: a real turn rather than walking. At 30
+        // the trigger fired on almost any movement and caught the wrong moment.
+        // Two seconds of cooldown so the readback - which stalls the pipeline
+        // for a whole frame - cannot fire on consecutive frames and turn the
+        // diagnostic into the stutter it is supposed to explain.
+        const bool fastTurnToDump = haveMotionField
+            && motionStats.MeanMagnitudePixels() > 80.0
+            && NowMs() >= nextAutoDumpAtMs;
+        if (fastTurnToDump) nextAutoDumpAtMs = NowMs() + 2000.0;
 
         bool f12IsDown = HotkeyDown(VK_F12);
         if (((f12IsDown && !f12WasDown) || fastTurnToDump) && estimator.CurrFrameTexture() && haveMotionField) {

@@ -262,6 +262,21 @@ groupshared float2 g_predictorVector[kPredictorCount];
 // second pass on candidates that are merely not absurd.
 static const float kSecondSeedTolerance = 2.0;
 
+// What straying from the SECOND seed costs, per texel.
+//
+// Far higher than the ordinary kNeighbourhoodBias of 0.05, and it has to be.
+// The second seed is a deliberate hypothesis - "this block did not move with
+// the scene" - not a guess to be refined away. On a static HUD the zero vector
+// matches almost exactly, but a 49-candidate search will still find some
+// neighbour a hair better on noise, sub-pixel-refine towards it, and drag the
+// ammo counter off its pixel. Measured exactly that way: the weapon came back
+// intact and the HUD, which had been pixel-perfect, came out doubled.
+//
+// At 0.4 a neighbour has to be genuinely better by a visible margin to displace
+// a near-perfect zero, while a viewmodel whose true motion is a few pixels away
+// still reaches it.
+static const float kSecondSeedBias = 0.4;
+
 // The second search window, and the state that carries phase 1's result across
 // the barrier to phase 3.
 groupshared float g_sad2[kCandidateCount];
@@ -581,6 +596,22 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         g_pointOffset = pointOffset;
         g_pointSad = pointSad;
 
+        // Only ZERO is ever given a second search - never a predictor.
+        //
+        // Letting predictors seed one was measured and it tore the world into
+        // 8 px blocks. During a fast turn the motion changes from frame to
+        // frame, so last frame's vector sits far from this frame's coarse seed;
+        // "unreachable" then becomes true for ordinary world blocks, the second
+        // pass fires across the picture, and blocks settle into the
+        // neighbourhood of a STALE motion. The predictors still compete as
+        // points, which is what they are good for - continuity - and that
+        // costs nothing.
+        //
+        // The viewmodel case is specifically about zero: an object rigidly
+        // attached to the camera, hundreds of pixels away from what the coarse
+        // stage believes. That is the only hypothesis worth a second search.
+        const bool zeroIsTheCandidate = (pointOffset.x == 0 && pointOffset.y == 0);
+
         // DOES THAT CANDIDATE DESERVE A SEARCH OF ITS OWN?
         //
         // This is the viewmodel fix, and it comes from looking at a dumped
@@ -615,8 +646,8 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         const int2 pointFromSeed = abs(pointOffset - seed);
         const bool alreadyReachable =
             max(pointFromSeed.x, pointFromSeed.y) <= kSearchRadius;
-        g_needSecondPass =
-            (!alreadyReachable && pointSad < g_p1MatchSad * kSecondSeedTolerance) ? 1 : 0;
+        g_needSecondPass = (zeroIsTheCandidate && !alreadyReachable
+            && pointSad < g_p1MatchSad * kSecondSeedTolerance) ? 1 : 0;
         g_secondSeed = pointOffset;
     }
     GroupMemoryBarrierWithGroupSync();
@@ -626,7 +657,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     {
         const int2 candidate2 = g_secondSeed + refinement;
         g_sad2[groupIndex] = BlockSAD(blockOrigin, candidate2)
-            + kNeighbourhoodBias * length(float2(refinement));
+            + kSecondSeedBias * length(float2(refinement));
     }
     GroupMemoryBarrierWithGroupSync();
 
@@ -655,7 +686,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
             const int2 refine2 =
                 int2(bestIndex2 % kSearchWindow, bestIndex2 / kSearchWindow) - kSearchRadius;
-            const float match2 = bestSad2 - kNeighbourhoodBias * length(float2(refine2));
+            const float match2 = bestSad2 - kSecondSeedBias * length(float2(refine2));
             if (match2 < bestMatchSad)
             {
                 bestMatchSad = match2;
