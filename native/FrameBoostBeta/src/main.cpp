@@ -1229,69 +1229,64 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // engine acts on what it already knows instead of only complaining about
     // it. Adjusted slowly: quality that oscillates is worse than quality that
     // is merely lower, because the eye notices the change more than the level.
+    // THE FRACTION OF DISPLAY SLOTS THAT WENT OUT EMPTY, smoothed.
+    //
+    // This is the ground truth the quality regulator was missing. It is not a
+    // percentile against a derived deadline - it is the count of frames that
+    // did not reach the screen. Fed in below at the point each output gap is
+    // measured; about 100 slots of memory, which is 0.7 s at 144 Hz.
+    double missedSlotEma = -1.0;
+
     double qualityRelief = 1.0;
 
     auto UpdateQualityRelief = [&]() {
         if (costHistoryCount < 60 || lockedPeriodMs <= 1.0) return;
 
-        std::vector<double> interps(interpHistory, interpHistory + costHistoryCount);
-        std::sort(interps.begin(), interps.end());
-        const double p95 = interps[(interps.size() * 95) / 100];
-        const double deadlineMs = lockedPeriodMs * 0.5;
-
-        // Judged on how many frames are actually LATE, not on a percentile
-        // against a fraction of the deadline.
+        // DRIVEN BY MISSED DISPLAY SLOTS, WHICH IS WHAT LATENESS ACTUALLY IS.
         //
-        // The old rule aimed the 95th percentile at 70% of the deadline. In
-        // Apex that target is 4.86 ms while interpolation measures 2.8-5.1, so
-        // the percentile crossed it almost every second and the regulator sat
-        // at its ceiling - while the engine was delivering 144 frames a second
-        // with zero missed display slots. It was backing off from a problem
-        // that was not happening.
+        // This was pinned at 1.0 - measured and reported, driving nothing -
+        // because three criteria in a row said "too slow" while the engine was
+        // delivering 144 frames a second with zero missed slots. The percentile
+        // against 70% of the deadline, the percentile against the deadline, and
+        // the fraction of interpolations longer than the deadline: each backed
+        // off from a problem that was not happening, and backing off switches
+        // off the per-pixel search that visibly improves edges.
         //
-        // Being late is the failure. Everything else is a proxy for it, and
-        // this proxy was wrong.
-        int lateFrames = 0;
-        for (double c : interps) if (c > deadlineMs) ++lateFrames;
-        const double latePercent = 100.0 * lateFrames / costHistoryCount;
-        const double target = deadlineMs * 0.7;
-        // Up quickly, down deliberately - but DOWN, which it effectively never
-        // did before.
+        // The note left here said what was needed: "a measure of lateness that
+        // is actually about lateness". This is it. Not a percentile against a
+        // deadline derived from the source period, but the count of output
+        // slots that went out empty - frames that did not reach the screen.
         //
-        // The old form multiplied the target by 0.97 and then eased 5% toward
-        // it, which works out to 0.9985 per second: from a relief of 24 back to
-        // 1 would have taken half an hour. So a single demanding game pushed
-        // the regulator to its ceiling and it stayed there afterwards - found
-        // in Apex, where cost was a comfortable 6.27 ms against a 7.5 ms
-        // deadline while the relief still read 24, meaning the per-pixel search
-        // that visibly improved edges was switched off for no reason at all.
+        // Why it is needed now: staging the motion-estimation operands in
+        // groupshared took that stage from 3.19 ms to 0.90-1.07 ms, and moved
+        // the bottleneck rather than removing it. Interpolation now reads 4.9 ms
+        // at the median and 9.4-10.1 ms at the 95th percentile against a 6.9-7.9
+        // ms deadline, and the log shows what that costs in waves:
         //
-        // 0.85 per second recovers from 24 to 1 in about twenty seconds, which
-        // is slow enough not to oscillate and fast enough to notice a game
-        // change or a quieter scene.
-        // PINNED at full quality. The regulator is measured and reported, but it
-        // no longer drives anything.
+        //   23:33:09  src 63.8  out 127.0  jitter 2.18  missed 12.6%  age 7.1
+        //   23:33:20  src 58.8  out 128.5  jitter 1.97  missed 13.7%  age 10.3
         //
-        // Three criteria were tried and all three failed the same way: they
-        // said "too slow" and held the relief at its ceiling while the engine
-        // was delivering 144 frames a second with zero missed display slots.
-        // The percentile against 70% of the deadline, the percentile against
-        // the deadline, and the fraction of interpolations longer than the
-        // deadline - each backed off from a problem that was not happening,
-        // and backing off switches off the per-pixel search that visibly
-        // improves edges.
+        // Against 0.35-0.50 ms of jitter and 0% missed in between. Every ninth
+        // to eleventh frame not arriving is exactly what reads as a stutter.
         //
-        // The premise is wrong rather than the tuning: interpolation time is
-        // not measured against a deadline that applies to it. Generation
-        // starts when the real frame arrives, not when the generated one is
-        // due, and what matters is whether the frame reaches the screen on
-        // time - which the GPU-room guard already decides, on evidence, and
-        // has done reliably since Friday.
+        // The tolerance this scales is the one gating the per-pixel search: at
+        // relief 1 every pixel whose incumbent vector disagrees pays for nine
+        // residuals; at 4 only badly broken pixels do. A slightly worse pixel
+        // shown on time beats a better one that is not shown at all.
         //
-        // Kept in the file because the idea - lower quality on time beats
-        // higher quality late - is sound and was proved in War Thunder. It
-        // needs a measure of lateness that is actually about lateness.
-        qualityRelief = 1.0;
+        // Up quickly, down deliberately. At 72 calls a second, 1.02 per call
+        // doubles the relief in about half a second when frames start being
+        // dropped; 0.995 returns it to 1 over a couple of seconds once they
+        // stop. The dead band between 1% and 5% is what keeps it from hunting -
+        // and unlike a threshold on scene content, this one is about our own
+        // output, which we control.
+        if (missedSlotEma >= 0.0) {
+            if (missedSlotEma > 0.05) {
+                qualityRelief *= 1.02;
+            } else if (missedSlotEma < 0.01) {
+                qualityRelief *= 0.995;
+            }
+        }
         if (qualityRelief < 1.0) qualityRelief = 1.0;
         if (qualityRelief > 24.0) qualityRelief = 24.0;
     };
@@ -1585,7 +1580,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (gap < gapMinMs) gapMinMs = gap;
             if (gap > gapMaxMs) gapMaxMs = gap;
             ++gapSamples;
-            if (outputSlotMs > 0.0 && std::abs(gap - outputSlotMs) > outputSlotMs * 0.5) ++gapMissed;
+            const bool slotMissed =
+                (outputSlotMs > 0.0 && std::abs(gap - outputSlotMs) > outputSlotMs * 0.5);
+            if (slotMissed) ++gapMissed;
+            // The same judgement the telemetry reports, kept as a running value
+            // so the quality regulator can read it between reports.
+            missedSlotEma = (missedSlotEma < 0.0)
+                ? (slotMissed ? 1.0 : 0.0)
+                : missedSlotEma * 0.99 + (slotMissed ? 1.0 : 0.0) * 0.01;
             // Closer than one refresh: counted by us, never seen by anyone.
             if (outputSlotMs > 0.0 && gap < outputSlotMs * 0.9) ++gapCollapsed;
 
@@ -1857,6 +1859,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Generation factor: " << generationFactor << "x"
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
             << " | Quality relief: " << qualityRelief
+            << " (missed-slot EMA " << (missedSlotEma * 100.0) << "%)"
             << " | Headroom: " << HeadroomVerdict()
             << " | Locked source period: " << lockedPeriodMs << " ms (" << (lockedPeriodMs > 0 ? 1000.0 / lockedPeriodMs : 0.0) << " FPS)"
             << " | Source regularity: " << ((realFrameIntervalEmaMs > 0 && intervalDeviationEmaMs >= 0)
