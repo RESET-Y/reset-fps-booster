@@ -396,6 +396,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // too small is worse than none: it predicts 130 px for a 200 px flick, wins
     // the residual test on some pixels and loses it on others, and a patchwork
     // of two displacements IS a double image.
+    // "dump": write the generated frame and its two real sources to disk
+    // whenever the picture is moving fast. OFF by default, and that is not
+    // tidiness - it is correctness.
+    //
+    // Each dump reads three full 2560x1440 frames back from the GPU and writes
+    // 31 MB to disk, which stalls the pipeline for a whole frame. Firing that
+    // every two seconds during fast motion put jitter at 3.3 ms in the affected
+    // seconds against 0.35 ms otherwise, with up to 3.6% of slots missed -
+    // reported as "mal fluessig mal nicht", and it was the diagnostic, not the
+    // engine.
+    //
+    // Worse than the stutter: it corrupts its own evidence. A stall lengthens
+    // the interval between the two real frames the next dump interpolates
+    // between, so every dumped frame is a harder case than anything that
+    // happens in normal play, and the artefacts in it read as worse than they
+    // are.
+    const bool frameDumpEnabled = HasArg(L"dump");
+
     const bool mousePredictionOff = HasArg(L"nomouse");
     const bool gapFillOff = HasArg(L"nogapfill");
 
@@ -1906,7 +1924,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Two seconds of cooldown so the readback - which stalls the pipeline
         // for a whole frame - cannot fire on consecutive frames and turn the
         // diagnostic into the stutter it is supposed to explain.
-        const bool fastTurnToDump = haveMotionField
+        const bool fastTurnToDump = frameDumpEnabled
+            && haveMotionField
             && motionStats.MeanMagnitudePixels() > 80.0
             && NowMs() >= nextAutoDumpAtMs;
         if (fastTurnToDump) nextAutoDumpAtMs = NowMs() + 2000.0;
