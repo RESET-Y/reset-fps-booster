@@ -789,6 +789,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // still detector uses it: the share of moving BLOCKS alone cannot tell a
     // menu from a slow scene, and this can.
     double diffEma = -1.0;
+    // When the still state last flipped. A minimum dwell is what actually stops
+    // the flapping - see where it is enforced.
+    double lastStillFlipMs = 0.0;
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -2477,14 +2480,47 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 constexpr double kStillDiff = 1.0;
                 constexpr double kMovingDiff = 2.0;
 
-                if (!pictureIsStill && movingEma < 2.0 && diffEma < kStillDiff) {
+                // HYSTERESIS IN TIME, BECAUSE HYSTERESIS IN VALUE KEEPS LOSING.
+                //
+                // Adding the difference test fixed gameplay - fifty seconds at
+                // 124-147 fps with no dropout where it used to flap every
+                // second - and then flapped again on a near-static screen,
+                // because the difference EMA sat exactly on the new line:
+                //
+                //   23:30:29  moving 0.16%  diff 0.89  out  67.9  standing
+                //   23:30:31  moving 0.97%  diff 1.44  out   0.0  standing
+                //   23:30:32  moving 5.85%  diff 2.91  out  96.0  no
+                //   23:30:33  moving 0.54%  diff 1.10  out 147.2  no
+                //   23:30:35  moving 0.07%  diff 0.79  out   0.0  standing
+                //
+                // 0.79, 0.89, 0.91, 1.01, 1.10, 1.19 against a threshold of
+                // 1.0. That is the fourth threshold pair to be defeated the
+                // same way, and moving it a fifth time would only choose which
+                // scene sits on it next.
+                //
+                // So the value decides WHAT the state should be and the clock
+                // decides HOW OFTEN it may change. A second of dwell costs at
+                // most a second of generating into a menu, or a second of raw
+                // game after one opens - both far below what a switch every
+                // second costs, which is what is actually visible.
+                //
+                // This cannot be defeated by content sitting on a line, because
+                // it does not ask where the content sits.
+                constexpr double kStillDwellMs = 1000.0;
+                const double nowStillMs = NowMs();
+                const bool mayFlip = (lastStillFlipMs <= 0.0)
+                                  || (nowStillMs - lastStillFlipMs >= kStillDwellMs);
+
+                if (mayFlip && !pictureIsStill && movingEma < 2.0 && diffEma < kStillDiff) {
                     pictureIsStill = true;
+                    lastStillFlipMs = nowStillMs;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (few blocks moving AND the"
                         " picture itself unchanged) - standing aside. A generated frame between two"
                         " identical ones carries no information and can only be wrong; menus are where"
                         " that shows.");
-                } else if (pictureIsStill && (movingEma > 4.0 || diffEma > kMovingDiff)) {
+                } else if (mayFlip && pictureIsStill && (movingEma > 4.0 || diffEma > kMovingDiff)) {
                     pictureIsStill = false;
+                    lastStillFlipMs = nowStillMs;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
                 }
             }
