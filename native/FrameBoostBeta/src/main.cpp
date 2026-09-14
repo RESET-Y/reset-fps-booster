@@ -1268,8 +1268,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Deliberately only applied to GENERATED frames. A real frame is the truth
     // and is shown whatever its timestamp says; suppressing one would hold back
     // the newest picture the game has produced.
-    auto ContentWouldGoBackwards = [&](double shownContentMs) {
-        return lastShownContentMs > 0.0 && shownContentMs < lastShownContentMs;
+    // A SMALL STEP BACKWARDS IS INVISIBLE; THE GAP IT LEAVES IS NOT.
+    //
+    // The first version skipped on any backwards step at all, and the counters
+    // showed immediately what that costs. Standing still, with 0.08-1.83% of
+    // blocks moving:
+    //
+    //   23:57:21  gap fills 5.0/s   skipped backwards 5.0/s
+    //   23:57:22  gap fills 5.9/s   skipped backwards 5.9/s
+    //   23:57:23  gap fills 6.0/s   skipped backwards 6.0/s
+    //
+    // Identical, row after row: every frame skipped tears a hole in the output
+    // that the gap filler then plugs with a repeat. Five or six times a second,
+    // exactly where Lukas reports the frame rate feeling inconsistent when he
+    // stops moving.
+    //
+    // The error was treating the sign as the thing that matters. What matters
+    // is the SIZE: a frame a fraction of a millisecond behind the screen shows
+    // a picture the eye cannot tell from the right one, while the empty slot
+    // left by skipping it is a real repeated frame.
+    //
+    // A fifth of a source interval - about 2.8 ms at 72 fps - is the line. Below
+    // it, show the frame; the content has moved less than a fifth of what one
+    // real frame moves, which is inside what the interpolation itself rounds.
+    // Above it, the jump back is worth more than the gap.
+    //
+    // This is also why the source matters here: standing still, src swings
+    // between 60.2 and 81.4 while nothing on screen moves. The phase is placed
+    // against an interval that noisy, so small backwards steps are constant and
+    // meaningless.
+    // The interval is a parameter rather than a capture: lockedPeriodMs is
+    // declared below this point, and the two call sites both have it.
+    auto ContentWouldGoBackwards = [&](double shownContentMs, double periodMs) {
+        if (lastShownContentMs <= 0.0) return false;
+        const double back = lastShownContentMs - shownContentMs;
+        if (back <= 0.0) return false;
+        const double interval = (periodMs > 1.0 && periodMs < 100.0) ? periodMs : 13.89;
+        return back > interval * 0.2;
     };
     // Generated frames skipped because their content sat behind the screen.
     uint64_t generatedSkippedBackwards = 0;
@@ -3026,7 +3061,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         const double genCeilingMs = NowMs() + 20.0;
                         while (NowMs() < generatedDueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
 
-                        if (ContentWouldGoBackwards(generatedContentMs)) {
+                        if (ContentWouldGoBackwards(generatedContentMs, lockedPeriodMs)) {
                             ++generatedSkippedBackwards;
                         } else {
                         if (uav) presenter.PresentBackBuffer(presentSyncInterval);
@@ -3206,7 +3241,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // does not depend on when we got here.
                     const double generatedMomentMs = motionPrevTimestampMs
                         + phaseForStep * (motionCurrTimestampMs - motionPrevTimestampMs);
-                    if (ContentWouldGoBackwards(generatedMomentMs)) {
+                    if (ContentWouldGoBackwards(generatedMomentMs, lockedPeriodMs)) {
                         ++generatedSkippedBackwards;
                         continue;
                     }
