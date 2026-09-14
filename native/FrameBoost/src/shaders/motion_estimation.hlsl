@@ -147,7 +147,32 @@ static const int kCandidateCount = kSearchWindow * kSearchWindow; // 49
 // genuinely better match: a clean block scores well under 1.0 across 16
 // samples and 3 channels, and a real difference between candidates is far
 // larger than that.
-static const float kNeighbourhoodBias = 0.05;
+// 0.15, up from 0.05 - and only safe to raise now.
+//
+// Measured from a dumped fast turn once the viewmodel was fixed: the HUD is
+// pixel-identical, the snow field is flawless, and the damage sits exactly on
+// content that is high-contrast and SELF-SIMILAR - facade panels, repeated
+// horizontal lines, lattice structures. That is the classic failure of block
+// matching on repetitive structure: many displacements match almost equally
+// well, the SAD surface is nearly flat, and noise decides which candidate wins
+// - differently in each block and differently in each frame. On screen that is
+// the 8 px mosaic.
+//
+// At 0.05 the whole search window adds at most 0.3, which cannot outvote that
+// noise. At 0.15 it adds up to 0.9, while a genuinely better match - a clean
+// block scores well under 1.0 across 16 samples and 3 channels - still wins
+// outright.
+//
+// Why it could not be raised before: while the search centre was always the
+// coarse seed, a strong bias only pulled a viewmodel HARDER into the motion of
+// the world behind it. Now that the centre is chosen between the coarse seed,
+// zero and the temporal predictors before the search runs, the bias reinforces
+// whichever centre actually won - on the weapon, that is zero.
+//
+// The risk it carries is the opposite one: pulled too far, genuinely different
+// motions get averaged together at object boundaries. Watch the edge between a
+// moving object and its background.
+static const float kNeighbourhoodBias = 0.15;
 
 // How much better "not moving" has to be before it is believed. At 1.15 it
 // needs to beat the searched winner by 15%, which a genuinely static overlay
