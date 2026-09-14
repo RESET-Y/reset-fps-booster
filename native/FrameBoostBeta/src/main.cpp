@@ -1751,6 +1751,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         FrameBoostBeta::Logger::Log(oss.str());
 
+        realDiffSum = generatedDiffSum = 0.0; realDiffCount = generatedDiffCount = 0;
+        queueDepthMin = 9999; queueDepthMax = 0; queueDepthSum = 0.0; queueDepthSamples = 0;
+        nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
         stillSecondsSinceReport = 0;
