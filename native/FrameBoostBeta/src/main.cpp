@@ -446,7 +446,45 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // The smoothest configuration measured and judged so far is the
     // interpolating one, so that is what runs unless "extrapolate" is passed.
-    const bool extrapolateMode = HasArg(L"extrapolate");
+    //
+    // "lowlatency" is the same thing under the name it gets asked for. The
+    // difference IS latency: interpolation has to hold the newest real frame
+    // back half an interval so its generated partner can go out first, and that
+    // hold is pure input lag. Extrapolation predicts forward from the newest
+    // frame instead and holds nothing back.
+    //
+    // A FILE TURNS IT ON, because nothing else can reach it.
+    //
+    // The app launches this engine with no arguments, and the C# that would
+    // pass one cannot be rebuilt on this machine - there is no .NET SDK here,
+    // only the C++ build tools. A switch that needs a rebuild to reach is not a
+    // switch. So the presence of a file is read instead:
+    //
+    //   %LOCALAPPDATA%ResetFpsBoosterlowlatency.on
+    //
+    // Create it and low latency is on at the next start; delete it and it is
+    // off. This belongs in the app's own interface and should move there as
+    // soon as the C# can be built - it is a way in, not a design.
+    auto LowLatencyMarkerPresent = []() {
+        const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
+        if (!localAppData) return false;
+        const std::wstring marker =
+            std::wstring(localAppData) + L"\ResetFpsBooster\lowlatency.on";
+        return GetFileAttributesW(marker.c_str()) != INVALID_FILE_ATTRIBUTES;
+    };
+
+    const bool extrapolateMode = HasArg(L"extrapolate") || HasArg(L"lowlatency")
+                              || LowLatencyMarkerPresent();
+
+    // THE AMBER SQUARE, top left, means low latency is on.
+    //
+    // That is what the shader has always documented it as - "amber: low
+    // latency" - but it was wired to "maxFactor == 2" on one of the three
+    // present paths and to nothing at all on the other two, so it effectively
+    // stopped appearing. An indicator that does not track the thing it names is
+    // worse than none: its absence was read as the mode being gone.
+    const unsigned int lowLatencyFlag = extrapolateMode ? 1u : 0u;
+
 
     FrameBoostBeta::Logger::Init();
 
@@ -3078,7 +3116,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The sign is inverted because a motion vector points from
                     // where content is now to where it WAS: turning right moves
                     // the world left, so the vector points right.
-                    interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
+                    interpolator.SetStatusFlags(badgeFlag | lowLatencyFlag
+                        | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 
                     ID3D11UnorderedAccessView* uav = measureOutputDiff
                         ? nullptr
@@ -3183,7 +3222,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                             phaseForStep = static_cast<float>(measured);
                     }
                     interpolator.SetPhase(phaseForStep);
-                    interpolator.SetStatusFlags(badgeFlag | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
+                    interpolator.SetStatusFlags(badgeFlag | lowLatencyFlag
+                        | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
 
                     ID3D11UnorderedAccessView* uav = presenter.AcquireBackBufferUAV(device.get());
                     if (!interpolator.GenerateFrame(device.get(), context.get(),
@@ -3664,7 +3704,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (useDesktopDuplication) ddCapture.Pump();
 
         if (wantGenerated) {
-            interpolator.SetStatusFlags(badgeFlag | (maxFactor == 2 ? 1u : 0u)
+            interpolator.SetStatusFlags(badgeFlag | lowLatencyFlag
                 | ((transparentRealFrames && presenter.SupportsTransparency()) ? 2u : 0u));
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
