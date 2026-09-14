@@ -774,12 +774,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // bilinearly. Doing the same here needs a half-resolution intermediate and
     // a second, cheap pass - not a one-line change, and the honest next piece
     // of work rather than something to bolt on at midnight.
-    interpolator.SetInterpScale(HasArg(L"fullres") ? 1u : 2u);
-    FrameBoostBeta::Logger::Log(HasArg(L"fullres")
-        ? "[FrameBoostBeta] Generated frames at FULL sampling density (fullres) - measured at 10-12 ms"
-          " against a 6.9 ms deadline and 86-89% of the graphics card. Expect the source to suffer."
-        : "[FrameBoostBeta] Generated frames at half sampling density - a quarter of the interpolation"
-          " work, written to 2x2 squares (nearest neighbour).");
+    // FULL RESOLUTION WITH A CHEAPER FILTER, instead of half resolution with a
+    // better one.
+    //
+    // Half density was affordable - 33-39% of the card in a quiet scene against
+    // 86-89% at full - and it was reported back as blur, which is exactly what
+    // it is: the generated frame is computed at 1280x720 and resampled, and no
+    // filter invents detail that was never computed. The bilinear upscale
+    // removed the 2x2 stairs and could not remove that.
+    //
+    // So the resolution comes back and the saving is taken from the warp
+    // filter instead: Catmull-Rom is five bilinear taps per sample, twice per
+    // pixel; bilinear is one, twice. Ten fetches become two, on an engine that
+    // has twice been measured as limited by memory traffic rather than
+    // arithmetic.
+    //
+    // Reasoning, not measurement, which is why both switches stay: "halfres"
+    // for the old density, "catmull" for the old filter. If the numbers say
+    // this is worse, all four combinations are one argument away.
+    interpolator.SetInterpScale(HasArg(L"halfres") ? 2u : 1u);
+    interpolator.SetWarpFilter(HasArg(L"catmull") ? 1u : 0u);
+    FrameBoostBeta::Logger::Log(std::string("[FrameBoostBeta] Generated frames at ")
+        + (HasArg(L"halfres") ? "HALF sampling density with a bilinear upscale"
+                              : "full sampling density")
+        + ", warped with "
+        + (HasArg(L"catmull") ? "Catmull-Rom (five taps per sample)."
+                              : "bilinear (one tap per sample)."));
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     // Separate instance, fed the PRESENTED frames in the order they go out, so
     // each comparison is between two consecutive output frames.

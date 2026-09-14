@@ -111,7 +111,10 @@ cbuffer InterpolationParams : register(b0)
     // resolution and only the sampling density changes.
     uint InterpScale;
 
-    uint _pad1, _pad2;
+    // 1 = Catmull-Rom for the final warp, 0 = bilinear. See the warp itself.
+    uint WarpFilter;
+
+    uint _pad2;
 };
 
 // How quickly disagreement between the two motion-compensated samples turns
@@ -965,8 +968,30 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // samples that disagree even slightly overlap visibly, where two sharp
     // ones do not. It was not invisible; it was invisible in isolation, at a
     // time when the doubling had other causes large enough to hide it.
-    float4 prevColor = float4(SampleCatmullRom(PrevFrame, prevSamplePos, dims), 1.0);
-    float4 currColor = float4(SampleCatmullRom(CurrFrame, currSamplePos, dims), 1.0);
+    // WHICH FILTER WARPS THE TWO FRAMES.
+    //
+    // Catmull-Rom costs five bilinear taps per sample and is taken twice per
+    // pixel - ten texture fetches, on an engine that has twice been shown to be
+    // limited by memory traffic rather than arithmetic (full-resolution search
+    // collapsed the output at an unchanged sample count; staging the
+    // motion-estimation operands in groupshared took that stage from 3.19 ms to
+    // 0.90). Bilinear costs one tap, so two per pixel.
+    //
+    // The trade being made: full resolution with a simpler filter against half
+    // resolution with a better one. A generated frame stands on screen about
+    // 7 ms between two sharp real ones, and over that time the difference
+    // between Catmull-Rom and bilinear is far smaller than the difference
+    // between 1280x720 and 2560x1440 - which is what the half-density path was
+    // giving up, and what came back as "Unschaerfe".
+    //
+    // Selectable rather than replaced, because this is reasoning and the
+    // measurement decides: "catmull" restores the old filter for an A/B.
+    float4 prevColor = (WarpFilter == 1u)
+        ? float4(SampleCatmullRom(PrevFrame, prevSamplePos, dims), 1.0)
+        : PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0);
+    float4 currColor = (WarpFilter == 1u)
+        ? float4(SampleCatmullRom(CurrFrame, currSamplePos, dims), 1.0)
+        : CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0);
 
     // Confidence in this pixel's motion vector: if the two samples the
     // vector claims are "the same content, half a frame apart" do not

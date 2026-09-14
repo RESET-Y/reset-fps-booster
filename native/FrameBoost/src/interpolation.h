@@ -72,6 +72,10 @@ public:
     void SetInterpScale(UINT s) { m_interpScale = (s < 1u) ? 1u : (s > 4u ? 4u : s); }
     UINT InterpScale() const { return m_interpScale; }
 
+    // 1 = Catmull-Rom for the final warp, 0 = bilinear. Ten texture fetches per
+    // pixel against two, on an engine limited by memory traffic.
+    void SetWarpFilter(UINT f) { m_warpFilter = (f != 0u) ? 1u : 0u; }
+
     // Draws small status squares in the generated frames' top-left corner:
     // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
     void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
@@ -119,6 +123,8 @@ private:
     // change could only be confirmed by reading the log file.
     unsigned int m_statusFlags = 0;
     float m_extrapolateAhead = 0.0f;
+    UINT m_warpFilter = 1;
+    UINT m_warpFilterInBuffer = 0xFFFFFFFFu;
     UINT m_interpScale = 1;
     UINT m_interpScaleInBuffer = 0;
     float m_qualityRelief = 1.0f;
