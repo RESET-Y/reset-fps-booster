@@ -91,6 +91,21 @@ private:
 
     ID3D11Texture2D* m_generatedTex = nullptr;
     ID3D11UnorderedAccessView* m_generatedUAV = nullptr;
+
+    // THE HALF-RESOLUTION INTERMEDIATE, and the pass that resamples it.
+    //
+    // At InterpScale > 1 the interpolation shader writes one texel per
+    // invocation into this, and a bilinear pass turns it into full-resolution
+    // pixels. Replicating each pixel across a 2x2 square was tried first and is
+    // nearest-neighbour magnification - every edge in a generated frame gained
+    // two-pixel stairs, which is what "the quality looks bad" was.
+    bool EnsureScaledTarget(ID3D11Device* device, UINT width, UINT height, DXGI_FORMAT format);
+
+    ID3D11Texture2D* m_scaledTex = nullptr;
+    ID3D11UnorderedAccessView* m_scaledUAV = nullptr;
+    ID3D11ShaderResourceView* m_scaledSRV = nullptr;
+    ID3D11ComputeShader* m_upscaleShader = nullptr;
+    UINT m_scaledWidth = 0, m_scaledHeight = 0;
     ID3D11ComputeShader* m_computeShader = nullptr;
     ID3D11SamplerState* m_linearClampSampler = nullptr;
     ID3D11Buffer* m_paramsCB = nullptr;

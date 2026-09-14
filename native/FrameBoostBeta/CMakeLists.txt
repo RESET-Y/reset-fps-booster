@@ -28,6 +28,8 @@ set(THUMB_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/thumbnail.hlsl")
 set(THUMB_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/thumbnail_cs.h")
 set(INTERP_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/frame_interpolation.hlsl")
 set(INTERP_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/frame_interpolation_cs.h")
+set(UPSCALE_SHADER_SRC "${FRAMEBOOST_SRC}/shaders/upscale.hlsl")
+set(UPSCALE_SHADER_HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/upscale_cs.h")
 
 add_custom_command(OUTPUT "${MOTION_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${MOTION_SHADER_HEADER}" /Vn g_MotionEstimationCS "${MOTION_SHADER_SRC}"
@@ -44,10 +46,13 @@ add_custom_command(OUTPUT "${SMOOTH_SHADER_HEADER}"
 add_custom_command(OUTPUT "${INTERP_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${INTERP_SHADER_HEADER}" /Vn g_FrameInterpolationCS "${INTERP_SHADER_SRC}"
     DEPENDS "${INTERP_SHADER_SRC}" COMMENT "Compiling frame_interpolation.hlsl")
+add_custom_command(OUTPUT "${UPSCALE_SHADER_HEADER}"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${UPSCALE_SHADER_HEADER}" /Vn g_UpscaleCS "${UPSCALE_SHADER_SRC}"
+    DEPENDS "${UPSCALE_SHADER_SRC}" COMMENT "Compiling upscale.hlsl")
 add_custom_command(OUTPUT "${THUMB_SHADER_HEADER}"
     COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain /Fh "${THUMB_SHADER_HEADER}" /Vn g_ThumbnailCS "${THUMB_SHADER_SRC}"
     DEPENDS "${THUMB_SHADER_SRC}" COMMENT "Compiling thumbnail.hlsl")
-add_custom_target(CompileBetaShaders DEPENDS "${THUMB_SHADER_HEADER}" "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${COARSEST_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}")
+add_custom_target(CompileBetaShaders DEPENDS "${THUMB_SHADER_HEADER}" "${MOTION_SHADER_HEADER}" "${COARSE_SHADER_HEADER}" "${COARSEST_SHADER_HEADER}" "${SMOOTH_SHADER_HEADER}" "${INTERP_SHADER_HEADER}" "${UPSCALE_SHADER_HEADER}")
 
 
 add_executable(FrameBoostBeta WIN32

@@ -498,22 +498,22 @@ float3 SampleCatmullRom(Texture2D<float4> tex, float2 posPixels, float2 dims)
 // Writes one computed colour to the square of output pixels this invocation
 // covers. At InterpScale 1 that is the single pixel it always was.
 //
-// Bounds-checked per pixel rather than per invocation: at the right and bottom
-// edges a square hangs over the frame, and those pixels must simply not be
-// written - the texture has no room for them and the next frame would show
-// whatever was there.
-void WriteCovered(uint2 base, float4 colour)
+// ONE TEXEL, and the same line serves both scales.
+//
+// It used to replicate the colour across a scale x scale square, which is a
+// nearest-neighbour upscale and looked exactly like one. Now the target itself
+// is half resolution when InterpScale is 2, and a second pass resamples it
+// bilinearly - so this writes a single texel either way:
+//
+//   scale 1: GeneratedFrame is full resolution and id.xy IS the pixel.
+//   scale 2: GeneratedFrame is the half-resolution intermediate and id.xy is
+//            its texel. The upscale pass turns it into pixels.
+//
+// Which makes the write index id.xy in both cases. The bounds test moved to
+// the top of CSMain, where the dispatch is already sized to the target.
+void WriteCovered(uint2 targetTexel, float4 colour)
 {
-    const uint scale = max(InterpScale, 1u);
-    for (uint dy = 0; dy < scale; ++dy)
-    {
-        for (uint dx = 0; dx < scale; ++dx)
-        {
-            const uint2 p = base + uint2(dx, dy);
-            if (p.x < FrameWidth && p.y < FrameHeight)
-                GeneratedFrame[p] = colour;
-        }
-    }
+    GeneratedFrame[targetTexel] = colour;
 }
 
 [numthreads(8, 8, 1)]
@@ -522,6 +522,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // id now indexes the SQUARE, not the pixel. The dispatch is divided by the
     // same scale on the C++ side.
     const uint kScale = max(InterpScale, 1u);
+    // Where this invocation WRITES: a texel of the target, which is the full
+    // frame at scale 1 and the half-resolution intermediate at scale 2.
+    const uint2 targetTexel = id.xy;
+    // Where this invocation SAMPLES FROM: full-resolution coordinates, always.
+    // Every vector, block lookup, residual and warp below works in that system
+    // unchanged - only the sampling density and the write target change.
     const uint2 coverBase = id.xy * kScale;
 
     if (coverBase.x >= FrameWidth || coverBase.y >= FrameHeight)
@@ -619,7 +625,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                 outColor.rgb = float3(0.1, 0.95, 0.3);
         }
 
-        WriteCovered(coverBase, outColor);
+        WriteCovered(targetTexel, outColor);
         return;
     }
 
@@ -904,7 +910,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                 outColor.rgb = float3(0.1, 0.95, 0.3);
         }
 
-        WriteCovered(coverBase, outColor);
+        WriteCovered(targetTexel, outColor);
         return;
     }
 
@@ -1340,5 +1346,5 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                             saturate(speed / 20.0));
     }
 
-    WriteCovered(coverBase, result);
+    WriteCovered(targetTexel, result);
 }
