@@ -1540,6 +1540,58 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         return static_cast<double>(t.QuadPart) / qpcFreq.QuadPart * 1000.0;
     };
 
+    // SLEEP UNTIL JUST BEFORE THE DEADLINE, THEN SPIN THE REST.
+    //
+    // Every wait in the pacing path was a bare busy-wait. That buys sub-
+    // millisecond precision and costs a whole core: measured at 106% of one,
+    // continuously, for an engine whose real work is a few milliseconds of GPU
+    // per frame.
+    //
+    // It matters because of what it is taken from. Apex measured on its own -
+    // externally, with the booster stopped - delivers 71.75 frames a second at
+    // 13.88 ms spacing, standard deviation 0.86 ms. A game running perfectly
+    // evenly. With us present the same source swings between 45 and 72. We are
+    // the difference, and a permanently occupied core is the largest single
+    // thing we take.
+    //
+    // A high-resolution waitable timer sleeps to within about a tenth of a
+    // millisecond, so the spin only has to cover the last stretch. The
+    // precision is kept where it is needed and the core is handed back for the
+    // rest of the wait.
+    //
+    // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION needs Windows 10 1803. Without it
+    // the handle is null, every wait falls back to spinning, and the behaviour
+    // is exactly what this replaces.
+    HANDLE preciseTimer = CreateWaitableTimerExW(nullptr, nullptr,
+        CREATE_WAITABLE_TIMER_MANUAL_RESET | CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+        TIMER_ALL_ACCESS);
+
+    // Waits until dueMs, never past ceilingMs, pumping desktop duplication
+    // throughout.
+    //
+    // The sleep is capped at 2 ms a time rather than taken in one go because
+    // the desktop-duplication path has to keep asking: a frame arriving during
+    // a long sleep would sit unclaimed. Windows Graphics Capture drains itself
+    // on the pool thread and needs no pumping, but one wait serves both paths.
+    auto WaitUntilMs = [&](double dueMs, double ceilingMs) {
+        constexpr double kSpinTailMs = 0.35;
+        for (;;) {
+            const double now = NowMs();
+            if (now >= dueMs || now >= ceilingMs) return;
+            const double target = (dueMs < ceilingMs) ? dueMs : ceilingMs;
+            const double remaining = target - now;
+            if (preciseTimer && remaining > kSpinTailMs) {
+                double sleepMs = remaining - kSpinTailMs;
+                if (sleepMs > 2.0) sleepMs = 2.0;
+                LARGE_INTEGER due{};
+                due.QuadPart = -static_cast<LONGLONG>(sleepMs * 10000.0); // 100 ns, relative
+                if (SetWaitableTimer(preciseTimer, &due, 0, nullptr, nullptr, FALSE))
+                    WaitForSingleObject(preciseTimer, 5);
+            }
+            ddCapture.Pump();
+        }
+    };
+
     // Two frames cannot share one refresh: the display scans out once per
     // interval, so a present that follows too closely replaces one that was
     // never shown. Measured in Apex: 35-41% of all presents landed closer
@@ -2556,7 +2608,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
                     const double realDueAtMs = motionCurrTimestampMs + offsetMs;
                     const double realCeilingMs = NowMs() + 20.0;
-                    while (NowMs() < realDueAtMs && NowMs() < realCeilingMs) { ddCapture.Pump(); }
+                    WaitUntilMs(realDueAtMs, realCeilingMs);
 
                     if (transparentRealFrames && presenter.SupportsTransparency()) {
                         presenter.PresentTransparent(device.get(), context.get(), presentSyncInterval);
@@ -2783,7 +2835,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // A fixed ceiling, not one derived from the interval: a wait
                     // must never be able to inherit a bad measurement.
                     const double genCeilingMs = NowMs() + 20.0;
-                    while (NowMs() < dueAtMs && NowMs() < genCeilingMs) { ddCapture.Pump(); }
+                    WaitUntilMs(dueAtMs, genCeilingMs);
                     WaitForDisplaySlot();
                     WaitForRefreshBoundary();
 
@@ -2831,7 +2883,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // picture froze; this is the backstop that makes that
                 // impossible rather than merely unlikely.
                 const double waitCeilingMs = NowMs() + 20.0;
-                while (NowMs() < realDueAtMs && NowMs() < waitCeilingMs) { ddCapture.Pump(); }
+                WaitUntilMs(realDueAtMs, waitCeilingMs);
                 WaitForDisplaySlot();
 
                 WaitForRefreshBoundary();
