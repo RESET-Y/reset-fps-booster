@@ -678,6 +678,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // reach the screen at all" silently did nothing, and its blank result was
     // nearly taken as evidence that they do not.
     interpolator.SetDebugTint(debugTintMode);
+
+    // HALF THE SAMPLING DENSITY FOR THE GENERATED FRAME, and "fullres" opts out.
+    //
+    // Interpolation became the bottleneck the moment motion estimation stopped
+    // being one: 4.9 ms at the median, 9.4-10.1 ms at the 95th percentile
+    // against a 6.9-7.9 ms deadline, showing up as waves of 9-14% missed
+    // display slots.
+    //
+    // Framegen - the same job for video in the browser, with a distilled RIFE
+    // network - renders its inserted frames at 480 lines by default and
+    // upscales. Per megapixel against their published numbers we are already
+    // the cheaper of the two (1.33 ms/MP against their 1.81 at 1080p); we just
+    // run on nine times their default pixel count. So the resolution is what to
+    // spend, not the algorithm.
+    //
+    // Default on, because the measurement says the deadline is being missed
+    // today. "fullres" is there so the two can be compared directly rather than
+    // argued about.
+    interpolator.SetInterpScale(HasArg(L"fullres") ? 1u : 2u);
+    FrameBoostBeta::Logger::Log(HasArg(L"fullres")
+        ? "[FrameBoostBeta] Generated frames at full sampling density (fullres)."
+        : "[FrameBoostBeta] Generated frames at half sampling density - a quarter of the"
+          " interpolation work, written to 2x2 squares. Pass \"fullres\" to compare.");
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     // Separate instance, fed the PRESENTED frames in the order they go out, so
     // each comparison is between two consecutive output frames.

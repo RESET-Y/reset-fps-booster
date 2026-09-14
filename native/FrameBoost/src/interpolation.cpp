@@ -136,14 +136,15 @@ bool Interpolator::EnsureResources(ID3D11Device* device, UINT width, UINT height
     struct ParamsCB {
         UINT width, height, blockSize, debugTint;                      // b0
         float phaseT, extrapolateAhead, qualityRelief, motionCutoff;   // b1
-        UINT statusFlags, _pad0, _pad1, _pad2;                         // b2
+        UINT statusFlags, interpScale, _pad1, _pad2;                   // b2
     };
     ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint,
                      m_phaseT, m_extrapolateAhead, m_qualityRelief, m_motionCutoff,
-                     m_statusFlags, 0u, 0u, 0u };
+                     m_statusFlags, m_interpScale, 0u, 0u };
     m_debugTintInBuffer = m_debugTint;
     m_phaseTInBuffer = m_phaseT;
     m_statusFlagsInBuffer = m_statusFlags;
+    m_interpScaleInBuffer = m_interpScale;
     D3D11_BUFFER_DESC cbDesc{};
     cbDesc.ByteWidth = sizeof(ParamsCB);
     cbDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -201,16 +202,17 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
             || m_extrapolateAhead != m_extrapolateAheadInBuffer
             || m_qualityRelief != m_qualityReliefInBuffer
             || m_motionCutoff != m_motionCutoffInBuffer
-            || m_statusFlags != m_statusFlagsInBuffer) && m_paramsCB) {
+            || m_statusFlags != m_statusFlagsInBuffer
+            || m_interpScale != m_interpScaleInBuffer) && m_paramsCB) {
         // Same layout as at creation - see the comment there.
     struct ParamsCB {
         UINT width, height, blockSize, debugTint;                      // b0
         float phaseT, extrapolateAhead, qualityRelief, motionCutoff;   // b1
-        UINT statusFlags, _pad0, _pad1, _pad2;                         // b2
+        UINT statusFlags, interpScale, _pad1, _pad2;                   // b2
     };
         ParamsCB params{ m_width, m_height, MotionEstimation::Estimator::BlockSizePixels(), m_debugTint,
                      m_phaseT, m_extrapolateAhead, m_qualityRelief, m_motionCutoff,
-                     m_statusFlags, 0u, 0u, 0u };
+                     m_statusFlags, m_interpScale, 0u, 0u };
         context->UpdateSubresource(m_paramsCB, 0, nullptr, &params, 0, 0);
         m_debugTintInBuffer = m_debugTint;
         m_phaseTInBuffer = m_phaseT;
@@ -218,6 +220,7 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
         m_qualityReliefInBuffer = m_qualityRelief;
         m_motionCutoffInBuffer = m_motionCutoff;
         m_statusFlagsInBuffer = m_statusFlags;
+        m_interpScaleInBuffer = m_interpScale;
     }
 
     QuerySet& q = m_queries[m_queryWriteIndex];
@@ -232,8 +235,13 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
     context->CSSetConstantBuffers(0, 1, &m_paramsCB);
     context->CSSetShader(m_computeShader, nullptr, 0);
 
-    UINT groupsX = (width + 7) / 8;
-    UINT groupsY = (height + 7) / 8;
+    // One invocation per COVERED SQUARE, not per pixel. At scale 2 that is a
+    // quarter of the invocations, each writing the 2x2 square it covers.
+    const UINT scale = m_interpScale < 1u ? 1u : m_interpScale;
+    const UINT coverX = (width + scale - 1) / scale;
+    const UINT coverY = (height + scale - 1) / scale;
+    UINT groupsX = (coverX + 7) / 8;
+    UINT groupsY = (coverY + 7) / 8;
     context->Dispatch(groupsX, groupsY, 1);
 
     ID3D11ShaderResourceView* nullSrvs[3] = { nullptr, nullptr, nullptr };

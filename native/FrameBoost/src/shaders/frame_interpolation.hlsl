@@ -84,7 +84,34 @@ cbuffer InterpolationParams : register(b0)
     //   bit 0 - low-latency mode (generation factor capped at 2)
     //   bit 1 - transparency mode (real frames show the actual screen)
     uint StatusFlags;
-    uint _pad0, _pad1, _pad2;
+
+    // HOW MANY OUTPUT PIXELS EACH INVOCATION COVERS, per axis. 1 = every pixel
+    // computed; 2 = one computed and written to a 2x2 square.
+    //
+    // Framegen, which does the same job for video in the browser, renders its
+    // inserted frames at 480 lines by default - "480 is the sweet spot" - and
+    // upscales. Comparing per megapixel against their published figures:
+    //
+    //   Framegen 1080p   3.75 ms / 2.07 MP = 1.81 ms/MP
+    //   Framegen  720p   2.00 ms / 0.92 MP = 2.17 ms/MP
+    //   us at    1440p   4.90 ms / 3.69 MP = 1.33 ms/MP
+    //
+    // We are CHEAPER per pixel than a distilled neural network. We simply run
+    // on nine times their default pixel count. The cost is the resolution, not
+    // the algorithm - so the resolution is what to spend.
+    //
+    // A generated frame stands on screen for about 7 ms between two sharp real
+    // ones. Half the sampling density there is not half the picture.
+    //
+    // Deliberately NOT implemented by running the shader in a halved coordinate
+    // system. That would mean scaling the motion vectors, BlockSize, the
+    // coherence floor and MotionCutoff, and one forgotten factor is a subtle
+    // wrong picture rather than a compile error - the warp weights were exactly
+    // that kind of bug and hid for months. Here every coordinate stays in full
+    // resolution and only the sampling density changes.
+    uint InterpScale;
+
+    uint _pad1, _pad2;
 };
 
 // How quickly disagreement between the two motion-compensated samples turns
@@ -468,14 +495,43 @@ float3 SampleCatmullRom(Texture2D<float4> tex, float2 posPixels, float2 dims)
     return max(result / max(weightSum, 1e-5), 0.0);
 }
 
+// Writes one computed colour to the square of output pixels this invocation
+// covers. At InterpScale 1 that is the single pixel it always was.
+//
+// Bounds-checked per pixel rather than per invocation: at the right and bottom
+// edges a square hangs over the frame, and those pixels must simply not be
+// written - the texture has no room for them and the next frame would show
+// whatever was there.
+void WriteCovered(uint2 base, float4 colour)
+{
+    const uint scale = max(InterpScale, 1u);
+    for (uint dy = 0; dy < scale; ++dy)
+    {
+        for (uint dx = 0; dx < scale; ++dx)
+        {
+            const uint2 p = base + uint2(dx, dy);
+            if (p.x < FrameWidth && p.y < FrameHeight)
+                GeneratedFrame[p] = colour;
+        }
+    }
+}
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= FrameWidth || id.y >= FrameHeight)
+    // id now indexes the SQUARE, not the pixel. The dispatch is divided by the
+    // same scale on the C++ side.
+    const uint kScale = max(InterpScale, 1u);
+    const uint2 coverBase = id.xy * kScale;
+
+    if (coverBase.x >= FrameWidth || coverBase.y >= FrameHeight)
         return;
 
     uint2 blockCount = (uint2(FrameWidth, FrameHeight) + BlockSize - 1) / BlockSize;
-    float2 pixelCenter = float2(id.xy) + 0.5;
+    // The centre of the square, in full-resolution pixels. Everything below -
+    // vectors, block lookups, residuals, the warp - works in that coordinate
+    // system unchanged.
+    float2 pixelCenter = float2(coverBase) + float2(kScale, kScale) * 0.5;
     float2 dims = float2(FrameWidth, FrameHeight);
 
     // mv is defined (see motion_estimation.hlsl) such that
@@ -558,12 +614,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         if ((StatusFlags & 4u) != 0)
         {
             const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
-            const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+            const int2 b = int2(coverBase) - int2(kBarMargin, kBarMargin + 20);
             if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
                 outColor.rgb = float3(0.1, 0.95, 0.3);
         }
 
-        GeneratedFrame[id.xy] = outColor;
+        WriteCovered(coverBase, outColor);
         return;
     }
 
@@ -843,12 +899,12 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         if ((StatusFlags & 4u) != 0)
         {
             const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
-            const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+            const int2 b = int2(coverBase) - int2(kBarMargin, kBarMargin + 20);
             if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
                 outColor.rgb = float3(0.1, 0.95, 0.3);
         }
 
-        GeneratedFrame[id.xy] = outColor;
+        WriteCovered(coverBase, outColor);
         return;
     }
 
@@ -1219,7 +1275,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     if ((StatusFlags & 4u) != 0)
     {
         const int kBarWidth = 64, kBarHeight = 6, kBarMargin = 12;
-        const int2 b = int2(id.xy) - int2(kBarMargin, kBarMargin + 20);
+        const int2 b = int2(coverBase) - int2(kBarMargin, kBarMargin + 20);
         if (b.x >= 0 && b.x < kBarWidth && b.y >= 0 && b.y < kBarHeight)
         {
             // Drawn over whatever is underneath rather than blended, so it
@@ -1235,7 +1291,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     if (StatusFlags != 0)
     {
         const int kSize = 14, kGap = 4, kMargin = 12;
-        int2 p = int2(id.xy) - int2(kMargin, kMargin);
+        int2 p = int2(coverBase) - int2(kMargin, kMargin);
         if (p.y >= 0 && p.y < kSize && p.x >= 0)
         {
             int slot = p.x / (kSize + kGap);
@@ -1284,5 +1340,5 @@ void CSMain(uint3 id : SV_DispatchThreadID)
                             saturate(speed / 20.0));
     }
 
-    GeneratedFrame[id.xy] = result;
+    WriteCovered(coverBase, result);
 }

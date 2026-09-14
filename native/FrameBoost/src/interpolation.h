@@ -64,6 +64,14 @@ public:
     // 0 disables the cutoff, which is the default.
     void SetMotionCutoff(float c) { m_motionCutoff = c < 0.0f ? 0.0f : c; }
 
+    // How many output pixels one shader invocation covers, per axis. 1 computes
+    // every pixel; 2 computes one and writes it to a 2x2 square, which is a
+    // quarter of the work. See the InterpScale comment in the shader for why
+    // this is the right place to spend, and why it is done by sampling density
+    // rather than by a halved coordinate system.
+    void SetInterpScale(UINT s) { m_interpScale = (s < 1u) ? 1u : (s > 4u ? 4u : s); }
+    UINT InterpScale() const { return m_interpScale; }
+
     // Draws small status squares in the generated frames' top-left corner:
     // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
     void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
@@ -96,6 +104,8 @@ private:
     // change could only be confirmed by reading the log file.
     unsigned int m_statusFlags = 0;
     float m_extrapolateAhead = 0.0f;
+    UINT m_interpScale = 1;
+    UINT m_interpScaleInBuffer = 0;
     float m_qualityRelief = 1.0f;
     float m_qualityReliefInBuffer = -1.0f;
     float m_motionCutoff = 0.0f;
