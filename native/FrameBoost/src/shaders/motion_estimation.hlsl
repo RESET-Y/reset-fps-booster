@@ -125,6 +125,18 @@ static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as b
 // What is left is that the answer itself is ambiguous: ground texture at
 // speed offers many near-equal matches, and which one wins is decided by
 // noise.
+// WHEN A MATCH IS TOO GOOD TO IMPROVE.
+//
+// Sixteen samples, each a sum of three absolute channel differences in 0..1, so
+// a perfect match is 0 and this is about 0.002 per channel per sample - below
+// what compression and dither move between two frames of identical content.
+//
+// Compare kFlatZeroSad at 1.2, which asks a far weaker question ("is the
+// pattern unchanged apart from brightness"). This one has to be stricter,
+// because its consequence is skipping the refinement rather than choosing
+// between two offered answers.
+static const float kNearPerfectSad = 0.1;
+
 static const int kSearchRadius = 3;
 static const int kSearchWindow = kSearchRadius * 2 + 1; // 7
 static const int kCandidateCount = kSearchWindow * kSearchWindow; // 49
@@ -386,7 +398,6 @@ groupshared float g_coarseSeedSad;
 groupshared float g_zeroMotionSadFlat;
 groupshared int2 g_searchCentre;
 groupshared int g_centreIsZero;
-
 // THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
 // same 16 full-resolution pixels, so the motion field keeps its granularity.
 //
@@ -443,6 +454,53 @@ static const int kMipScale = 2;                                        // 1 << k
 static const int kBlockTexels = kBlockSize / kMipScale;                // 8 texels
 static const int kSampleStrideTexels = kBlockSampleStride / kMipScale; // 2 -> 4x4 = 16 samples
 
+// THE SAME TEXELS, READ ONCE INSTEAD OF FORTY-NINE TIMES.
+//
+// Measured: this engine is limited by memory traffic, not by arithmetic. The
+// full-resolution search (kSearchMip = 0) was tried and collapsed the output to
+// 40-135 fps - four times the traffic at an UNCHANGED sample count, so the
+// sample count was never the price. And at 51% of the graphics card we are
+// starving the game that feeds us: the source fell from a locked 72.0 to 51.1
+// fps while our own cost went from 5.1 to 7.9 ms.
+//
+// Where the traffic goes, per block, before this change:
+//
+//   49 threads x 16 samples x 2 textures = 1568 texel loads
+//
+// Of those, the CurrFrame half is 784 loads of the SAME sixteen texels - every
+// thread fetching the identical reference block because each evaluates a
+// different candidate against it. That is pure waste and it is the easiest
+// half to remove: sixteen loads, shared.
+//
+// The PrevFrame half genuinely differs per thread, but the candidates sit
+// within +-kSearchRadius of one centre, so the texels they touch overlap almost
+// completely. Their union is a 13x13 tile - 169 texels against 784 loads.
+//
+//   16 + 169 + about 96 for the step-2 candidates = ~281 loads, 5.6x less.
+//
+// Nothing about the search changes: same window, same candidates, same
+// arithmetic, same answer. Only the number of times we ask memory for a texel
+// we already have.
+static const int kBlockSamples1D = kBlockTexels / kSampleStrideTexels;   // 4
+static const int kBlockSamples = kBlockSamples1D * kBlockSamples1D;      // 16
+
+// .xyz the colour, .w 0 when the sample lies outside the frame and must be
+// skipped - the bounds test BlockSAD used to make per thread, made once.
+groupshared float4 g_currBlock[kBlockSamples];
+
+// Reach of the candidates around the centre: the sample offsets run
+// 0..kBlockTexels-kSampleStrideTexels and each may be displaced by
+// +-kSearchRadius, so the tile spans that span plus the window, inclusive.
+static const int kPrevTileDim =
+    (kBlockTexels - kSampleStrideTexels) + 2 * kSearchRadius + 1;        // 13
+static const int kPrevTileTexels = kPrevTileDim * kPrevTileDim;          // 169
+groupshared float3 g_prevTile[kPrevTileTexels];
+
+// Set when a candidate already matches so well that refining it cannot pay.
+// Uniform across the group - see where it is written.
+groupshared int g_skipFineSearch;
+groupshared float g_centreSad;
+
 // Zero motion, judged on the real pixels rather than the halved ones.
 float BlockSADFullRes(int2 blockOriginPixels)
 {
@@ -497,10 +555,45 @@ float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
             if (currTexel.x > mipMax.x || currTexel.y > mipMax.y)
                 continue;
 
-            float3 currColor = CurrFrame.Load(int3(currTexel, kSearchMip)).rgb;
+            // Staged by the group before any search ran. Identical for every
+            // thread, so fetching it per thread was 784 loads of sixteen texels.
+            float3 currColor = g_currBlock[(y / kSampleStrideTexels) * kBlockSamples1D
+                                         + (x / kSampleStrideTexels)].rgb;
             float3 prevColor = PrevFrame.Load(int3(clamp(prevTexel, int2(0, 0), mipMax), kSearchMip)).rgb;
 
             sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
+// THE FINE SEARCH, READING ONLY GROUPSHARED MEMORY.
+//
+// Same sixteen samples and the same arithmetic as BlockSAD. The difference is
+// that neither operand touches a texture: the reference block and the 13x13
+// neighbourhood the candidates move within were both staged by the group.
+//
+// candidateOffsetTexels is relative to g_searchCentre, so it is the refinement
+// alone and stays inside +-kSearchRadius by construction.
+float BlockSADStaged(int2 refinementTexels)
+{
+    float sad = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
+        {
+            const int sample = (y / kSampleStrideTexels) * kBlockSamples1D
+                             + (x / kSampleStrideTexels);
+            const float4 curr = g_currBlock[sample];
+            if (curr.w == 0.0)
+                continue;
+
+            const int2 rel = int2(x, y) + refinementTexels + kSearchRadius;
+            const float3 prevColor = g_prevTile[rel.y * kPrevTileDim + rel.x];
+
+            sad += dot(abs(curr.rgb - prevColor), float3(1.0, 1.0, 1.0));
         }
     }
     return sad;
@@ -605,6 +698,24 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     // entire search rather than part of it.
     if (groupIndex == 0)
         g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
+
+    // The reference block, staged once for the whole group. Sixteen texels
+    // across sixteen threads, folded into a barrier the group already paid
+    // for. Every BlockSAD from here on reads it instead of the texture.
+    if (groupIndex < kBlockSamples)
+    {
+        const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                                 max((int)FrameHeight / kMipScale, 1)) - 1;
+        const int sx = (int)groupIndex % kBlockSamples1D;
+        const int sy = (int)groupIndex / kBlockSamples1D;
+        const int2 texel = blockOrigin + int2(sx, sy) * kSampleStrideTexels;
+        // Outside the frame is skipped, not clamped - the same rule BlockSAD
+        // applied per thread, decided once and carried in .w.
+        const bool inside = (texel.x <= mipMax.x && texel.y <= mipMax.y);
+        g_currBlock[groupIndex] = float4(
+            inside ? CurrFrame.Load(int3(texel, kSearchMip)).rgb : float3(0, 0, 0),
+            inside ? 1.0 : 0.0);
+    }
     GroupMemoryBarrierWithGroupSync();
 
     if (g_zeroMotionSadFull < kStaticBlockSad)
@@ -797,6 +908,28 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
 
         g_searchCentre = centre;
         g_centreIsZero = (which == 1) ? 1 : 0;
+        g_centreSad = centreSad;
+
+        // ALREADY A NEAR-PERFECT MATCH: refining it cannot pay.
+        //
+        // Step 2 has just compared the coarse seed, zero and the temporal
+        // predictors as points and taken the best. When that winner matches to
+        // within kNearPerfectSad over sixteen samples, the error surface around
+        // it is flat at the noise floor and the 49 candidates of step 3 are
+        // choosing between differences smaller than the camera sensor's own.
+        //
+        // Decided by one thread and read by all forty-nine after the barrier
+        // below, so the whole group takes the same branch. It has to be that
+        // way: threads cannot return individually from a function with a
+        // GroupMemoryBarrierWithGroupSync in it - the ones still running would
+        // wait at a barrier the others never reach, which HLSL leaves
+        // undefined. The static-block exit above is built the same way.
+        //
+        // The threshold is deliberately tight. It is a guess until the SAD
+        // distribution is measured, and a guess that fires too often would
+        // freeze slightly-wrong vectors in place - the exact failure that
+        // produces double images. Tight means it rarely fires and never lies.
+        g_skipFineSearch = (centreSad < kNearPerfectSad) ? 1 : 0;
     }
     GroupMemoryBarrierWithGroupSync();
 
@@ -811,8 +944,58 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
     //
     // A zero centre is held much harder. See kZeroCentreBias.
     const float seedBias = (g_centreIsZero != 0) ? kZeroCentreBias : kNeighbourhoodBias;
-    g_sad[groupIndex] = BlockSAD(blockOrigin, g_searchCentre + refinement)
-        + seedBias * length(float2(refinement));
+
+    // THE TILE IS STAGED UNDER A CONDITION; THE BARRIER IS NOT.
+    //
+    // g_skipFineSearch is groupshared and written by one thread, so it is the
+    // same value for all forty-nine - but the compiler cannot prove that, and a
+    // GroupMemoryBarrierWithGroupSync it believes might be reached by only some
+    // threads is undefined. So the work sits inside the branch and the
+    // synchronisation sits outside it, where every thread reaches it either way.
+    if (g_skipFineSearch == 0)
+    {
+        // THE 13x13 NEIGHBOURHOOD THE CANDIDATES MOVE WITHIN, staged once.
+        //
+        // 169 texels across 49 threads, four apiece. Against 784 loads from the
+        // texture before - the same texels, fetched again by every thread whose
+        // candidate overlapped them.
+        //
+        // This has to sit after the barrier above, because the tile is placed
+        // around g_searchCentre and step 2 only just decided where that is.
+        const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                                 max((int)FrameHeight / kMipScale, 1)) - 1;
+        const int2 tileOrigin = blockOrigin + g_searchCentre - kSearchRadius;
+        for (int i = (int)groupIndex; i < kPrevTileTexels; i += kCandidateCount)
+        {
+            const int2 rel = int2(i % kPrevTileDim, i / kPrevTileDim);
+            // Clamped, not skipped - PrevFrame was always read clamped, so a
+            // candidate reaching past the edge sees the edge texel.
+            g_prevTile[i] = PrevFrame.Load(int3(
+                clamp(tileOrigin + rel, int2(0, 0), mipMax), kSearchMip)).rgb;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (g_skipFineSearch != 0)
+    {
+        // The search is skipped, but step 4 still runs unchanged - it owns the
+        // sub-pixel fit, the zero snap and the stillness counter, and none of
+        // that should be duplicated into a second write path.
+        //
+        // So hand it the surface the search would have produced if every
+        // candidate matched as well as the centre: a flat field of centreSad
+        // shaped only by the neighbourhood bias. Its minimum is at refinement
+        // (0,0), uniquely, and it is symmetric around it - so the reduction
+        // picks the centre and the parabolic fit reads no sub-pixel offset.
+        // bestMatchSad then comes out as centreSad exactly, which is the true
+        // measurement, because step 4 subtracts the same bias again.
+        g_sad[groupIndex] = g_centreSad + seedBias * length(float2(refinement));
+    }
+    else
+    {
+        g_sad[groupIndex] = BlockSADStaged(refinement)
+            + seedBias * length(float2(refinement));
+    }
     GroupMemoryBarrierWithGroupSync();
 
     // ---- STEP 4: reduce, refine to sub-pixel, write ----------------------
