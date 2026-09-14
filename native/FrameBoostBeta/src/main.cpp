@@ -863,6 +863,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // separately from generated frames: they are a different promise, and a
     // rising number means the game is stuttering, not that we are working.
     uint64_t gapFillsSinceReport = 0;
+
+    // STILL PICTURE: stand aside instead of generating.
+    //
+    // Menus are the one place this engine does damage and buys nothing. The GPU
+    // is idle there, so the headroom guard lets us run; the content is
+    // self-similar interface - rows of identical boxes, repeated lines, a
+    // full-width highlight strip - which is the worst case block matching has;
+    // and a research tree at 72 fps needs no doubling whatever. In flight,
+    // where doubling would actually be worth something, War Thunder sits at
+    // 22-32 fps and the headroom guard stands us aside anyway.
+    //
+    // Reported after a long hunt through the wrong causes: "meistens alles was
+    // mit Menue zu tun hat".
+    //
+    // The separation is measured, not guessed. In War Thunder menus the share
+    // of moving blocks reads 0.02%, 0.24%, 1.64%, 2.13%; in Apex gameplay it
+    // reads 38%, 56%, 62%, 86%. Two orders of magnitude, with nothing in
+    // between, so a threshold at 5% does not have to be clever.
+    //
+    // And the rule is honest beyond menus: when almost nothing on screen is
+    // moving, an interpolated frame carries no new information - it can only
+    // differ from its neighbours by being wrong. Standing aside there costs
+    // nothing that anyone can see.
+    //
+    // Hysteresis because a menu is not perfectly still - a cursor crosses it, a
+    // highlight animates - and flipping between generating and not at those
+    // moments would be its own artefact.
+    bool pictureIsStill = false;
+    int stillFrameRun = 0;
+    int movingFrameRun = 0;
+    uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
     double lastCaptureMs = -1.0;
@@ -1819,6 +1850,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
@@ -1910,6 +1942,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
+        stillSecondsSinceReport = 0;
 
         // Keep the measurement, every ten seconds, and only when it is worth
         // keeping. Writing a bad fit over a good one is the failure this whole
@@ -2509,6 +2542,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
 
         if (ranEstimationThisTick) {
+            // Is this a still picture? Judged over several frames in a row so a
+            // single quiet frame during gameplay cannot switch generation off.
+            const double movingPercent = motionStats.MovingBlockPercent();
+            if (movingPercent >= 0.0) {
+                if (movingPercent < 5.0) { ++stillFrameRun; movingFrameRun = 0; }
+                else { ++movingFrameRun; stillFrameRun = 0; }
+
+                if (!pictureIsStill && stillFrameRun >= 12) {
+                    pictureIsStill = true;
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (under 5% of blocks moving)"
+                        " - standing aside. A generated frame between two identical ones carries no"
+                        " information and can only be wrong; menus are where that shows.");
+                } else if (pictureIsStill && movingFrameRun >= 3) {
+                    pictureIsStill = false;
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
+                }
+            }
+            if (pictureIsStill) ++stillSecondsSinceReport;
+
             double meGpuMs = estimator.LastGpuTimeMs();
 
             // What generating one frame currently costs us on this GPU,
@@ -2642,7 +2694,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // partner has somewhere to sit. That half interval IS the added
         // latency, and it is the least any interpolator can manage.
         // Show the overlay only while we are actually adding something.
-        SetOverlayVisible(doublingFitsDisplay && gpuHasRoom && !forcePassthroughOnly);
+        SetOverlayVisible(doublingFitsDisplay && gpuHasRoom && !forcePassthroughOnly
+                          && !pictureIsStill);
 
         if (simpleDoubleMode) {
             // Every present is snapped to a refresh boundary.
@@ -2735,6 +2788,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // error decides how far the prediction is trusted, and where it
                 // is weak the pixel stays put instead of smearing.
                 if (haveNewContent && !forcePassthroughOnly && !inDegradedMode
+                        && !pictureIsStill
                         && gpuHasRoom && realFrameIntervalEmaMs > 1.0) {
                     const double pairIntervalMs = PacingInterval();
                     const double arrivalLagMs = NowMs() - motionCurrTimestampMs;
@@ -2862,7 +2916,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             }
 
             if (haveNewContent && haveMotionField && doublingFitsDisplay && gpuHasRoom
-                    && !forcePassthroughOnly && !inDegradedMode
+                    && !forcePassthroughOnly && !inDegradedMode && !pictureIsStill
                     && realFrameIntervalEmaMs > 1.0) {
                 // A new real frame just landed. Emit the intermediate frames
                 // that belong before it, evenly spaced across the interval,
@@ -3079,7 +3133,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // stops after kMaxGapFills frames - about 55 ms - because a
             // prediction drifts further from the truth the longer it runs, and
             // a genuinely paused game should look paused.
-            if (!extrapolateMode && !gapFillOff && !forcePassthroughOnly && !inDegradedMode && gpuHasRoom
+            if (!extrapolateMode && !gapFillOff && !forcePassthroughOnly && !inDegradedMode
+                    && !pictureIsStill && gpuHasRoom
                     && outputSlotMs > 0.0 && lockedPeriodMs > 1.0
                     && motionCurrTimestampMs > 0.0 && lastPresentAtMs > 0.0
                     && gapFillsInARow < kMaxGapFills

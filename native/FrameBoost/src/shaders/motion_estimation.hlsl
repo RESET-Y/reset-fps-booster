@@ -346,9 +346,28 @@ static const float kZeroCentreMargin = 1.3;
 static const float kZeroCentreMarginStatic = 0.6;
 static const float kStaticHistoryFrames = 16.0;
 
+// Below this mean-removed SAD, a block's PATTERN is unchanged and only its
+// lighting moved. 16 samples across 3 channels, so 1.2 is a mean absolute
+// difference of about 0.025 per channel once the brightness offset is gone -
+// above sampling noise, far below any real change of content.
+static const float kFlatZeroSad = 1.2;
+
+// How long a block must have been standing still before the brightness test is
+// allowed to decide for it. Four frames is enough to exclude anything that was
+// genuinely moving a moment ago, and short enough that a menu reacts at once.
+//
+// The restriction matters. A muzzle flash or a G-force blackout also changes
+// brightness without changing content, but over a MOVING picture - and forcing
+// zero there would freeze the scene. Fixing that case needs the mean-removed
+// measure inside the search itself, for all 49 candidates, which is the
+// expensive version that has already failed once. This handles the static
+// case only, and says so.
+static const float kFlatZeroMinStatic = 4.0;
+
 // The point SAD of the coarse seed, and the centre the search will actually
 // use.
 groupshared float g_coarseSeedSad;
+groupshared float g_zeroMotionSadFlat;
 groupshared int2 g_searchCentre;
 groupshared int g_centreIsZero;
 
@@ -471,6 +490,74 @@ float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
     return sad;
 }
 
+// DID THIS BLOCK ONLY CHANGE BRIGHTNESS?
+//
+// Same sixteen samples as BlockSAD, at zero offset, but with each block's own
+// mean subtracted first - so a uniform brightening or darkening cancels out and
+// only the PATTERN is compared. Near zero means "the same content, lit
+// differently"; large means the content itself changed.
+//
+// This is the case BlockSAD cannot express, and the photograph of the War
+// Thunder pause menu shows what it costs. The hover highlight is a full-width
+// semi-transparent bright strip. When it jumps from one entry to another, a
+// whole band of blocks changes brightness; zero no longer matches, and the
+// search then finds the strip at its OLD position - also bright, also
+// full-width, an excellent match - and drags the content from there. The
+// result is a screen-wide band of scrambled deck and aircraft with razor-sharp
+// horizontal edges, exactly as photographed.
+//
+// Raising the zero margin could not fix it: bright-against-bright beats
+// bright-against-dark by far more than any margin worth having.
+//
+// The comment on BlockSAD has described this fix for a long time, and records
+// why the previous attempt failed - it stored sixteen samples per thread across
+// all 49 threads and spilled the register budget, costing the fine stage 17-30
+// ms. That is not this. This runs for ONE candidate on ONE thread, in two fetch
+// passes with nothing kept between them: 32 extra reads against the group's 784.
+float BlockSADMeanRemoved(int2 currBlockOriginTexels)
+{
+    const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                             max((int)FrameHeight / kMipScale, 1)) - 1;
+
+    // Pass one: the two means. Nothing is stored but the running sums.
+    float3 currSum = float3(0.0, 0.0, 0.0);
+    float3 prevSum = float3(0.0, 0.0, 0.0);
+    float count = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
+        {
+            const int2 t = currBlockOriginTexels + int2(x, y);
+            if (t.x > mipMax.x || t.y > mipMax.y) continue;
+            currSum += CurrFrame.Load(int3(t, kSearchMip)).rgb;
+            prevSum += PrevFrame.Load(int3(clamp(t, int2(0, 0), mipMax), kSearchMip)).rgb;
+            count += 1.0;
+        }
+    }
+    if (count < 1.0) return 1e6;
+    const float3 currMean = currSum / count;
+    const float3 prevMean = prevSum / count;
+
+    // Pass two: the same samples again, each measured against its own mean.
+    float sad = 0.0;
+    [unroll]
+    for (int y2 = 0; y2 < kBlockTexels; y2 += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x2 = 0; x2 < kBlockTexels; x2 += kSampleStrideTexels)
+        {
+            const int2 t = currBlockOriginTexels + int2(x2, y2);
+            if (t.x > mipMax.x || t.y > mipMax.y) continue;
+            const float3 c = CurrFrame.Load(int3(t, kSearchMip)).rgb - currMean;
+            const float3 pv = PrevFrame.Load(int3(clamp(t, int2(0, 0), mipMax), kSearchMip)).rgb - prevMean;
+            sad += dot(abs(c - pv), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
 // One thread GROUP per block (dispatched width/kBlockSize x height/kBlockSize),
 // one THREAD per candidate offset within the group - the real parallelism fix.
 [numthreads(kSearchWindow, kSearchWindow, 1)]
@@ -585,6 +672,12 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
     }
 
+    // The same question with the brightness taken out. One thread, two passes.
+    if (groupIndex == 2)
+    {
+        g_zeroMotionSadFlat = BlockSADMeanRemoved(blockOrigin);
+    }
+
     // TEMPORAL PREDICTORS: this block's own vector from the previous frame and
     // its four neighbours'. Continuous motion is predicted by its own past far
     // better than by a coarse pyramid, and once a viewmodel has been found
@@ -627,6 +720,17 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
         const float zeroMargin = lerp(kZeroCentreMargin, kZeroCentreMarginStatic,
                                       saturate(wasStatic / kStaticHistoryFrames));
         if (g_zeroMotionSad * zeroMargin < centreSad)
+        {
+            centreSad = g_zeroMotionSad;
+            centre = int2(0, 0);
+            which = 1;
+        }
+
+        // ...and if the PATTERN here is unchanged and only the lighting moved,
+        // zero is not a candidate to be weighed at all - it is the answer.
+        // Nothing that merely got brighter went anywhere, and no match found
+        // elsewhere can be evidence that it did.
+        if (wasStatic >= kFlatZeroMinStatic && g_zeroMotionSadFlat < kFlatZeroSad)
         {
             centreSad = g_zeroMotionSad;
             centre = int2(0, 0);
