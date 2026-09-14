@@ -2398,15 +2398,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 movingEma = (movingEma < 0.0) ? movingPercent
                                               : movingEma * 0.9 + movingPercent * 0.1;
 
-                // A menu averages about 1%; the War Thunder sortie above
-                // averages about 12; Apex gameplay 38-86. Stop under 3, resume
-                // over 8, and neither happens on a single frame.
-                if (!pictureIsStill && movingEma < 3.0) {
+                // Stop under 2%, resume over 4%.
+                //
+                // It was 3 and 8, and that left the booster switched off for 91
+                // seconds during an active sortie: "20:48:48 Still picture -
+                // standing aside" through "20:50:19 Picture moving again". Not
+                // a hiccup - a minute and a half of raw game, and then the jump
+                // back to 144. Reported as the picture briefly stopping
+                // altogether.
+                //
+                // The share of moving blocks runs at 7-13% while flying, which
+                // sat right against the old resume line. It is that low because
+                // of what the metric counts: a block gets a non-zero vector
+                // only if it can be matched, and uniform sky cannot, so a
+                // sky-heavy game reads as barely moving while the whole world
+                // sweeps past.
+                //
+                // Menus measure 0.02-2.13%, so 2 and 4 separate them with room
+                // to spare and resume within a few frames instead of a minute.
+                if (!pictureIsStill && movingEma < 2.0) {
                     pictureIsStill = true;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Still picture (under 5% of blocks moving)"
                         " - standing aside. A generated frame between two identical ones carries no"
                         " information and can only be wrong; menus are where that shows.");
-                } else if (pictureIsStill && movingEma > 8.0) {
+                } else if (pictureIsStill && movingEma > 4.0) {
                     pictureIsStill = false;
                     FrameBoostBeta::Logger::Log("[FrameBoostBeta] Picture moving again - generating.");
                 }
