@@ -196,6 +196,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         }
     }
 
+    // ONE ENGINE AT A TIME.
+    //
+    // Three were found running at once: started 23:06:01, 23:06:35 and
+    // 23:07:56, all capturing the same game and all presenting over each
+    // other. The log had stopped at 23:02:32 - the logger appends by opening
+    // the file, and when several processes contend for it the open fails and
+    // the line is dropped in silence. So the runs happened and nothing wrote
+    // them down, which is why two measurements in a row appeared not to exist.
+    //
+    // A named mutex, not a process scan: the check has to be atomic, or two
+    // engines started a second apart both see an empty field and both proceed.
+    HANDLE onlyOne = CreateMutexW(nullptr, TRUE, L"Global\ResetFrameBoostV2SingleInstance");
+    if (!onlyOne || GetLastError() == ERROR_ALREADY_EXISTS) {
+        Logger::Init();
+        Logger::Log("[FrameBoostV2] Another FrameBoost engine is already running - exiting. "
+                    "Two engines capture the same game and present over each other, and "
+                    "neither measurement is worth anything.");
+        if (onlyOne) CloseHandle(onlyOne);
+        return 0;
+    }
+
     Logger::Init();
     Logger::Log("[FrameBoostV2] ==== RESET FRAMEBOOST V2 ====");
     Logger::Log("[FrameBoostV2] One source pair produces exactly one generated frame, "
@@ -495,6 +516,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     if (!syntheticMode) capture.Stop();
     if (!measureOnly) presenter.Destroy();
     if (timer) CloseHandle(timer);
+    if (onlyOne) { ReleaseMutex(onlyOne); CloseHandle(onlyOne); }
     timeEndPeriod(1);
     return 0;
 }
