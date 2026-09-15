@@ -2029,7 +2029,38 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Also the default, and "noslotwait" opts out. Every measurement of this
     // engine that came out well was taken with it: 72 -> 144 fps at 0.3 ms
     // jitter and 0% missed slots.
-    const bool waitForDisplaySlot = !HasArg(L"noslotwait");
+    // THE ONE THING THAT ACTUALLY COUPLES OUTPUT TO THE REFRESH RATE.
+    //
+    // WaitForDisplaySlot holds every present at least outputSlotMs * 0.95
+    // after the previous one, and outputSlotMs is 1000 / refresh - 6.94 ms at
+    // 144 Hz. That is a hard ceiling of about 144 presents a second whatever
+    // the source is doing. At an 85 fps source the engine wants to present 170
+    // and is not allowed to, which is why the output read 126-144 instead.
+    //
+    // Lukas has asked repeatedly for the output to be twice the source and not
+    // matched to the panel, and this is the code that was preventing it. The
+    // engine's generation is already exactly 2x - one generated frame per real
+    // frame, placed at half the measured interval. Only the presentation was
+    // capped.
+    //
+    // Now a setting, and OFF, because that is what was asked for:
+    //
+    //     slotwait = on      in frameboost.ini to bring it back
+    //
+    // The honest note on each side. With it on, presents cannot collide inside
+    // one refresh interval, and a display cannot show two frames in one tick -
+    // the second is discarded. With it off, output tracks the source exactly,
+    // and above the refresh rate some of those frames are thrown away by the
+    // panel rather than by us. Which of those looks better is a judgement about
+    // a picture, and the person watching it decides.
+    //
+    // A contradiction worth recording: the comment in WaitForDisplaySlot says
+    // it was measured to make the picture WORSE and should stay opt-in, while
+    // the default was flipped to on last night on the grounds that the good
+    // measurements had been taken with it. Both were written by me, two weeks
+    // apart, and they have never been tested against each other on one machine
+    // in one scene.
+    const bool waitForDisplaySlot = Setting(L"slotwait") && !HasArg(L"noslotwait");
     bool f4WasDown = false;
     bool f12WasDown = false;
     // The automatic frame dump fires REPEATEDLY, on a cooldown, rather than
@@ -2249,10 +2280,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // here: a frame nobody sees is worth less than a frame that arrives a
     // little later.
     auto WaitForDisplaySlot = [&]() {
-        // Off unless asked for: it removed the collisions completely (35-41%
-        // down to 0.0%) and the picture got WORSE, not better - the added
-        // latency was real and the promised gain never showed up. Kept behind
-        // "slotwait" because the measurement it produced still stands.
+        // Opt-in again. It removed present collisions completely (35-41% down
+        // to 0.0%) and the picture got WORSE, not better - the added latency
+        // was real and the promised gain never showed up. And it caps output at
+        // the refresh rate, which is not what this tool is for.
         if (!waitForDisplaySlot) return;
         if (outputSlotMs <= 0.0 || lastPresentAtMs <= 0.0) return;
         const double earliest = lastPresentAtMs + outputSlotMs * 0.95;
