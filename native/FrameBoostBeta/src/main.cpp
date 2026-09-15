@@ -1294,6 +1294,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool havePendingCapture = false;
     // Filled once per report from the capture engine - see the telemetry below.
     FrameBoostBeta::CaptureEngine::IntervalStats captureIntervals{};
+
+    // WATCHDOG: NOTICE WHEN THE CAPTURE HAS SIMPLY STOPPED.
+    //
+    // Measured this morning, forty-five seconds of it:
+    //
+    //   09:46:37  src 52.8  native 0.0  out 0.0
+    //             produced/retrieved 0/0  lost 0  reconnects 0
+    //
+    // Nothing produced, nothing retrieved, nothing lost - Windows Graphics
+    // Capture had stopped delivering entirely, and the engine sat there with a
+    // frozen source estimate showing an output of zero. The "Capture
+    // reconnects" counter that would have said so belongs to the Desktop
+    // Duplication path, which is not the one in use; WGC had no recovery at
+    // all, and nothing even logged it.
+    //
+    // It happens for ordinary reasons - the window minimised, the game
+    // toggling exclusive fullscreen, a driver reset - and the capture item
+    // becomes invalid without the frame pool raising anything we watched for.
+    //
+    // So: if the produced count has not moved for two seconds while we believe
+    // we are capturing, stop and start again. Two seconds is far longer than
+    // any legitimate gap (a static menu still produces frames at the source
+    // rate) and short enough not to be sat through.
+    uint64_t watchdogLastProduced = 0;
+    double watchdogLastProgressMs = 0.0;
+    uint64_t captureRestarts = 0;
     double presentAgeSumMs = 0.0, presentAgeMaxMs = 0.0;
     uint64_t presentAgeSamples = 0;
 
@@ -2209,6 +2235,42 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // window.
         captureIntervals = capture.ProducedIntervalStats();
 
+        // The watchdog runs here because this is already once a second and
+        // already holds the capture's counters.
+        if (!useDesktopDuplication && capture.IsCapturing()) {
+            const uint64_t producedNow = capture.FramesProduced();
+            if (producedNow != watchdogLastProduced || watchdogLastProgressMs <= 0.0) {
+                watchdogLastProduced = producedNow;
+                watchdogLastProgressMs = NowMs();
+            } else if (NowMs() - watchdogLastProgressMs > 2000.0) {
+                FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capture has produced no frames for two seconds"
+                    " - restarting it. The window was probably minimised, or the game changed its"
+                    " presentation mode.");
+                capture.Stop();
+
+                // If the window we were following is gone, take whatever is in
+                // front now - the same rule the engine starts with.
+                HWND retarget = targetWindow;
+                if (retarget && !IsWindow(retarget)) retarget = nullptr;
+                if (!retarget && !monitorMode) retarget = GetForegroundWindow();
+
+                const bool restarted = monitorMode
+                    ? capture.StartMonitor(targetMonitor, device.get())
+                    : (retarget ? capture.Start(retarget, device.get()) : false);
+
+                if (restarted) {
+                    if (!monitorMode) targetWindow = retarget;
+                    ++captureRestarts;
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capture restarted.");
+                } else {
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capture could not be restarted - will try"
+                        " again in two seconds.");
+                }
+                watchdogLastProduced = capture.FramesProduced();
+                watchdogLastProgressMs = NowMs();
+            }
+        }
+
         oss << "[FrameBoostBeta] Source FPS: " << sourceFps
             << " | Native FPS: " << nativeFps
             << " | Generated FPS: " << generatedFps
@@ -2225,6 +2287,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Capture published/consumed: " << ddCapture.FramesPublished() << "/" << ddCapture.FramesConsumed()
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
             << " | Capture reconnects: " << ddCapture.Reconnects()
+            << " | Capture restarts: " << captureRestarts
             << " | Duplicate frames skipped/s: " << ((duplicateFramesSinceReport + (ddCapture.UnchangedFrames() - ddUnchangedAtReport)) / elapsed)
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
