@@ -105,14 +105,32 @@ bool Capture::StartFromItem(ID3D11Device* device) {
     m_width.store(m_poolWidth, std::memory_order_relaxed);
     m_height.store(m_poolHeight, std::memory_order_relaxed);
 
-    // CreateFreeThreaded: the arrival callback runs on a WinRT worker thread,
-    // so nothing here needs a DispatcherQueue or an STA. Two pool buffers is
-    // the documented minimum and all this needs - the ring below is where
-    // depth belongs, because only the ring knows what the consumer has seen.
+    // SIX BUFFERS, NOT TWO, and the reason is measured rather than argued.
+    //
+    // The comment that stood here said two was the documented minimum and all
+    // this needs, because the ring below is where depth belongs. That was
+    // wrong, and V1 had already proved it wrong in a comment I moved into the
+    // legacy tree with my own hands:
+    //
+    //   "With two, a source producing frames faster than we poll silently
+    //    loses the ones that do not fit - and silently is the problem: nothing
+    //    in the API reports it, so the frames we DO get look evenly spaced and
+    //    the source looks slower than it is. Measured in a game reporting 75
+    //    FPS internally: WGC handed us 52, spaced 19.2 ms."
+    //
+    // Apex reports 72 and arrives at 48-54, spaced 18.6-20.8 ms. The same
+    // signature, to the millisecond.
+    //
+    // The ring cannot cover for this. It holds frames AFTER the pool hands
+    // them over; a frame the pool never issued because it had no free buffer
+    // never reaches the ring at all, and no counter here or anywhere else says
+    // so. That silence is what sent the last hour looking at the game, at the
+    // window mode, at the compositor and at monitor capture - all of which
+    // agreed, because all of them were downstream of this line.
     m_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
         m_wrappedDevice,
         DirectXPixelFormat::B8G8R8A8UIntNormalized,
-        2,
+        6,
         size);
 
     m_session = m_pool.CreateCaptureSession(m_item);
