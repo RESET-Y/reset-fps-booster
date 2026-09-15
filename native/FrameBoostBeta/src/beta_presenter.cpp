@@ -102,6 +102,45 @@ bool Presenter::AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapCha
     }
     if (FAILED(m_dcompDevice->CreateVisual(&m_dcompVisual))) return false;
     if (FAILED(m_dcompVisual->SetContent(swapChain))) return false;
+
+    // NOT QUITE OPAQUE, so Windows does not call the game occluded.
+    //
+    // A window that fully covers another and is opaque makes DXGI report the
+    // one below as occluded, and games throttle or stop presenting on that.
+    // Measured today on CS2 with everything running but the overlay never
+    // shown:
+    //
+    //   overlay shown    source 34.8   arrivals 28.75 ms   captured frames
+    //                    byte-identical across 114,012 sampled offsets
+    //   overlay hidden   source 71.8   arrivals 13.93 ms   difference 13-36
+    //
+    // Half the frame rate and a frozen capture surface, caused by our own
+    // window.
+    //
+    // The constructor already sets SetLayeredWindowAttributes(.., 254, ..) for
+    // exactly this reason, and it cannot work here: WS_EX_NOREDIRECTIONBITMAP
+    // means the window has no redirection surface for a layered alpha to apply
+    // to. The composition visual is what DWM actually draws, so the opacity has
+    // to go there.
+    //
+    // 0.996 is below one and above anything the eye resolves - at most one step
+    // of 255 on any channel. Geometry was tried instead, twice, and both times
+    // it moved the overlay a pixel off the game and made menu text appear to
+    // slide left and right as real and generated frames alternated.
+    // SetOpacity lives on IDCompositionVisual3 (Windows 8.1+), not on the base
+    // interface the visual is created as.
+    {
+        winrt::com_ptr<IDCompositionVisual3> visual3;
+        if (SUCCEEDED(m_dcompVisual->QueryInterface(IID_PPV_ARGS(visual3.put())))
+                && SUCCEEDED(visual3->SetOpacity(0.996f))) {
+            Logger::Log("[FrameBoostBeta] Presenter: overlay opacity 0.996 - not opaque, so the game"
+                " below is not reported as occluded and keeps presenting at full rate.");
+        } else {
+            Logger::Log("[FrameBoostBeta] Presenter: could not set visual opacity below 1.0 - the game"
+                " may be treated as occluded and throttle its presentation.");
+        }
+    }
+
     if (FAILED(m_dcompTarget->SetRoot(m_dcompVisual))) return false;
     if (FAILED(m_dcompDevice->Commit())) return false;
 
@@ -500,36 +539,25 @@ void Presenter::TrackOverlayTarget() {
     // Reported that way, and confirmed by the fact that presenting both kinds
     // of frame ourselves made it stop.
     //
-    // THE SAME ONE-PIXEL INSET AS MONITOR MODE. It was left out here on the
-    // assumption written below, and that assumption is wrong.
+    // NO INSET HERE, and the reasoning below is why - I re-added one this
+    // morning without reading to the end of it, and Lukas reported the exact
+    // symptom it describes within ten minutes: "das spiele menue verschiebt
+    // sich immer links rechts links rechts".
     //
-    // What used to stand here: "with window capture we read the window's own
-    // presentation, which continues while it is covered - as the whole
-    // window-capture path demonstrates." It does not. Measured on CS2 with the
-    // overlay suppressed entirely and everything else running:
+    // The occlusion problem it was meant to solve is real and was measured
+    // today - covering the window halved CS2s frame rate and froze the surface
+    // we capture (source 34.8 with the overlay shown against 71.8 with it
+    // hidden, arrivals 28.75 ms against 13.93). But geometry is the wrong tool
+    // for it here, because the overlay and the captured texture must line up to
+    // the pixel or the two present paths disagree by one.
     //
-    //   overlay shown     source 34.8   arrivals 28.75 ms   difference 0.02-0.9
-    //                     native 0      duplicates 34/s (all of them)
-    //   overlay hidden    source 71.8   arrivals 13.93 ms   difference 13-36
-    //                     native = source   duplicates 0
-    //
-    // Covering the window halved the game's frame rate AND froze the surface
-    // we capture. Two consecutive captured frames were byte-identical across
-    // 114,012 sampled offsets while the game was visibly rendering.
-    //
-    // The alpha-254 guard in the constructor is meant to prevent exactly this
-    // by not counting as an opaque occluder. It predates the
-    // WS_EX_NOREDIRECTIONBITMAP + DirectComposition window, which has no
-    // redirection surface for that layered attribute to apply to, so whatever
-    // it once did it no longer does here. Geometry still works: a window that
-    // does not FULLY cover another cannot occlude it.
-    //
-    // One pixel column, on the left, invisible in practice - and it is what
-    // the monitor path has been doing all along.
-    constexpr int kAntiOcclusionInsetPx = 1;
+    // The right place to look next is opacity rather than position: give the
+    // DirectComposition visual an opacity just under 1.0, which is what
+    // alpha 254 used to do before this window stopped having a redirection
+    // surface for a layered attribute to apply to.
     SetWindowPos(m_hwnd, HWND_TOPMOST,
-        topLeft.x + kAntiOcclusionInsetPx, topLeft.y,
-        width - kAntiOcclusionInsetPx, height,
+        topLeft.x, topLeft.y,
+        width, height,
         SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 }
 
