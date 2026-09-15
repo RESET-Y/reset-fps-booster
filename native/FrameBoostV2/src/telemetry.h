@@ -83,6 +83,20 @@ private:
     uint64_t m_presents = 0;
     int      m_queueDepth = 0, m_queueOverflow = 0;
     double   m_pipelineLatencySum = 0.0; uint64_t m_pipelineLatencyCount = 0;
+
+    // BUFFERED, because writing it per frame would distort what it measures.
+    //
+    // Logger::Log stats the file for its size cap and then opens, writes and
+    // closes it. That is fine once a second. At 288 presented frames a second
+    // it is 288 file operations a second inside the engine loop - and the
+    // thing this log exists to diagnose is stutter, so a diagnostic that
+    // causes stutter proves nothing.
+    //
+    // Lines accumulate here and go out with the telemetry line. Bounded, so a
+    // long run cannot turn the buffer into the leak the log file used to be.
+    std::string m_sequenceBuffer;
+    uint64_t    m_sequenceDropped = 0;
+    static constexpr size_t kMaxSequenceBytes = 256 * 1024;
 };
 
 } // namespace fbv2

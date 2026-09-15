@@ -196,7 +196,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
     Telemetry telemetry;
     telemetry.Init(displayHz);
-    telemetry.EnableSequenceLog(HasArg(args, L"sequence"));
+    // ON for the gaming test: the app cannot pass arguments, and the sequence
+    // is the only thing that can tell N G N G apart from N N G G. "noseq"
+    // turns it off; it is buffered, so it costs one write a second.
+    telemetry.EnableSequenceLog(!HasArg(args, L"noseq"));
 
     HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr,
                                           CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,

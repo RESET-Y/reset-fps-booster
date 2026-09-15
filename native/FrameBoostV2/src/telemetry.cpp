@@ -63,6 +63,7 @@ void Telemetry::NotePipelineLatencyMs(double ms) {
 
 void Telemetry::NoteSequence(const FrameRecord& r) {
     if (!m_sequenceLog) return;
+    if (m_sequenceBuffer.size() > kMaxSequenceBytes) { ++m_sequenceDropped; return; }
     std::ostringstream oss;
     oss << std::fixed << std::setprecision(2);
     oss << "[FrameBoostV2][seq] Frame " << r.frameId << ' ';
@@ -72,8 +73,8 @@ void Telemetry::NoteSequence(const FrameRecord& r) {
     } else {
         oss << "Native   ";
     }
-    oss << " content=" << r.contentMs << " presented=" << r.presentedMs;
-    Logger::Log(oss.str());
+    oss << " content=" << r.contentMs << " presented=" << r.presentedMs << '\n';
+    m_sequenceBuffer += oss.str();
 }
 
 bool Telemetry::ReportIfDue() {
@@ -124,6 +125,20 @@ bool Telemetry::ReportIfDue() {
         << " | Pipeline latency: " << pipeline << " ms";
 
     Logger::Log(oss.str());
+
+    if (!m_sequenceBuffer.empty()) {
+        // One write for the whole second, trailing newline trimmed so the
+        // log does not gain a blank line every second.
+        if (m_sequenceBuffer.back() == '\n') m_sequenceBuffer.pop_back();
+        Logger::Log("[FrameBoostV2][seq] " + std::to_string(m_native + m_generated)
+                    + " frames this second:\n" + m_sequenceBuffer);
+        if (m_sequenceDropped) {
+            Logger::Log("[FrameBoostV2][seq] " + std::to_string(m_sequenceDropped)
+                        + " sequence lines dropped - buffer cap reached.");
+            m_sequenceDropped = 0;
+        }
+        m_sequenceBuffer.clear();
+    }
 
     m_windowStartMs = now;
     m_native = m_generated = m_source = 0;
