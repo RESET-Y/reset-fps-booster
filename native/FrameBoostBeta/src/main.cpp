@@ -465,13 +465,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Create it and low latency is on at the next start; delete it and it is
     // off. This belongs in the app's own interface and should move there as
     // soon as the C# can be built - it is a way in, not a design.
-    auto LowLatencyMarkerPresent = []() {
+    // Same mechanism for every file switch: the app passes no arguments and the
+    // C# that would pass one cannot be built here.
+    auto MarkerPresent = [](const wchar_t* name) {
         const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
         if (!localAppData) return false;
         const std::wstring marker =
-            std::wstring(localAppData) + L"\\ResetFpsBooster\\lowlatency.on";
+            std::wstring(localAppData) + L"\\ResetFpsBooster\\" + name;
         return GetFileAttributesW(marker.c_str()) != INVALID_FILE_ATTRIBUTES;
     };
+    auto LowLatencyMarkerPresent = [&]() { return MarkerPresent(L"lowlatency.on"); };
 
     const bool extrapolateMode = HasArg(L"extrapolate") || HasArg(L"lowlatency")
                               || LowLatencyMarkerPresent();
@@ -792,11 +795,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Reasoning, not measurement, which is why both switches stay: "halfres"
     // for the old density, "catmull" for the old filter. If the numbers say
     // this is worse, all four combinations are one argument away.
-    interpolator.SetInterpScale(HasArg(L"halfres") ? 2u : 1u);
+    // Also reachable as a file, because the reason to reach for it arrives
+    // while the game is running: our share of the graphics card measures 55-82%
+    // at full density, and raising the game.s detail level is what makes that
+    // share unaffordable. Half density is a quarter of the interpolation work,
+    // resampled bilinearly rather than replicated into 2x2 blocks.
+    //
+    //     %LOCALAPPDATA%\ResetFpsBooster\halfres.on
+    const bool halfDensity = HasArg(L"halfres") || MarkerPresent(L"halfres.on");
+    interpolator.SetInterpScale(halfDensity ? 2u : 1u);
     interpolator.SetWarpFilter(HasArg(L"catmull") ? 1u : 0u);
     FrameBoostBeta::Logger::Log(std::string("[FrameBoostBeta] Generated frames at ")
-        + (HasArg(L"halfres") ? "HALF sampling density with a bilinear upscale"
-                              : "full sampling density")
+        + (halfDensity ? "HALF sampling density with a bilinear upscale"
+                       : "full sampling density")
         + ", warped with "
         + (HasArg(L"catmull") ? "Catmull-Rom (five taps per sample)."
                               : "bilinear (one tap per sample)."));
