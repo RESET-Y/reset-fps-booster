@@ -1566,6 +1566,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // comment at haveProducedCount: these used to be reported as a healthy
     // source frame rate, so they had no visible trace whatsoever.
     uint64_t captureStallSeconds = 0;
+    // Arrivals the loop stepped over, summed per report. The existing
+    // "Stale frames dropped/poll" is a snapshot of the LAST poll only - it
+    // read 1 through eight seconds of the engine serving a 72 fps source at
+    // 38, which is 34 frames a second stepped over, and a per-poll 1 is not
+    // a number anyone reads as that.
+    uint64_t staleFramesSinceReport = 0;
     // When frames keep arriving but every one of them is a duplicate.
     double staleSurfaceSinceMs = 0.0;
     double lastStaleRebuildMs = 0.0;
@@ -2870,6 +2876,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Capture reconnects: " << ddCapture.Reconnects()
             << " | Capture restarts: " << captureRestarts
             << " | Capture stall seconds: " << captureStallSeconds
+            << " | Arrivals stepped over/s: " << (staleFramesSinceReport / elapsed)
             << " | Duplicate frames skipped/s: " << ((duplicateFramesSinceReport + (ddCapture.UnchangedFrames() - ddUnchangedAtReport)) / elapsed)
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
@@ -2989,6 +2996,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
         keepAlivePresents = 0;
+        staleFramesSinceReport = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
@@ -3190,6 +3198,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             ? ddCapture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame)
             : capture.PollLatestFrame(frameW, frameH, frameTimestamp100ns, isNewFrame);
 
+        // HOW MANY ARRIVALS THIS POLL STEPPED OVER. Read immediately, because
+        // the next poll overwrites it, and needed further down to keep the
+        // measured source interval honest - see UpdateSourcePeriod below.
+        const int staleThisPoll = useDesktopDuplication ? 0 : capture.LastDiscardedStaleFrames();
+        if (staleThisPoll > 0) staleFramesSinceReport += staleThisPoll;
+
         LARGE_INTEGER captureEnd{};
         QueryPerformanceCounter(&captureEnd);
         // Poll/retrieval time - how long the (usually already-ready) frame
@@ -3347,6 +3361,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // stall doesn't poison the pacing for the following seconds.
             if (lastFrameTimestamp100ns > 0) {
                 double intervalMs = (frameTimestamp100ns - lastFrameTimestamp100ns) / 10000.0;
+                // DIVIDE BY THE FRAMES THIS GAP ACTUALLY SPANS.
+                //
+                // This is the gap between two frames we CONSUMED, and the loop
+                // does not consume every arrival - when it steps over one, the
+                // gap covers two source frames and reads double. That number
+                // then sets the pacing period, the longer period makes the loop
+                // step over one again, and it holds itself there:
+                //
+                //   16:26:09  arrival spacing 13.908  measured interval 24.298
+                //             locked period 26.032 (38.4 fps)  source 72
+                //             native 38.0  generated 38.0  out 75.9
+                //
+                // Eight seconds of a 72 fps source being served at 38, with no
+                // duplicates and nothing queued - the engine had halved itself
+                // and had no way back, because every measurement it took
+                // confirmed the rate it had settled on.
+                //
+                // The arrival spacing beside it read a steady 13.9 the whole
+                // time and is not used here on purpose: it counts overlay and
+                // cursor updates the game never drew, and locked the period at
+                // 124 fps against a 68 fps source once already.
+                //
+                // The count of stepped-over arrivals is exact, so the gap can
+                // be divided by the frames it really spans instead. 24.298 over
+                // two frames is 12.1, which paces at the source rate, which
+                // stops the loop stepping over anything - the same feedback
+                // running in the direction that recovers.
+                if (staleThisPoll > 0 && staleThisPoll < 8) {
+                    intervalMs /= static_cast<double>(staleThisPoll + 1);
+                }
                 if (intervalMs > 1.0 && intervalMs < 100.0) {
                     // How far this interval sits from the running average,
                     // tracked alongside the average itself. This is the number
@@ -4549,26 +4593,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (newest) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
-                    // COUNT IT. This present reaches the screen exactly like
-                    // every other one, and for most of a day it was the only
-                    // thing on screen while the telemetry said the output was
-                    // zero:
+                    // NOT counted into Native FPS, and the attempt to do so is
+                    // worth leaving written down.
                     //
-                    //   16:13:46  nat 0.0  gen 0.0  out 0.0  keep-alive 108/s
+                    // This present was invisible in the output figure, which
+                    // made a still picture held at a steady 108 frames a second
+                    // read as an output of zero. Adding it to the native count
+                    // fixed that number and broke a more important one:
                     //
-                    // Output FPS is nativeFps + generatedFps, and this path
-                    // incremented neither - so a still picture being held at a
-                    // steady 108 frames a second was reported as nothing at
-                    // all. "When I stand still the output drops to zero" was
-                    // this line missing, not the picture stopping.
+                    //   16:26:52  src 35.0  nat 94.0  gen 33.0  out 127.0  ka 61.0
                     //
-                    // It belongs in the native count: it is a real captured
-                    // frame presented unchanged, which is what that counter
-                    // means, and RecordPresentGap already books it as a real
-                    // present for pacing. Bounded by its own rate limit to one
-                    // per 1.3 display slots, so it cannot run away the way an
-                    // uncounted present loop once did.
-                    ++nativeFramesSinceReport;
+                    // 35 frames arrived and the output claimed 127. The
+                    // keep-alive re-presents a frame that is already on screen,
+                    // so counting it means counting the same picture several
+                    // times - which is the one thing this engine must never do,
+                    // because a frame rate that counts repeats is exactly the
+                    // lie the whole project exists to avoid.
+                    //
+                    // Keep-alive/s beside it already says how many of these went
+                    // out. That is the honest place for them: what reaches the
+                    // panel, kept separate from how much of it is new.
                     RecordPresentGap(NowMs(), false);
                 }
             }
