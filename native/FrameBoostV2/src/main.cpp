@@ -50,6 +50,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cwctype>
 #include <string>
 #include <vector>
 
@@ -108,6 +109,61 @@ void WaitUntil(double dueMs, HANDLE timer) {
     }
 }
 
+// THE GAME, NOT THE APP THAT LAUNCHED US.
+//
+// GetForegroundWindow() at start-up returns whatever is in front, and what is
+// in front is RESET FPS Booster - the user just clicked its button. The
+// engine then captured the app, which is exactly what was reported: "sobald
+// ich auf Button druecke wird der RFB Window gecaptured".
+//
+// V1 handled this by waiting five seconds and telling the user to switch. That
+// works and asks the person to count. Skipping the windows that cannot be the
+// game is better: our own process, the app that started us, and anything with
+// no title. Then wait for a real one, with a timeout so a mistake ends in a
+// clean exit rather than a hang.
+bool IsOwnOrLauncher(HWND hwnd) {
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid == GetCurrentProcessId()) return true;
+
+    winrt::handle process{ OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid) };
+    if (!process) return false;   // cannot tell; assume it is fair game
+
+    wchar_t path[MAX_PATH] = {};
+    DWORD len = MAX_PATH;
+    if (!QueryFullProcessImageNameW(process.get(), 0, path, &len)) return false;
+
+    std::wstring exe(path);
+    const size_t slash = exe.find_last_of(L'\\');
+    if (slash != std::wstring::npos) exe = exe.substr(slash + 1);
+    for (auto& c : exe) c = static_cast<wchar_t>(towlower(c));
+    return exe == L"resetfpsbooster.exe";
+}
+
+HWND WaitForGameWindow() {
+    constexpr int kTimeoutMs = 20000;
+    constexpr int kPollMs = 200;
+
+    for (int waited = 0; waited < kTimeoutMs; waited += kPollMs) {
+        HWND fg = GetForegroundWindow();
+        if (fg && IsWindow(fg) && !IsOwnOrLauncher(fg)) {
+            wchar_t title[256] = {};
+            GetWindowTextW(fg, title, 255);
+            if (title[0]) {
+                const std::wstring w(title);
+                Logger::Log("[FrameBoostV2] Capturing window: "
+                            + std::string(w.begin(), w.end()));
+                return fg;
+            }
+        }
+        if (waited == 0)
+            Logger::Log("[FrameBoostV2] Waiting for the game window - switch to it now. "
+                        "The app's own window is skipped on purpose.");
+        Sleep(kPollMs);
+    }
+    return nullptr;
+}
+
 } // namespace
 
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
@@ -131,9 +187,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
     // The window to follow: whatever is in front when we start, which is the
     // game, because the app launches this from the game.
-    HWND target = GetForegroundWindow();
-    if (!target || !IsWindow(target)) {
-        Logger::Log("[FrameBoostV2] No foreground window to capture - exiting.");
+    HWND target = WaitForGameWindow();
+    if (!target) {
+        Logger::Log("[FrameBoostV2] No game window came to the foreground within twenty "
+                    "seconds - exiting rather than capturing the wrong thing.");
         return 1;
     }
 
