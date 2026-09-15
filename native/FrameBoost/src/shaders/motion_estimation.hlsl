@@ -1053,12 +1053,22 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             const int by = bestIndex / kSearchWindow;
             const float centreSad = g_sad[bestIndex];
 
+            // Both start at zero and stay there when the winner sits on the
+            // edge of the search window, where there is no neighbour to measure
+            // against. That absence is tracked separately below: it means NO
+            // INFORMATION, which is not the same as "flat", and treating it as
+            // flat would hand the whole axis to the seed - exactly wrong for a
+            // block whose motion fills the window, which is precisely what a
+            // fast pan produces. Search saturation has been measured at up to
+            // 25% of blocks during a flick.
             float curvX = 0.0, curvY = 0.0;
+            bool haveCurvX = false, haveCurvY = false;
             if (bx > 0 && bx < kSearchWindow - 1)
             {
                 const float left  = g_sad[by * kSearchWindow + bx - 1];
                 const float right = g_sad[by * kSearchWindow + bx + 1];
                 curvX = left - 2.0 * centreSad + right;
+                haveCurvX = true;
                 if (curvX > 1e-7)
                     subTexel.x = clamp(0.5 * (left - right) / curvX, -0.5, 0.5);
             }
@@ -1067,6 +1077,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
                 const float up   = g_sad[(by - 1) * kSearchWindow + bx];
                 const float down = g_sad[(by + 1) * kSearchWindow + bx];
                 curvY = up - 2.0 * centreSad + down;
+                haveCurvY = true;
                 if (curvY > 1e-7)
                     subTexel.y = clamp(0.5 * (up - down) / curvY, -0.5, 0.5);
             }
@@ -1118,7 +1129,7 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             // above 35% entirely from the search, and the transition between is
             // smooth because a hard switch on a per-block property pops - every
             // hard per-block switch tried in this engine has.
-            if (sharpest > 1e-6)
+            if (haveCurvX && haveCurvY && sharpest > 1e-6)
             {
                 const float trustX = smoothstep(0.05, 0.35, cx / sharpest);
                 const float trustY = smoothstep(0.05, 0.35, cy / sharpest);
