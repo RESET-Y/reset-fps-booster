@@ -22,6 +22,8 @@
 #include <cmath>
 #include <functional>
 #include <fstream>
+#include <map>
+#include <cwctype>
 #include <cstdlib>
 
 #include "logger.h"
@@ -273,6 +275,108 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         return false;
     };
 
+    // SETTINGS THAT SURVIVE A RESTART.
+    //
+    //     %LOCALAPPDATA%\ResetFpsBooster\frameboost.ini
+    //
+    // The app launches this engine with no useful arguments and the C# that
+    // would pass them cannot be rebuilt here, so a plain file is the only way a
+    // choice outlives a session. It replaces the one-file-per-switch markers
+    // that grew up ad hoc.
+    //
+    // Deliberately only the switches that EXIST. There is no mouse scaling
+    // factor to persist: the raw-mouse prediction was removed entirely, and the
+    // calibration it would have stored never settled - 0.397 in one session,
+    // 0.185 in the next, with the raw fit and the smoothed value agreeing to
+    // three digits each time, so it was the measurement that disagreed and not
+    // convergence. Horizontal picture motion comes from strafing as well as
+    // turning, and the mix decides the number. A stored 0.40 would be a
+    // constant that was never true.
+    //
+    // Format is "name = on" / "name = off", one per line, # for comments.
+    // Unknown names are ignored rather than rejected, so a file written for a
+    // later build does not stop an earlier one from starting.
+    std::map<std::wstring, bool> settingsFile;
+    {
+        const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
+        if (localAppData) {
+            const std::wstring path =
+                std::wstring(localAppData) + L"\\ResetFpsBooster\\frameboost.ini";
+            std::wifstream in(path);
+            std::wstring line;
+            while (in && std::getline(in, line)) {
+                const size_t hash = line.find(L'#');
+                if (hash != std::wstring::npos) line.erase(hash);
+                const size_t eq = line.find(L'=');
+                if (eq == std::wstring::npos) continue;
+                std::wstring key = line.substr(0, eq), value = line.substr(eq + 1);
+                auto trim = [](std::wstring& t) {
+                    const wchar_t* ws = L" \t\r\n";
+                    const size_t b = t.find_first_not_of(ws);
+                    const size_t e = t.find_last_not_of(ws);
+                    t = (b == std::wstring::npos) ? L"" : t.substr(b, e - b + 1);
+                };
+                trim(key); trim(value);
+                if (key.empty()) continue;
+                for (auto& ch : key) ch = towlower(ch);
+                for (auto& ch : value) ch = towlower(ch);
+                settingsFile[key] = (value == L"on" || value == L"1"
+                                  || value == L"true" || value == L"yes");
+            }
+            if (!settingsFile.empty()) {
+                FrameBoostBeta::Logger::Log("[FrameBoostBeta] Settings file read: "
+                    + std::to_string(settingsFile.size()) + " entries.");
+            }
+        }
+    }
+
+    // WHAT TO TELL THE USER AT STARTUP.
+    //
+    // Two settings decide more about how this feels than anything in the
+    // engine, and both are in the game rather than here. Measured, not assumed:
+    //
+    //   The cap must divide the refresh rate. At 60 on a 144 Hz panel the
+    //   capture spacing read mean 16.67 ms with min 8.8 and max 27.6 - every
+    //   frame waiting two or three compositor ticks. At 72 it reads 13.88 with
+    //   a standard deviation under one.
+    //
+    //   The game must not already be using the whole card. At high detail the
+    //   source collapsed to 44-63 fps with the regulator pinned; with detail
+    //   lowered the same scene held 72.0 at 98% moving blocks and 0.0% missed
+    //   slots.
+    //
+    // Deliberately says "leave headroom" rather than naming a cause. Lowering
+    // resolution and detail both fix it, which is consistent with bandwidth and
+    // with raw shader throughput alike, and we have not separated the two. The
+    // advice is measured; the mechanism is not, and should not be stated as if
+    // it were.
+    auto LogStartupAdvice = [&](int displayHz) {
+        std::ostringstream advice;
+        advice << "[FrameBoostBeta] Two things in the GAME decide most of how this feels:\n"
+               << "  1. Cap the game so the cap divides your refresh rate exactly.";
+        if (displayHz > 0) {
+            advice << " At " << displayHz << " Hz that means ";
+            bool first = true;
+            for (int div = 2; div <= 4; ++div) {
+                if (displayHz % div != 0) continue;
+                advice << (first ? "" : ", ") << (displayHz / div);
+                first = false;
+            }
+            advice << " - and NOT 60, unless 60 divides it.";
+        }
+        advice << "\n  2. Leave the graphics card some headroom - around 75-80% total load,"
+                  " not 100%. Frame generation cannot help a game that is already using"
+                  " the whole card; it can only take from it.";
+        FrameBoostBeta::Logger::Log(advice.str());
+    };
+
+    // An argument always wins, so a one-off test never needs the file edited.
+    auto Setting = [&](const wchar_t* name) {
+        if (HasArg(name)) return true;
+        const auto it = settingsFile.find(name);
+        return it != settingsFile.end() && it->second;
+    };
+
     HWND targetWindow = nullptr;
     for (const auto& a : args) {
         wchar_t* end = nullptr;
@@ -476,7 +580,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     };
     auto LowLatencyMarkerPresent = [&]() { return MarkerPresent(L"lowlatency.on"); };
 
-    const bool extrapolateMode = HasArg(L"extrapolate") || HasArg(L"lowlatency")
+    const bool extrapolateMode = Setting(L"extrapolate") || Setting(L"lowlatency")
                               || LowLatencyMarkerPresent();
 
     // THE AMBER SQUARE, top left, means low latency is on.
@@ -802,9 +906,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // resampled bilinearly rather than replicated into 2x2 blocks.
     //
     //     %LOCALAPPDATA%\ResetFpsBooster\halfres.on
-    const bool halfDensity = HasArg(L"halfres") || MarkerPresent(L"halfres.on");
+    const bool halfDensity = Setting(L"halfres") || MarkerPresent(L"halfres.on");
     interpolator.SetInterpScale(halfDensity ? 2u : 1u);
-    interpolator.SetWarpFilter(HasArg(L"catmull") ? 1u : 0u);
+    interpolator.SetWarpFilter(Setting(L"catmull") ? 1u : 0u);
     FrameBoostBeta::Logger::Log(std::string("[FrameBoostBeta] Generated frames at ")
         + (halfDensity ? "HALF sampling density with a bilinear upscale"
                        : "full sampling density")
@@ -952,7 +1056,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // Off until something answers it correctly. The menu artefacts it used to
     // prevent are worth less than this.
-    const bool stillGuardEnabled = HasArg(L"stillguard");
+    const bool stillGuardEnabled = Setting(L"stillguard");
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -1164,6 +1268,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | F8 toggles the lock.";
         FrameBoostBeta::Logger::Log(oss.str());
     }
+    // Said once per start, after the refresh rate is known so the advice can
+    // name the caps that actually divide it.
+    LogStartupAdvice(static_cast<int>(outputRefreshHz + 0.5));
     bool f8WasDown = false;
 
     // F7: transparency mode, or "opaque" on the command line to start without
