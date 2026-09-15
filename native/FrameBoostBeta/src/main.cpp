@@ -2117,6 +2117,62 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         if (realFrameIntervalEmaMs > 1.0 && realFrameIntervalEmaMs < 100.0) return realFrameIntervalEmaMs;
         return 16.7; // nothing measured yet: assume 60 FPS until it is
     };
+
+    // BUFFERING, SIZED BY THE JITTER IT HAS TO ABSORB.
+    //
+    // The generated frame is built after its second real frame arrives and has
+    // to be on screen before that real frame is due. Both moments come off the
+    // SMOOTHED clock, which is right for smoothness - but the frames arrive
+    // jittered around it, and a frame that turns up later than the model
+    // expected finds its budget already spent:
+    //
+    //   17:28:10  src 64  nat 64  gen 39  out 103
+    //             dropped late 26/s  slack 4.59 ms of a 7.85 ms budget
+    //             arrival spacing 15.7 ms with sd 3.2-4.6
+    //
+    // Native is untouched at 64 of 64; only the generated half dies, and it
+    // dies on about the share of frames the jitter predicts. This is the case
+    // AMD describe when they say reworking late frames "does not correct the
+    // source of the problem... if buffering time is not increased".
+    //
+    // So the pair is held by however much the source actually wobbles, and no
+    // more. Not a tuned constant and not a controller - the number is already
+    // measured, and a controller that hunts is a failure mode this project has
+    // met before. Capped at a quarter of the interval so a badly irregular
+    // source cannot turn this into unbounded latency.
+    //
+    // Cost: this much added latency, which at 64 fps is about 4 ms.
+    // TWICE the deviation, not once, and capped at half an interval.
+    //
+    // One deviation was tried first and measured: slack went from 4.6 ms to
+    // 8.6-14.2, which is the margin doing exactly what it should - and the
+    // drops only fell from 26/s to 14-23/s, because the ones that remain are
+    // not marginal. They miss by 9-15 ms on average and up to 64, which is a
+    // whole interval or more, and they come from this:
+    //
+    //   arrivals: mean 15.72 ms, min 5.34, max 25.14, sd 4.58
+    //
+    // The frames do not arrive on a grid. They arrive anywhere from a third of
+    // an interval to one and a half, and a margin sized on the AVERAGE wobble
+    // cannot catch the frames at the edges. Two deviations covers most of that
+    // spread; the cap keeps a badly irregular source from turning it into
+    // unbounded latency.
+    //
+    // This is a real trade and it is set where it can be changed: more margin
+    // is smoother and later, less is sharper and drops more. "pairmargin" in
+    // frameboost.ini is the multiplier on the measured deviation - 0 disables
+    // the buffering entirely and restores what this was before.
+    const double pairMarginFactor = [&] {
+        const int v = SettingInt(L"pairmargin", 20); // tenths, so 20 = 2.0x
+        return ((v < 0) ? 0 : ((v > 60) ? 60 : v)) / 10.0;
+    }();
+    auto PairMarginMs = [&]() -> double {
+        if (intervalDeviationEmaMs <= 0.0 || pairMarginFactor <= 0.0) return 0.0;
+        const double wanted = intervalDeviationEmaMs * pairMarginFactor;
+        const double cap = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
+                         ? lockedPeriodMs * 0.5 : 7.0;
+        return (wanted < cap) ? wanted : cap;
+    };
     // Wall-clock moment the newer of the two frames reached us. The phase is
     // measured from here, so capture latency is not counted twice.
     double motionCurrArrivalMs = 0.0;
@@ -2947,6 +3003,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Pair margin: " << PairMarginMs() << " ms"
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " (by " << (generatedDroppedLate ? droppedLateByMsSum / generatedDroppedLate : 0.0)
             << " ms avg, " << droppedLateByMsMax << " ms max; slack when on time "
@@ -4503,8 +4560,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // where it was planned could be thrown away for being late.
                     // A bug I introduced twenty minutes ago and found by reading
                     // rather than by Lukas reporting dropped frames.
+                    // Same margin as realDueAtMs below, from the same lambda.
+                    // These two describe one moment and have drifted apart
+                    // before; sharing the expression is what stops it.
                     const double realMomentMs = scheduleAnchorMs + arrivalLagEmaMs
-                        + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
+                        + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal)
+                        + PairMarginMs();
                     const double slackMs = realMomentMs - NowMs();
                     if (slackMs < 0.0) {
                         ++generatedDroppedLate;
@@ -4565,6 +4626,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // branch - fixing one of a pair and not looking for the other.
                 const double realDueAtMs = scheduleAnchorMs + arrivalLagEmaMs
                     + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal)
+                    + PairMarginMs()
                     - realPhaseCorrectionMs;
 
                 // Never wait longer than one source interval, whatever the
