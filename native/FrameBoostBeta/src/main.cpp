@@ -2413,7 +2413,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         double nativeFps = nativeFramesSinceReport / elapsed;
 
         double generatedFps = generatedFramesSinceReport / elapsed;
-        double outputFps = nativeFps + generatedFps;
+        // EVERYTHING THAT REACHED THE SCREEN, not only what was interesting.
+        //
+        // This counted real plus generated frames and nothing else, so presents
+        // that carried a near-static picture were invisible to it:
+        //
+        //   10:57:41  source 71.0  duplicates 71/s  passthrough 71/s  OUTPUT 0.0
+        //
+        // Seventy-one frames a second went to the display and the number said
+        // zero. That is the same failure as a counter that is never incremented,
+        // pointing the other way: it understated exactly when the picture was
+        // quiet, which is when it was being looked at.
+        //
+        // Duplicate passthroughs and keep-alive presents are real presents of
+        // the newest picture there is. Counting them is not inflating anything -
+        // not counting them was the lie. It also makes the shape correct:
+        // roughly the source rate at rest, where doubling a static picture can
+        // add nothing, and twice the source in motion, where it can.
+        double outputFps = nativeFps + generatedFps
+                         + (duplicatePassthroughs + keepAlivePresents) / elapsed;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
 
         // What the display actually showed, straight from DXGI, versus what
