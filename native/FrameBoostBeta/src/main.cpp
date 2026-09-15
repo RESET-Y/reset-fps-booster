@@ -4190,7 +4190,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // where showing it genuinely hurts is when the real frame
                     // it precedes is already due, because then it would appear
                     // out of order - so that, and nothing weaker, is the test.
-                    const double realMomentMs = motionCurrTimestampMs + arrivalLagEmaMs
+                    // MEASURED AGAINST THE SAME CLOCK THE FRAME WAS SCHEDULED
+                    // ON, which since the smoothed schedule clock went in is no
+                    // longer the raw timestamp.
+                    //
+                    // Left on motionCurrTimestampMs it compared a due time
+                    // computed from the model against a deadline computed from
+                    // the measurement, and the two differ by exactly the jitter
+                    // the model exists to absorb - so a frame sitting precisely
+                    // where it was planned could be thrown away for being late.
+                    // A bug I introduced twenty minutes ago and found by reading
+                    // rather than by Lukas reporting dropped frames.
+                    const double realMomentMs = scheduleAnchorMs + arrivalLagEmaMs
                         + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
                     if (NowMs() > realMomentMs) {
                         ++generatedDroppedLate;
