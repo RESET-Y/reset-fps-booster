@@ -4516,7 +4516,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The generated frame holds the content halfway between
                     // this pair, so it belongs exactly half an interval
                     // earlier - on the same clock, not on ours.
+                    // THE MARGIN MOVES THE WHOLE PAIR, not one end of it.
+                    //
+                    // It was added to the real frame below and not here, so the
+                    // real frame moved eight milliseconds later and the
+                    // generated frame stayed where it was. The pair came apart:
+                    //
+                    //   real->generated  6.17 ms
+                    //   generated->real 10.03 ms
+                    //
+                    // Those two should be equal. Before the margin they were
+                    // 7.2 and 8.9 - already leaning, and the margin doubled the
+                    // lean. On screen that is frames 3.3 ms apart and then a gap
+                    // of 27.78 ms, which is four refreshes at 144 Hz and is why
+                    // it "fuehlt sich an wie 15 fps" while every count in the
+                    // telemetry looked right.
+                    //
+                    // The realPhaseCorrectionMs term cannot rescue this: it is
+                    // clamped to 3 ms and the gap was 3.9.
                     const double dueAtMs = scheduleAnchorMs + arrivalLagEmaMs
+                        + PairMarginMs()
                         + pairIntervalMs * (static_cast<double>(step - 1) / outputPerReal);
                     // Same backstop as below: never wait longer than one source
                     // interval, so no arithmetic mistake can freeze the picture.
