@@ -1789,6 +1789,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // which is what turns 2.4 into 2,2,3,2,2,3 instead of a flat 2.
     double outputCredit = 0.0;
     uint64_t adaptiveExtraFrames = 0;
+    // Persists BETWEEN iterations. The credit may only advance once per real
+    // frame; the count it produces has to survive the iterations in between.
+    int adaptiveOutputPerReal = 2;
+    // WHY A REAL FRAME PRODUCED NO GENERATED FRAME. Every one of these was a
+    // silent early-out, which is how "generated 4 at a 60 fps source" could sit
+    // in the log with Doubling on, COMFORTABLE headroom and nothing else to
+    // point at. Reasoning about it from the surrounding numbers produced two
+    // contradictory explanations and no answer; naming the branch is cheaper.
+    uint64_t skipNoMotionField = 0, skipNoGpuRoom = 0, skipDegraded = 0;
+    uint64_t skipStill = 0, skipFactorOne = 0, skipGenerateFailed = 0;
     // How far the per-pixel search has to back off to make its deadline.
     //
     // Driven by the SAME measurement the headroom verdict reports, so the
@@ -2926,6 +2936,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Generation factor: " << generationFactor << "x"
             << " | Adaptive output: " << (adaptiveOutput ? "on" : "off")
             << " | Adaptive extra frames/s: " << (adaptiveExtraFrames / elapsed)
+            << " | Output per real: " << adaptiveOutputPerReal
+            << " | Skips/s - no motion field: " << (skipNoMotionField / elapsed)
+            << ", no GPU room: " << (skipNoGpuRoom / elapsed)
+            << ", degraded: " << (skipDegraded / elapsed)
+            << ", still: " << (skipStill / elapsed)
+            << ", factor 1: " << (skipFactorOne / elapsed)
+            << ", generate failed: " << (skipGenerateFailed / elapsed)
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
             << " | Quality relief: " << qualityRelief
             << " (missed-slot EMA " << (missedSlotEma * 100.0) << "%)"
@@ -3028,6 +3045,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         keepAlivePresents = 0;
         staleFramesSinceReport = 0;
         adaptiveExtraFrames = 0;
+        skipNoMotionField = skipNoGpuRoom = skipDegraded = 0;
+        skipStill = skipFactorOne = skipGenerateFailed = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
@@ -4047,9 +4066,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // The loop below turns this into outputPerReal - 1 generated frames
             // at evenly spaced phases, so the whole distribution already exists
             // and only the count had to stop being a constant.
-            int outputPerReal = 2;
-            if (adaptiveOutput && outputRefreshHz > 0.0 && lockedPeriodMs > 1.0
-                    && lockedPeriodMs < 100.0) {
+            // ONCE PER REAL FRAME, not once per turn of the loop.
+            //
+            // The first version advanced the credit at the top of this block,
+            // which runs on every iteration - hundreds of times a second, not
+            // 60. The counter then reported 3448 extra frames a second, a
+            // number that cannot happen, and that impossibility is the only
+            // reason it was caught before it was shipped as working.
+            if (adaptiveOutput && haveNewContent && outputRefreshHz > 0.0
+                    && lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0) {
                 const double srcFps = 1000.0 / lockedPeriodMs;
                 double wanted = outputRefreshHz / srcFps;
                 // Below 1 means the source already fills the panel: generate
@@ -4057,17 +4082,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (wanted < 1.0) wanted = 1.0;
                 if (wanted > static_cast<double>(adaptiveMaxFactor))
                 outputCredit += wanted;
-                outputPerReal = static_cast<int>(outputCredit);
-                if (outputPerReal < 1) outputPerReal = 1;
-                outputCredit -= static_cast<double>(outputPerReal);
+                adaptiveOutputPerReal = static_cast<int>(outputCredit);
+                if (adaptiveOutputPerReal < 1) adaptiveOutputPerReal = 1;
+                outputCredit -= static_cast<double>(adaptiveOutputPerReal);
                 // The carry is bounded on both sides. Letting it run negative
                 // or past one frame would let a stretch of bad measurements
                 // borrow frames from the future and pay them back in a burst,
                 // which is the uneven output this exists to remove.
                 if (outputCredit < 0.0) outputCredit = 0.0;
                 if (outputCredit > 1.0) outputCredit = 1.0;
-                if (outputPerReal > 2) adaptiveExtraFrames += (outputPerReal - 2);
+                if (adaptiveOutputPerReal > 2) adaptiveExtraFrames += (adaptiveOutputPerReal - 2);
             }
+            const int outputPerReal = adaptiveOutput ? adaptiveOutputPerReal : 2;
 
 
 
@@ -4226,6 +4252,19 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 continue;
             }
 
+            if (haveNewContent) {
+                // Counted, not deduced. Exactly one of these fires per real
+                // frame that produces nothing, and the telemetry prints them
+                // per second, so "generated 4 at a 60 fps source" names its own
+                // cause instead of having to be reasoned out of the numbers
+                // around it. Two rounds of reasoning from the surrounding
+                // fields produced two contradictory explanations and no answer.
+                if (!haveMotionField) ++skipNoMotionField;
+                else if (!gpuHasRoom) ++skipNoGpuRoom;
+                else if (inDegradedMode) ++skipDegraded;
+                else if (pictureIsStill) ++skipStill;
+                else if (outputPerReal < 2) ++skipFactorOne;
+            }
             if (haveNewContent && haveMotionField && doublingFitsDisplay && gpuHasRoom
                     && !forcePassthroughOnly && !inDegradedMode && !pictureIsStill
                     && realFrameIntervalEmaMs > 1.0) {
@@ -4304,6 +4343,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (!interpolator.GenerateFrame(device.get(), context.get(),
                             estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                             desc.Width, desc.Height, DXGI_FORMAT_B8G8R8A8_UNORM, uav)) {
+                        ++skipGenerateFailed;
                         break;
                     }
                     lastInterpolationRunMs = NowMs();
