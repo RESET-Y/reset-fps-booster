@@ -268,6 +268,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             Logger::Log("[FrameBoostV2] Synthetic source could not start - exiting.");
             return 1;
         }
+    } else if (HasArg(args, L"monitor")) {
+        // THE CONTROL FOR THE WINDOW PATH, not a shipping mode.
+        //
+        // "Apex delivers 50" was measured through window capture, and window
+        // capture goes through DWM. A game in borderless fullscreen can be on
+        // independent flip, where DWM is not composing it at all. Monitor
+        // capture takes what reaches the panel instead. Same game, same second,
+        // two paths: if this one shows 72 and the window one shows 50, the
+        // frames are lost in window capture and the game was never the problem.
+        HMONITOR mon = MonitorFromWindow(target, MONITOR_DEFAULTTOPRIMARY);
+        Logger::Log("[FrameBoostV2] MONITOR capture - measuring the whole display as a "
+                    "control against the window path.");
+        if (!capture.StartMonitor(mon, device.get())) {
+            Logger::Log("[FrameBoostV2] Monitor capture could not start - exiting.");
+            return 1;
+        }
     } else if (!capture.StartWindow(target, device.get())) {
         Logger::Log("[FrameBoostV2] Capture could not start - exiting.");
         return 1;

@@ -56,6 +56,20 @@ public:
     ~Capture();
 
     bool StartWindow(HWND window, ID3D11Device* device);
+
+    // THE WHOLE DISPLAY, as a control for the window path.
+    //
+    // Window capture goes through DWM. A game in borderless fullscreen can be
+    // on independent flip, where DWM is not composing it at all, and what WGC
+    // then hands over is a different and less reliable thing - this project
+    // has already proved a game unrepresentable that way (CS2, byte-identical
+    // frames across 114,012 sampled offsets).
+    //
+    // Monitor capture takes what is actually on the panel. If the window path
+    // delivers 50 frames a second and the monitor path delivers 72 of the same
+    // game, the loss is in window capture and not in the game. That is the only
+    // way to tell those two apart from outside the game.
+    bool StartMonitor(HMONITOR monitor, ID3D11Device* device);
     void Stop();
     bool IsCapturing() const { return m_capturing.load(std::memory_order_acquire); }
 
@@ -77,6 +91,7 @@ public:
     UINT Height() const { return m_height.load(std::memory_order_relaxed); }
 
 private:
+    bool StartFromItem(ID3D11Device* device);
     void OnFrameArrived();
     void ReleaseSlots();
 

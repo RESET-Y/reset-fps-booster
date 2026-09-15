@@ -46,6 +46,26 @@ double NowMs() {
 
 Capture::~Capture() { Stop(); }
 
+bool Capture::StartMonitor(HMONITOR monitor, ID3D11Device* device) {
+    if (!monitor || !device) {
+        Logger::Log("[FrameBoostV2] Capture: no usable monitor handle.");
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lifecycle(m_lifecycleMutex);
+    try {
+        auto factory = winrt::get_activation_factory<GraphicsCaptureItem,
+                                                     IGraphicsCaptureItemInterop>();
+        winrt::check_hresult(factory->CreateForMonitor(
+            monitor, winrt::guid_of<GraphicsCaptureItem>(),
+            winrt::put_abi(m_item)));
+    } catch (...) {
+        Logger::Log("[FrameBoostV2] Capture: CreateForMonitor failed.");
+        return false;
+    }
+    return StartFromItem(device);
+}
+
 bool Capture::StartWindow(HWND window, ID3D11Device* device) {
     if (!window || !IsWindow(window) || !device) {
         Logger::Log("[FrameBoostV2] Capture: no usable window handle.");
@@ -65,6 +85,11 @@ bool Capture::StartWindow(HWND window, ID3D11Device* device) {
         return false;
     }
 
+    return StartFromItem(device);
+}
+
+// Everything after the item exists is identical for a window and a monitor.
+bool Capture::StartFromItem(ID3D11Device* device) {
     m_device.copy_from(device);
     device->GetImmediateContext(m_context.put());
     // See the comment on m_slotTex in the header: protected, not duplicated,
@@ -114,9 +139,8 @@ bool Capture::StartWindow(HWND window, ID3D11Device* device) {
     m_capturing.store(true, std::memory_order_release);
     m_session.StartCapture();
 
-    Logger::Log("[FrameBoostV2] Capture started for window handle "
-                + std::to_string(reinterpret_cast<uintptr_t>(window))
-                + " at " + std::to_string(m_poolWidth) + "x"
+    Logger::Log("[FrameBoostV2] Capture started at "
+                + std::to_string(m_poolWidth) + "x"
                 + std::to_string(m_poolHeight) + ".");
     return true;
 }
