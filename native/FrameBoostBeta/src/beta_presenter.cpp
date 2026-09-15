@@ -290,7 +290,28 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     // still reading the front buffer, the next present waits. That is the
     // lowest latency the API offers and also the easiest way to lose
     // throughput, so it is worth measuring rather than assuming.
-    scDesc.BufferCount = 2;
+    // MEASURED, and the measurement went against the tight setting.
+    //
+    // Two buffers with a maximum frame latency of 1 is the lowest latency the
+    // API offers: exactly one present may be queued, and the next one blocks
+    // until the display has finished with the last. The comment that stood
+    // here said that was "the easiest way to lose throughput, so it is worth
+    // measuring rather than assuming". The numbers arrived:
+    //
+    //   Presents lost to collision: 21-42%
+    //   generated frames dropped late: 26/s, by 3-5 ms
+    //   slack when on time: 3.65 ms out of a 7.85 ms budget
+    //
+    // At a factor of 4 the engine presents four times per source interval, and
+    // each present could block for most of a refresh - which is the entire
+    // budget. The frames were being built on time and then stalled on the way
+    // out, which is why the output counter looked close to right while the
+    // picture stepped.
+    //
+    // Three buffers and a latency of 2 give the queue somewhere to absorb the
+    // jitter. It costs up to one refresh of latency, about 7 ms at 144 Hz.
+    // "lowlatencypresent = on" in frameboost.ini restores the tight pair.
+    scDesc.BufferCount = m_presentSlack ? 3 : 2;
     // Waitable: lets us block until the display is ready for the next frame,
     // instead of handing DXGI a frame and letting it queue up to three before
     // any of them is shown. See m_frameLatencyWaitable in the header.
@@ -374,10 +395,13 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, const wcha
     {
         winrt::com_ptr<IDXGISwapChain2> sc2;
         if (SUCCEEDED(swapChain->QueryInterface(IID_PPV_ARGS(sc2.put())))) {
-            sc2->SetMaximumFrameLatency(1);
+            sc2->SetMaximumFrameLatency(m_presentSlack ? 2 : 1);
             m_frameLatencyWaitable = sc2->GetFrameLatencyWaitableObject();
-            Logger::Log("[FrameBoostBeta] Presenter: frame latency 1, waitable swapchain - DXGI no longer"
-                        " queues up to three presents ahead of the display.");
+            Logger::Log(m_presentSlack
+                ? "[FrameBoostBeta] Presenter: 3 buffers, frame latency 2, waitable swapchain - room for"
+                  " two queued presents, so a present does not stall the loop that schedules the next one."
+                : "[FrameBoostBeta] Presenter: 2 buffers, frame latency 1, waitable swapchain - lowest"
+                  " latency the API offers, and measured to cost throughput at high output factors.");
         } else {
             Logger::Log("[FrameBoostBeta] Presenter: waitable swapchain unavailable; DXGI will queue"
                         " presents and pacing will be less precise.");

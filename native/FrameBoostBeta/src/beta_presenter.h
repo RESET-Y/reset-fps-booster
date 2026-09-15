@@ -18,6 +18,11 @@ public:
     // Blocks until the display is ready for another frame.
     void WaitForPresentSlot();
 
+    // How much room the present queue gets. Must be called before the
+    // swapchain is created. See the BufferCount comment in the .cpp: the
+    // tight setting was chosen for latency and measured to cost throughput.
+    void SetPresentSlack(bool slack) { m_presentSlack = slack; }
+
     // Off for window capture: the overlay is not part of the captured window,
     // so hiding it from capture only blinds outside measurement.
     void SetExcludeFromCapture(bool exclude) { m_excludeFromCapture = exclude; }
@@ -107,6 +112,7 @@ private:
     // Presents that leave here evenly spaced arrive on screen whenever the
     // queue gets to them.
     HANDLE m_frameLatencyWaitable = nullptr;
+    bool m_presentSlack = true;
     bool m_tearingSupported = false;
     bool m_excludeFromCapture = true;
     UINT m_width = 0, m_height = 0;

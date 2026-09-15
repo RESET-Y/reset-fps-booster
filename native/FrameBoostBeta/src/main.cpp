@@ -848,6 +848,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
     }
     presenter.SetExcludeFromCapture(monitorMode);
+    // Room in the present queue, unless asked for the tight pair. See the
+    // BufferCount comment in beta_presenter.cpp for the measurement.
+    presenter.SetPresentSlack(!Setting(L"lowlatencypresent"));
     if (!presenter.Create(device.get(), initialWidth, initialHeight, L"RESET FRAMEBOOST - BETA", monitorMode ? nullptr : targetWindow)) {
         FrameBoostBeta::Logger::Log("[FrameBoostBeta] FATAL: could not create the presentation window/swapchain.");
         return 4;
