@@ -2237,6 +2237,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // two these must be equal, and each half the source period.
     double realToGenSum = 0.0, genToRealSum = 0.0;
     uint64_t realToGenCount = 0, genToRealCount = 0;
+
+    // HOW FAR THE REAL FRAME ACTUALLY LANDS FROM ITS SLOT, corrected for.
+    //
+    // The due times are right: the generated frame belongs at the capture
+    // timestamp plus the arrival lag, the real one half an interval after it,
+    // and both are computed that way. The measurement disagrees:
+    //
+    //   real -> generated  5.28 ms        generated -> real  7.30 ms
+    //
+    // The sum is correct - 12.58 against a 13.9 ms interval, the rest being the
+    // frames themselves - so nothing is lost or late. The SPLIT is wrong by
+    // about a millisecond, seventy times a second.
+    //
+    // The reason is structural rather than arithmetic. A generated frame is
+    // written straight into the back buffer; a real frame goes through
+    // PresentFrame with a full-frame copy - 14 MB at 2560x1440 - and the
+    // timestamp is taken when the present RETURNS. So the real frame is
+    // recorded about a millisecond after the moment it was due, and the gap
+    // before it grows while the gap after it shrinks.
+    //
+    // Estimating that copy cost would be a guess that goes stale on another
+    // machine or resolution. The engine already measures both halves, so the
+    // correction is taken from the measurement itself: half the difference,
+    // which is exactly the shift that makes the two equal.
+    //
+    // Slow, because it steers the output timing and a fast loop here would
+    // hunt: one tenth of the error per report, at most one report a second.
+    // Bounded at 3 ms, so no bad measurement can move the presentation
+    // further than the thing it is correcting could possibly account for.
+    double realPhaseCorrectionMs = 0.0;
     bool lastPresentWasGenerated = false;
 
     auto RecordPresentGap = [&](double presentEndMs, bool thisOneGenerated) {
@@ -2587,6 +2617,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // window.
         captureIntervals = capture.ProducedIntervalStats();
 
+        // Steer the real frame back onto its slot - see realPhaseCorrectionMs.
+        //
+        // The two halves should be equal. Half their difference is the shift
+        // that makes them so, and moving the real frame EARLIER by that amount
+        // is what closes the gap before it and opens the one after.
+        if (realToGenCount > 30 && genToRealCount > 30) {
+            const double realToGen = realToGenSum / realToGenCount;
+            const double genToReal = genToRealSum / genToRealCount;
+            const double wanted = (genToReal - realToGen) * 0.5;
+            realPhaseCorrectionMs += (wanted - realPhaseCorrectionMs) * 0.1;
+            if (realPhaseCorrectionMs > 3.0) realPhaseCorrectionMs = 3.0;
+            if (realPhaseCorrectionMs < -3.0) realPhaseCorrectionMs = -3.0;
+        }
+
         // The watchdog runs here because this is already once a second and
         // already holds the capture's counters.
         if (!useDesktopDuplication && capture.IsCapturing()) {
@@ -2686,7 +2730,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << ", dropped/s " << (queueDroppedSinceReport / elapsed) << ")"
             << " | Presents lost to collision: " << (gapSamples ? 100.0 * gapCollapsed / gapSamples : -1.0) << "%"
             << " | Real->generated " << (realToGenCount ? realToGenSum / realToGenCount : -1.0)
-            << " ms, generated->real " << (genToRealCount ? genToRealSum / genToRealCount : -1.0) << " ms"
+            << " ms, generated->real " << (genToRealCount ? genToRealSum / genToRealCount : -1.0)
+            << " ms (correction " << realPhaseCorrectionMs << " ms)"
             << " | Content step: " << (contentStepCount ? contentStepSum / contentStepCount : -1.0) << " ms mean, min "
             << (contentStepCount ? contentStepMin : -1.0) << ", max " << (contentStepCount ? contentStepMax : -1.0)
             << ", sd " << (contentStepCount > 1
@@ -3720,7 +3765,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // to us, not the wait for a frame that comes after.
                     const double offsetMs = arrivalLagEmaMs + 1.0;
 
-                    const double realDueAtMs = motionCurrTimestampMs + offsetMs;
+                    const double realDueAtMs = motionCurrTimestampMs + offsetMs
+                        - realPhaseCorrectionMs;
                     const double realCeilingMs = NowMs() + 20.0;
                     WaitUntilMs(realDueAtMs, realCeilingMs);
 
@@ -4038,7 +4084,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // mistake as the generated frame had, mirrored, in the twin
                 // branch - fixing one of a pair and not looking for the other.
                 const double realDueAtMs = motionCurrTimestampMs + arrivalLagEmaMs
-                    + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
+                    + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal)
+                    - realPhaseCorrectionMs;
 
                 // Never wait longer than one source interval, whatever the
                 // arithmetic says. A wait that can grow without bound is how the
