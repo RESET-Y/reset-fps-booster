@@ -1540,6 +1540,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t watchdogLastProduced = 0;
     double watchdogLastProgressMs = 0.0;
     uint64_t captureRestarts = 0;
+    // When frames keep arriving but every one of them is a duplicate.
+    double staleSurfaceSinceMs = 0.0;
+    double lastStaleRebuildMs = 0.0;
     double presentAgeSumMs = 0.0, presentAgeMaxMs = 0.0;
     uint64_t presentAgeSamples = 0;
 
@@ -2346,8 +2349,38 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // the desktop-duplication path has to keep asking: a frame arriving during
     // a long sleep would sit unclaimed. Windows Graphics Capture drains itself
     // on the pool thread and needs no pumping, but one wait serves both paths.
+    // Read once, so a bad value cannot be edited into the file mid-session.
+    // Bounded: below 0.1 the tail cannot correct anything, above 4 it is a busy
+    // wait by another name.
+    const double spinTailMs = [&]() {
+        const double v = static_cast<double>(SettingInt(L"spintail", 2));
+        return (v < 0.1) ? 0.1 : (v > 4.0 ? 4.0 : v);
+    }();
+
     auto WaitUntilMs = [&](double dueMs, double ceilingMs) {
-        constexpr double kSpinTailMs = 0.35;
+        // HOW LONG TO SPIN AT THE END OF A WAIT, and why it is not 0.35 ms.
+        //
+        // The waitable timer is documented as accurate to about a tenth of a
+        // millisecond, so a 0.35 ms tail should be plenty. Measured output
+        // jitter is 2-4 ms, which is an order of magnitude more than the timer
+        // is supposed to miss by - the sleep overshoots, and a tail that short
+        // has nothing left to correct with.
+        //
+        // AMD ships this problem solved the blunt way. Their FidelityFX frame
+        // interpolation swapchain "handles frame pacing automatically using a
+        // busy wait loop to achieve the best possible timing behaviour, since
+        // Windows is not a real-time operating system" - a production frame
+        // generator, burning a core on purpose, for exactly this.
+        //
+        // We went the other way in this file once already and for a good
+        // reason: a full busy wait measured 106% of a core and starved the
+        // game. This is the middle - sleep for the bulk, spin the last two
+        // milliseconds, which is wide enough to absorb an overshoot the timer
+        // can actually produce.
+        //
+        // "spintail = N" in frameboost.ini sets it, because the right value is
+        // a property of the machine and not of the code.
+        const double kSpinTailMs = spinTailMs;
         for (;;) {
             const double now = NowMs();
             if (now >= dueMs || now >= ceilingMs) return;
@@ -2645,7 +2678,68 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (producedNow > 0 || watchdogLastProgressMs <= 0.0) {
                 watchdogLastProduced = producedNow;
                 watchdogLastProgressMs = NowMs();
-            } else if (NowMs() - watchdogLastProgressMs > 2000.0) {
+            }
+
+            // PRODUCING, BUT ALWAYS THE SAME PICTURE: the pool is holding a
+            // surface that has stopped being filled.
+            //
+            // The watchdog above only catches a capture that stops entirely.
+            // CS2 in borderless fullscreen fails a different way and the
+            // numbers are unmistakable:
+            //
+            //   source 34-36, duplicates 34-36 - every single arrival - with
+            //   native 0 and a frame-to-frame difference of 0.12, while the
+            //   game was visibly being played.
+            //
+            // A frame dump settled it: two consecutive captured frames,
+            // byte-identical across 114,012 sampled offsets.
+            //
+            // OSSS, which does the same job with the same APIs, documents the
+            // mechanism and the remedy: "the frame pool was sized against a
+            // surface that no longer exists, and the session never recovers on
+            // its own" - so it rebuilds the session rather than waiting.
+            //
+            // That fits every measurement here, including the one that made no
+            // sense under the occlusion theory: five separate attempts to stop
+            // being an occluder changed nothing, while hiding the overlay
+            // entirely fixed it instantly. Appearing is what makes the game
+            // change how it presents; the stale pool is the consequence.
+            //
+            // Rebuilt at most once every five seconds, because a genuinely
+            // static screen - a menu, a paused game - also produces nothing but
+            // duplicates and must not be allowed to restart the capture in a
+            // loop.
+            const bool everythingDuplicate =
+                producedNow > 0 && duplicateFramesSinceReport >= producedNow;
+            if (!everythingDuplicate) {
+                staleSurfaceSinceMs = 0.0;
+            } else {
+                if (staleSurfaceSinceMs <= 0.0) staleSurfaceSinceMs = NowMs();
+                const bool longEnough = NowMs() - staleSurfaceSinceMs > 2000.0;
+                const bool notTooSoon = NowMs() - lastStaleRebuildMs > 5000.0;
+                if (longEnough && notTooSoon && overlayVisibleLastIteration) {
+                    FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capture is producing frames but every one"
+                        " is identical - the frame pool is holding a surface that stopped being filled."
+                        " Rebuilding the capture session.");
+                    capture.Stop();
+                    HWND retarget = targetWindow;
+                    if (retarget && !IsWindow(retarget)) retarget = nullptr;
+                    if (!retarget && !monitorMode) retarget = GetForegroundWindow();
+                    const bool rebuilt = monitorMode
+                        ? capture.StartMonitor(targetMonitor, device.get())
+                        : (retarget ? capture.Start(retarget, device.get()) : false);
+                    if (rebuilt && !monitorMode) targetWindow = retarget;
+                    ++captureRestarts;
+                    FrameBoostBeta::Logger::Log(rebuilt
+                        ? "[FrameBoostBeta] Capture session rebuilt."
+                        : "[FrameBoostBeta] Capture session could not be rebuilt - will retry.");
+                    lastStaleRebuildMs = NowMs();
+                    staleSurfaceSinceMs = 0.0;
+                }
+            }
+
+            if (producedNow == 0 && watchdogLastProgressMs > 0.0
+                    && NowMs() - watchdogLastProgressMs > 2000.0) {
                 FrameBoostBeta::Logger::Log("[FrameBoostBeta] Capture has produced no frames for two seconds"
                     " - restarting it. The window was probably minimised, or the game changed its"
                     " presentation mode.");
