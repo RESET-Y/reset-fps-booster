@@ -4460,7 +4460,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             if (overlayShowing && presentedAnythingYet
                     && lastPresentAtMs > 0.0
                     && NowMs() - lastPresentAtMs >= slotMs * kKeepAliveMargin) {
-                if (ID3D11Texture2D* newest = estimator.CurrFrameTexture()) {
+                // THE NEWEST CAPTURED FRAME, which is not the same thing as the
+                // newest frame the interpolator has.
+                //
+                // This presented estimator.CurrFrameTexture() - the last frame
+                // that PASSED the duplicate test. The duplicate passthrough
+                // added later the same day presents capturedTex, the newest
+                // arrival. On a near-static picture both fire, alternating a
+                // frame that contains a small change with an older one that does
+                // not: typed characters appearing and disappearing seventy times
+                // a second, which on text reads as shimmer.
+                //
+                // A bug I built by adding the passthrough after the keep-alive
+                // without checking they draw from the same place. They must, or
+                // the output steps backwards between them.
+                //
+                // capturedTex is the latest slot whether or not it is new, so it
+                // is the right source in both cases; the estimator texture stays
+                // as the fallback for the first frames, before any capture.
+                ID3D11Texture2D* newest = capturedTex ? capturedTex
+                                                      : estimator.CurrFrameTexture();
+                if (newest) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
                     RecordPresentGap(NowMs(), false);
