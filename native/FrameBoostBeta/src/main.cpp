@@ -1230,6 +1230,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // Hiding it also costs nothing: no capture processing reaches the screen, no
     // present, no latency - the player simply sees their game.
+    // OUR OWN WINDOW MUST BE INVISIBLE TO THE CAPTURE.
+    //
+    // Monitor capture reads the whole screen, and our overlay sits on top of
+    // it. Without this we capture our own output, interpolate frames that
+    // already contain interpolated frames, and feed the result back in - a
+    // closed loop. Reported straight away as "sehr starke doppelbilder", and
+    // that is exactly what a feedback loop of this kind looks like.
+    //
+    // SetWindowDisplayAffinity with WDA_EXCLUDEFROMCAPTURE removes a window
+    // from what capture APIs see, while leaving it perfectly visible on the
+    // physical display. It is the documented mechanism for precisely this, it
+    // is user-mode, it touches nothing outside our own window, and it needs
+    // Windows 10 2004. Where it is unavailable the call fails and monitor
+    // capture keeps the loop it had, which is why the result is logged rather
+    // than assumed.
+    //
+    // Only in monitor mode: under window capture our overlay is not in the
+    // captured window's content anyway, and excluding it there would be a
+    // change with no reason behind it.
+    if (monitorMode) {
+        if (HWND hwnd = presenter.WindowHandle()) {
+            const BOOL ok = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
+            FrameBoostBeta::Logger::Log(ok
+                ? "[FrameBoostBeta] Overlay excluded from capture - monitor capture now sees the game"
+                  " without our own output composited over it."
+                : "[FrameBoostBeta] Could not exclude the overlay from capture (needs Windows 10 2004)."
+                  " Monitor capture will read our own frames back in; expect double images.");
+        }
+    }
+
     bool overlayHidden = false;
     auto SetOverlayVisible = [&](bool visible) {
         if (visible == !overlayHidden) return;
