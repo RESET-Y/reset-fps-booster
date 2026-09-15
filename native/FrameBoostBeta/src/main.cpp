@@ -965,13 +965,32 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //     %LOCALAPPDATA%\ResetFpsBooster\halfres.on
     const bool halfDensity = Setting(L"halfres") || MarkerPresent(L"halfres.on");
     interpolator.SetInterpScale(halfDensity ? 2u : 1u);
-    interpolator.SetWarpFilter(Setting(L"catmull") ? 1u : 0u);
+    // CATMULL-ROM IS THE DEFAULT AGAIN. "bilinearwarp = on" takes it away.
+    //
+    // I switched this to bilinear this morning to afford full sampling
+    // density - ten texture fetches per pixel against two, on an engine that
+    // is bandwidth-bound. The reasoning was sound and the premise has since
+    // expired: interpolation now measures 0.3-0.7 ms, so the ten fetches are
+    // affordable and the trade no longer needs making.
+    //
+    // And the comment beside the warp says plainly what removing it costs,
+    // from a measurement made before I arrived at it: "Removing it brought the
+    // double images straight back. Bilinear filtering at a fractional position
+    // mixes four neighbours, so each of the two warped samples is smeared
+    // before they are combined - and two smeared samples that disagree even
+    // slightly overlap visibly, where two sharp ones do not."
+    //
+    // That is exactly the complaint still open. The ghosting logic downstream
+    // compares the two warped samples and distrusts the vector where they
+    // disagree; smearing both of them first is the one thing that most
+    // directly blunts it.
+    interpolator.SetWarpFilter(Setting(L"bilinearwarp") ? 0u : 1u);
     FrameBoostBeta::Logger::Log(std::string("[FrameBoostBeta] Generated frames at ")
         + (halfDensity ? "HALF sampling density with a bilinear upscale"
                        : "full sampling density")
         + ", warped with "
-        + (HasArg(L"catmull") ? "Catmull-Rom (five taps per sample)."
-                              : "bilinear (one tap per sample)."));
+        + (Setting(L"bilinearwarp") ? "bilinear (one tap per sample)."
+                                    : "Catmull-Rom (five taps per sample)."));
     FrameBoostBeta::DuplicateDetector duplicateDetector;
     // Separate instance, fed the PRESENTED frames in the order they go out, so
     // each comparison is between two consecutive output frames.
@@ -1125,6 +1144,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Off until something answers it correctly. The menu artefacts it used to
     // prevent are worth less than this.
     const bool stillGuardEnabled = Setting(L"stillguard");
+    // On unless switched off - see scheduleAnchorMs.
+    const bool smoothClockEnabled = !(settingsFile.count(L"smoothclock")
+                                      && !Setting(L"smoothclock"));
     uint64_t stillSecondsSinceReport = 0;
     int gapFillsInARow = 0;
     static constexpr int kMaxGapFills = 8;
@@ -1690,6 +1712,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t phaseCountForReport = 0, timelineSlotsForReport = 0;
     double motionPrevTimestampMs = 0.0;
     double motionCurrTimestampMs = 0.0;
+
+    // A STEADY CLOCK TO SCHEDULE AGAINST, instead of every arrival's jitter.
+    //
+    // Output timing is anchored to the capture timestamp of each real frame.
+    // Those timestamps are not evenly spaced - measured arrival spacing has a
+    // standard deviation of 2.9-4.7 ms around a 13.9 ms mean - so every wobble
+    // in the source is handed straight through to the display. Output jitter
+    // measures 2-4 ms, which is the same wobble arriving on the other side.
+    //
+    // This is a model of when a frame SHOULD arrive, advanced by the pacing
+    // interval each time and pulled slowly toward what actually happened. A
+    // tenth of the error per frame: fast enough to follow a real rate change
+    // within a dozen frames, slow enough that a single late arrival moves the
+    // schedule by a fraction of a millisecond instead of a whole one.
+    //
+    // It resynchronises outright when the error passes half an interval,
+    // because past that point the source has genuinely changed rate or
+    // stalled, and a clock that insists on its model through a stall is worse
+    // than no clock at all. That is the failure mode this kind of filter has,
+    // and the guard against it is the reason it can be trusted here.
+    //
+    // Used ONLY for deciding when to present. The content timeline - what
+    // moment a frame represents, which the interpolation phase and the content
+    // step are measured against - stays on the real timestamps, because that
+    // is a statement about the pictures and must not be modelled.
+    //
+    // "smoothclock = off" in frameboost.ini disables it.
+    double scheduleAnchorMs = 0.0;
+    uint64_t scheduleResyncs = 0;
 
     // The pair interval with outliers taken out - and it MUST be this rather
     // than the raw difference.
@@ -2791,6 +2842,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " | Skipped backwards: " << (generatedSkippedBackwards / elapsed)
+            << " | Schedule clock: " << (smoothClockEnabled ? "smoothed" : "raw")
+            << ", drift " << (scheduleAnchorMs > 0.0 ? scheduleAnchorMs - motionCurrTimestampMs : 0.0)
+            << " ms, resyncs " << scheduleResyncs
             << " | Pacing window: " << recentIntervalCount << "/" << kIntervalWindow
             << ", resets " << intervalResetsSinceReport << "/s" << "/s"
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
@@ -3432,6 +3486,21 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (haveMotionField) {
                     motionPrevTimestampMs = motionCurrTimestampMs;
                     motionCurrTimestampMs = frameTimestamp100ns / 10000.0;
+
+                    // Advance the schedule clock alongside the real one.
+                    if (!smoothClockEnabled || scheduleAnchorMs <= 0.0) {
+                        scheduleAnchorMs = motionCurrTimestampMs;
+                    } else {
+                        const double step = PacingInterval();
+                        const double predicted = scheduleAnchorMs + step;
+                        const double error = motionCurrTimestampMs - predicted;
+                        if (std::abs(error) > step * 0.5) {
+                            scheduleAnchorMs = motionCurrTimestampMs;
+                            ++scheduleResyncs;
+                        } else {
+                            scheduleAnchorMs = predicted + error * 0.1;
+                        }
+                    }
                     motionCurrArrivalMs = NowMs();
                 }
             }
@@ -4087,7 +4156,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // The generated frame holds the content halfway between
                     // this pair, so it belongs exactly half an interval
                     // earlier - on the same clock, not on ours.
-                    const double dueAtMs = motionCurrTimestampMs + arrivalLagEmaMs
+                    const double dueAtMs = scheduleAnchorMs + arrivalLagEmaMs
                         + pairIntervalMs * (static_cast<double>(step - 1) / outputPerReal);
                     // Same backstop as below: never wait longer than one source
                     // interval, so no arithmetic mistake can freeze the picture.
@@ -4175,7 +4244,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // back, where both should be half a source period. The same
                 // mistake as the generated frame had, mirrored, in the twin
                 // branch - fixing one of a pair and not looking for the other.
-                const double realDueAtMs = motionCurrTimestampMs + arrivalLagEmaMs
+                const double realDueAtMs = scheduleAnchorMs + arrivalLagEmaMs
                     + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal)
                     - realPhaseCorrectionMs;
 
