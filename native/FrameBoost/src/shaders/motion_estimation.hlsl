@@ -1053,21 +1053,81 @@ void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, 
             const int by = bestIndex / kSearchWindow;
             const float centreSad = g_sad[bestIndex];
 
+            float curvX = 0.0, curvY = 0.0;
             if (bx > 0 && bx < kSearchWindow - 1)
             {
                 const float left  = g_sad[by * kSearchWindow + bx - 1];
                 const float right = g_sad[by * kSearchWindow + bx + 1];
-                const float curvature = left - 2.0 * centreSad + right;
-                if (curvature > 1e-7)
-                    subTexel.x = clamp(0.5 * (left - right) / curvature, -0.5, 0.5);
+                curvX = left - 2.0 * centreSad + right;
+                if (curvX > 1e-7)
+                    subTexel.x = clamp(0.5 * (left - right) / curvX, -0.5, 0.5);
             }
             if (by > 0 && by < kSearchWindow - 1)
             {
                 const float up   = g_sad[(by - 1) * kSearchWindow + bx];
                 const float down = g_sad[(by + 1) * kSearchWindow + bx];
-                const float curvature = up - 2.0 * centreSad + down;
-                if (curvature > 1e-7)
-                    subTexel.y = clamp(0.5 * (up - down) / curvature, -0.5, 0.5);
+                curvY = up - 2.0 * centreSad + down;
+                if (curvY > 1e-7)
+                    subTexel.y = clamp(0.5 * (up - down) / curvY, -0.5, 0.5);
+            }
+
+            // THE APERTURE PROBLEM, measured from the shape of the error
+            // surface rather than guessed at.
+            //
+            // This is the one cause of double images that no confidence test in
+            // this engine can catch, and the reason is in its definition: along
+            // an edge with no detail across it, every offset in one direction
+            // matches EQUALLY WELL. The winner is decided by noise, its match
+            // error is LOW, and it is wrong. Every check we have asks "did it
+            // match well", and the answer here is yes.
+            //
+            // What the error surface knows and the winner does not is its own
+            // shape. A real match sits in a well - curved in both directions. An
+            // aperture match sits in a trough, curved across the edge and flat
+            // along it. Both curvatures are already computed just above, for the
+            // sub-pixel fit, and then thrown away.
+            //
+            // Judged as a RATIO between the two axes rather than against a
+            // threshold, which is what makes this safe to add without first
+            // measuring a distribution: a ratio has no units and no scale, so it
+            // cannot be wrong for a different game, resolution or brightness. On
+            // a proper well the two curvatures are similar and nothing happens.
+            // Only a genuinely lopsided surface is corrected, and only along the
+            // axis that is actually unconstrained.
+            //
+            // The correction is to take that component from the SEED instead -
+            // the coarse-pyramid or temporal-predictor vector that step 2 chose,
+            // which is the neighbourhood's opinion. That is what every global
+            // flow method does with an under-constrained pixel: let the
+            // neighbours decide the part it cannot see for itself.
+            const float cx = max(curvX, 0.0);
+            const float cy = max(curvY, 0.0);
+            const float sharpest = max(cx, cy);
+            //
+            // A CURVE, NOT A RATIO, so ordinary content is left alone.
+            //
+            // Real detail is never perfectly isotropic - a ratio of 0.7 between
+            // the two axes is an ordinary textured block, not an ambiguous one,
+            // and pulling 30% of it toward the seed would smooth the whole field
+            // for no reason and invent its own artefacts. An actual aperture
+            // case is far more lopsided than that: one axis carries the edge and
+            // the other is flat, which lands one or two orders of magnitude
+            // apart.
+            //
+            // So below 5% the axis is taken entirely from the neighbourhood,
+            // above 35% entirely from the search, and the transition between is
+            // smooth because a hard switch on a per-block property pops - every
+            // hard per-block switch tried in this engine has.
+            if (sharpest > 1e-6)
+            {
+                const float trustX = smoothstep(0.05, 0.35, cx / sharpest);
+                const float trustY = smoothstep(0.05, 0.35, cy / sharpest);
+                const float2 seed = float2(g_searchCentre);
+                const float2 found = float2(bestOffset) + subTexel;
+                const float2 blended = float2(lerp(seed.x, found.x, trustX),
+                                              lerp(seed.y, found.y, trustY));
+                bestOffset = int2(0, 0);
+                subTexel = blended;
             }
         }
 
