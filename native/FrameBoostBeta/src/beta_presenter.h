@@ -123,6 +123,11 @@ private:
     // WS_EX_NOREDIRECTIONBITMAP window is a real flip-model swapchain,
     // keeps click-through, reports statistics, and supports per-pixel alpha.
     IDCompositionDevice* m_dcompDevice = nullptr;
+    // The version-2 device and visual, used when available. Visuals created by
+    // a version-1 device do not support IDCompositionVisual3, which is where
+    // SetOpacity lives - that is why the opacity attempt failed.
+    IDCompositionDesktopDevice* m_dcompDevice2 = nullptr;
+    IDCompositionVisual2* m_dcompVisual2 = nullptr;
     IDCompositionTarget* m_dcompTarget = nullptr;
     IDCompositionVisual* m_dcompVisual = nullptr;
     bool m_usingComposition = false;

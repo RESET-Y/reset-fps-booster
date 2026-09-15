@@ -91,17 +91,49 @@ bool Presenter::AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapCha
     winrt::com_ptr<IDXGIDevice> dxgiDevice;
     if (FAILED(device->QueryInterface(IID_PPV_ARGS(dxgiDevice.put())))) return false;
 
-    if (FAILED(DCompositionCreateDevice(dxgiDevice.get(), IID_PPV_ARGS(&m_dcompDevice)))) {
-        Logger::Log("[FrameBoostBeta] Presenter: DCompositionCreateDevice failed.");
-        return false;
+    // VERSION 2 FIRST, because version 1 cannot do what is needed here.
+    //
+    // DCompositionCreateDevice returns IDCompositionDevice, and visuals it
+    // creates do not support IDCompositionVisual3 - which is where SetOpacity
+    // lives. That is exactly why the opacity attempt logged "could not set
+    // visual opacity below 1.0" and the overlay stayed fully opaque, leaving
+    // the game below reported as occluded.
+    //
+    // What that costs is measured, not guessed. With the overlay suppressed
+    // entirely and everything else running:
+    //
+    //   overlay shown    source 34.8  arrivals 28.75 ms  every frame a
+    //                    duplicate, native 0, nothing to interpolate
+    //   overlay hidden   source 71.8  arrivals 13.93 ms  difference 13-36
+    //
+    // Half the game's frame rate and a frozen capture surface. Geometry was
+    // tried against it twice - a one pixel column, first off the left edge and
+    // then off the right - and neither worked: the first moved our image a
+    // pixel off the game and made menu text slide, the second changed nothing
+    // at all. Opacity is the mechanism that actually addresses it, so the
+    // device that supports it is the device to create.
+    if (SUCCEEDED(DCompositionCreateDevice2(dxgiDevice.get(), IID_PPV_ARGS(&m_dcompDevice2)))) {
+        if (FAILED(m_dcompDevice2->CreateTargetForHwnd(m_hwnd, TRUE, &m_dcompTarget))) {
+            Logger::Log("[FrameBoostBeta] Presenter: CreateTargetForHwnd (v2) failed.");
+            return false;
+        }
+        if (FAILED(m_dcompDevice2->CreateVisual(&m_dcompVisual2))) return false;
+        if (FAILED(m_dcompVisual2->SetContent(swapChain))) return false;
+        Logger::Log("[FrameBoostBeta] Presenter: DirectComposition device v2 - opacity is available.");
+    } else {
+        Logger::Log("[FrameBoostBeta] Presenter: DirectComposition v2 unavailable, falling back to v1."
+            " The overlay will be fully opaque and the game below may throttle.");
+        if (FAILED(DCompositionCreateDevice(dxgiDevice.get(), IID_PPV_ARGS(&m_dcompDevice)))) {
+            Logger::Log("[FrameBoostBeta] Presenter: DCompositionCreateDevice failed.");
+            return false;
+        }
+        if (FAILED(m_dcompDevice->CreateTargetForHwnd(m_hwnd, TRUE, &m_dcompTarget))) {
+            Logger::Log("[FrameBoostBeta] Presenter: CreateTargetForHwnd failed.");
+            return false;
+        }
+        if (FAILED(m_dcompDevice->CreateVisual(&m_dcompVisual))) return false;
+        if (FAILED(m_dcompVisual->SetContent(swapChain))) return false;
     }
-    // topmost = TRUE so the visual sits above the window's own (absent) content.
-    if (FAILED(m_dcompDevice->CreateTargetForHwnd(m_hwnd, TRUE, &m_dcompTarget))) {
-        Logger::Log("[FrameBoostBeta] Presenter: CreateTargetForHwnd failed.");
-        return false;
-    }
-    if (FAILED(m_dcompDevice->CreateVisual(&m_dcompVisual))) return false;
-    if (FAILED(m_dcompVisual->SetContent(swapChain))) return false;
 
     // NOT QUITE OPAQUE, so Windows does not call the game occluded.
     //
@@ -130,8 +162,11 @@ bool Presenter::AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapCha
     // SetOpacity lives on IDCompositionVisual3 (Windows 8.1+), not on the base
     // interface the visual is created as.
     {
+        IUnknown* anyVisual = m_dcompVisual2
+            ? static_cast<IUnknown*>(m_dcompVisual2)
+            : static_cast<IUnknown*>(m_dcompVisual);
         winrt::com_ptr<IDCompositionVisual3> visual3;
-        if (SUCCEEDED(m_dcompVisual->QueryInterface(IID_PPV_ARGS(visual3.put())))
+        if (anyVisual && SUCCEEDED(anyVisual->QueryInterface(IID_PPV_ARGS(visual3.put())))
                 && SUCCEEDED(visual3->SetOpacity(0.996f))) {
             Logger::Log("[FrameBoostBeta] Presenter: overlay opacity 0.996 - not opaque, so the game"
                 " below is not reported as occluded and keeps presenting at full rate.");
@@ -141,8 +176,13 @@ bool Presenter::AttachComposition(ID3D11Device* device, IDXGISwapChain1* swapCha
         }
     }
 
-    if (FAILED(m_dcompTarget->SetRoot(m_dcompVisual))) return false;
-    if (FAILED(m_dcompDevice->Commit())) return false;
+    if (m_dcompVisual2) {
+        if (FAILED(m_dcompTarget->SetRoot(m_dcompVisual2))) return false;
+        if (FAILED(m_dcompDevice2->Commit())) return false;
+    } else {
+        if (FAILED(m_dcompTarget->SetRoot(m_dcompVisual))) return false;
+        if (FAILED(m_dcompDevice->Commit())) return false;
+    }
 
     return true;
 }
