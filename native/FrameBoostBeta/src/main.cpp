@@ -1741,6 +1741,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "smoothclock = off" in frameboost.ini disables it.
     double scheduleAnchorMs = 0.0;
     uint64_t scheduleResyncs = 0;
+    int scheduleMissRun = 0;
 
     // The pair interval with outliers taken out - and it MUST be this rather
     // than the raw difference.
@@ -3492,12 +3493,44 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     if (!smoothClockEnabled || scheduleAnchorMs <= 0.0) {
                         scheduleAnchorMs = motionCurrTimestampMs;
                     } else {
+                        // RESYNC ON A RUN, NOT ON ONE SAMPLE.
+                        //
+                        // Resyncing whenever a single arrival missed by half an
+                        // interval threw the model away about ten times a
+                        // second - 758 resyncs climbing to 861 over the same ten
+                        // seconds - so it smoothed nothing and was pure
+                        // overhead. The cause is the source itself: arrival
+                        // spacing has a standard deviation of 3-5 ms with
+                        // bursts down to 0.07 ms, so a 7 ms miss is ordinary
+                        // rather than exceptional.
+                        //
+                        // One large error is a burst, which is exactly what the
+                        // model should ignore. Three in a row is a source that
+                        // has genuinely changed rate or stalled, which is what
+                        // it must not sit through. That distinction is the whole
+                        // point of the guard, and measuring it per-sample made
+                        // it fire on the noise instead.
                         const double step = PacingInterval();
                         const double predicted = scheduleAnchorMs + step;
                         const double error = motionCurrTimestampMs - predicted;
-                        if (std::abs(error) > step * 0.5) {
+                        const bool missed = std::abs(error) > step * 0.5;
+                        if (missed) ++scheduleMissRun; else scheduleMissRun = 0;
+
+                        if (scheduleMissRun >= 3) {
                             scheduleAnchorMs = motionCurrTimestampMs;
+                            scheduleMissRun = 0;
                             ++scheduleResyncs;
+                        } else if (missed) {
+                            // An outlier does not reach the filter at all.
+                            //
+                            // Pulling a tenth of the way toward a burst still
+                            // moves the schedule by more than a millisecond on a
+                            // 14 ms error, and bursts repeat - so a "small"
+                            // correction toward nonsense accumulates into drift.
+                            // The sample is rejected and the clock simply
+                            // advances by its own step; three of them in a row
+                            // resynchronise it above instead.
+                            scheduleAnchorMs = predicted;
                         } else {
                             scheduleAnchorMs = predicted + error * 0.1;
                         }

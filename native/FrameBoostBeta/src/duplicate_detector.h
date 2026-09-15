@@ -90,7 +90,26 @@ private:
     // that plainly were not duplicates - measured live at 0.44 and 0.80 on a
     // playing video with 89% of blocks in motion, costing 12-47 real frames
     // per second.
-    static constexpr double kDuplicateThreshold = 0.3; // mean abs difference per channel (0-255)
+    // 0.3 -> 0.1, and this time from the two measured populations rather than
+    // from reasoning about them.
+    //
+    // Raising the thumbnail to 192x108 changed what this number means, and I
+    // left it at 0.3 with the argument that less dilution makes real
+    // differences read larger. The measurement says otherwise:
+    //
+    //   truly identical frames (CS2 with a frozen capture surface, proved
+    //   byte-identical across 114,012 sampled offsets)   0.018 - 0.047
+    //   real content, quiet scene, 0.1-6.4% blocks moving  0.21 - 0.27
+    //
+    // 0.3 sits ABOVE the second population, so ordinary quiet gameplay was
+    // being discarded wholesale: 63 of 70 arrivals called duplicates, native
+    // FPS down to 2-5, output collapsing from 143 to 12-26. That is the frame
+    // rate drop being reported.
+    //
+    // 0.1 sits in the gap between the two, a factor of two clear on each side.
+    // Below it lies only the genuinely frozen surface and the compression
+    // noise this check exists to reject; above it lies real content.
+    static constexpr double kDuplicateThreshold = 0.1; // mean abs difference per channel (0-255)
 
     // One compute dispatch shrinks the frame straight to thumbnail size.
     //
