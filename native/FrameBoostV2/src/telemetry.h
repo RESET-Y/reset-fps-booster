@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace fbv2 {
 
@@ -36,6 +37,8 @@ struct FrameRecord {
     double   contentMs = 0.0; // the moment this picture represents
     double   phase = 0.0;     // generated only
     double   presentedMs = 0.0;
+    double   sourceAMs = 0.0;   // tA
+    double   sourceBMs = 0.0;   // tB
 };
 
 class Telemetry {
@@ -45,6 +48,19 @@ public:
     // Per-second accumulators.
     void NoteNative(double captureLatencyMs, double onScreenAgeMs);
     void NoteGenerated(double onScreenAgeMs);
+
+    // PRODUCED IS NOT PRESENTED, and conflating them is how a counter can read
+    // 52 while the screen shows 30. NoteGenerated above counts frames that
+    // reached the presenter; this counts frames the interpolator built. When
+    // the two disagree, the loss is between generation and presentation and
+    // nowhere else.
+    void NoteGeneratedProduced() { ++m_generatedProduced; }
+
+    // The gap between one present and the one before it, measured at the
+    // present itself. Output FPS is an average and an average hides exactly
+    // the thing that ruins the feel: at 100 fps a steady 10 ms and an
+    // alternating 2/18 ms both average to 10. The percentiles separate them.
+    void NotePresentInterval(double deltaMs);
     void NoteSourceArrival();
     void NoteDropped()  { ++m_dropped; }
     void NoteOverflow() { ++m_overflow; }
@@ -73,6 +89,8 @@ private:
     bool     m_sequenceLog = false;
 
     uint64_t m_native = 0, m_generated = 0, m_source = 0;
+    uint64_t m_generatedProduced = 0;
+    std::vector<double> m_presentIntervals;
     uint64_t m_dropped = 0, m_overflow = 0, m_missedDeadline = 0;
     double   m_captureLatencySum = 0.0;
     double   m_ageSum = 0.0; double m_ageMax = 0.0; uint64_t m_ageCount = 0;

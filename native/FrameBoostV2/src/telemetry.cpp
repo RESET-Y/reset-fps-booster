@@ -2,6 +2,7 @@
 #include "capture.h"   // NowMs
 #include "logger.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 
@@ -28,6 +29,13 @@ void Telemetry::NoteGenerated(double onScreenAgeMs) {
 }
 
 void Telemetry::NoteSourceArrival() { ++m_source; }
+
+void Telemetry::NotePresentInterval(double deltaMs) {
+    if (deltaMs <= 0.0 || deltaMs > 2000.0) return;
+    // Bounded: a second at 288 fps is under 300 samples, and this stops a
+    // stalled report from growing without limit.
+    if (m_presentIntervals.size() < 4096) m_presentIntervals.push_back(deltaMs);
+}
 
 void Telemetry::NoteGpu(double motionMs, double interpMs) {
     if (motionMs >= 0.0) m_motionGpuMs = motionMs;
@@ -73,7 +81,8 @@ void Telemetry::NoteSequence(const FrameRecord& r) {
     } else {
         oss << "Native   ";
     }
-    oss << " content=" << r.contentMs << " presented=" << r.presentedMs << '\n';
+    oss << " tA=" << r.sourceAMs << " tB=" << r.sourceBMs
+        << " content=" << r.contentMs << " presented=" << r.presentedMs << '\n';
     m_sequenceBuffer += oss.str();
 }
 
@@ -112,6 +121,34 @@ bool Telemetry::ReportIfDue() {
         << " | Motion estimation GPU: " << m_motionGpuMs
         << " ms | Interpolation GPU: " << m_interpGpuMs << " ms";
 
+    // ---- the presentation side, which is what the eye actually gets ---------
+    //
+    // Everything above describes frames we made. These describe frames that
+    // went out, and the difference between the two is the whole question.
+    {
+        auto& v = m_presentIntervals;
+        double mn = 0, mx = 0, mean = 0, p50 = 0, p95 = 0, p99 = 0;
+        if (!v.empty()) {
+            std::sort(v.begin(), v.end());
+            mn = v.front();
+            mx = v.back();
+            double sum = 0.0;
+            for (double d : v) sum += d;
+            mean = sum / v.size();
+            auto at = [&v](double q) {
+                size_t i = static_cast<size_t>(q * (v.size() - 1) + 0.5);
+                return v[i];
+            };
+            p50 = at(0.50); p95 = at(0.95); p99 = at(0.99);
+        }
+        oss << " | Presented native/s: " << nativeFps
+            << " | Presented generated/s: " << generatedFps
+            << " | Generated produced/s: " << (m_generatedProduced / elapsed)
+            << " | Present interval: min " << mn << ", p50 " << p50
+            << ", mean " << mean << ", p95 " << p95 << ", p99 " << p99
+            << ", max " << mx << " ms over " << v.size() << " presents";
+    }
+
     // ---- V2's own, free to change -------------------------------------------
     oss << " | Pair interval: " << pairAvg << " ms mean, min " << m_pairIntervalMin
         << ", max " << m_pairIntervalMax
@@ -142,6 +179,8 @@ bool Telemetry::ReportIfDue() {
 
     m_windowStartMs = now;
     m_native = m_generated = m_source = 0;
+    m_generatedProduced = 0;
+    m_presentIntervals.clear();
     m_dropped = m_overflow = m_missedDeadline = 0;
     m_captureLatencySum = 0.0;
     m_ageSum = 0.0; m_ageMax = 0.0; m_ageCount = 0;

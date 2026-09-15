@@ -327,6 +327,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // everything above it is real waiting. Self-correcting, and it needs no
     // constant that would be wrong on another machine.
     double epochOffsetMs = 1e12;
+    // Measured at the present, not derived from a rate, because the rate is
+    // an average and the average is what hides uneven spacing.
+    double lastPresentMs = -1.0;
 
     bool running = true;
     while (running) {
@@ -378,11 +381,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                                            desc.Width, desc.Height,
                                            DXGI_FORMAT_B8G8R8A8_UNORM, nullptr)) {
                 const double genContentMs = prevContentMs + pairIntervalMs * 0.5;
+                telemetry.NoteGeneratedProduced();
                 if (presenter.Present(context.get(), interpolator.GeneratedFrameTexture())) {
                     const double shownAt = NowMs();
+                    if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
+                    lastPresentMs = shownAt;
                     telemetry.NoteGenerated(shownAt - frame.arrivalMs);
                     telemetry.NoteSequence({ nextOutputId++, true, prevId, currId,
-                                             genContentMs, 0.5, shownAt });
+                                             genContentMs, 0.5, shownAt,
+                                             prevContentMs, currContentMs });
                 } else {
                     telemetry.NoteDropped();
                 }
@@ -404,13 +411,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
         if (presenter.Present(context.get(), frame.texture)) {
             const double shownAt = NowMs();
+            if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
+            lastPresentMs = shownAt;
             const double rawOffset = frame.arrivalMs - frame.contentMs;
             if (rawOffset < epochOffsetMs) epochOffsetMs = rawOffset;
             const double captureLatencyMs = rawOffset - epochOffsetMs;
             telemetry.NoteNative(captureLatencyMs, shownAt - frame.arrivalMs);
             telemetry.NotePipelineLatencyMs(shownAt - frame.arrivalMs + captureLatencyMs);
-            telemetry.NoteSequence({ nextOutputId++, false, 0, 0,
-                                     currContentMs, 0.0, shownAt });
+            telemetry.NoteSequence({ nextOutputId++, false, currId, currId,
+                                     currContentMs, 0.0, shownAt,
+                                     currContentMs, currContentMs });
         } else {
             telemetry.NoteDropped();
         }
