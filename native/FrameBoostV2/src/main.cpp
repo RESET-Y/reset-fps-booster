@@ -141,11 +141,27 @@ bool IsOwnOrLauncher(HWND hwnd) {
     return exe == L"resetfpsbooster.exe";
 }
 
+// FIVE SECONDS, THEN WHATEVER IS IN FRONT. The V1 behaviour, restored.
+//
+// A picker was built first and could not be used - "kann nichts auswaehlen".
+// It is still there behind the "picker" argument, but it is not what ships:
+// a dialog that cannot be clicked is worse than a countdown that can be
+// followed, and this countdown is the one Lukas already knows.
+//
+// The launcher is still skipped. That part was not the problem - the app is
+// in front when its button is pressed, and capturing it was the original
+// report - so if five seconds pass and RFB is still in front, this keeps
+// waiting rather than capturing the app again.
 HWND WaitForGameWindow() {
-    constexpr int kTimeoutMs = 20000;
-    constexpr int kPollMs = 200;
+    constexpr int kAnnounceMs = 5000;
+    constexpr int kExtraMs = 15000;
+    constexpr int kPollMs = 250;
 
-    for (int waited = 0; waited < kTimeoutMs; waited += kPollMs) {
+    Logger::Log("[FrameBoostV2] Switch to the game now - the window in the foreground "
+                "in five seconds will be captured.");
+    Sleep(kAnnounceMs);
+
+    for (int waited = 0; waited <= kExtraMs; waited += kPollMs) {
         HWND fg = GetForegroundWindow();
         if (fg && IsWindow(fg) && !IsOwnOrLauncher(fg)) {
             wchar_t title[256] = {};
@@ -158,8 +174,8 @@ HWND WaitForGameWindow() {
             }
         }
         if (waited == 0)
-            Logger::Log("[FrameBoostV2] Waiting for the game window - switch to it now. "
-                        "The app's own window is skipped on purpose.");
+            Logger::Log("[FrameBoostV2] RESET FPS Booster is still in front - waiting for "
+                        "the game rather than capturing the app.");
         Sleep(kPollMs);
     }
     return nullptr;
@@ -194,10 +210,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     //    dialog appears. This is the path the app will use once it can be
     //    rebuilt; it is wired now so that integration is a change there and
     //    none here.
-    // 2. the picker - the user chooses from a list.
-    // 3. "autowindow" - the old behaviour, first foreground window that is
-    //    not the launcher. Kept for unattended runs, not the default: it
-    //    guessed wrong twice.
+    // 2. the countdown - default. Five seconds to switch to the game, then
+    //    whatever is in front, skipping the launcher.
+    // 3. "picker" - a list to choose from. Built, then reported unusable
+    //    ("kann nichts auswaehlen"), so it is kept and not the default.
     HWND target = nullptr;
 
     const double handleArg = ArgValue(args, L"hwnd", 0.0);
@@ -207,10 +223,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             Logger::Log("[FrameBoostV2] The handle passed in is not a window - exiting.");
             return 1;
         }
-    } else if (HasArg(args, L"autowindow")) {
-        target = WaitForGameWindow();
-    } else {
+    } else if (HasArg(args, L"picker")) {
         target = PickWindow();
+    } else {
+        target = WaitForGameWindow();
     }
 
     if (!target) {
