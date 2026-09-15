@@ -1,0 +1,1153 @@
+// Real block-matching optical flow, entirely GPU-side. For each block in
+// the CURRENT frame, search a window in the PREVIOUS frame for the offset
+// that minimizes sum-of-absolute-differences (SAD). The winning offset is
+// the block's motion vector. This is a genuine, if simple, motion-
+// estimation algorithm - not a placeholder and not a blend.
+//
+// v0.3 rewrite: the original version ran the ENTIRE per-block candidate
+// search (169 candidate offsets x 16 samples each) sequentially on a SINGLE
+// GPU thread ([numthreads(1,1,1)]) - meaning every block wasted essentially
+// all of a GPU warp's parallelism. Confirmed as the dominant cost via live
+// testing: motion estimation alone was blocking the whole FrameBoost Beta
+// pipeline down to ~3 FPS under any real GPU contention. This version
+// spreads the candidate search across one GPU thread PER CANDIDATE OFFSET,
+// with a simple groupshared reduction to find the best one - the same
+// total work, done in true parallel instead of one thread at a time.
+
+Texture2D<float4> PrevFrame : register(t0);
+Texture2D<float4> CurrFrame : register(t1);
+RWTexture2D<float4> MotionVectors : register(u0);
+
+// 16px blocks with a matching 4px sampling stride: 4x4 = 16 samples per
+// candidate either way, so the stride scales with the block and only the
+// number of blocks changes.
+//
+// This was 32px for most of the project's life, and for a good reason: the
+// original 16px version cost ~35 ms of GPU time per frame at 2560x1440 and
+// capped the loop at ~14 FPS. What made 16px affordable again was the
+// parallel rewrite above (one thread per candidate rather than one thread
+// per block), which cut motion estimation from ~350 ms to 0.09 ms - four
+// times as many blocks is a cost that budget can absorb.
+//
+// Finer blocks matter because a block shares ONE motion vector: at 32px,
+// a moving object and the static background behind it are forced into the
+// same vector wherever they meet, and one of the two is always wrong.
+// Halved to 8px after live testing in a game: during fast turning the whole
+// image moves 90 px between real frames, with peaks over 200. A block shares
+// one motion vector, so at 16px the boundary between a moving object and its
+// background was 16 px of content forced into one wrong answer. At 8px that
+// error zone is a quarter the area.
+//
+// Four times as many blocks, but motion estimation runs once per REAL frame -
+// about 50 times a second, with a 20 ms budget each - and it was costing
+// 0.3-2.3 ms.
+//
+// RAISED BACK TO 16 after measuring the cost in a real game at 2560x1440:
+// motion estimation took 4.2-11.8 ms per real frame, which at ~45 frames a
+// second is 190-530 ms of GPU time every second - and it was why only ~40 of
+// ~65 frames carrying new content ever reached the estimator. The block size
+// sets the dispatch grid: at 8 px a 2560x1440 frame is 320x180 = 57,600 thread
+// groups, at 16 px it is 160x90 = 14,400. Four times less work, for the same
+// 16 samples per candidate.
+//
+// The cost is granularity: a block shares one motion vector, so the boundary
+// between a moving object and its background is 16 px of content forced into
+// one answer instead of 8. That is why it was halved originally - but a
+// sharper field that arrives for half the frames is worth less than a coarser
+// one that arrives for all of them.
+//
+// 16 px, and this time the reason is not our own frame budget but THE GAME'S.
+//
+// Logging our GPU time against the source frame rate second by second, during
+// real movement in a game capped at 72 FPS:
+//
+//   motion estimation 1.5-4.2 ms   ->  source 50-72 FPS, mean ~63
+//   motion estimation 9.3-11.1 ms  ->  source 50-67 FPS, mean ~57
+//
+// We are not a bystander on this GPU. At 8 px the estimator costs 2-11 ms of
+// every frame and the game gives up about six frames a second to pay for it -
+// frames the doubling then has to earn back before it is worth anything. At
+// 16 px the same measurement reads 0.70 ms.
+//
+// Finer blocks really are better, and 8 px is the right choice on a GPU with
+// room to spare. Sharing one with the game it is boosting is not that.
+//
+// BACK TO 8 px, now that the search runs on mip 1 and costs 0.5-0.7 ms.
+//
+// Reported from a live game: moving bots dragging a trail behind them. That is
+// what one motion vector per 16 pixels does at the edge of a small moving
+// object - the block holds both the object and the background it is passing
+// over, both get the same vector, and whichever of the two is wrong smears.
+// Halving the block quarters the area where object and background are forced
+// into a single answer.
+//
+// Affordable again for a different reason than the last time: the search is
+// four times cheaper per block on mip 1, so four times as many blocks costs
+// about what 16 px cost at full resolution.
+static const int kBlockSize = 8;
+static const int kBlockSampleStride = 2; // 4x4 = 16 samples per candidate, as before
+// FINE stage of the pyramid. The search no longer starts from zero: it
+// starts from the coarse stage's result (motion_estimation_coarse.hlsl,
+// which searches +-48 px on a quarter-resolution mip) and only refines it
+// locally.
+//
+// That is why the radius here is small again. Growing the single-stage
+// radius had run out of road: one thread per candidate means radius 15
+// already hits D3D11's 1024-thread group limit, and measurement still
+// showed 18-23% of moving blocks pinned to the edge of a radius-12 window
+// during motion - ~2600 blocks per frame whose vector was wrong by
+// construction. Reach is now 48 + 6 = 54 px while costing LESS: 169
+// candidates per block instead of 625.
+// Reduced from 6 to 3 after measuring where the frame time actually goes.
+//
+// This stage costs 12.4 ms of GPU time per frame, measured on an idle desktop
+// with 0.19% of blocks moving - the price is paid for the search itself, not
+// for the content. Against a real frame interval of 16 ms that is fatal: a
+// generated frame has to be finished inside HALF an interval, so the engine
+// kept standing aside for lack of GPU room and the output dropped to nothing,
+// or to 36 -> 73 when it did run. Reported as feeling like 30 fps, which is
+// what 28 ms of generation cost per frame actually is.
+//
+// The arithmetic behind the cost: at 2560x1440 this dispatches 57,600 blocks,
+// and at radius 6 each searches 169 candidates - 9.7 million block matches per
+// frame. Radius 3 leaves 49, a third of the work.
+//
+// Quality should barely notice, because this stage does not FIND motion - the
+// two coarser levels already did, with a reach of 240 px. It only refines
+// their answer, and a refinement window of +-3 texels is +-6 full-resolution
+// pixels around a vector that is already close.
+// 3. Widening to 6 was tried against a flickering motion field in a
+// low-altitude pass and did not calm it, while generation cost went from 3 ms
+// to 8-11 ms against an 8.3 ms deadline.
+//
+// So the flicker there is not the fine stage failing to reach the right
+// answer - it finds what it looks for, and looking further finds no better.
+// What is left is that the answer itself is ambiguous: ground texture at
+// speed offers many near-equal matches, and which one wins is decided by
+// noise.
+// WHEN A MATCH IS TOO GOOD TO IMPROVE.
+//
+// Sixteen samples, each a sum of three absolute channel differences in 0..1, so
+// a perfect match is 0 and this is about 0.002 per channel per sample - below
+// what compression and dither move between two frames of identical content.
+//
+// Compare kFlatZeroSad at 1.2, which asks a far weaker question ("is the
+// pattern unchanged apart from brightness"). This one has to be stricter,
+// because its consequence is skipping the refinement rather than choosing
+// between two offered answers.
+static const float kNearPerfectSad = 0.1;
+
+static const int kSearchRadius = 3;
+static const int kSearchWindow = kSearchRadius * 2 + 1; // 7
+static const int kCandidateCount = kSearchWindow * kSearchWindow; // 49
+
+// Cost per pixel of straying from the neighbourhood.s estimate.
+//
+// Raised from 0.01 to 0.05 against an ambiguous match rather than a missing
+// one. Ground texture at speed, and foliage at any speed, offer a block dozens
+// of nearly identical candidates; the SAD surface is almost flat and noise
+// decides which wins. A different one wins next frame, the same object is
+// displaced differently in consecutive generated frames, and that is what
+// reads as a double image.
+//
+// Searching wider does not help - that was measured, at 8-11 ms against an
+// 8.3 ms deadline, with no improvement - because the problem is not that the
+// right answer is out of reach. It is that several answers look equally
+// right. When they do, the one agreeing with the neighbourhood should win.
+//
+// At 0.05 the whole search window adds at most 0.3, which still loses to any
+// genuinely better match: a clean block scores well under 1.0 across 16
+// samples and 3 channels, and a real difference between candidates is far
+// larger than that.
+// 0.15, up from 0.05 - and only safe to raise now.
+//
+// Measured from a dumped fast turn once the viewmodel was fixed: the HUD is
+// pixel-identical, the snow field is flawless, and the damage sits exactly on
+// content that is high-contrast and SELF-SIMILAR - facade panels, repeated
+// horizontal lines, lattice structures. That is the classic failure of block
+// matching on repetitive structure: many displacements match almost equally
+// well, the SAD surface is nearly flat, and noise decides which candidate wins
+// - differently in each block and differently in each frame. On screen that is
+// the 8 px mosaic.
+//
+// At 0.05 the whole search window adds at most 0.3, which cannot outvote that
+// noise. At 0.15 it adds up to 0.9, while a genuinely better match - a clean
+// block scores well under 1.0 across 16 samples and 3 channels - still wins
+// outright.
+//
+// Why it could not be raised before: while the search centre was always the
+// coarse seed, a strong bias only pulled a viewmodel HARDER into the motion of
+// the world behind it. Now that the centre is chosen between the coarse seed,
+// zero and the temporal predictors before the search runs, the bias reinforces
+// whichever centre actually won - on the weapon, that is zero.
+//
+// The risk it carries is the opposite one: pulled too far, genuinely different
+// motions get averaged together at object boundaries. Watch the edge between a
+// moving object and its background.
+static const float kNeighbourhoodBias = 0.15;
+
+// How much better "not moving" has to be before it is believed. At 1.15 it
+// needs to beat the searched winner by 15%, which a genuinely static overlay
+// does by a wide margin (it matches almost exactly) while a moving block in a
+// noisy scene does not.
+static const float kZeroMotionMargin = 1.15;
+
+// Below this, a block is identical to where it already was: 16 samples across
+// 3 channels, so 0.5 is a mean absolute difference of about 0.01 per channel -
+// compression noise and nothing more.
+static const float kStaticBlockSad = 0.5;
+
+// One coarse block covers 4x4 fine blocks (64px vs 16px), and coarse
+// vectors are stored in mip-2 texels.
+// One coarse block spans 64 full-resolution pixels, so with 8px fine blocks
+// it now covers 8 of them per axis rather than 4.
+static const int kCoarseBlockRatio = 4;
+static const int kCoarseToFineScale = 4;
+
+Texture2D<float4> CoarseMotionVectors : register(t2);
+// Last frame.s finished motion field, used as a PREDICTOR - see the candidate
+// evaluation below. Zero on the first frame after a resolution change.
+Texture2D<float4> PreviousMotionField : register(t3);
+
+cbuffer FrameDims : register(b0)
+{
+    uint FrameWidth;
+    uint FrameHeight;
+    uint CoarseWidth;
+    uint CoarseHeight;
+};
+
+groupshared float g_sad[kCandidateCount];
+groupshared float g_zeroMotionSad;
+
+// The same "did this block move at all" question, asked at FULL resolution.
+//
+// The search runs on mip 1, and half resolution erases fine detail: a
+// sidebar of small text washes into a grey smear, every candidate then scores
+// about the same, and the neighbourhood bias hands the block whatever its
+// moving neighbours are doing. Seen in a dumped frame: a Twitch page.s left
+// column, which never moved at all, came out doubled and smeared while the
+// video in the middle of the screen interpolated cleanly.
+//
+// At full resolution that same block matches itself almost exactly, so this
+// one extra comparison settles it. It costs 16 samples per block, once,
+// against 169 candidates for the search itself.
+groupshared float g_zeroMotionSadFull;
+
+// PREDICTED candidates: vectors that were right somewhere else, offered to the
+// search for free.
+//
+// The refinement window is +-3 texels, which is +-6 full-resolution pixels
+// around whatever the coarse level proposed. For a camera pan that is plenty,
+// because the coarse level finds the pan. For a bot running across a still
+// background it is hopeless: a coarse block covers 64 pixels and is dominated
+// by the motionless ground around the bot, so the seed says "still" and the
+// fine stage cannot reach the bot.s real 20 px however well it refines. The
+// bot then gets a near-zero vector, the generated frame leaves it almost
+// where the real frame has it, and the two show up as one object drawn twice
+// a few pixels apart - reported exactly as duplicating itself slightly offset.
+//
+// Widening the search is not available: radius 6 alongside the backward field
+// measured 11 ms against a 6.9 ms budget and the engine stood aside entirely.
+//
+// So instead of searching wider, the search is given good guesses. This is the
+// 3DRS idea from television frame-rate conversion: a small candidate set drawn
+// from where this motion has already been seen - the same block one frame ago,
+// and its neighbours one frame ago. A bot that was tracked once stays tracked,
+// and a correct vector spreads sideways across the object a block per frame,
+// without any candidate ever costing more than one block comparison.
+// Switched OFF after measuring it live: no visible change to the duplicated
+// object at all, while generation cost went from 3.7 to between 3.5 and 9.6 ms
+// and crossed the 6.9 ms budget repeatedly - including one drop to 32 native
+// FPS when the engine stood aside. Five predictors read five arbitrary places
+// in the picture per block, which is exactly the access pattern a GPU cache
+// handles worst.
+//
+// The code is kept because the reasoning behind it still holds - a bot moving
+// 20 px genuinely cannot be represented by a +-6 px refinement of a seed that
+// says "still" - but the conclusion has to be that this is not WHY the object
+// duplicates, since giving the search the right vector for free changed
+// nothing. Re-enabling it needs a cheaper form (one predictor, or only where
+// the coarse seed matches badly) and a reason to expect a different result.
+// ON again, and the reason it was off no longer applies.
+//
+// It was switched off at midday because it "changed nothing visible" while
+// pushing generation cost past the budget. Both halves of that have since
+// turned out to be circumstances rather than facts: at the time two
+// confidence constants were discarding roughly 90% of every generated frame,
+// so nothing about the field COULD become visible - and the pipeline was
+// pressed against its deadline, where it now takes 9-16% of the card.
+//
+// What it is for is exactly the problem now on screen. Displaying the motion
+// field during gentle flight shows heavy flicker over trees and lighter
+// flicker over fields: foliage offers a block dozens of nearly identical
+// matches, noise picks the winner, and a different one wins next frame. The
+// same object is then displaced differently in consecutive generated frames,
+// which is what reads as a double image.
+//
+// Offering the vector this block had last frame as a candidate means a block
+// that was right stays right, instead of being re-decided from scratch
+// against a field of ties. That is the 3DRS idea from television frame-rate
+// conversion, and ambiguity in repetitive texture is the case it exists for.
+static const bool kUsePredictors = true;
+static const int kPredictorCount = 5;
+groupshared float g_predictorSad[kPredictorCount];
+groupshared float2 g_predictorVector[kPredictorCount];
+
+// What straying from the search centre costs, per texel, when that centre is
+// the ZERO vector.
+//
+// Far above the ordinary kNeighbourhoodBias of 0.05, and it has to be. Zero is
+// not a guess to be refined away - it is the claim that this block did not move
+// with the scene. On a static HUD it matches almost exactly, but a 49-candidate
+// search will still find some neighbour a hair better on noise, sub-pixel-refine
+// towards it, and drag the ammo counter off its pixel. Measured exactly that
+// way: the weapon came back intact and the HUD, which had been pixel-perfect,
+// came out doubled.
+//
+// At 0.4 a neighbour must be better by a visible margin to displace a
+// near-perfect zero, while a viewmodel whose true motion is a few pixels away
+// still reaches it.
+static const float kZeroCentreBias = 0.4;
+
+// How much better than the coarse seed the ZERO vector must be, at the point
+// stage, before it is allowed to become the search centre.
+//
+// Not a tie-break - a handicap, and it corrects an error in judging the three
+// seed candidates "on equal terms". A single SAD value is a noisy estimator,
+// and the two candidates are not the same kind of thing: the coarse seed's
+// worth is that a search AROUND it will find the truth, while zero has only
+// its one point. For a block moving 200 px the coarse seed is merely
+// approximately right, so its point SAD is mediocre - and on low-contrast
+// distant texture zero can beat it by accident. Then the centre snaps to zero,
+// kZeroCentreBias pins it there, and the far scenery freezes and tears.
+//
+// Measured exactly that way: judging the three at par rescued the viewmodel
+// and moved the damage into the background - the tower doubled, the rock faces
+// mosaicked, distant geometry smeared.
+//
+// 1.3 costs the viewmodel nothing. There, world-displaced content does not
+// resemble the weapon at all, so zero wins by a wide margin rather than a
+// narrow one.
+static const float kZeroCentreMargin = 1.3;
+
+// ...and how far that margin relaxes for a block with a long history of
+// standing still.
+//
+// A different failure from the scroll, reported separately: "wenn sich die
+// Auswahl aendert wenn ich mit meiner Maus irgendwo drueber gehe kommen kleine
+// Tearings". Nothing MOVES when a hover highlight appears - the content
+// CHANGES in place. Block matching has no way to express that. Zero suddenly
+// matches badly, the search finds some other UI element that happens to look
+// similar, scores well on it, and the highlight is drawn where it never was.
+//
+// The counter in .w already knows: it holds how many consecutive frames this
+// block was identical to itself, up to 30, and is used for the static-block
+// shortcut. A block that stood still for sixteen frames and then changed has
+// overwhelmingly swapped its content rather than moved - that IS a menu
+// highlight, a changing ammo counter, a health bar.
+//
+// At 0.6 such a block takes zero even when zero is up to 1.7x WORSE than the
+// best the search found. It is a deliberate refusal to believe the search on
+// content whose history says it does not move.
+//
+// The cost: an object that stood still and genuinely starts moving is believed
+// late. The counter resets on any real motion, and sixteen frames is 0.22 s at
+// 72 fps, so this is a brief stickiness on something beginning to move, paid
+// for a class of UI that never moves at all.
+static const float kZeroCentreMarginStatic = 0.6;
+static const float kStaticHistoryFrames = 16.0;
+
+// Below this mean-removed SAD, a block's PATTERN is unchanged and only its
+// lighting moved. 16 samples across 3 channels, so 1.2 is a mean absolute
+// difference of about 0.025 per channel once the brightness offset is gone -
+// above sampling noise, far below any real change of content.
+static const float kFlatZeroSad = 1.2;
+
+// How long a block must have been standing still before the brightness test is
+// allowed to decide for it. Four frames is enough to exclude anything that was
+// genuinely moving a moment ago, and short enough that a menu reacts at once.
+//
+// The restriction matters. A muzzle flash or a G-force blackout also changes
+// brightness without changing content, but over a MOVING picture - and forcing
+// zero there would freeze the scene. Fixing that case needs the mean-removed
+// measure inside the search itself, for all 49 candidates, which is the
+// expensive version that has already failed once. This handles the static
+// case only, and says so.
+static const float kFlatZeroMinStatic = 4.0;
+
+// How much better than STANDING STILL a temporal predictor has to be before it
+// may become the search centre.
+//
+// Not a tie-break. A predictor is last frame's answer, and last frame's answer
+// is exactly what a self-perpetuating error is made of: a background vector
+// gets into a block of text, the predictor offers it again next frame, fine
+// text finds a false local minimum at that offset through aliasing, and the
+// block stays caught in a motion it never had while its neighbour sits at
+// zero. That is what tore the War Thunder pause menu into unreadable letters -
+// and it kept happening after the mouse prediction was removed entirely, which
+// is what ruled the mouse out and pointed here.
+//
+// 0.8 means a predictor must be twenty percent better than not moving at all.
+// Continuous motion clears that easily; a stale vector on static text does not.
+static const float kPredictorMustBeatZero = 0.8;
+
+// The point SAD of the coarse seed, and the centre the search will actually
+// use.
+groupshared float g_coarseSeedSad;
+groupshared float g_zeroMotionSadFlat;
+groupshared int2 g_searchCentre;
+groupshared int g_centreIsZero;
+// THE SEARCH RUNS ON MIP 1 - half resolution - while a block still covers the
+// same 16 full-resolution pixels, so the motion field keeps its granularity.
+//
+// Reason, measured in a GPU-bound game: this dispatch reported 30 ms where the
+// same work costs 0.50 ms on an idle GPU. The arithmetic is not the problem,
+// the memory traffic is: 169 candidates x 16 samples per block, every one a
+// texture read. At half resolution the same block is eight texels across
+// instead of sixteen, so a search window fits in a quarter of the footprint.
+//
+// It also doubles the reach for free: a refinement of six texels here is twelve
+// full-resolution pixels, where before it was six.
+//
+// What it cost: motion resolved to two-pixel precision instead of one - said to
+// sit below the noise floor of the estimate, "for deciding where a SIXTEEN-pixel
+// block went".
+//
+// That justification is stale twice over. The blocks are 8 px now, not 16. And
+// two-pixel precision does not sit below the noise floor; it IS the artefact.
+// Measured on 2026-09-14: the double images appear where the search saturates
+// 0% of blocks, the match error is low and the four neighbouring vectors agree
+// - vectors that are slightly wrong, not wrong. At 200 px of displacement a 1%
+// error is 2 px, and averaging two copies of an edge 2 px apart is the
+// definition of a double edge. Half resolution puts a floor under that error
+// that no amount of searching can get below, because the sub-pixel parabola is
+// fitted on the halved SAD surface and then multiplied by two.
+//
+// TRIED AND REVERTED on 2026-09-14. The search ran at full resolution for one
+// build and the output collapsed: 40-135 FPS against a steady 144, with jitter
+// of 164 ms and 113 ms in single seconds. Reported simply as "es ruckelt".
+//
+// The risk this change named beforehand did NOT happen - search saturation
+// stayed at 0%, so reach was never the problem and the fine stage still found
+// what it was looking for, at 0.47-1.81 ms. The cost landed somewhere else
+// entirely: the same 16 samples per block now span four times the memory, so
+// the search window no longer fits the cache the way it did, and the whole
+// pipeline stalled around it.
+//
+// The precision theory is therefore UNTESTED, not disproved - we could not
+// afford to test it this way. A cheaper route to the same end would be to keep
+// the mip-1 search and add a +-1 pixel refinement at full resolution for the
+// winning candidate only: 9 candidates instead of 49, on a window that is
+// already in cache because the block was just read.
+//
+// Left at half resolution. The sample count is unchanged -
+// kSampleStrideTexels follows kMipScale, so a block is still 16 samples - and
+// so is the candidate count. What changes is reach: +-3 texels was +-6 full
+// pixels and is now +-3. That is the real risk of this change, and it is
+// directly measurable: "Search-saturated blocks" counts blocks pinned at the
+// edge of the window. It read 0% at 308 px peak motion with the old reach. If
+// it climbs now, the fine stage is no longer able to correct the coarse one and
+// this has to be paid for with a wider radius or a third stage.
+static const int kSearchMip = 1;
+static const int kMipScale = 2;                                        // 1 << kSearchMip
+static const int kBlockTexels = kBlockSize / kMipScale;                // 8 texels
+static const int kSampleStrideTexels = kBlockSampleStride / kMipScale; // 2 -> 4x4 = 16 samples
+
+// THE SAME TEXELS, READ ONCE INSTEAD OF FORTY-NINE TIMES.
+//
+// Measured: this engine is limited by memory traffic, not by arithmetic. The
+// full-resolution search (kSearchMip = 0) was tried and collapsed the output to
+// 40-135 fps - four times the traffic at an UNCHANGED sample count, so the
+// sample count was never the price. And at 51% of the graphics card we are
+// starving the game that feeds us: the source fell from a locked 72.0 to 51.1
+// fps while our own cost went from 5.1 to 7.9 ms.
+//
+// Where the traffic goes, per block, before this change:
+//
+//   49 threads x 16 samples x 2 textures = 1568 texel loads
+//
+// Of those, the CurrFrame half is 784 loads of the SAME sixteen texels - every
+// thread fetching the identical reference block because each evaluates a
+// different candidate against it. That is pure waste and it is the easiest
+// half to remove: sixteen loads, shared.
+//
+// The PrevFrame half genuinely differs per thread, but the candidates sit
+// within +-kSearchRadius of one centre, so the texels they touch overlap almost
+// completely. Their union is a 13x13 tile - 169 texels against 784 loads.
+//
+//   16 + 169 + about 96 for the step-2 candidates = ~281 loads, 5.6x less.
+//
+// Nothing about the search changes: same window, same candidates, same
+// arithmetic, same answer. Only the number of times we ask memory for a texel
+// we already have.
+static const int kBlockSamples1D = kBlockTexels / kSampleStrideTexels;   // 4
+static const int kBlockSamples = kBlockSamples1D * kBlockSamples1D;      // 16
+
+// .xyz the colour, .w 0 when the sample lies outside the frame and must be
+// skipped - the bounds test BlockSAD used to make per thread, made once.
+groupshared float4 g_currBlock[kBlockSamples];
+
+// Reach of the candidates around the centre: the sample offsets run
+// 0..kBlockTexels-kSampleStrideTexels and each may be displaced by
+// +-kSearchRadius, so the tile spans that span plus the window, inclusive.
+static const int kPrevTileDim =
+    (kBlockTexels - kSampleStrideTexels) + 2 * kSearchRadius + 1;        // 13
+static const int kPrevTileTexels = kPrevTileDim * kPrevTileDim;          // 169
+groupshared float3 g_prevTile[kPrevTileTexels];
+
+// Set when a candidate already matches so well that refining it cannot pay.
+// Uniform across the group - see where it is written.
+groupshared int g_skipFineSearch;
+groupshared float g_centreSad;
+
+// Zero motion, judged on the real pixels rather than the halved ones.
+float BlockSADFullRes(int2 blockOriginPixels)
+{
+    const int2 maxPixel = int2((int)FrameWidth, (int)FrameHeight) - 1;
+
+    float sad = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockSize; y += kBlockSampleStride)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockSize; x += kBlockSampleStride)
+        {
+            const int2 p = min(blockOriginPixels + int2(x, y), maxPixel);
+            float3 currColor = CurrFrame.Load(int3(p, 0)).rgb;
+            float3 prevColor = PrevFrame.Load(int3(p, 0)).rgb;
+            sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
+float BlockSAD(int2 currBlockOriginTexels, int2 candidateOffsetTexels)
+{
+    const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                             max((int)FrameHeight / kMipScale, 1)) - 1;
+
+    // A plain difference of colours, which assumes the same object keeps the
+    // same brightness between frames. Games break that: a G-force blackout
+    // darkens everything, a cloud shadow passes, a flash lights the scene -
+    // reported directly, the whole motion field lighting up when the screen
+    // dims under G-load, because every block looks changed.
+    //
+    // Subtracting each block.s mean first would leave only the pattern and fix
+    // that. Implemented by storing sixteen samples per thread, it cost the
+    // fine stage 17-30 ms against 1.2 - 49 threads per group each holding
+    // sixteen float3s blows the register budget and the GPU spills to memory.
+    //
+    // The idea is right and the implementation has to avoid keeping samples
+    // around: either two fetch passes with no storage, or a gradient-based
+    // measure, which cancels a brightness offset without needing the mean at
+    // all.
+    float sad = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
+        {
+            int2 currTexel = currBlockOriginTexels + int2(x, y);
+            int2 prevTexel = currTexel + candidateOffsetTexels;
+
+            if (currTexel.x > mipMax.x || currTexel.y > mipMax.y)
+                continue;
+
+            // Staged by the group before any search ran. Identical for every
+            // thread, so fetching it per thread was 784 loads of sixteen texels.
+            float3 currColor = g_currBlock[(y / kSampleStrideTexels) * kBlockSamples1D
+                                         + (x / kSampleStrideTexels)].rgb;
+            float3 prevColor = PrevFrame.Load(int3(clamp(prevTexel, int2(0, 0), mipMax), kSearchMip)).rgb;
+
+            sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
+// THE FINE SEARCH, READING ONLY GROUPSHARED MEMORY.
+//
+// Same sixteen samples and the same arithmetic as BlockSAD. The difference is
+// that neither operand touches a texture: the reference block and the 13x13
+// neighbourhood the candidates move within were both staged by the group.
+//
+// candidateOffsetTexels is relative to g_searchCentre, so it is the refinement
+// alone and stays inside +-kSearchRadius by construction.
+float BlockSADStaged(int2 refinementTexels)
+{
+    float sad = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
+        {
+            const int sample = (y / kSampleStrideTexels) * kBlockSamples1D
+                             + (x / kSampleStrideTexels);
+            const float4 curr = g_currBlock[sample];
+            if (curr.w == 0.0)
+                continue;
+
+            const int2 rel = int2(x, y) + refinementTexels + kSearchRadius;
+            const float3 prevColor = g_prevTile[rel.y * kPrevTileDim + rel.x];
+
+            sad += dot(abs(curr.rgb - prevColor), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
+// DID THIS BLOCK ONLY CHANGE BRIGHTNESS?
+//
+// Same sixteen samples as BlockSAD, at zero offset, but with each block's own
+// mean subtracted first - so a uniform brightening or darkening cancels out and
+// only the PATTERN is compared. Near zero means "the same content, lit
+// differently"; large means the content itself changed.
+//
+// This is the case BlockSAD cannot express, and the photograph of the War
+// Thunder pause menu shows what it costs. The hover highlight is a full-width
+// semi-transparent bright strip. When it jumps from one entry to another, a
+// whole band of blocks changes brightness; zero no longer matches, and the
+// search then finds the strip at its OLD position - also bright, also
+// full-width, an excellent match - and drags the content from there. The
+// result is a screen-wide band of scrambled deck and aircraft with razor-sharp
+// horizontal edges, exactly as photographed.
+//
+// Raising the zero margin could not fix it: bright-against-bright beats
+// bright-against-dark by far more than any margin worth having.
+//
+// The comment on BlockSAD has described this fix for a long time, and records
+// why the previous attempt failed - it stored sixteen samples per thread across
+// all 49 threads and spilled the register budget, costing the fine stage 17-30
+// ms. That is not this. This runs for ONE candidate on ONE thread, in two fetch
+// passes with nothing kept between them: 32 extra reads against the group's 784.
+float BlockSADMeanRemoved(int2 currBlockOriginTexels)
+{
+    const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                             max((int)FrameHeight / kMipScale, 1)) - 1;
+
+    // Pass one: the two means. Nothing is stored but the running sums.
+    float3 currSum = float3(0.0, 0.0, 0.0);
+    float3 prevSum = float3(0.0, 0.0, 0.0);
+    float count = 0.0;
+    [unroll]
+    for (int y = 0; y < kBlockTexels; y += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x = 0; x < kBlockTexels; x += kSampleStrideTexels)
+        {
+            const int2 t = currBlockOriginTexels + int2(x, y);
+            if (t.x > mipMax.x || t.y > mipMax.y) continue;
+            currSum += CurrFrame.Load(int3(t, kSearchMip)).rgb;
+            prevSum += PrevFrame.Load(int3(clamp(t, int2(0, 0), mipMax), kSearchMip)).rgb;
+            count += 1.0;
+        }
+    }
+    if (count < 1.0) return 1e6;
+    const float3 currMean = currSum / count;
+    const float3 prevMean = prevSum / count;
+
+    // Pass two: the same samples again, each measured against its own mean.
+    float sad = 0.0;
+    [unroll]
+    for (int y2 = 0; y2 < kBlockTexels; y2 += kSampleStrideTexels)
+    {
+        [unroll]
+        for (int x2 = 0; x2 < kBlockTexels; x2 += kSampleStrideTexels)
+        {
+            const int2 t = currBlockOriginTexels + int2(x2, y2);
+            if (t.x > mipMax.x || t.y > mipMax.y) continue;
+            const float3 c = CurrFrame.Load(int3(t, kSearchMip)).rgb - currMean;
+            const float3 pv = PrevFrame.Load(int3(clamp(t, int2(0, 0), mipMax), kSearchMip)).rgb - prevMean;
+            sad += dot(abs(c - pv), float3(1.0, 1.0, 1.0));
+        }
+    }
+    return sad;
+}
+
+// One thread GROUP per block (dispatched width/kBlockSize x height/kBlockSize),
+// one THREAD per candidate offset within the group - the real parallelism fix.
+[numthreads(kSearchWindow, kSearchWindow, 1)]
+void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
+{
+    // Everything in this stage is counted in MIP 1 TEXELS; only the vector
+    // written at the end is converted back to full-resolution pixels.
+    int2 blockOrigin = int2(groupId.xy) * kBlockTexels;
+
+    // DID THIS BLOCK CHANGE AT ALL? If not, skip the search entirely.
+    //
+    // The search costs 49 block comparisons per block and runs over every
+    // block of the screen, every frame, whether or not anything there moved.
+    // Measured live: 0.19% of blocks moving on a quiet screen and 55-80% in a
+    // firefight - so most of the time most of this work is answering a
+    // question whose answer is zero.
+    //
+    // A sky, a wall, the HUD, the letterbox bars of a cinematic: all of them
+    // are searched at full price today.
+    //
+    // The test itself already existed - it is the same full-resolution
+    // comparison the search uses at the end to decide "this did not move
+    // after all". It was simply asked AFTER paying for the search rather than
+    // before. One thread computes it, the group waits once, and a block whose
+    // content is unchanged writes a zero vector and returns.
+    //
+    // The barrier costs the whole group a synchronisation it did not have
+    // before, which is why this is worth it only because the saving is the
+    // entire search rather than part of it.
+    if (groupIndex == 0)
+        g_zeroMotionSadFull = BlockSADFullRes(int2(groupId.xy) * kBlockSize);
+
+    // The reference block, staged once for the whole group. Sixteen texels
+    // across sixteen threads, folded into a barrier the group already paid
+    // for. Every BlockSAD from here on reads it instead of the texture.
+    if (groupIndex < kBlockSamples)
+    {
+        const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                                 max((int)FrameHeight / kMipScale, 1)) - 1;
+        const int sx = (int)groupIndex % kBlockSamples1D;
+        const int sy = (int)groupIndex / kBlockSamples1D;
+        const int2 texel = blockOrigin + int2(sx, sy) * kSampleStrideTexels;
+        // Outside the frame is skipped, not clamped - the same rule BlockSAD
+        // applied per thread, decided once and carried in .w.
+        const bool inside = (texel.x <= mipMax.x && texel.y <= mipMax.y);
+        g_currBlock[groupIndex] = float4(
+            inside ? CurrFrame.Load(int3(texel, kSearchMip)).rgb : float3(0, 0, 0),
+            inside ? 1.0 : 0.0);
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (g_zeroMotionSadFull < kStaticBlockSad)
+    {
+        if (groupIndex == 0)
+        {
+            // .w counts HOW LONG this block has been standing still.
+            //
+            // A HUD element stands still always; a tree never does. One frame
+            // of stillness means nothing - a bird can pause, a wall can match
+            // itself by accident - but sixty frames of it is a screen-space
+            // overlay. That distinction is what lets the interpolator allow
+            // "did not move" where it is true and refuse it where it is a
+            // coincidence, which is what tears landscape apart along the edge
+            // of a crosshair.
+            //
+            // Capped so it can fall back quickly: a menu that closes must stop
+            // being treated as static within a few frames, not after a second.
+            // The counter needs a far stricter test than the search skip above.
+            //
+            // kStaticBlockSad exists to save work: "close enough that searching
+            // would find nothing". An OVERLAY is a different claim - a HUD is
+            // pixel-identical from frame to frame, while an aircraft filling
+            // the screen barely moves relative to the display and still
+            // changes constantly through lighting, vibration and fine texture.
+            // At the loose threshold the aircraft qualified as static after
+            // eight frames and was handed the HUD treatment, so its edges tore
+            // against the landscape exactly as the crosshair.s had.
+            //
+            // A quarter of the threshold is the difference between "would not
+            // repay a search" and "did not change at all".
+            const float wasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+            const bool identicalToLastFrame = g_zeroMotionSadFull < kStaticBlockSad * 0.25;
+            MotionVectors[groupId.xy] = float4(0.0, 0.0,
+                max(g_zeroMotionSadFull, 0.0) / (16.0 * 3.0),
+                identicalToLastFrame ? min(wasStatic + 1.0, 30.0) : 0.0);
+        }
+        return;
+    }
+
+    // Seed from the coarse stage: which coarse block this fine block sits in.
+    // The coarse vector is in full-resolution pixels, so it is halved to land
+    // in this stage's coordinates.
+    int2 coarseIndex = clamp(int2(groupId.xy) / kCoarseBlockRatio,
+        int2(0, 0), int2(max(CoarseWidth, 1u), max(CoarseHeight, 1u)) - 1);
+    int2 seed = int2(round(CoarseMotionVectors.Load(int3(coarseIndex, 0)).xy))
+        * kCoarseToFineScale / kMipScale;
+    int2 refinement = int2(groupThreadId.xy) - kSearchRadius;
+
+    // ---- STEP 1: three seed candidates, each judged at ONE point ----------
+    //
+    // The fine stage refines +-3 texels around a centre. Everything therefore
+    // depends on that centre being in the right basin, and until now it was
+    // always the coarse seed, with zero and the temporal predictors allowed
+    // only to overturn the FINISHED search afterwards.
+    //
+    // That comparison was unfair in a way that cost a day. The coarse window
+    // gets to try 49 positions and keep its best; zero and the predictors were
+    // each tried at exactly one. On an Apex viewmodel - a weapon rigidly
+    // attached to the camera while the world sweeps past at 100-300 px - the
+    // world-seeded window always finds SOME passable match on world content,
+    // and zero, which is near the weapon's truth but not exactly on it because
+    // the weapon also sways, loses to it. The weapon came out shredded while
+    // the HUD stayed perfect: dumped, looked at, and unmistakable.
+    //
+    // So the three candidates are now compared like for like, at one point
+    // each, BEFORE any search runs. The winner becomes the centre. One search,
+    // not two - cheaper than what this replaces.
+    if (groupIndex == 0)
+    {
+        g_coarseSeedSad = BlockSAD(blockOrigin, seed);
+    }
+
+    // ZERO MOTION: the candidate that matters for anything pinned to the
+    // camera or to the screen - a viewmodel, a crosshair, an ammo counter.
+    // The coarse stages work on 64 and 128 px blocks that mix such an object
+    // with the world behind it, and the neighbourhood bias pulls them to the
+    // world, so the seed they hand down can be hundreds of pixels wrong.
+    if (groupIndex == 1)
+    {
+        g_zeroMotionSad = BlockSAD(blockOrigin, int2(0, 0));
+    }
+
+    // The same question with the brightness taken out - but ONLY where its
+    // answer can be used.
+    //
+    // This runs on one thread and takes two full passes over the block, and
+    // the other forty-eight threads sit at the barrier until it finishes. The
+    // cost was defended as "32 reads against the group's 784", which is the
+    // right arithmetic for throughput and the wrong one for latency: it does
+    // not matter that the work is small when the whole group waits for it.
+    //
+    // Measured after it went in: motion estimation at 40.14 ms in a busy scene,
+    // against the 1-3 ms it had run at all day. That is the stutter.
+    //
+    // Its result is only ever read behind "wasStatic >= kFlatZeroMinStatic", so
+    // blocks without a stillness history never needed it. In a moving scene
+    // that is nearly all of them, and they now skip it entirely.
+    if (groupIndex == 2)
+    {
+        const float flatWasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+        g_zeroMotionSadFlat = (flatWasStatic >= kFlatZeroMinStatic)
+            ? BlockSADMeanRemoved(blockOrigin)
+            : 1e6;
+    }
+
+    // TEMPORAL PREDICTORS: this block's own vector from the previous frame and
+    // its four neighbours'. Continuous motion is predicted by its own past far
+    // better than by a coarse pyramid, and once a viewmodel has been found
+    // correctly one frame, these carry it forward for nothing.
+    if (kUsePredictors && groupIndex >= 8 && groupIndex < 8 + kPredictorCount)
+    {
+        const int slot = groupIndex - 8;
+        const int2 offsets[kPredictorCount] = {
+            int2(0, 0), int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1)
+        };
+        const int2 blockGrid = int2(((int)FrameWidth + kBlockSize - 1) / kBlockSize,
+                                   ((int)FrameHeight + kBlockSize - 1) / kBlockSize);
+        const int2 neighbourBlock = clamp(int2(groupId.xy) + offsets[slot],
+            int2(0, 0), max(blockGrid - 1, int2(0, 0)));
+
+        const float2 predictedPixels = PreviousMotionField.Load(int3(neighbourBlock, 0)).xy;
+        const int2 predicted = int2(round(predictedPixels / kMipScale));
+
+        g_predictorVector[slot] = float2(predicted);
+        g_predictorSad[slot] = BlockSAD(blockOrigin, predicted);
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // ---- STEP 2: the winner becomes the centre of the search --------------
+    //
+    // No bias anywhere in this comparison. The bias exists to settle ties in
+    // favour of coherence during refinement, and here the whole question is
+    // whether the coherent answer is the right one at all.
+    if (groupIndex == 0)
+    {
+        float centreSad = g_coarseSeedSad;
+        int2 centre = seed;
+        int which = 0; // 0 = coarse seed, 1 = zero, 2 = temporal predictor
+
+        // Zero has to be clearly better, not merely better. See
+        // kZeroCentreMargin - this is the difference between rescuing the
+        // viewmodel and freezing the background.
+        // TEMPORAL PREDICTORS FIRST, and they must beat standing still.
+        //
+        // The order here was wrong and it undid both zero rules below. The
+        // predictor loop ran LAST and with no margin at all, so a predictor a
+        // hair better than the winner overturned a block that had just been
+        // judged static - by its own history, or by the brightness test. Last
+        // frame's vector then survived into this frame, where it is offered
+        // again, and a block of fine text finds a false local minimum at that
+        // offset through aliasing. The block stays caught in a motion it never
+        // had while its neighbour sits at zero; that is unreadable text.
+        //
+        // Two changes: predictors are weighed before zero rather than after, so
+        // the zero rules have the last word, and a predictor has to be twenty
+        // percent better than not moving at all - see kPredictorMustBeatZero.
+        for (int k = 0; kUsePredictors && k < kPredictorCount; ++k)
+        {
+            if (g_predictorSad[k] < centreSad
+                && g_predictorSad[k] < g_zeroMotionSad * kPredictorMustBeatZero)
+            {
+                centreSad = g_predictorSad[k];
+                centre = int2(g_predictorVector[k]);
+                which = 2;
+            }
+        }
+
+        // The longer this block has stood still, the less zero has to prove.
+        const float wasStatic = PreviousMotionField.Load(int3(groupId.xy, 0)).w;
+        const float zeroMargin = lerp(kZeroCentreMargin, kZeroCentreMarginStatic,
+                                      saturate(wasStatic / kStaticHistoryFrames));
+        if (g_zeroMotionSad * zeroMargin < centreSad)
+        {
+            centreSad = g_zeroMotionSad;
+            centre = int2(0, 0);
+            which = 1;
+        }
+
+        // ...and if the PATTERN here is unchanged and only the lighting moved,
+        // zero is not a candidate to be weighed at all - it is the answer.
+        // Nothing that merely got brighter went anywhere, and no match found
+        // elsewhere can be evidence that it did. Last, so nothing overturns it.
+        if (wasStatic >= kFlatZeroMinStatic && g_zeroMotionSadFlat < kFlatZeroSad)
+        {
+            centreSad = g_zeroMotionSad;
+            centre = int2(0, 0);
+            which = 1;
+        }
+
+        g_searchCentre = centre;
+        g_centreIsZero = (which == 1) ? 1 : 0;
+        g_centreSad = centreSad;
+
+        // ALREADY A NEAR-PERFECT MATCH: refining it cannot pay.
+        //
+        // Step 2 has just compared the coarse seed, zero and the temporal
+        // predictors as points and taken the best. When that winner matches to
+        // within kNearPerfectSad over sixteen samples, the error surface around
+        // it is flat at the noise floor and the 49 candidates of step 3 are
+        // choosing between differences smaller than the camera sensor's own.
+        //
+        // Decided by one thread and read by all forty-nine after the barrier
+        // below, so the whole group takes the same branch. It has to be that
+        // way: threads cannot return individually from a function with a
+        // GroupMemoryBarrierWithGroupSync in it - the ones still running would
+        // wait at a barrier the others never reach, which HLSL leaves
+        // undefined. The static-block exit above is built the same way.
+        //
+        // The threshold is deliberately tight. It is a guess until the SAD
+        // distribution is measured, and a guess that fires too often would
+        // freeze slightly-wrong vectors in place - the exact failure that
+        // produces double images. Tight means it rarely fires and never lies.
+        g_skipFineSearch = (centreSad < kNearPerfectSad) ? 1 : 0;
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // ---- STEP 3: one search, around the winner ---------------------------
+    //
+    // A candidate that agrees with the neighbourhood wins ties: the bias costs
+    // a little per texel of distance from the centre, so where several
+    // positions match equally well - flat ground, foliage, sky - the one
+    // nearest the prediction is taken instead of whichever noise favoured.
+    // Ground texture at speed offers dozens of near-identical candidates, and
+    // a different winner each frame is what reads as a double image.
+    //
+    // A zero centre is held much harder. See kZeroCentreBias.
+    const float seedBias = (g_centreIsZero != 0) ? kZeroCentreBias : kNeighbourhoodBias;
+
+    // THE TILE IS STAGED UNDER A CONDITION; THE BARRIER IS NOT.
+    //
+    // g_skipFineSearch is groupshared and written by one thread, so it is the
+    // same value for all forty-nine - but the compiler cannot prove that, and a
+    // GroupMemoryBarrierWithGroupSync it believes might be reached by only some
+    // threads is undefined. So the work sits inside the branch and the
+    // synchronisation sits outside it, where every thread reaches it either way.
+    if (g_skipFineSearch == 0)
+    {
+        // THE 13x13 NEIGHBOURHOOD THE CANDIDATES MOVE WITHIN, staged once.
+        //
+        // 169 texels across 49 threads, four apiece. Against 784 loads from the
+        // texture before - the same texels, fetched again by every thread whose
+        // candidate overlapped them.
+        //
+        // This has to sit after the barrier above, because the tile is placed
+        // around g_searchCentre and step 2 only just decided where that is.
+        const int2 mipMax = int2(max((int)FrameWidth / kMipScale, 1),
+                                 max((int)FrameHeight / kMipScale, 1)) - 1;
+        const int2 tileOrigin = blockOrigin + g_searchCentre - kSearchRadius;
+        for (int i = (int)groupIndex; i < kPrevTileTexels; i += kCandidateCount)
+        {
+            const int2 rel = int2(i % kPrevTileDim, i / kPrevTileDim);
+            // Clamped, not skipped - PrevFrame was always read clamped, so a
+            // candidate reaching past the edge sees the edge texel.
+            g_prevTile[i] = PrevFrame.Load(int3(
+                clamp(tileOrigin + rel, int2(0, 0), mipMax), kSearchMip)).rgb;
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (g_skipFineSearch != 0)
+    {
+        // The search is skipped, but step 4 still runs unchanged - it owns the
+        // sub-pixel fit, the zero snap and the stillness counter, and none of
+        // that should be duplicated into a second write path.
+        //
+        // So hand it the surface the search would have produced if every
+        // candidate matched as well as the centre: a flat field of centreSad
+        // shaped only by the neighbourhood bias. Its minimum is at refinement
+        // (0,0), uniquely, and it is symmetric around it - so the reduction
+        // picks the centre and the parabolic fit reads no sub-pixel offset.
+        // bestMatchSad then comes out as centreSad exactly, which is the true
+        // measurement, because step 4 subtracts the same bias again.
+        g_sad[groupIndex] = g_centreSad + seedBias * length(float2(refinement));
+    }
+    else
+    {
+        g_sad[groupIndex] = BlockSADStaged(refinement)
+            + seedBias * length(float2(refinement));
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    // ---- STEP 4: reduce, refine to sub-pixel, write ----------------------
+    if (groupIndex == 0)
+    {
+        float bestSad = g_sad[0];
+        int bestIndex = 0;
+        for (int i = 1; i < kCandidateCount; ++i)
+        {
+            if (g_sad[i] < bestSad)
+            {
+                bestSad = g_sad[i];
+                bestIndex = i;
+            }
+        }
+
+        const int2 bestRefinement =
+            int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
+        int2 bestOffset = g_searchCentre + bestRefinement;
+        // The bias is taken back out: .z has to be a measurement of how well
+        // the block actually matched, not of how far its winner sat from the
+        // centre. The smoothing pass and the interpolation shader both read it
+        // as real match quality.
+        float bestMatchSad = bestSad - seedBias * length(float2(bestRefinement));
+
+        // Standing still wins outright when it is CLEARLY better, so ordinary
+        // noise in a moving scene cannot make blocks stick. Sub-pixel
+        // refinement must not run afterwards: a block judged still has no error
+        // surface around its winner to interpolate.
+        bool snappedToZero = false;
+        if (g_zeroMotionSad * kZeroMotionMargin < bestMatchSad)
+        {
+            bestOffset = int2(0, 0);
+            bestMatchSad = g_zeroMotionSad;
+            snappedToZero = true;
+        }
+
+        // Full resolution has the last word on standing still. A block this
+        // close to identical where it already is did not move, whatever the
+        // half-resolution search made of it.
+        if (g_zeroMotionSadFull < kStaticBlockSad)
+        {
+            bestOffset = int2(0, 0);
+            bestMatchSad = min(bestMatchSad, g_zeroMotionSadFull);
+            snappedToZero = true;
+        }
+
+        const float kSamplesPerCandidate = 16.0 * 3.0; // 4x4 samples, 3 channels
+
+        // Sub-pixel by a parabola through the SAD minimum, per axis.
+        float2 subTexel = float2(0.0, 0.0);
+        if (!snappedToZero)
+        {
+            const int bx = bestIndex % kSearchWindow;
+            const int by = bestIndex / kSearchWindow;
+            const float centreSad = g_sad[bestIndex];
+
+            // Both start at zero and stay there when the winner sits on the
+            // edge of the search window, where there is no neighbour to measure
+            // against. That absence is tracked separately below: it means NO
+            // INFORMATION, which is not the same as "flat", and treating it as
+            // flat would hand the whole axis to the seed - exactly wrong for a
+            // block whose motion fills the window, which is precisely what a
+            // fast pan produces. Search saturation has been measured at up to
+            // 25% of blocks during a flick.
+            float curvX = 0.0, curvY = 0.0;
+            bool haveCurvX = false, haveCurvY = false;
+            if (bx > 0 && bx < kSearchWindow - 1)
+            {
+                const float left  = g_sad[by * kSearchWindow + bx - 1];
+                const float right = g_sad[by * kSearchWindow + bx + 1];
+                curvX = left - 2.0 * centreSad + right;
+                haveCurvX = true;
+                if (curvX > 1e-7)
+                    subTexel.x = clamp(0.5 * (left - right) / curvX, -0.5, 0.5);
+            }
+            if (by > 0 && by < kSearchWindow - 1)
+            {
+                const float up   = g_sad[(by - 1) * kSearchWindow + bx];
+                const float down = g_sad[(by + 1) * kSearchWindow + bx];
+                curvY = up - 2.0 * centreSad + down;
+                haveCurvY = true;
+                if (curvY > 1e-7)
+                    subTexel.y = clamp(0.5 * (up - down) / curvY, -0.5, 0.5);
+            }
+
+            // THE APERTURE PROBLEM, measured from the shape of the error
+            // surface rather than guessed at.
+            //
+            // This is the one cause of double images that no confidence test in
+            // this engine can catch, and the reason is in its definition: along
+            // an edge with no detail across it, every offset in one direction
+            // matches EQUALLY WELL. The winner is decided by noise, its match
+            // error is LOW, and it is wrong. Every check we have asks "did it
+            // match well", and the answer here is yes.
+            //
+            // What the error surface knows and the winner does not is its own
+            // shape. A real match sits in a well - curved in both directions. An
+            // aperture match sits in a trough, curved across the edge and flat
+            // along it. Both curvatures are already computed just above, for the
+            // sub-pixel fit, and then thrown away.
+            //
+            // Judged as a RATIO between the two axes rather than against a
+            // threshold, which is what makes this safe to add without first
+            // measuring a distribution: a ratio has no units and no scale, so it
+            // cannot be wrong for a different game, resolution or brightness. On
+            // a proper well the two curvatures are similar and nothing happens.
+            // Only a genuinely lopsided surface is corrected, and only along the
+            // axis that is actually unconstrained.
+            //
+            // The correction is to take that component from the SEED instead -
+            // the coarse-pyramid or temporal-predictor vector that step 2 chose,
+            // which is the neighbourhood's opinion. That is what every global
+            // flow method does with an under-constrained pixel: let the
+            // neighbours decide the part it cannot see for itself.
+            const float cx = max(curvX, 0.0);
+            const float cy = max(curvY, 0.0);
+            const float sharpest = max(cx, cy);
+            //
+            // A CURVE, NOT A RATIO, so ordinary content is left alone.
+            //
+            // Real detail is never perfectly isotropic - a ratio of 0.7 between
+            // the two axes is an ordinary textured block, not an ambiguous one,
+            // and pulling 30% of it toward the seed would smooth the whole field
+            // for no reason and invent its own artefacts. An actual aperture
+            // case is far more lopsided than that: one axis carries the edge and
+            // the other is flat, which lands one or two orders of magnitude
+            // apart.
+            //
+            // So below 5% the axis is taken entirely from the neighbourhood,
+            // above 35% entirely from the search, and the transition between is
+            // smooth because a hard switch on a per-block property pops - every
+            // hard per-block switch tried in this engine has.
+            if (haveCurvX && haveCurvY && sharpest > 1e-6)
+            {
+                const float trustX = smoothstep(0.05, 0.35, cx / sharpest);
+                const float trustY = smoothstep(0.05, 0.35, cy / sharpest);
+                const float2 seed = float2(g_searchCentre);
+                const float2 found = float2(bestOffset) + subTexel;
+                const float2 blended = float2(lerp(seed.x, found.x, trustX),
+                                              lerp(seed.y, found.y, trustY));
+                bestOffset = int2(0, 0);
+                subTexel = blended;
+            }
+        }
+
+        float2 finalMotion = (float2(bestOffset) + subTexel) * kMipScale;
+        if (dot(finalMotion, finalMotion) < 0.75 * 0.75)
+            finalMotion = float2(0.0, 0.0);
+
+        // Moving: the stillness counter resets to zero.
+        MotionVectors[groupId.xy] = float4(finalMotion,
+            max(bestMatchSad, 0.0) / kSamplesPerCandidate, 0.0);
+    }
+}

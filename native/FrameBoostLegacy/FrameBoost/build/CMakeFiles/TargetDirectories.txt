@@ -1,0 +1,5 @@
+C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/CMakeFiles/CompileShaders.dir
+C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/CMakeFiles/d3d11.dir
+C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/CMakeFiles/dxgi.dir
+C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/CMakeFiles/edit_cache.dir
+C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/CMakeFiles/rebuild_cache.dir

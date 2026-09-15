@@ -1,0 +1,95 @@
+THIRD-PARTY LICENCES — RESET FPS BOOSTER / FrameBoost
+=====================================================
+Stand: 2026-09-15
+
+KURZFASSUNG
+-----------
+Die FrameBoost-Engine (V2 und Legacy) enthält KEINEN fremden Quellcode.
+Es wurde keine Datei, keine Funktion und kein Shader aus einem fremden
+Projekt kopiert oder übersetzt. Alle unten genannten Projekte wurden
+ausschliesslich als DOKUMENTATION gelesen - für Architektur, Begriffe und
+veröffentlichte Messwerte.
+
+Diese Trennung ist eine ausdrückliche Vorgabe des Projektinhabers und gilt
+auch dort, wo die Lizenz des fremden Projekts ein Kopieren erlauben würde.
+
+Es werden ausserdem keine vorgefertigten Modellgewichte, keine Submodule und
+keine Drittanbieter-Bibliotheken ausgeliefert. Gelinkt werden nur System-
+bibliotheken des Windows SDK: d3d11, dxgi, dcomp, windowsapp, winmm.
+
+
+ALS DOKUMENTATION HERANGEZOGEN
+------------------------------
+
+[1] OSSS - Open Source Super Scaler
+    Repository : https://github.com/Lenovive/OSSS
+    Lizenz     : MIT
+    Copyright  : (c) 2026 Joe Olson and contributors
+    Technik    : Direct3D 11 + HLSL, Windows Graphics Capture, keine
+                 Fremdabhängigkeiten
+    Gelesen    : das Konzept einer rationalen Ausgabeuhr mit den Modi
+                 "paced" / "queued" / "unpaced"; die Beobachtung, dass ein
+                 Frame-Pool, der gegen eine nicht mehr existierende Oberfläche
+                 dimensioniert wurde, sich nicht von selbst erholt und die
+                 Session neu aufgebaut werden muss.
+    Übernommen : kein Code. Die Umsetzung in FrameBoost ist eigenständig.
+
+[2] PhyriadFG
+    Repository : https://github.com/Swately/PhyriadFG
+    Lizenz     : MIT
+    Copyright  : (c) Eduardo Ramos Mendoza (Swately)
+    Technik    : Vulkan, Tauri-Oberfläche
+    Gelesen    : Aufbau einer externen Capture-Frame-Generation mit mehreren
+                 GPUs.
+    Übernommen : kein Code. Vulkan ist bewusst keine Abhängigkeit von RFB.
+
+[3] AMD FidelityFX - Frame Interpolation Swapchain
+    Quelle     : https://gpuopen.com/manuals/fsr_sdk/techniques/
+                 frame-interpolation-swap-chain/
+    Lizenz     : Dokumentation von AMD; das SDK selbst ist MIT
+    Gelesen    : dass Präsentation und Taktung auf eigenen CPU-Threads mit
+                 einem hochpriorisierten Pacing-Thread laufen, und dass ein
+                 Nachbearbeiten verspäteter Bilder die Ursache nicht behebt,
+                 solange die Pufferzeit nicht erhöht wird.
+    Übernommen : kein Code.
+
+[4] Microsoft - DXGI Flip Model
+    Quelle     : https://learn.microsoft.com/en-us/windows/win32/
+                 direct3ddxgi/for-best-performance--use-dxgi-flip-model
+    Gelesen    : dass ein Sync-Intervall von 0 im Flip-Modell ein bereits
+                 eingereihtes älteres Bild verwirft; die Empfehlung, auf das
+                 Frame-Latency-Waitable zu warten, statt im Present zu
+                 blockieren.
+    Übernommen : kein Code.
+
+
+GEPRÜFT UND AUSGESCHLOSSEN
+--------------------------
+
+[a] Free Lossless (metantonio/free-lossless)
+    Grund: KEINE LIZENZANGABE im Repository. Nach der Projektregel
+    "unklare Lizenz -> nicht verwenden" damit ausgeschlossen, unabhängig von
+    der Technik (Python, RIFE-Modell, 2,63 GB Auslieferung).
+
+[b] OptiScaler (optiscaler/OptiScaler)
+    Grund: arbeitet per DLL-Injection in Spiele. Verstösst gegen die
+    Projektregel "keine DLL-Injection", unabhängig von der Lizenz.
+
+[c] Practical-RIFE (hzwer/Practical-RIFE)
+    Lizenz: MIT, Code UND Modellgewichte - wäre also nutzbar.
+    Grund für den Verzicht: ein neuronales Modell pro Zwischenbild passt
+    nicht in das Zeitbudget einer halben Quell-Intervalllänge, und RFB soll
+    ohne Modellauslieferung funktionieren. Rein technisch ausgeschlossen,
+    nicht lizenzrechtlich.
+
+
+EIGENENTWICKLUNG
+----------------
+Vollständig selbst implementiert, kein fremder Code:
+
+  - Bewegungsschätzung (dreistufige Pyramide, Groupshared-Staging,
+    Aperture-Confidence, Nullbewegungs-Vorzug) - native/FrameBoostCore
+  - Interpolation, Occlusion-Rückfall, Catmull-Rom-Warp - native/FrameBoostCore
+  - alle sieben HLSL-Shader - native/FrameBoostCore/shaders
+  - Aufnahme, Bildpaarung, Zeitachse, Taktung, Präsentation, Diagnose
+    - native/FrameBoostV2

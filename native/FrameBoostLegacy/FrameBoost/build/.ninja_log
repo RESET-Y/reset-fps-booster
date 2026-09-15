@@ -1,0 +1,30 @@
+# ninja log v6
+786	3193	8106787540731126	CMakeFiles/dxgi.dir/src/dxgi_dllmain.cpp.obj	1d2714307170c736
+809	4209	8106787540961674	CMakeFiles/dxgi.dir/src/logger.cpp.obj	c35d439c733cf4e3
+794	3096	8106787540816318	CMakeFiles/dxgi.dir/src/factory_hook.cpp.obj	82a99eedf5a56763
+817	3228	8106787541041836	CMakeFiles/dxgi.dir/src/bmp_writer.cpp.obj	f0d3f4cf51447fa3
+12	157	8106806161483152	generated/frame_interpolation_cs.h	9ffbd1ea30b3f1ae
+743	3181	8106787540300435	CMakeFiles/d3d11.dir/src/dllmain.cpp.obj	a5e0d5e8b638c400
+19	2470	8106816377375091	CMakeFiles/d3d11.dir/src/present_hook.cpp.obj	e880609aeccb7bdb
+769	3240	8106787540560866	CMakeFiles/d3d11.dir/src/bmp_writer.cpp.obj	2ee5e769eedc7550
+48	2445	8106816377657929	CMakeFiles/dxgi.dir/src/present_hook.cpp.obj	4b1b97e532740a10
+760	4185	8106787540480865	CMakeFiles/d3d11.dir/src/logger.cpp.obj	d87e412dd75d8cf8
+2445	2776	8106816401635388	bin/dxgi.dll	b6987ceb24923b3e
+2445	2776	8106816401635388	dxgi_proxy_implib.lib	b6987ceb24923b3e
+2470	2775	8106816401881293	bin/d3d11.dll	b57e93a87ddc691b
+2470	2775	8106816401881293	d3d11_proxy_implib.lib	b57e93a87ddc691b
+11	1054	8106794976488933	generated/motion_estimation_cs.h	274a00c11ae418de
+40	1811	8106816377577103	CMakeFiles/d3d11.dir/src/interpolation.cpp.obj	14a2488995261530
+11	1054	8106794976488933	C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/generated/motion_estimation_cs.h	274a00c11ae418de
+32	1868	8106816377505539	CMakeFiles/d3d11.dir/src/motion_estimation.cpp.obj	17582901dda58767
+56	1877	8106816377738300	CMakeFiles/dxgi.dir/src/motion_estimation.cpp.obj	aeba3f5843619b08
+25	186	8106794967788298	generated/motion_smooth_cs.h	6748588a1e81a2c9
+25	186	8106794967788298	C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/generated/motion_smooth_cs.h	6748588a1e81a2c9
+12	157	8106806161483152	C:/Users/Eto jA/FPS Booster/native/FrameBoost/build/generated/frame_interpolation_cs.h	9ffbd1ea30b3f1ae
+67	1799	8106816377858704	CMakeFiles/dxgi.dir/src/interpolation.cpp.obj	2bbddd89ecc31f2f
+33	2145	8106822357139686	CMakeFiles/dxgi.dir/src/present_hook.cpp.obj	4b1b97e532740a10
+19	2168	8106822356999691	CMakeFiles/d3d11.dir/src/present_hook.cpp.obj	e880609aeccb7bdb
+2146	2437	8106822378268900	bin/dxgi.dll	b6987ceb24923b3e
+2146	2437	8106822378268900	dxgi_proxy_implib.lib	b6987ceb24923b3e
+2169	2437	8106822378498899	bin/d3d11.dll	b57e93a87ddc691b
+2169	2437	8106822378498899	d3d11_proxy_implib.lib	b57e93a87ddc691b

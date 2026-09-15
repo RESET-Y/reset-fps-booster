@@ -1,0 +1,38 @@
+# ninja log v6
+16	361	8111299526971050	generated/frame_interpolation_cs.h	60f147e07847993
+1314	2409	8111841570974103	CMakeFiles/FrameBoostBeta.dir/C_/Users/Eto_jA/FPS_Booster/native/FrameBoost/src/motion_estimation.cpp.obj	5369e1e2d6ee5ae8
+16	361	8111299526971050	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/frame_interpolation_cs.h	60f147e07847993
+372	1556	8111299527141984	CMakeFiles/FrameBoostBeta.dir/C_/Users/Eto_jA/FPS_Booster/native/FrameBoost/src/interpolation.cpp.obj	10aea7c640bd4407
+15	876	8110377106763338	generated/motion_smooth_cs.h	e55e0de1cbdf607e
+14	190	8107793831214994	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/motion_estimation_coarsest_cs.h	b0d3fcc7958c27af
+16	1313	8111841570889013	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/motion_estimation_cs.h	e701723450768a29
+16	1313	8111841570889013	generated/motion_estimation_cs.h	e701723450768a29
+15	876	8110377106763338	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/motion_smooth_cs.h	e55e0de1cbdf607e
+26	3741	8111267507125085	CMakeFiles/FrameBoostBeta.dir/src/logger.cpp.obj	288d6df404ab1845
+14	5549	8112009389181807	CMakeFiles/FrameBoostBeta.dir/src/main.cpp.obj	dcf7e27fc2f81bae
+24	6729	8111840739407170	CMakeFiles/FrameBoostBeta.dir/src/capture_engine.cpp.obj	5769932cc3127ff7
+25	2664	8111887093612945	CMakeFiles/FrameBoostBeta.dir/src/beta_presenter.cpp.obj	ddf1f79cd2cfd5b
+10	1923	8106851251731461	CMakeFiles/FrameBoostBeta.dir/C_/Users/Eto_jA/FPS_Booster/native/FrameBoost/src/logger.cpp.obj	36e738624f749286
+5549	5896	8112009444622212	bin/FrameBoostBeta.exe	faf62fe9d4eb4c0d
+60	2198	8111845654376117	CMakeFiles/FrameBoostBeta.dir/src/duplicate_detector.cpp.obj	f1c12020db2a4b22
+14	283	8112050536943198	build.ninja	f2d8f94a6b0df463
+12	92	8108202916821617	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/motion_occlusion_claim_cs.h	acad29377a77b3db
+51	1308	8108278438722524	CMakeFiles/FrameBoostBeta.dir/src/motion_stats.cpp.obj	393cafe907ca8987
+16	145	8108254770985498	generated/motion_estimation_coarse_cs.h	3843f577eb68d94
+34	1526	8107474173865756	CMakeFiles/FrameBoostBeta.dir/C_/Users/Eto_jA/FPS_Booster/native/FrameBoost/src/bmp_writer.cpp.obj	66a8192cb4c094cf
+16	145	8108254770985498	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/motion_estimation_coarse_cs.h	3843f577eb68d94
+14	190	8107793831214994	generated/motion_estimation_coarsest_cs.h	b0d3fcc7958c27af
+23	1583	8107474173760526	CMakeFiles/FrameBoostBeta.dir/src/frame_dump.cpp.obj	b5fcb8bc02a3144
+87	5531	8111845654639698	CMakeFiles/FrameBoostBeta.dir/src/pipeline_audit.cpp.obj	8837b853e9960f6
+39	2983	8107837561244609	CMakeFiles/FrameBoostBeta.dir/src/desktop_duplication_capture.cpp.obj	cecac1bbe86d19d9
+24	151	8111295708342547	generated/upscale_cs.h	51d51fcf06c8b2e0
+16	190	8107685484040256	generated/thumbnail_cs.h	ecff66ff5ddb689e
+16	190	8107685484040256	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/thumbnail_cs.h	ecff66ff5ddb689e
+12	92	8108202916821617	generated/motion_occlusion_claim_cs.h	acad29377a77b3db
+38	1226	8110232781080182	CMakeFiles/FrameBoostBeta.dir/src/mouse_tracker.cpp.obj	4dfc52e7a2536eb2
+24	151	8111295708342547	C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/generated/upscale_cs.h	51d51fcf06c8b2e0
+84	5775	8112050539863081	CMakeFiles/FrameBoostBeta.dir/src/beta_presenter.cpp.obj	ddf1f79cd2cfd5b
+113	6627	8112050540153498	CMakeFiles/FrameBoostBeta.dir/src/pipeline_audit.cpp.obj	8837b853e9960f6
+58	10866	8112050539596797	CMakeFiles/FrameBoostBeta.dir/src/capture_engine.cpp.obj	5769932cc3127ff7
+24	11116	8112050539252271	CMakeFiles/FrameBoostBeta.dir/src/main.cpp.obj	dcf7e27fc2f81bae
+11117	11612	8112050650195972	bin/FrameBoostBeta.exe	faf62fe9d4eb4c0d
