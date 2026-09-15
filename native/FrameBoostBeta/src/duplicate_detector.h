@@ -45,14 +45,31 @@ public:
 private:
     bool EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC& frameDesc);
 
-    // Thumbnail size. 64x36 keeps a 16:9 frame's aspect ratio and is small
-    // enough that the CPU-side comparison is a few thousand byte subtractions
-    // per frame. Each thumbnail pixel is the average of a large block of the
-    // real frame, so a small moving object is diluted - which is why the
-    // comparison below works on tiles and takes the maximum rather than
-    // averaging over the whole thumbnail.
-    static constexpr UINT kThumbWidth = 64;
-    static constexpr UINT kThumbHeight = 36;
+    // Thumbnail size, raised from 64x36 because that was throwing away frames
+    // that were plainly not duplicates.
+    //
+    // Measured in CS2 running uncapped, with the game actively rendering:
+    //
+    //   10:51:17  produced/retrieved 127/127   duplicates 91.6/s   native 26.9
+    //   10:51:18  produced/retrieved 129/129   duplicates 78.8/s   native 46.9
+    //
+    // Windows delivered 127 frames, we retrieved all 127 and lost none - and
+    // then discarded 92 of them here. A game rendering at 127 fps does not
+    // produce 92 pixel-identical frames a second. The detector was wrong, and
+    // not marginally.
+    //
+    // Why: at 64x36 each thumbnail texel is the average of a 40x40 block of a
+    // 2560x1440 frame. Standing still and turning slightly moves the picture by
+    // a few pixels, which that averaging erases completely. 192x108 puts a
+    // texel at about 13x13 pixels - still cheap (83 KB, a few tens of thousands
+    // of byte subtractions) and no longer blind to small movement.
+    //
+    // The threshold below is deliberately NOT changed with it. Less dilution
+    // makes real differences read LARGER against the same number, which is the
+    // direction that was needed. Moving both at once would leave neither
+    // measured - and the history in this file is two rounds of exactly that.
+    static constexpr UINT kThumbWidth = 192;
+    static constexpr UINT kThumbHeight = 108;
 
     // The thumbnail is compared in tiles, and the LARGEST tile difference
     // decides. Averaging over the whole image fails exactly where it matters:
