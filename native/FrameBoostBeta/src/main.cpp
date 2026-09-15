@@ -1016,6 +1016,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Re-presents of the newest real frame, made only because nothing else went
     // out. A screen that stops updating is the worst failure this can have.
     uint64_t keepAlivePresents = 0;
+    // Duplicates shown rather than dropped - see the duplicate branch.
+    uint64_t duplicatePassthroughs = 0;
+    // Last computed overlay visibility. The real decision is made further down
+    // the loop than the duplicate branch that needs to read it, so it is kept
+    // from the previous iteration - one frame stale at worst, and the only
+    // consequence is one present made or skipped at a visibility change.
+    bool overlayVisibleLastIteration = false;
     bool presentedAnythingYet = false;
     // Generated frames thrown away because their moment had already passed.
     uint64_t generatedDroppedLate = 0;
@@ -2544,6 +2551,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " (moving EMA " << movingEma << ", difference EMA " << diffEma << ")"
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
             << " | Keep-alive/s: " << (keepAlivePresents / elapsed)
+            << " | Duplicate passthrough/s: " << (duplicatePassthroughs / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
@@ -2645,6 +2653,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
         keepAlivePresents = 0;
+        duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
         intervalResetsSinceReport = 0;
@@ -2912,11 +2921,41 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
 
         if (frameIsDuplicate) {
             ++duplicateFramesSinceReport;
-            // Recomposited but unchanged: no new content to estimate from, so
-            // it is treated exactly like "no new frame". The slot below still
-            // gets presented - skipping the present made the output look
-            // frozen on a static screen, which is indistinguishable from a
-            // crash to the viewer.
+
+            // "ALMOST unchanged" IS NOT "unchanged" - SHOW IT ANYWAY.
+            //
+            // A duplicate carries no motion worth estimating, so it rightly
+            // does not become a new frame for the interpolator. But it is the
+            // NEWEST PICTURE THERE IS, and our overlay is on top, so whatever
+            // it does contain is the only thing the viewer can be shown.
+            //
+            // Reported: typing in the CS2 console did not appear. The measured
+            // shape of it:
+            //
+            //   10:54:47  duplicates 54/s  native 9  out 42  keep-alive 46
+            //             frame-to-frame difference 0.099, moving blocks 0.1%
+            //
+            // The detector was right - the picture really had barely changed.
+            // What was wrong was the keep-alive added an hour ago: it presents
+            // estimator.CurrFrameTexture(), which is the last frame that PASSED
+            // the duplicate test. So it faithfully re-presented a stale picture
+            // forty-six times a second while every frame containing the typed
+            // characters was thrown away. A few characters of text move the
+            // frame difference by about a tenth, well under the 0.3 tolerance,
+            // and that tolerance exists for good reason - lowering it until
+            // text registers would make compression noise register too.
+            //
+            // So the duplicate is presented directly, unchanged. One present,
+            // no generation, and the content is by definition nearly identical
+            // to what is already on screen - it cannot look wrong, and it
+            // carries the small change that matters.
+            if (capturedTex && overlayVisibleLastIteration) {
+                presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
+                ++duplicatePassthroughs;
+                RecordPresentGap(NowMs(), false);
+            }
+
+            // Recomposited but unchanged: no new content to ESTIMATE from.
             haveNewContent = false;
         }
 
@@ -3442,6 +3481,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         const bool overlayShowing = doublingFitsDisplay && gpuHasRoom
                                  && !forcePassthroughOnly && !pictureIsStill;
         SetOverlayVisible(overlayShowing);
+        overlayVisibleLastIteration = overlayShowing;
 
         if (simpleDoubleMode) {
             // Every present is snapped to a refresh boundary.
