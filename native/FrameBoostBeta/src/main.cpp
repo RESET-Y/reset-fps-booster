@@ -4080,7 +4080,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 // Below 1 means the source already fills the panel: generate
                 // nothing rather than invent frames there is no room to show.
                 if (wanted < 1.0) wanted = 1.0;
-                if (wanted > static_cast<double>(adaptiveMaxFactor))
+                // BRACES. This clamp lost its body to a bad edit and the next
+                // statement became it, so the credit only advanced when the
+                // multiplier was ABOVE the ceiling - which is never, in the case
+                // this was built for:
+                //
+                //   16:55:00  src 60.9  gen 5.0  out 65.9  opr 1  factor-1 skips 60.9/s
+                //   16:55:38  src 36.0  gen 103.2 out 133.4 opr 5  factor-1 skips 0.0/s
+                //
+                // At 60 fps the multiplier is 2.5, never above 4, so the credit
+                // stayed at zero and every real frame was skipped for a factor of
+                // one. At 36 it is 4.1, above the ceiling, so it ran - which is
+                // why this looked like "adaptive works sometimes" rather than
+                // like a syntax accident.
+                if (wanted > static_cast<double>(adaptiveMaxFactor)) {
+                    wanted = static_cast<double>(adaptiveMaxFactor);
+                }
                 outputCredit += wanted;
                 adaptiveOutputPerReal = static_cast<int>(outputCredit);
                 if (adaptiveOutputPerReal < 1) adaptiveOutputPerReal = 1;
