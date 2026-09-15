@@ -352,7 +352,27 @@ void CaptureEngine::CollectArrivedFrames() {
             //
             // Worth retrying only with a much larger pool, and only with this
             // failure mode in mind.
+            // TIMED, because this is the suspected serialisation point. The
+            // copy itself is one 14 MB blit and should cost well under a
+            // millisecond; anything larger is time spent waiting for the
+            // device lock that the render loop holds.
+            LARGE_INTEGER copyT0{}, copyT1{}, copyFreq{};
+            QueryPerformanceFrequency(&copyFreq);
+            QueryPerformanceCounter(&copyT0);
+
             m_context->CopyResource(m_slotTex[slot].get(), tex.get());
+
+            QueryPerformanceCounter(&copyT1);
+            if (copyFreq.QuadPart > 0) {
+                const double blockedMs = static_cast<double>(copyT1.QuadPart - copyT0.QuadPart)
+                                       * 1000.0 / static_cast<double>(copyFreq.QuadPart);
+                m_copyBlockedMsSum.store(m_copyBlockedMsSum.load(std::memory_order_relaxed) + blockedMs,
+                                         std::memory_order_relaxed);
+                if (blockedMs > m_copyBlockedMsMax.load(std::memory_order_relaxed))
+                    m_copyBlockedMsMax.store(blockedMs, std::memory_order_relaxed);
+                m_copyBlockedSamples.store(m_copyBlockedSamples.load(std::memory_order_relaxed) + 1,
+                                           std::memory_order_relaxed);
+            }
 
             {
                 std::lock_guard<std::mutex> lock(m_slotMutex);

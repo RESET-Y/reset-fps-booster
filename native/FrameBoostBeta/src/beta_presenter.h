@@ -18,6 +18,24 @@ public:
     // Blocks until the display is ready for another frame.
     void WaitForPresentSlot();
 
+    // PRESENTWAITMS: split into the two halves that have different cures.
+    //
+    // waitMs  - time inside WaitForPresentSlot, waiting for the frame-latency
+    //           waitable. This is the present queue being full.
+    // callMs  - time inside the copy-plus-Present itself. This one holds the
+    //           device context, so it is the half that can block the capture
+    //           thread and the generation work.
+    double PresentWaitMsSum() const { return m_presentWaitMsSum; }
+    double PresentWaitMsMax() const { return m_presentWaitMsMax; }
+    double PresentCallMsSum() const { return m_presentCallMsSum; }
+    double PresentCallMsMax() const { return m_presentCallMsMax; }
+    uint64_t PresentSamples()  const { return m_presentSamples; }
+    void ResetPresentStats() {
+        m_presentWaitMsSum = m_presentWaitMsMax = 0.0;
+        m_presentCallMsSum = m_presentCallMsMax = 0.0;
+        m_presentSamples = 0;
+    }
+
     // Off for window capture: the overlay is not part of the captured window,
     // so hiding it from capture only blinds outside measurement.
     void SetExcludeFromCapture(bool exclude) { m_excludeFromCapture = exclude; }
@@ -107,6 +125,12 @@ private:
     // Presents that leave here evenly spaced arrive on screen whenever the
     // queue gets to them.
     HANDLE m_frameLatencyWaitable = nullptr;
+    double m_presentWaitMsSum = 0.0, m_presentWaitMsMax = 0.0;
+    double m_presentCallMsSum = 0.0, m_presentCallMsMax = 0.0;
+    uint64_t m_presentSamples = 0;
+    void NotePresentWait(double ms);
+    void NotePresentCall(double ms);
+    HRESULT DoPresent(UINT syncInterval, UINT presentFlags);
     bool m_tearingSupported = false;
     bool m_excludeFromCapture = true;
     UINT m_width = 0, m_height = 0;

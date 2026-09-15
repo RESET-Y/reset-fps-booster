@@ -3003,6 +3003,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            // THE TWO HALVES OF PresentWaitMs, plus the capture side.
+            //
+            // present wait  - inside WaitForPresentSlot: the present queue is
+            //                 full. Costs latency, holds no device lock.
+            // present call  - inside Present itself. DXGI flushes the device
+            //                 here, so this is time the shared immediate
+            //                 context is unavailable.
+            // capture blocked - the capture thread's one CopyResource per
+            //                 frame, which takes the same device lock. A 14 MB
+            //                 blit should be well under a millisecond; more
+            //                 than that is waiting, not copying.
+            //
+            // If capture blocked tracks present call, the two threads are not
+            // decoupled and the "irregular source" is our own making.
+            << " | Present wait: " << (presenter.PresentSamples()
+                    ? presenter.PresentWaitMsSum() / presenter.PresentSamples() : 0.0)
+            << " ms avg, " << presenter.PresentWaitMsMax() << " ms max"
+            << " | Present call: " << (presenter.PresentSamples()
+                    ? presenter.PresentCallMsSum() / presenter.PresentSamples() : 0.0)
+            << " ms avg, " << presenter.PresentCallMsMax() << " ms max"
+            << " | Capture blocked: " << (capture.BlockedSamples()
+                    ? capture.BlockedMsSum() / capture.BlockedSamples() : 0.0)
+            << " ms avg, " << capture.BlockedMsMax() << " ms max over "
+            << capture.BlockedSamples() << " copies"
             << " | Pair margin: " << PairMarginMs() << " ms"
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " (by " << (generatedDroppedLate ? droppedLateByMsSum / generatedDroppedLate : 0.0)
@@ -3137,6 +3161,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         skipStill = skipFactorOne = skipGenerateFailed = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
+        presenter.ResetPresentStats();
+        capture.ResetBlockedStats();
         droppedLateByMsSum = 0.0;
         droppedLateByMsMax = 0.0;
         slackWhenOnTimeMsSum = 0.0;

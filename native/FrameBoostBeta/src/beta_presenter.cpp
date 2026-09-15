@@ -424,9 +424,41 @@ ID3D11UnorderedAccessView* Presenter::AcquireBackBufferUAV(ID3D11Device* device)
 // Blocks until the display is ready for another frame - see the swapchain
 // setup for why. Bounded, because a wait that can hang forever would freeze
 // the picture on any driver hiccup, and a stale frame beats a frozen one.
+static double NowMsQpc() {
+    LARGE_INTEGER f{}, t{};
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&t);
+    return f.QuadPart ? (static_cast<double>(t.QuadPart) * 1000.0 / static_cast<double>(f.QuadPart)) : 0.0;
+}
+
+void Presenter::NotePresentWait(double ms) {
+    m_presentWaitMsSum += ms;
+    if (ms > m_presentWaitMsMax) m_presentWaitMsMax = ms;
+}
+
+void Presenter::NotePresentCall(double ms) {
+    m_presentCallMsSum += ms;
+    if (ms > m_presentCallMsMax) m_presentCallMsMax = ms;
+    ++m_presentSamples;
+}
+
+// The Present call on its own, timed. DXGI flushes the device inside this,
+// so whatever it costs is time the device context is not available to the
+// capture thread - which shares that context. See BlockedMsSum in
+// capture_engine.h for the other side of the same question.
+HRESULT Presenter::DoPresent(UINT syncInterval, UINT presentFlags) {
+    if (!m_swapChain) return E_FAIL;
+    const double t0 = NowMsQpc();
+    const HRESULT hr = m_swapChain->Present(syncInterval, presentFlags);
+    NotePresentCall(NowMsQpc() - t0);
+    return hr;
+}
+
 void Presenter::WaitForPresentSlot() {
     if (!m_frameLatencyWaitable) return;
+    const double t0 = NowMsQpc();
     WaitForSingleObjectEx(m_frameLatencyWaitable, 100, TRUE);
+    NotePresentWait(NowMsQpc() - t0);
 }
 
 HRESULT Presenter::PresentBackBuffer(UINT syncInterval) {
@@ -436,7 +468,7 @@ HRESULT Presenter::PresentBackBuffer(UINT syncInterval) {
     // created for it.
     const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
         ? DXGI_PRESENT_ALLOW_TEARING : 0;
-    return m_swapChain->Present(syncInterval, presentFlags);
+    return DoPresent(syncInterval, presentFlags);
 }
 
 HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext* context, UINT syncInterval) {
@@ -471,7 +503,7 @@ HRESULT Presenter::PresentTransparent(ID3D11Device* device, ID3D11DeviceContext*
     // created for it.
     const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
         ? DXGI_PRESENT_ALLOW_TEARING : 0;
-    return m_swapChain->Present(syncInterval, presentFlags);
+    return DoPresent(syncInterval, presentFlags);
 }
 
 HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* sourceTexture, UINT syncInterval) {
@@ -489,7 +521,7 @@ HRESULT Presenter::PresentFrame(ID3D11DeviceContext* context, ID3D11Texture2D* s
     // created for it.
     const UINT presentFlags = (syncInterval == 0 && m_tearingSupported)
         ? DXGI_PRESENT_ALLOW_TEARING : 0;
-    return m_swapChain->Present(syncInterval, presentFlags);
+    return DoPresent(syncInterval, presentFlags);
 }
 
 bool Presenter::QueryPresentStats(UINT& outPresentCount, UINT& outPresentRefreshCount, UINT& outSyncRefreshCount) {

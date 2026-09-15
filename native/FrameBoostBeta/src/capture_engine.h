@@ -68,6 +68,27 @@ public:
     // evidence of where added latency is coming from, not a guess.
     int LastDiscardedStaleFrames() const { return m_lastDiscardedStaleFrames; }
 
+    // HOW LONG THE CAPTURE THREAD SAT WAITING FOR THE DEVICE.
+    //
+    // This class runs its own WGC worker thread, so capture looks decoupled
+    // from the render loop. It is not: the one CopyResource it does per frame
+    // uses the SAME immediate context as motion estimation, interpolation and
+    // the present, and that context is device-wide multithread-protected. Any
+    // of those holds the lock this copy has to take.
+    //
+    // If that is what makes captured frames arrive at 5.34 ms and then 26.40
+    // ms apart while the game itself reports a steady rate, it shows up here
+    // and nowhere else. Summed in nanoseconds-as-double, read and reset once
+    // per telemetry line.
+    double BlockedMsSum() const { return m_copyBlockedMsSum.load(std::memory_order_relaxed); }
+    double BlockedMsMax() const { return m_copyBlockedMsMax.load(std::memory_order_relaxed); }
+    uint64_t BlockedSamples() const { return m_copyBlockedSamples.load(std::memory_order_relaxed); }
+    void ResetBlockedStats() {
+        m_copyBlockedMsSum.store(0.0, std::memory_order_relaxed);
+        m_copyBlockedMsMax.store(0.0, std::memory_order_relaxed);
+        m_copyBlockedSamples.store(0, std::memory_order_relaxed);
+    }
+
 private:
     // Runs on the frame pool.s worker thread: drains the pool and copies each
     // frame into the ring. Declared here, used from the FrameArrived handler.
@@ -203,6 +224,9 @@ private:
     // propagating into the motion-estimation resource allocator downstream.
     winrt::Windows::Graphics::SizeInt32 m_poolSize{};
     int m_lastDiscardedStaleFrames = 0;
+    std::atomic<double> m_copyBlockedMsSum{0.0};
+    std::atomic<double> m_copyBlockedMsMax{0.0};
+    std::atomic<uint64_t> m_copyBlockedSamples{0};
     int m_poolBufferCount = 0;
 
     // Audit state. The FrameArrived handler writes m_framesProduced and the
