@@ -1675,6 +1675,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // Share of every second this engine takes from the graphics card - the
         // other way it can fail, by starving the game rather than by missing a
         // deadline. One estimation and one interpolation per source frame.
+        // INFLATED UNDER CONTENTION - this is not occupancy.
+        //
+        // The arithmetic is right: our GPU time per second over one second.
+        // medianTotal is not, because it comes from GPU timestamp queries, and
+        // those measure ELAPSED time between the start and end markers. Work
+        // the game does in between is counted as ours.
+        //
+        // Measured against Task Manager in the same scene: it reports about 12%
+        // for this process while this line said 55-82%. Task Manager measures
+        // actual utilisation through the scheduler and is the number to believe.
+        //
+        // Kept because the RELATIVE movement is still informative - it rises
+        // when we get more expensive - but it must not be read as "we take N
+        // percent of the card", and it has now been read that way three times.
         const double gpuSharePercent = medianTotal * sourceFps / 10.0;
 
         int overDeadline = 0;
@@ -1692,7 +1706,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         oss << " - interpolation " << medianInterp << " ms median, " << p95Interp
             << " ms at the 95th percentile, against a " << deadlineMs << " ms deadline ("
             << missPercent << "% late); estimation plus interpolation takes "
-            << gpuSharePercent << "% of the graphics card at " << sourceFps << " source FPS";
+            << gpuSharePercent << "% of a source interval at " << sourceFps
+            << " source FPS (elapsed-time measure, inflated by contention - not occupancy;"
+            << " Task Manager is the number to believe for that)";
         return oss.str();
     };
     // THE LAST THREE SOURCE INTERVALS, for spacing - separate from the lock.
