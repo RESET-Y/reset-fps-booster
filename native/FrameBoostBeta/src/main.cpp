@@ -1784,6 +1784,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // tracked with a slow average, and pacing uses THAT, not the per-pair
     // measurement. Jitter in the capture stops reaching the output at all.
     double lockedPeriodMs = -1.0;
+    // Fractional carry for adaptive output - see outputPerReal below. Holds
+    // the part of an output frame this real frame earned but could not spend,
+    // which is what turns 2.4 into 2,2,3,2,2,3 instead of a flat 2.
+    double outputCredit = 0.0;
+    uint64_t adaptiveExtraFrames = 0;
     // How far the per-pixel search has to back off to make its deadline.
     //
     // Driven by the SAME measurement the headroom verdict reports, so the
@@ -2154,6 +2159,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // "doublerate" re-enables it for further work.
     const bool doubleRateOutput = HasArg(L"doublerate");
     const bool snapToRefreshGrid = HasArg(L"refreshsnap");
+    // ADAPTIVE OUTPUT - fractional multiplier aimed at the display rate.
+    // On by default: a flat 2x is only even when twice the source lands on the
+    // panel exactly, and that is a condition on the game, not on us. Turn it
+    // off with "adaptive = off" in frameboost.ini to get the flat 2x back;
+    // at a 72 fps source on a 144 Hz panel the two are identical anyway.
+    const bool adaptiveOutput = !(settingsFile.count(L"adaptive") && !Setting(L"adaptive"))
+                             && !HasArg(L"noadaptive");
+    // ITS OWN CEILING, and not maxFactor.
+    //
+    // maxFactor defaults to 2 and is the manual multiplier the F-key toggles.
+    // Clamping the adaptive multiplier to it undoes the entire point: 60 fps on
+    // a 144 Hz panel needs 2.4, the clamp would hand back 2.0, and the output
+    // would sit at 120 - which is the judder this exists to remove. Caught by
+    // re-reading the change rather than by testing it, and it would have looked
+    // like "adaptive does nothing" in exactly the case it was built for.
+    //
+    // 4 covers every source from a third of the refresh upward (48 -> 144 is 3,
+    // 36 -> 144 is 4). Below that the generated share is too large to be worth
+    // showing and the GPU room check stands aside anyway.
+    const int adaptiveMaxFactor = [&] {
+        const int v = SettingInt(L"adaptivemax", 4);
+        return (v < 2) ? 2 : ((v > 6) ? 6 : v);
+    }();
     // Also the default, and "noslotwait" opts out. Every measurement of this
     // engine that came out well was taken with it: 72 -> 144 fps at 0.3 ms
     // jitter and 0% missed slots.
@@ -2896,6 +2924,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
+            << " | Adaptive output: " << (adaptiveOutput ? "on" : "off")
+            << " | Adaptive extra frames/s: " << (adaptiveExtraFrames / elapsed)
             << " | On-screen age: " << (presentAgeSamples ? std::to_string(presentAgeSumMs / presentAgeSamples) + " ms avg, " + std::to_string(presentAgeMaxMs) + " ms max" : "N/A")
             << " | Quality relief: " << qualityRelief
             << " (missed-slot EMA " << (missedSlotEma * 100.0) << "%)"
@@ -2997,6 +3027,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         gapFillsSinceReport = 0;
         keepAlivePresents = 0;
         staleFramesSinceReport = 0;
+        adaptiveExtraFrames = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
@@ -3991,7 +4022,52 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // artefacts). Doubling is the honest promise the feature makes -
             // whatever the game runs at, it runs at twice that - and it is
             // the one the person testing it asked for.
-            const int outputPerReal = 2;
+            // HOW MANY OUTPUT FRAMES THIS REAL FRAME IS WORTH - fractional.
+            //
+            // This was a flat 2, and a flat 2 is only even when twice the
+            // source lands exactly on the panel. 72 doubles to 144 and is
+            // perfect; 60 doubles to 120 on a 144 Hz display and the missing 24
+            // frames a second are the judder. The comment on the refresh grid
+            // further up reached the same conclusion and gave up on snapping
+            // because the cure "was always a demand on the user - cap the game".
+            //
+            // There is a third option it did not consider, and it is what
+            // Lossless Scaling shipped in 3.1 as Adaptive Frame Generation:
+            // keep the output on the display rate and let the MULTIPLIER be
+            // fractional. 144/60 is 2.4, spent as 2,2,3,2,2,3 - which averages
+            // exactly 2.4 and asks nothing of the person playing. Their own
+            // note says it is for sources that are "not integer multiples of
+            // the screen refresh (e.g. 60 -> 144, 165 Hz)" and that it paces
+            // more smoothly than a fixed multiplier.
+            //
+            // At a 72 fps source this is 144/72 = 2.0 exactly, so the credit
+            // never carries and the behaviour is bit-for-bit the old flat 2.
+            // The case Lukas already has working does not change.
+            //
+            // The loop below turns this into outputPerReal - 1 generated frames
+            // at evenly spaced phases, so the whole distribution already exists
+            // and only the count had to stop being a constant.
+            int outputPerReal = 2;
+            if (adaptiveOutput && outputRefreshHz > 0.0 && lockedPeriodMs > 1.0
+                    && lockedPeriodMs < 100.0) {
+                const double srcFps = 1000.0 / lockedPeriodMs;
+                double wanted = outputRefreshHz / srcFps;
+                // Below 1 means the source already fills the panel: generate
+                // nothing rather than invent frames there is no room to show.
+                if (wanted < 1.0) wanted = 1.0;
+                if (wanted > static_cast<double>(adaptiveMaxFactor))
+                outputCredit += wanted;
+                outputPerReal = static_cast<int>(outputCredit);
+                if (outputPerReal < 1) outputPerReal = 1;
+                outputCredit -= static_cast<double>(outputPerReal);
+                // The carry is bounded on both sides. Letting it run negative
+                // or past one frame would let a stretch of bad measurements
+                // borrow frames from the future and pay them back in a burst,
+                // which is the uneven output this exists to remove.
+                if (outputCredit < 0.0) outputCredit = 0.0;
+                if (outputCredit > 1.0) outputCredit = 1.0;
+                if (outputPerReal > 2) adaptiveExtraFrames += (outputPerReal - 2);
+            }
 
 
 
