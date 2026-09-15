@@ -2967,7 +2967,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // no generation, and the content is by definition nearly identical
             // to what is already on screen - it cannot look wrong, and it
             // carries the small change that matters.
-            if (capturedTex && overlayVisibleLastIteration) {
+            // ONLY INTO A GAP, never on top of a full stream.
+            //
+            // The first version presented every duplicate the moment it
+            // arrived, whatever else was going out. Lukas saw the result
+            // immediately: with the cap at 71 the output reached 148 instead of
+            // 142, and it "kann ungleichmaessig wirken" - which it is. Those
+            // extra presents are not paced; they squeeze in between two frames
+            // that were, and a present that arrives early is exactly the shape
+            // of judder.
+            //
+            // The output cadence is half a source interval, because that is
+            // what doubling means - 7.0 ms at 71 fps. So a duplicate goes out
+            // only if that long has passed with nothing presented. Then it
+            // fills a hole that would otherwise hold a stale picture, and it
+            // can never add to a stream that is already complete.
+            //
+            // Deliberately measured against the SOURCE period and not the
+            // display refresh: the output tracks the game, not the panel, which
+            // is the whole point of removing the slot wait.
+            const double dupMinSpacingMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
+                                         ? lockedPeriodMs * 0.5 : 7.0;
+            if (capturedTex && overlayVisibleLastIteration
+                    && (lastPresentAtMs <= 0.0
+                        || NowMs() - lastPresentAtMs >= dupMinSpacingMs)) {
                 presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
                 ++duplicatePassthroughs;
                 RecordPresentGap(NowMs(), false);
