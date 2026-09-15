@@ -79,6 +79,12 @@ bool CaptureEngine::Start(HWND targetWindow, ID3D11Device* device) {
 }
 
 bool CaptureEngine::StartFromItem(ID3D11Device* device) {
+    // Same lock as Stop() and the drain. Building the pool and registering the
+    // handler must not overlap a callback from a previous session, and the
+    // handler can fire the moment it is registered - before the members below
+    // it have finished being assigned. Checked for a nested Stop() first: there
+    // is none, so this cannot deadlock on itself.
+    std::lock_guard<std::mutex> lifecycle(m_lifecycleMutex);
     try {
         m_device.copy_from(device);
         // The immediate context is used from the pool.s worker thread as well
@@ -223,6 +229,9 @@ double QpcNowMs() {
 } // namespace
 
 void CaptureEngine::CollectArrivedFrames() {
+    // See m_lifecycleMutex: this runs on the capture worker thread and Stop()
+    // runs on the main one.
+    std::lock_guard<std::mutex> lifecycle(m_lifecycleMutex);
     if (!m_capturing || !m_framePool || !m_context) return;
 
     try {
@@ -418,8 +427,17 @@ void CaptureEngine::ResetAuditCounters() {
 }
 
 void CaptureEngine::Stop() {
-    if (m_session) { try { m_session.Close(); } catch (...) {} }
+    // REVOKE FIRST, THEN TAKE THE LOCK, in that order and not the other way.
+    //
+    // Revoking stops new callbacks. Taking the lock afterwards waits for the
+    // one that may already be running. Locking first would deadlock if revoke()
+    // ever waits for a handler that is itself blocked on this lock.
     m_frameArrivedRevoker.revoke();
+
+    std::lock_guard<std::mutex> lifecycle(m_lifecycleMutex);
+    m_capturing = false; // set before anything is torn down
+
+    if (m_session) { try { m_session.Close(); } catch (...) {} }
 
     // Held frames must go back before the pool does, or the pool is closed
     // while we still own surfaces from it.

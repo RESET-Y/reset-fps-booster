@@ -60,7 +60,7 @@ public:
     // overlay test.
     ID3D11Texture2D* PollLatestFrame(UINT& outWidth, UINT& outHeight, int64_t& outFrameTimestamp100ns, bool& outIsNewFrame);
 
-    bool IsCapturing() const { return m_capturing; }
+    bool IsCapturing() const { return m_capturing.load(std::memory_order_relaxed); }
 
     // How many already-stale frames the last poll had to throw away to reach
     // the newest one. Consistently above zero means the processing loop is
@@ -172,9 +172,28 @@ private:
     uint64_t m_newestSerial = 0;
     uint64_t m_consumedSerial = 0;
     std::mutex m_slotMutex;
+
+    // SERIALISES THE POOL'S LIFETIME AGAINST THE THREAD THAT DRAINS IT.
+    //
+    // CollectArrivedFrames runs on the WGC worker thread and uses m_framePool
+    // and m_slotTex. Stop() runs on the main thread and closes both. Nothing
+    // stood between them: the pool could be closed mid-TryGetNextFrame, and a
+    // slot texture released while a CopyResource into it was being recorded.
+    //
+    // Latent for as long as Stop() only ran at shutdown. It stopped being
+    // latent when the capture watchdog and the stale-surface rebuild were added
+    // - both call Stop() and Start() from the main loop, during play.
+    //
+    // Held for the whole drain, so a stop waits for the frame in flight rather
+    // than pulling the pool out from under it.
+    std::mutex m_lifecycleMutex;
     UINT m_width = 0;
     UINT m_height = 0;
-    bool m_capturing = false;
+    // Atomic because it is written on the main thread (Start, Stop) and read on
+    // the capture worker thread (the drain) as well as back on the main one.
+    // A plain bool across threads is a data race - benign in practice on x86,
+    // undefined in the language, and free to do correctly.
+    std::atomic<bool> m_capturing{ false };
     // The size the frame pool's buffers are CURRENTLY allocated at. Windows
     // Graphics Capture does not automatically resize the pool when the
     // target window is resized - without tracking this and calling
