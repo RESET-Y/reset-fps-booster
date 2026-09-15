@@ -1063,6 +1063,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool presentedAnythingYet = false;
     // Generated frames thrown away because their moment had already passed.
     uint64_t generatedDroppedLate = 0;
+    // Unscheduled presents refused because the panel had not finished the
+    // previous one. See PanelWouldRefuse below.
+    uint64_t presentsHeldForPanel = 0;
     // HOW LATE, not just how many. A count alone cannot tell a frame that
     // missed by a fraction of a millisecond - which is a slack problem - from
     // one that missed by a whole interval, which means the pipeline is running
@@ -2332,6 +2335,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // consecutive presents and report its spread, plus how many gaps missed
     // the refresh interval by more than half of one.
     double lastPresentAtMs = -1.0;
+
     double gapSumMs = 0.0, gapSumSqMs = 0.0;
     double gapMinMs = 1e9, gapMaxMs = 0.0;
     uint64_t gapSamples = 0, gapMissed = 0, gapCollapsed = 0;
@@ -2423,6 +2427,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         LARGE_INTEGER t{};
         QueryPerformanceCounter(&t);
         return static_cast<double>(t.QuadPart) / qpcFreq.QuadPart * 1000.0;
+    };
+
+    // THE PANEL IS THE CEILING, and nothing unscheduled may push past it.
+    //
+    // At a 64 fps source the engine was submitting 168 presents a second to a
+    // 144 Hz display - 117 scheduled plus 51 keep-alive - and the telemetry
+    // said what that costs: "Presents lost to collision: 27.9%".
+    //
+    // That is a closed loop, and it was running the wrong way round. The swap
+    // chain fills, Present blocks, the loop falls behind, generated frames miss
+    // their deadline (26 a second, by 3-5 ms, against only 4 ms of slack), each
+    // drop leaves a hole, and the keep-alive fills the hole with another
+    // present. More presents, more blocking, more drops.
+    //
+    // Every guide on doing this well says the same thing about the final
+    // output: cap it at the display. So the three paths that present OUTSIDE
+    // the schedule - keep-alive, gap fill, duplicate passthrough - ask first.
+    // The scheduled frames are not gated here: they wait for their own moment,
+    // which is what places them, and refusing one would drop a real frame.
+    //
+    // 0.95 of a slot rather than a whole one, because the present that matters
+    // is the one the panel picks up at the next refresh, and holding out for a
+    // full slot systematically misses every other one.
+    auto PanelWouldRefuse = [&]() {
+        if (outputSlotMs <= 0.0 || lastPresentAtMs <= 0.0) return false;
+        const bool tooSoon = (NowMs() - lastPresentAtMs) < outputSlotMs * 0.95;
+        // Counted where it is decided. A gate that silently refuses work is
+        // how several of today's hours were spent - the counter costs an
+        // increment and turns "it is not presenting" into a number.
+        if (tooSoon) ++presentsHeldForPanel;
+        return tooSoon;
     };
 
     // SLEEP UNTIL JUST BEFORE THE DEADLINE, THEN SPIN THE REST.
@@ -2928,6 +2963,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
+            << " | Held for panel/s: " << (presentsHeldForPanel / elapsed)
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
             << " (by " << (generatedDroppedLate ? droppedLateByMsSum / generatedDroppedLate : 0.0)
             << " ms avg, " << droppedLateByMsMax << " ms max; slack when on time "
@@ -3061,6 +3097,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         skipStill = skipFactorOne = skipGenerateFailed = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
+        presentsHeldForPanel = 0;
         droppedLateByMsSum = 0.0;
         droppedLateByMsMax = 0.0;
         slackWhenOnTimeMsSum = 0.0;
@@ -3386,7 +3423,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // is the whole point of removing the slot wait.
             const double dupMinSpacingMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
                                          ? lockedPeriodMs * 0.5 : 7.0;
-            if (capturedTex && overlayVisibleLastIteration
+            if (capturedTex && overlayVisibleLastIteration && !PanelWouldRefuse()
                     && (lastPresentAtMs <= 0.0
                         || NowMs() - lastPresentAtMs >= dupMinSpacingMs)) {
                 presenter.PresentFrame(context.get(), capturedTex, presentSyncInterval);
@@ -4621,7 +4658,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 const double fillMinSpacingMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
                                               ? lockedPeriodMs * 0.5
                                               : (outputSlotMs > 0.0 ? outputSlotMs : 6.94);
-                if (sinceRealMs > lockedPeriodMs * 1.3 && sincePresentMs >= fillMinSpacingMs) {
+                if (sinceRealMs > lockedPeriodMs * 1.3 && sincePresentMs >= fillMinSpacingMs
+                        && !PanelWouldRefuse()) {
                     D3D11_TEXTURE2D_DESC fillDesc{};
                     if (ID3D11Texture2D* curTex = estimator.CurrFrameTexture())
                         curTex->GetDesc(&fillDesc);
@@ -4776,6 +4814,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             constexpr double kKeepAliveMargin = 1.3;
             if (overlayShowing && presentedAnythingYet
                     && lastPresentAtMs > 0.0
+                    && !PanelWouldRefuse()
                     && NowMs() - lastPresentAtMs >= slotMs * kKeepAliveMargin) {
                 // THE NEWEST CAPTURED FRAME, which is not the same thing as the
                 // newest frame the interpolator has.
