@@ -4433,7 +4433,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 const double sinceRealMs = fillNowMs - (motionCurrTimestampMs + arrivalLagEmaMs);
                 const double sincePresentMs = fillNowMs - lastPresentAtMs;
 
-                if (sinceRealMs > lockedPeriodMs * 1.3 && sincePresentMs >= outputSlotMs) {
+                // Same correction as the keep-alive below: the minimum spacing
+                // is the OUTPUT cadence, half the source period, not the panel
+                // slot. outputSlotMs only tracks the source when the "doublerate"
+                // argument is passed and the app does not pass it, so this let a
+                // fill land 6.94 ms after a present that was 13.9 ms apart from
+                // its neighbour - an extra frame inside a gap that was already
+                // the right size.
+                const double fillMinSpacingMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
+                                              ? lockedPeriodMs * 0.5
+                                              : (outputSlotMs > 0.0 ? outputSlotMs : 6.94);
+                if (sinceRealMs > lockedPeriodMs * 1.3 && sincePresentMs >= fillMinSpacingMs) {
                     D3D11_TEXTURE2D_DESC fillDesc{};
                     if (ID3D11Texture2D* curTex = estimator.CurrFrameTexture())
                         curTex->GetDesc(&fillDesc);
@@ -4565,7 +4575,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // unevenness has nothing to show through it - but it is there, and
             // pacing it to the midpoint of the expected gap is the real answer
             // if it ever matters.
-            const double slotMs = (outputSlotMs > 0.0) ? outputSlotMs : cadenceMs;
+            // THE OUTPUT CADENCE, NOT THE PANEL. cadenceMs is computed from the
+            // locked source period a few lines up and was then thrown away here
+            // in favour of outputSlotMs - and outputSlotMs only ever follows the
+            // source when the "doublerate" argument is passed, which the app does
+            // not pass. So it sat at 1000/144 = 6.94 ms whatever the source did,
+            // and this fired at 9.02 ms while the real output cadence was 13.9:
+            //
+            //   16:33:25  nat 32.9  gen 33.9  out 66.8  keep-alive 52.8  gap fill 9.0
+            //             presents actually reaching the panel: 128.6
+            //
+            // Half of everything on screen was an untimed repeat squeezed into a
+            // gap that was not a gap. The output spacing shows it exactly: the
+            // source arrived with 12% deviation and went out with 67%, min 0.83
+            // ms, max 47.5 - two frames less than a millisecond apart, then a
+            // hole. "Die generated sind nicht gleichmaessig wie die Input" is
+            // this line.
+            //
+            // Measured against the cadence, a complete stream never trips it and
+            // a genuinely stalled one still gets held up at ~55/s.
+            const double slotMs = cadenceMs;
             constexpr double kKeepAliveMargin = 1.3;
             if (overlayShowing && presentedAnythingYet
                     && lastPresentAtMs > 0.0
