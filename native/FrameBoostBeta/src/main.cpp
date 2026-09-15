@@ -296,7 +296,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // Format is "name = on" / "name = off", one per line, # for comments.
     // Unknown names are ignored rather than rejected, so a file written for a
     // later build does not stop an earlier one from starting.
-    std::map<std::wstring, bool> settingsFile;
+    std::map<std::wstring, std::wstring> settingsFile;
     {
         const wchar_t* localAppData = _wgetenv(L"LOCALAPPDATA");
         if (localAppData) {
@@ -320,8 +320,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (key.empty()) continue;
                 for (auto& ch : key) ch = towlower(ch);
                 for (auto& ch : value) ch = towlower(ch);
-                settingsFile[key] = (value == L"on" || value == L"1"
-                                  || value == L"true" || value == L"yes");
+                settingsFile[key] = value;
             }
             if (!settingsFile.empty()) {
                 FrameBoostBeta::Logger::Log("[FrameBoostBeta] Settings file read: "
@@ -374,7 +373,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     auto Setting = [&](const wchar_t* name) {
         if (HasArg(name)) return true;
         const auto it = settingsFile.find(name);
-        return it != settingsFile.end() && it->second;
+        if (it == settingsFile.end()) return false;
+        const std::wstring& v = it->second;
+        return v == L"on" || v == L"1" || v == L"true" || v == L"yes";
+    };
+
+    // Numeric settings. Same precedence: an argument beats the file.
+    auto SettingInt = [&](const wchar_t* name, int fallback) {
+        const auto it = settingsFile.find(name);
+        if (it == settingsFile.end() || it->second.empty()) return fallback;
+        return _wtoi(it->second.c_str());
     };
 
     HWND targetWindow = nullptr;
@@ -600,12 +608,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     winrt::com_ptr<ID3D11Device> device;
     winrt::com_ptr<ID3D11DeviceContext> context;
     // "gpupriority=N": -7 to 7, 0 = normal.
-    int gpuPriority = 0;
+    // GPU THREAD PRIORITY, now settable from the file as well as the command
+    // line, because the app passes no arguments and the C# cannot be rebuilt
+    // here.
+    //
+    //     gpupriority = 2      in frameboost.ini
+    //
+    // What it is: IDXGIDevice::SetGPUThreadPriority, -7 to +7, a scheduling
+    // HINT for this device's GPU thread. It reserves nothing and guarantees no
+    // share - no user-mode Windows API does - so it cannot make this process
+    // untouchable, whatever a comment might promise.
+    //
+    // What it did last time: raised together with REALTIME_PRIORITY_CLASS, it
+    // starved the game's input and the menu buttons visibly lagged. That was
+    // process priority rather than this call, and the two were changed at once,
+    // so this one has never actually been measured on its own.
+    //
+    // Which is why it is a setting rather than a default. Lukas asked for it
+    // after being told twice that it is a hint; that is his call to make, and
+    // the honest way to settle it is one value in a file, an A/B in the same
+    // scene, and the missed-slot column.
+    //
+    // Watch for: input lag in the game's menus, and whether src holds its cap.
+    // If the game's frames start arriving unevenly while ours go out on time,
+    // that is this setting taking from the wrong place - set it back to 0.
+    int gpuPriority = SettingInt(L"gpupriority", 0);
     for (const auto& a : args) {
         if (a.rfind(L"gpupriority=", 0) == 0) {
             const int parsed = _wtoi(a.c_str() + 12);
             if (parsed >= -7 && parsed <= 7) gpuPriority = parsed;
         }
+    }
+    if (gpuPriority < -7) gpuPriority = -7;
+    if (gpuPriority > 7) gpuPriority = 7;
+    if (gpuPriority != 0) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] GPU thread priority requested: "
+            + std::to_string(gpuPriority) + " (a scheduling hint, not a reserved share -"
+            " compare missed slots and source FPS against 0 before keeping it).");
     }
 
     if (!CreateSharedDevice(device, context, gpuPriority)) {
