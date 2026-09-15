@@ -4360,11 +4360,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         : static_cast<float>(step) / static_cast<float>(outputPerReal);
                     if (!noWarpDiagnostic && realToGenCount > 10 && pairIntervalMs > 1.0) {
                         const double measured = (realToGenSum / realToGenCount) / pairIntervalMs;
-                        // Clamped well inside the pair: a phase at either end
-                        // is a copy of a real frame, which is what this whole
-                        // engine exists to avoid.
-                        if (measured > 0.2 && measured < 0.8)
-                            phaseForStep = static_cast<float>(measured);
+                        // WHERE THE FIRST ONE LANDS, then one slot per step.
+                        //
+                        // This assigned "measured" to every step. With one
+                        // generated frame per real frame that is exactly right,
+                        // and it was written when outputPerReal was always 2.
+                        // Adaptive output made the count vary, and at a factor
+                        // of 4 all three intermediate frames were handed the
+                        // SAME content phase:
+                        //
+                        //   content:  0.42 -> 0.42 -> 0.42 -> 1.00
+                        //
+                        // Three frames of one moment, then the real frame
+                        // jumping the remaining 0.58. The output counter reads
+                        // 144 and the picture advances in steps - "nicht
+                        // gleichmaessig verteilt", measured from the inside.
+                        //
+                        // The measurement says where the FIRST generated frame
+                        // lands after a real one. The rest follow it one output
+                        // slot apart, which is 1/outputPerReal of the pair - so
+                        // the correction shifts the whole ladder instead of
+                        // collapsing it. At outputPerReal = 2 there is only
+                        // step 1 and this is bit-for-bit what it was.
+                        if (measured > 0.2 && measured < 0.8) {
+                            const double slot = 1.0 / static_cast<double>(outputPerReal);
+                            double shifted = measured + (step - 1) * slot;
+                            // A phase at either end is a copy of a real frame,
+                            // which is what this whole engine exists to avoid.
+                            if (shifted > 0.95) shifted = 0.95;
+                            if (shifted < 0.05) shifted = 0.05;
+                            phaseForStep = static_cast<float>(shifted);
+                        }
                     }
                     interpolator.SetPhase(phaseForStep);
                     interpolator.SetStatusFlags(badgeFlag | lowLatencyFlag
