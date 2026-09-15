@@ -2225,7 +2225,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // rate; the second is what our pacing manages to place. Reporting only
         // the second under the name "Native FPS" made a pacing problem look
         // like a capture problem for most of a day.
-        const double sourceFps = realFrameIntervalEmaMs > 0.0 ? 1000.0 / realFrameIntervalEmaMs : -1.0;
+        // COUNTED, NOT DERIVED FROM A SMOOTHED INTERVAL.
+        //
+        // This used to be 1000 / (EMA of frame intervals), and it read HIGHER
+        // than the game's own counter - 73.5, 76.2, 78.7 against a 72 cap,
+        // which the source cannot deliver.
+        //
+        // The cause is in the same telemetry: after a brief stall the capture
+        // hands us several frames in a burst, and arrival spacings of 0.07-0.13
+        // ms have been measured. Those pull an exponentially weighted mean of
+        // intervals sharply down, and its reciprocal sharply up, and it recovers
+        // slowly. The number was wrong in the one direction that makes an engine
+        // look better than it is.
+        //
+        // Since yesterday the honest figure is in hand: how many frames the
+        // capture actually announced in the last second, reset per report. A
+        // count over a known interval cannot exceed what arrived, and needs no
+        // assumption about the shape of the distribution.
+        //
+        // The EMA stays as the fallback for the Desktop Duplication path, which
+        // keeps its own counters, and for the first second before any count.
+        const uint64_t producedThisWindow =
+            (!useDesktopDuplication && capture.IsCapturing()) ? capture.FramesProduced() : 0;
+        const double sourceFps = (producedThisWindow > 0 && elapsed > 0.0)
+            ? producedThisWindow / elapsed
+            : (realFrameIntervalEmaMs > 0.0 ? 1000.0 / realFrameIntervalEmaMs : -1.0);
         // Native FPS counts real frames presented UNCHANGED. On the clock-driven
         // path that is a small share by design - a frame whose phase lands mid
         // interval is shown as an interpolation of itself and its neighbour,
@@ -2238,8 +2262,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // The watchdog runs here because this is already once a second and
         // already holds the capture's counters.
         if (!useDesktopDuplication && capture.IsCapturing()) {
+            // ZERO, not "unchanged".
+            //
+            // ResetAuditCounters zeroes this at the end of every report, so the
+            // value read here is the count for the last second - and at a locked
+            // 72 fps it reads exactly 72 second after second. The first version
+            // of this watchdog tested for "has not moved", which that satisfies
+            // perfectly, and it would have restarted a perfectly healthy capture
+            // roughly whenever the source held a steady rate. A capture that has
+            // stopped reports nothing at all, so that is what to test.
             const uint64_t producedNow = capture.FramesProduced();
-            if (producedNow != watchdogLastProduced || watchdogLastProgressMs <= 0.0) {
+            if (producedNow > 0 || watchdogLastProgressMs <= 0.0) {
                 watchdogLastProduced = producedNow;
                 watchdogLastProgressMs = NowMs();
             } else if (NowMs() - watchdogLastProgressMs > 2000.0) {
