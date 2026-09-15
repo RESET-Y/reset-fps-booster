@@ -1063,6 +1063,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     bool presentedAnythingYet = false;
     // Generated frames thrown away because their moment had already passed.
     uint64_t generatedDroppedLate = 0;
+    // HOW LATE, not just how many. A count alone cannot tell a frame that
+    // missed by a fraction of a millisecond - which is a slack problem - from
+    // one that missed by a whole interval, which means the pipeline is running
+    // behind the clock it schedules against. Those need opposite fixes, and
+    // reasoning about which one it was has already cost a round today.
+    double droppedLateByMsSum = 0.0;
+    double droppedLateByMsMax = 0.0;
+    double slackWhenOnTimeMsSum = 0.0;
+    uint64_t slackWhenOnTimeCount = 0;
 
     // STILL PICTURE: stand aside instead of generating.
     //
@@ -2920,6 +2929,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
             << " | Real frame interval (measured): " << (realFrameIntervalEmaMs > 0 ? std::to_string(realFrameIntervalEmaMs) + " ms" : "N/A")
             << " | Dropped late: " << (generatedDroppedLate / elapsed) << "/s"
+            << " (by " << (generatedDroppedLate ? droppedLateByMsSum / generatedDroppedLate : 0.0)
+            << " ms avg, " << droppedLateByMsMax << " ms max; slack when on time "
+            << (slackWhenOnTimeCount ? slackWhenOnTimeMsSum / slackWhenOnTimeCount : 0.0) << " ms)"
             << " | Skipped backwards: " << (generatedSkippedBackwards / elapsed)
             << " | Schedule clock: " << (smoothClockEnabled ? "smoothed" : "raw")
             << ", drift " << (scheduleAnchorMs > 0.0 ? scheduleAnchorMs - motionCurrTimestampMs : 0.0)
@@ -3049,6 +3061,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         skipStill = skipFactorOne = skipGenerateFailed = 0;
         duplicatePassthroughs = 0;
         generatedDroppedLate = 0;
+        droppedLateByMsSum = 0.0;
+        droppedLateByMsMax = 0.0;
+        slackWhenOnTimeMsSum = 0.0;
+        slackWhenOnTimeCount = 0;
         generatedSkippedBackwards = 0;
         intervalResetsSinceReport = 0;
         stillSecondsSinceReport = 0;
@@ -4444,10 +4460,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     // rather than by Lukas reporting dropped frames.
                     const double realMomentMs = scheduleAnchorMs + arrivalLagEmaMs
                         + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
-                    if (NowMs() > realMomentMs) {
+                    const double slackMs = realMomentMs - NowMs();
+                    if (slackMs < 0.0) {
                         ++generatedDroppedLate;
+                        droppedLateByMsSum += -slackMs;
+                        if (-slackMs > droppedLateByMsMax) droppedLateByMsMax = -slackMs;
                         continue;
                     }
+                    slackWhenOnTimeMsSum += slackMs;
+                    ++slackWhenOnTimeCount;
                     // The moment this frame represents, in the source's own
                     // timeline. Computed before the wait so the skip decision
                     // does not depend on when we got here.
