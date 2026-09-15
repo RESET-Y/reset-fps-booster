@@ -1,4 +1,0 @@
-C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/CMakeFiles/CompileBetaShaders.dir
-C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/CMakeFiles/FrameBoostBeta.dir
-C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/CMakeFiles/edit_cache.dir
-C:/Users/Eto jA/FPS Booster/native/FrameBoostBeta/build/CMakeFiles/rebuild_cache.dir

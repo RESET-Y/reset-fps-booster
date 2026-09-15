@@ -12,6 +12,7 @@ installer/Output/
 # The shader byte-array headers under build/generated ARE reproducible from
 # the .hlsl sources via fxc, so nothing here needs to be tracked.
 native/*/build/
+native/*/*/build/
 
 # IDE
 .vs/
