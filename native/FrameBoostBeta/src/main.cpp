@@ -2533,27 +2533,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // failure - but they are reported on their own line and counted nowhere
         // else. If output reads near zero while keep-alive reads 67, that is the
         // truth being told plainly: nothing new is being shown.
-        // COUNTS EVERY PRESENT, with the breakdown beside it.
+        // WHAT THE ENGINE PRODUCED: real frames plus generated frames. Nothing
+        // else, and this is where it stays.
         //
-        // I have moved this twice today and it needs to stop moving, so both
-        // halves are written down here.
+        // I moved this three times today and Lukas caught the arithmetic three
+        // times - "72 generated 71 und 160 output", then 150, then "ES IST
+        // IMMERNOCH 160 fps OBWOHL 60 GAME FPS 60 GENERATED FPS". He is right
+        // every time: a number that does not add up destroys trust in every
+        // other number on the line, and the repeats were what did not add up.
         //
-        // Against counting repeats: showing the same picture again adds no
-        // information, and a counter that reads 144 while the screen holds one
-        // frame is the number this project promised never to produce.
+        // Repeats still happen and still matter - a screen that stops updating
+        // is the worst failure this can have - so they are still counted and
+        // still reported, on their own lines, as "Keep-alive/s" and "Duplicate
+        // passthrough/s". What they are not is output. Output is what we made.
         //
-        // For counting them: the figure names how often the display was given a
-        // frame, which is a fact about the output and not a claim about
-        // novelty - and with the cadence now held through still pictures,
-        // excluding them would make the number collapse exactly where the
-        // engine is working as designed.
-        //
-        // Resolved by reporting both rather than choosing: Output FPS is every
-        // present, and "Keep-alive/s" beside it says how many of those carried
-        // nothing new. When the picture is static those two are near equal, and
-        // the pair says plainly what a single number cannot.
-        double outputFps = nativeFps + generatedFps
-                         + (duplicatePassthroughs + keepAlivePresents) / elapsed;
+        // The consequence is accepted rather than worked around: on a static
+        // picture this reads near zero, because near zero is what the engine
+        // generated. The keep-alive line beside it says the screen was still
+        // being served.
+        double outputFps = nativeFps + generatedFps;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
 
         // What the display actually showed, straight from DXGI, versus what
