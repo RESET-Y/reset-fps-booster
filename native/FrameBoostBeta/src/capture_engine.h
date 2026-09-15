@@ -131,6 +131,9 @@ private:
     int32_t m_poolWidth = 0;
     int32_t m_poolHeight = 0;
     uint64_t m_poolRecreates = 0;
+    // When the pool was last rebuilt, so a size that never settles cannot
+    // make this run on every frame.
+    double m_lastRecreateMs = 0.0;
     winrt::Windows::Graphics::Capture::GraphicsCaptureSession m_session{ nullptr };
     winrt::com_ptr<ID3D11Texture2D> m_lastFrameTex;
     winrt::com_ptr<ID3D11Device> m_device;

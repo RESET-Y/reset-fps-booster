@@ -212,6 +212,16 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
     }
 }
 
+namespace {
+// Milliseconds on the performance counter, for the rebuild rate limit below.
+double QpcNowMs() {
+    LARGE_INTEGER now{}, freq{};
+    QueryPerformanceCounter(&now);
+    QueryPerformanceFrequency(&freq);
+    return freq.QuadPart ? (1000.0 * static_cast<double>(now.QuadPart) / freq.QuadPart) : 0.0;
+}
+} // namespace
+
 void CaptureEngine::CollectArrivedFrames() {
     if (!m_capturing || !m_framePool || !m_context) return;
 
@@ -248,8 +258,18 @@ void CaptureEngine::CollectArrivedFrames() {
             // here and then the drain restarts: taking one more frame from a
             // pool that is about to be replaced would be reading a surface that
             // is going away.
-            if (contentSize.Width != m_poolWidth || contentSize.Height != m_poolHeight) {
+            //
+            // RATE-LIMITED, because an unbounded rebuild is worse than the bug.
+            //
+            // If an item ever reports a size that a Recreate does not settle -
+            // DPI rounding, a window mid-resize, a driver quirk - this would
+            // rebuild the pool on every single frame and the capture would stop
+            // dead while looking busy. One rebuild a second is far more often
+            // than any real size change happens, and cannot run away.
+            if ((contentSize.Width != m_poolWidth || contentSize.Height != m_poolHeight)
+                    && (QpcNowMs() - m_lastRecreateMs > 1000.0)) {
                 const int32_t newW = contentSize.Width, newH = contentSize.Height;
+                m_lastRecreateMs = QpcNowMs();
                 frame = nullptr; // give the lease back before replacing the pool
                 try {
                     m_framePool.Recreate(m_wrappedDevice,
