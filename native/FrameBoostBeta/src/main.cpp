@@ -1576,10 +1576,43 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         //
         // 1.6x per second up; one unit per second down, so 24 back to 1 takes
         // twenty-three seconds instead of three.
+        // A SLOT CAN GO OUT EMPTY BECAUSE WE WERE SLOW, OR BECAUSE THE SOURCE
+        // SENT NOTHING. Only the first is ours to answer.
+        //
+        // Measured in a menu, where the picture is static and the game stops
+        // producing frames:
+        //
+        //   09:38:43  src 28.8  moving 0.1%  gap fills 49.5/s  missed 15.0%  gpu 23.2%  relief  1.26
+        //   09:38:46  src 24.8  moving 0.1%  gap fills 42.0/s  missed 39.2%  gpu 16.5%  relief  5.17
+        //   09:38:50  src 30.1  moving 0.2%  gap fills 41.7/s  missed 36.7%  gpu 16.2%  relief 24.00
+        //
+        // Thirty-six percent of slots missed at SIXTEEN PERCENT of the graphics
+        // card. We were not slow; there was nothing to show. The regulator read
+        // it as congestion and went to its ceiling, and the additive recovery
+        // then held quality down for the ten seconds after the menu closed:
+        // 23.99, 23.46, 22.46, 21.45, 21.23, 21.10 while the game ran at a
+        // perfect 72 again.
+        //
+        // So the missed-slot rate keeps the trigger, and our own cost becomes
+        // the gate. The 95th percentile of interpolation against the deadline
+        // was tried ALONE as a trigger and failed - it fired while the engine
+        // was delivering 144 fps with zero misses. As a gate it is sound,
+        // because the conjunction is what carries the meaning: slots are being
+        // missed AND our own work is near its deadline. Either alone lies; both
+        // together do not.
+        std::vector<double> interps(interpHistory, interpHistory + costHistoryCount);
+        std::sort(interps.begin(), interps.end());
+        const double interpP95 = interps[(interps.size() * 95) / 100];
+        const double deadlineMs = lockedPeriodMs * 0.5;
+        const bool weAreTheBottleneck = (interpP95 > deadlineMs * 0.7);
+
         if (missedSlotEma >= 0.0 && reliefDtSec > 0.0 && reliefDtSec < 1.0) {
-            if (missedSlotEma > 0.05) {
+            if (missedSlotEma > 0.05 && weAreTheBottleneck) {
                 qualityRelief *= std::pow(1.6, reliefDtSec);
-            } else if (missedSlotEma < 0.01) {
+            } else if (missedSlotEma < 0.01 || !weAreTheBottleneck) {
+                // Recovering whenever we are NOT the bottleneck, not only when
+                // nothing is being missed: a source that has stopped delivering
+                // must not keep quality suppressed while it does.
                 qualityRelief -= 1.0 * reliefDtSec;
             }
         }
