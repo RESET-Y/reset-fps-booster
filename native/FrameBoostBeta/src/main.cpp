@@ -2430,8 +2430,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // not counting them was the lie. It also makes the shape correct:
         // roughly the source rate at rest, where doubling a static picture can
         // add nothing, and twice the source in motion, where it can.
-        double outputFps = nativeFps + generatedFps
-                         + (duplicatePassthroughs + keepAlivePresents) / elapsed;
+        // A REPEAT OF THE SAME PICTURE IS NOT OUTPUT.
+        //
+        // Half an hour ago this started counting keep-alive presents too, on the
+        // argument that everything reaching the screen should count. That was
+        // right for duplicate passthroughs, which present the NEWEST CAPTURED
+        // frame and can carry a small change - typed text was the case. It was
+        // wrong for keep-alives, which re-present the frame already on screen.
+        //
+        // What it produced, immediately:
+        //
+        //   11:06:44  source 34.0  native 0.0  OUTPUT 72.0
+        //             moving blocks 0.3%  passthrough 5/s  keep-alive 67/s
+        //
+        // Seventy-two in the counter and one frozen picture on the display,
+        // shown seventy-two times. That is precisely the number this project
+        // promised never to produce, and I built it.
+        //
+        // Keep-alives stay - a screen that stops updating is still the worst
+        // failure - but they are reported on their own line and counted nowhere
+        // else. If output reads near zero while keep-alive reads 67, that is the
+        // truth being told plainly: nothing new is being shown.
+        double outputFps = nativeFps + generatedFps + duplicatePassthroughs / elapsed;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
 
         // What the display actually showed, straight from DXGI, versus what
