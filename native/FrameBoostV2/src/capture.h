@@ -56,7 +56,10 @@ class Capture {
 public:
     ~Capture();
 
-    bool StartWindow(HWND window, ID3D11Device* device);
+    // captureMonitorHz sets the delivery floor - see MinUpdateInterval in
+    // capture.cpp. Pass the refresh rate of the monitor the target is on; 0
+    // falls back to 60, which is what the API assumes anyway.
+    bool StartWindow(HWND window, ID3D11Device* device, int captureMonitorHz);
 
     // THE WHOLE DISPLAY, as a control for the window path.
     //
@@ -70,7 +73,7 @@ public:
     // delivers 50 frames a second and the monitor path delivers 72 of the same
     // game, the loss is in window capture and not in the game. That is the only
     // way to tell those two apart from outside the game.
-    bool StartMonitor(HMONITOR monitor, ID3D11Device* device);
+    bool StartMonitor(HMONITOR monitor, ID3D11Device* device, int captureMonitorHz);
     void Stop();
     bool IsCapturing() const { return m_capturing.load(std::memory_order_acquire); }
 
@@ -106,7 +109,7 @@ public:
     UINT Height() const { return m_height.load(std::memory_order_relaxed); }
 
 private:
-    bool StartFromItem(ID3D11Device* device);
+    bool StartFromItem(ID3D11Device* device, int captureMonitorHz);
     void OnFrameArrived();
     void ProcessArrival(const winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame& frame);
     void ReleaseSlots();

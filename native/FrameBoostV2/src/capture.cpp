@@ -4,6 +4,7 @@
 #include <windows.graphics.capture.interop.h>
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Graphics.Capture.h>
 
 #include <cstdio>
 #include <string>
@@ -47,7 +48,7 @@ double NowMs() {
 
 Capture::~Capture() { Stop(); }
 
-bool Capture::StartMonitor(HMONITOR monitor, ID3D11Device* device) {
+bool Capture::StartMonitor(HMONITOR monitor, ID3D11Device* device, int captureMonitorHz) {
     if (!monitor || !device) {
         Logger::Log("[FrameBoostV2] Capture: no usable monitor handle.");
         return false;
@@ -64,10 +65,10 @@ bool Capture::StartMonitor(HMONITOR monitor, ID3D11Device* device) {
         Logger::Log("[FrameBoostV2] Capture: CreateForMonitor failed.");
         return false;
     }
-    return StartFromItem(device);
+    return StartFromItem(device, captureMonitorHz);
 }
 
-bool Capture::StartWindow(HWND window, ID3D11Device* device) {
+bool Capture::StartWindow(HWND window, ID3D11Device* device, int captureMonitorHz) {
     if (!window || !IsWindow(window) || !device) {
         Logger::Log("[FrameBoostV2] Capture: no usable window handle.");
         return false;
@@ -86,11 +87,11 @@ bool Capture::StartWindow(HWND window, ID3D11Device* device) {
         return false;
     }
 
-    return StartFromItem(device);
+    return StartFromItem(device, captureMonitorHz);
 }
 
 // Everything after the item exists is identical for a window and a monitor.
-bool Capture::StartFromItem(ID3D11Device* device) {
+bool Capture::StartFromItem(ID3D11Device* device, int captureMonitorHz) {
     m_device.copy_from(device);
     device->GetImmediateContext(m_context.put());
     // See the comment on m_slotTex in the header: protected, not duplicated,
@@ -142,6 +143,59 @@ bool Capture::StartFromItem(ID3D11Device* device) {
         if (auto s3 = m_session.try_as<IGraphicsCaptureSession3>())
             s3.IsBorderRequired(false);
     } catch (...) {}
+
+    // THE DELIVERY FLOOR. This was the whole of "Apex renders 72 and we see 50".
+    //
+    // MinUpdateInterval is the minimum spacing WGC will put between delivered
+    // frames. Left unset it defaults to about 16.6 ms, which caps delivery at
+    // roughly 60 a second no matter what the game draws. Apex draws every
+    // 13.889 ms, so frames were being withheld, and because delivery lands on
+    // composition boundaries the result settled at 48-54.
+    //
+    // Measured side by side on this machine, same game, same minute:
+    //
+    //   our V2, property unset      ~50 unique frames/s
+    //   PhyriadFG, property set     ~71 unique frames/s
+    //
+    // That is where a week went. Nothing downstream mattered - not the pool
+    // depth, not draining it, not the window mode, not the compositor, not
+    // background throttling. All of them sit behind this one call.
+    //
+    // Half the capture monitor's composition period, clamped to [0.5, 8] ms.
+    // The floor has to sit BELOW the compose period or quantisation strangles
+    // delivery back down to a slower cadence; half is the anti-quantisation
+    // margin. It scales with the user's monitor and is never a constant: at
+    // 144 Hz it is 3.47 ms, at 240 Hz 2.08 ms, at 60 Hz 8.33 -> clamped to 8.
+    //
+    // The idea is PhyriadFG's (MIT, see THIRD_PARTY_LICENSES.txt) and the
+    // arithmetic matches theirs; the code here is our own.
+    //
+    // A low floor makes WGC deliver DUPLICATES in micro-bursts up to the
+    // compose rate - the same composed picture handed over again. Those must
+    // be filtered before pairing or the interpolator gets two identical
+    // frames and a zero motion field. See the fingerprint below.
+    {
+        const int hz = (captureMonitorHz > 0) ? captureMonitorHz : 60;
+        long long mui100ns = 10000000LL / (2LL * static_cast<long long>(hz));
+        if (mui100ns < 5000LL)  mui100ns = 5000LL;    // 0.5 ms
+        if (mui100ns > 80000LL) mui100ns = 80000LL;   // 8 ms
+        try {
+            if (auto s5 = m_session.try_as<IGraphicsCaptureSession5>()) {
+                s5.MinUpdateInterval(winrt::Windows::Foundation::TimeSpan{ mui100ns });
+                Logger::Log("[FrameBoostV2] WGC MinUpdateInterval set to "
+                            + std::to_string(static_cast<double>(mui100ns) / 10000.0)
+                            + " ms (half the " + std::to_string(hz)
+                            + " Hz capture-monitor period). Unset it defaults to ~16.6 ms,"
+                            " which caps delivery at ~60/s.");
+            } else {
+                Logger::Log("[FrameBoostV2] IGraphicsCaptureSession5 unavailable - delivery stays "
+                            "at the ~16.6 ms default, so the source cannot exceed ~60/s. "
+                            "Needs Windows 11 24H2 or newer.");
+            }
+        } catch (...) {
+            Logger::Log("[FrameBoostV2] MinUpdateInterval was refused; delivery stays at the default.");
+        }
+    }
 
     {
         std::lock_guard<std::mutex> ring(m_ringMutex);

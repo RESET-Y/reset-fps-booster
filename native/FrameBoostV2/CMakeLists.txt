@@ -70,6 +70,17 @@ target_include_directories(FrameBoostBeta PRIVATE
     src
     "${CORE_DIR}/src"
     "${GEN_DIR}"
+    # 26100 (Windows 11 24H2), not 22621.
+    #
+    # IGraphicsCaptureSession5::MinUpdateInterval only exists from 24H2, and it
+    # is the property that decides whether WGC delivers 72 frames a second or
+    # 50. The 22621 headers do not declare the interface at all, so the call
+    # would not compile and the cap would stay invisible.
+    #
+    # Newest first: the build picks whichever is present, so a machine with
+    # only 22621 still compiles - it just loses the property, and capture.cpp
+    # says so in the log rather than failing silently.
+    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/cppwinrt"
     "C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/cppwinrt"
 )
 

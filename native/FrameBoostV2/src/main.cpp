@@ -385,11 +385,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         HMONITOR mon = MonitorFromWindow(target, MONITOR_DEFAULTTOPRIMARY);
         Logger::Log("[FrameBoostV2] MONITOR capture - measuring the whole display as a "
                     "control against the window path.");
-        if (!capture.StartMonitor(mon, device.get())) {
+        if (!capture.StartMonitor(mon, device.get(), static_cast<int>(displayHz))) {
             Logger::Log("[FrameBoostV2] Monitor capture could not start - exiting.");
             return 1;
         }
-    } else if (!capture.StartWindow(target, device.get())) {
+    } else if (!capture.StartWindow(target, device.get(), static_cast<int>(displayHz))) {
         Logger::Log("[FrameBoostV2] Capture could not start - exiting.");
         return 1;
     }
