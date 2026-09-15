@@ -529,7 +529,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // are.
     const bool frameDumpEnabled = HasArg(L"dump");
 
-    const bool gapFillOff = HasArg(L"nogapfill");
+    // THE REASON "generated" IS NOT EXACTLY "native".
+    //
+    // Doubling itself is exact - one generated frame per real frame, placed at
+    // half the measured interval. The gap filler is a SECOND mechanism: when
+    // the source is late it predicts the newest frame forward and puts that in
+    // the hole. Those count as generated, and the sum is visible in the log:
+    //
+    //   11:58:31  native 28.7  generated 41.6  gap fills 12.9   28.7+12.9=41.6
+    //   11:58:32  native 37.0  generated 45.0  gap fills  8.0   37.0+ 8.0=45.0
+    //
+    // So "warum nicht genau x2" has an exact answer, and turning this off gives
+    // exactly 2x. The trade is real in the other direction: without it a
+    // stalling source leaves the same picture on screen for 70-80 ms, which is
+    // what it was written for, and it is already capped at about 55 ms because
+    // a prediction drifts further from the truth the longer it runs.
+    //
+    //     gapfill = off      in frameboost.ini for exactly 2x
+    const bool gapFillOff = HasArg(L"nogapfill")
+                         || (settingsFile.count(L"gapfill") && !Setting(L"gapfill"));
 
     const bool measureOutputDiff = HasArg(L"measureoutput");
     // "showblend" paints blue wherever vector validation refused to displace a
