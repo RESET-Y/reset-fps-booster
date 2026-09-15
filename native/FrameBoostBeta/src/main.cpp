@@ -1562,6 +1562,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     uint64_t watchdogLastProduced = 0;
     double watchdogLastProgressMs = 0.0;
     uint64_t captureRestarts = 0;
+    // Seconds the capture was running and produced nothing at all. See the
+    // comment at haveProducedCount: these used to be reported as a healthy
+    // source frame rate, so they had no visible trace whatsoever.
+    uint64_t captureStallSeconds = 0;
     // When frames keep arriving but every one of them is a duplicate.
     double staleSurfaceSinceMs = 0.0;
     double lastStaleRebuildMs = 0.0;
@@ -2686,11 +2690,39 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         //
         // The EMA stays as the fallback for the Desktop Duplication path, which
         // keeps its own counters, and for the first second before any count.
-        const uint64_t producedThisWindow =
-            (!useDesktopDuplication && capture.IsCapturing()) ? capture.FramesProduced() : 0;
-        const double sourceFps = (producedThisWindow > 0 && elapsed > 0.0)
+        // ZERO IS A MEASUREMENT, NOT A MISSING ONE.
+        //
+        // The fallback below used to apply whenever the count was zero, which
+        // is precisely when the count is most worth believing. With the capture
+        // running and producing nothing, this reported
+        // 1000 / realFrameIntervalEmaMs - an interval that stops being updated
+        // the moment frames stop arriving, so it freezes at its last value and
+        // keeps reporting it:
+        //
+        //   16:13:46  src 62.0  nat 0.0  produced/retrieved 0/0  interval 16.124
+        //   16:13:47  src 62.0  nat 0.0  produced/retrieved 0/0  interval 16.124
+        //   16:13:49  src 62.0  nat 0.0  produced/retrieved 0/0  interval 16.124
+        //   16:13:50  src 62.0  nat 0.0  produced/retrieved 0/0  interval 16.124
+        //
+        // Four seconds of a completely dead capture, reported as a healthy 62
+        // frames a second, with the same three digits each time because the
+        // number was a division of two constants. It cost hours: the zero in
+        // "Native FPS" was read as an output problem for as long as the source
+        // beside it looked alive.
+        //
+        // So the fallback now covers only the case it was written for - the
+        // Desktop Duplication path, which keeps no such count, and the first
+        // report before any window has elapsed. While Windows Graphics Capture
+        // is running, its count is the answer, zero included.
+        const bool haveProducedCount = !useDesktopDuplication && capture.IsCapturing() && elapsed > 0.0;
+        const uint64_t producedThisWindow = haveProducedCount ? capture.FramesProduced() : 0;
+        const double sourceFps = haveProducedCount
             ? producedThisWindow / elapsed
             : (realFrameIntervalEmaMs > 0.0 ? 1000.0 / realFrameIntervalEmaMs : -1.0);
+        // Seconds in which the capture was running and delivered nothing at
+        // all. Counted separately because a stall that ends before the
+        // watchdog's two-second threshold leaves no other trace at all.
+        if (haveProducedCount && producedThisWindow == 0) ++captureStallSeconds;
         // Native FPS counts real frames presented UNCHANGED. On the clock-driven
         // path that is a small share by design - a frame whose phase lands mid
         // interval is shown as an interpolation of itself and its neighbour,
@@ -2837,6 +2869,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Cursor-only updates: " << ddCapture.CursorOnlyUpdates()
             << " | Capture reconnects: " << ddCapture.Reconnects()
             << " | Capture restarts: " << captureRestarts
+            << " | Capture stall seconds: " << captureStallSeconds
             << " | Duplicate frames skipped/s: " << ((duplicateFramesSinceReport + (ddCapture.UnchangedFrames() - ddUnchangedAtReport)) / elapsed)
             << " | Unchanged by dirty rects: " << ddCapture.UnchangedFrames()
             << " | Frame-to-frame difference: " << duplicateDetector.LastDifference()
@@ -4516,6 +4549,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                 if (newest) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
+                    // COUNT IT. This present reaches the screen exactly like
+                    // every other one, and for most of a day it was the only
+                    // thing on screen while the telemetry said the output was
+                    // zero:
+                    //
+                    //   16:13:46  nat 0.0  gen 0.0  out 0.0  keep-alive 108/s
+                    //
+                    // Output FPS is nativeFps + generatedFps, and this path
+                    // incremented neither - so a still picture being held at a
+                    // steady 108 frames a second was reported as nothing at
+                    // all. "When I stand still the output drops to zero" was
+                    // this line missing, not the picture stopping.
+                    //
+                    // It belongs in the native count: it is a real captured
+                    // frame presented unchanged, which is what that counter
+                    // means, and RecordPresentGap already books it as a real
+                    // present for pacing. Bounded by its own rate limit to one
+                    // per 1.3 display slots, so it cannot run away the way an
+                    // uncounted present loop once did.
+                    ++nativeFramesSinceReport;
                     RecordPresentGap(NowMs(), false);
                 }
             }
