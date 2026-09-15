@@ -39,6 +39,7 @@
 #include "presenter.h"
 #include "telemetry.h"
 #include "synthetic.h"
+#include "picker.h"
 #include "logger.h"
 
 #include "motion_estimation.h"
@@ -187,11 +188,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
     // The window to follow: whatever is in front when we start, which is the
     // game, because the app launches this from the game.
-    HWND target = WaitForGameWindow();
+    // THREE WAYS TO NAME THE WINDOW, in order of how much the user meant it.
+    //
+    // 1. "hwnd <value>" - RFB passes the handle. Nothing is guessed and no
+    //    dialog appears. This is the path the app will use once it can be
+    //    rebuilt; it is wired now so that integration is a change there and
+    //    none here.
+    // 2. the picker - the user chooses from a list.
+    // 3. "autowindow" - the old behaviour, first foreground window that is
+    //    not the launcher. Kept for unattended runs, not the default: it
+    //    guessed wrong twice.
+    HWND target = nullptr;
+
+    const double handleArg = ArgValue(args, L"hwnd", 0.0);
+    if (handleArg > 0.0) {
+        target = reinterpret_cast<HWND>(static_cast<uintptr_t>(handleArg));
+        if (!IsWindow(target)) {
+            Logger::Log("[FrameBoostV2] The handle passed in is not a window - exiting.");
+            return 1;
+        }
+    } else if (HasArg(args, L"autowindow")) {
+        target = WaitForGameWindow();
+    } else {
+        target = PickWindow();
+    }
+
     if (!target) {
-        Logger::Log("[FrameBoostV2] No game window came to the foreground within twenty "
-                    "seconds - exiting rather than capturing the wrong thing.");
-        return 1;
+        Logger::Log("[FrameBoostV2] No window selected - exiting rather than "
+                    "capturing the wrong thing.");
+        return 0;
     }
 
     UINT createFlags = 0;

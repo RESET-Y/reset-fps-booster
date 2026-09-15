@@ -59,6 +59,7 @@ add_executable(FrameBoostBeta WIN32
     src/presenter.cpp
     src/telemetry.cpp
     src/synthetic.cpp
+    src/picker.cpp
     src/logger.cpp
     "${CORE_DIR}/src/motion_estimation.cpp"
     "${CORE_DIR}/src/interpolation.cpp"
