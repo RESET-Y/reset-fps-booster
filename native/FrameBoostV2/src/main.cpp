@@ -50,6 +50,7 @@
 #include <dxgi1_6.h>
 
 #include <algorithm>
+#include <sstream>
 #include <cmath>
 #include <cwctype>
 #include <string>
@@ -187,6 +188,46 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     timeBeginPeriod(1);
 
+    // OPT OUT OF ECOQOS, or Windows runs this engine at its convenience.
+    //
+    // Windows 11 puts processes without a foreground window into efficiency
+    // mode: reduced clocks, parked on efficiency cores, timers coalesced. This
+    // engine is never the foreground window - the game is - so it qualifies,
+    // and the capture callback is a WinRT worker thread inside it.
+    //
+    // The trace says exactly that. With Apex presenting every 13.889 ms, our
+    // arrivals land at a flat 19-22 ms apart, every time:
+    //
+    //   dWgc = 13.888  dQpc = 19.261
+    //   dWgc = 27.777  dQpc = 22.405
+    //   dWgc = 13.888  dQpc = 19.683
+    //   dWgc = 27.777  dQpc = 22.026
+    //
+    // Steady at roughly 50 Hz on our side against 72 on the compositor's. A
+    // frame-availability problem is ragged; this is a metronome, and a
+    // metronome at the wrong rate is a scheduler, not a shortage.
+    //
+    // Draining the pool was tried first and changed nothing, which rules out
+    // frames waiting for us: they are not there when we ask.
+    //
+    // This asks Windows not to throttle us. It is a request about our own
+    // process and nothing else - no priority stolen from the game, no
+    // scheduler class raised, no driver touched.
+    {
+        PROCESS_POWER_THROTTLING_STATE st{};
+        st.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+        st.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        st.StateMask = 0;   // 0 = do not throttle
+        const BOOL ok = SetProcessInformation(GetCurrentProcess(),
+                                              ProcessPowerThrottling,
+                                              &st, sizeof(st));
+        Logger::Init();
+        Logger::Log(ok ? "[FrameBoostV2] EcoQoS opt-out accepted - this process will not be "
+                         "throttled for running in the background."
+                       : "[FrameBoostV2] EcoQoS opt-out refused; continuing. If arrivals stay "
+                         "at ~50 Hz this is worth revisiting.");
+    }
+
     std::vector<std::wstring> args;
     {
         int count = 0;
@@ -272,6 +313,49 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         return 1;
     }
 
+    // WHAT WE ARE ACTUALLY POINTED AT, spelled out.
+    //
+    // Every measurement so far assumed the window named in the log is the
+    // window being captured and that its present timeline is the game's. That
+    // has not been checked once. Ruling it out costs six lines.
+    {
+        wchar_t title[256] = {};
+        GetWindowTextW(target, title, 255);
+        DWORD pid = 0;
+        GetWindowThreadProcessId(target, &pid);
+        std::wstring exe;
+        if (HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)) {
+            wchar_t path[MAX_PATH] = {};
+            DWORD len = MAX_PATH;
+            if (QueryFullProcessImageNameW(proc, 0, path, &len)) {
+                exe = path;
+                const size_t slash = exe.find_last_of(L'\\');
+                if (slash != std::wstring::npos) exe = exe.substr(slash + 1);
+            }
+            CloseHandle(proc);
+        }
+        RECT wr{}, cr{};
+        GetWindowRect(target, &wr);
+        GetClientRect(target, &cr);
+        HMONITOR mon = MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST);
+        MONITORINFOEXW mi{}; mi.cbSize = sizeof(mi);
+        GetMonitorInfoW(mon, &mi);
+        const std::wstring t(title), dev(mi.szDevice);
+        std::ostringstream id;
+        id << "[FrameBoostV2] TARGET hwnd=0x" << std::hex
+           << reinterpret_cast<uintptr_t>(target) << std::dec
+           << " pid=" << pid
+           << " exe=" << std::string(exe.begin(), exe.end())
+           << " title=\"" << std::string(t.begin(), t.end()) << "\""
+           << " window=" << (wr.right - wr.left) << "x" << (wr.bottom - wr.top)
+           << " client=" << (cr.right - cr.left) << "x" << (cr.bottom - cr.top)
+           << " at " << wr.left << "," << wr.top
+           << " display=" << std::string(dev.begin(), dev.end())
+           << " desktop=" << (mi.rcMonitor.right - mi.rcMonitor.left) << "x"
+           << (mi.rcMonitor.bottom - mi.rcMonitor.top);
+        Logger::Log(id.str());
+    }
+
     const double displayHz = MonitorRefreshHz(target);
     Logger::Log("[FrameBoostV2] Display refresh: " + std::to_string(displayHz)
                 + " Hz. Noted for the record only - it does not gate the output rate.");
@@ -353,6 +437,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // is the only thing that can tell N G N G apart from N N G G. "noseq"
     // turns it off; it is buffered, so it costs one write a second.
     telemetry.EnableSequenceLog(!HasArg(args, L"noseq"));
+    capture.EnableTrace(HasArg(args, L"trace"));
 
     HANDLE timer = CreateWaitableTimerExW(nullptr, nullptr,
                                           CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
@@ -402,7 +487,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             Sleep(1);
             telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
                             syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
-            telemetry.ReportIfDue();
+            if (telemetry.ReportIfDue()) {
+                const std::string tr = capture.TakeTrace();
+                if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
+            }
             continue;
         }
 
@@ -421,7 +509,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             prevId = frame.frameId;
             prevContentMs = frame.contentMs;
             telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
-            telemetry.ReportIfDue();
+            if (telemetry.ReportIfDue()) {
+                const std::string tr = capture.TakeTrace();
+                if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
+            }
             continue;
         }
 
@@ -509,7 +600,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                             syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
         telemetry.NotePresentWaitMs(presenter.WaitMsSum(), presenter.CallMsSum(),
                                     presenter.CallMsMax(), presenter.Presents());
-        if (telemetry.ReportIfDue()) presenter.ResetStats();
+        if (telemetry.ReportIfDue()) {
+            presenter.ResetStats();
+            const std::string tr = capture.TakeTrace();
+            if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
+        }
     }
 
     Logger::Log("[FrameBoostV2] Shutting down.");

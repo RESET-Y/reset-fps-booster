@@ -36,6 +36,7 @@
 #include <atomic>
 #include <cstdint>
 #include <mutex>
+#include <string>
 
 namespace fbv2 {
 
@@ -87,12 +88,27 @@ public:
     int      QueueDepth() const;
     void     ResetCounters();
 
+    // EVERY ARRIVAL, RAW, straight off the WGC callback.
+    //
+    // Counters cannot answer "where did the frames go". An interval of 20.83
+    // ms averages the same whether WGC delivered evenly at 48 or delivered at
+    // 72 and something threw one in three away. Only the individual arrivals
+    // can tell those apart, so they are recorded and handed over once a second
+    // rather than summarised.
+    //
+    // Both clocks are kept separate and unprocessed: the WGC stamp is what the
+    // compositor says about the frame, the QPC stamp is when we took delivery.
+    // Nothing here is smoothed, clamped or rejected.
+    void EnableTrace(bool on) { m_trace = on; }
+    std::string TakeTrace();
+
     UINT Width()  const { return m_width.load(std::memory_order_relaxed); }
     UINT Height() const { return m_height.load(std::memory_order_relaxed); }
 
 private:
     bool StartFromItem(ID3D11Device* device);
     void OnFrameArrived();
+    void ProcessArrival(const winrt::Windows::Graphics::Capture::Direct3D11CaptureFrame& frame);
     void ReleaseSlots();
 
     // Eight is a deliberate number: deep enough to absorb the burst arrivals
@@ -145,6 +161,11 @@ private:
     uint64_t m_nextFrameId = 1;
 
     UINT m_poolWidth = 0, m_poolHeight = 0;
+
+    bool m_trace = false;
+    std::mutex m_traceMutex;
+    std::string m_traceBuffer;
+    double m_lastTraceWgcMs = 0.0, m_lastTraceQpcMs = 0.0;
 };
 
 // QueryPerformanceCounter in milliseconds, monotonic, shared by every

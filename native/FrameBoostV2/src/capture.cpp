@@ -5,6 +5,7 @@
 #include <windows.graphics.directx.direct3d11.interop.h>
 #include <winrt/Windows.Foundation.h>
 
+#include <cstdio>
 #include <string>
 
 using namespace winrt::Windows::Graphics;
@@ -163,17 +164,43 @@ bool Capture::StartFromItem(ID3D11Device* device) {
     return true;
 }
 
+// DRAIN THE POOL, do not take one and leave.
+//
+// This called TryGetNextFrame once per callback and returned. When two frames
+// were sitting in the pool by the time it ran, one was taken and the other was
+// recycled underneath us - and nothing anywhere reports that. Traced raw off
+// the callback with Apex at 72:
+//
+//   dWgc = 13.888   one game frame
+//   dWgc = 27.777   two game frames, one of them never seen
+//   dWgc = 13.889
+//   dWgc = 27.778
+//
+// Perfectly alternating, without a single exception: two arrivals for every
+// three frames the game drew. 72 x 2/3 = 48, which is the number that has been
+// on screen all evening and was blamed on the game, on the window mode, on the
+// compositor and on the frame pool depth in turn.
+//
+// V1 got this right and said why: "Drain rather than take one: the pool can
+// hold several by the time this runs, and every one of them is a frame the game
+// drew." I moved that file into the legacy tree and then wrote the naive
+// version here. Second regression of exactly this kind tonight.
 void Capture::OnFrameArrived() {
     if (!m_capturing.load(std::memory_order_acquire)) return;
 
-    Direct3D11CaptureFrame frame{ nullptr };
-    try {
-        frame = m_pool.TryGetNextFrame();
-    } catch (...) {
-        return;
+    for (;;) {
+        Direct3D11CaptureFrame frame{ nullptr };
+        try {
+            frame = m_pool.TryGetNextFrame();
+        } catch (...) {
+            return;
+        }
+        if (!frame) return;
+        ProcessArrival(frame);
     }
-    if (!frame) return;
+}
 
+void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
     // A WGC frame is a LEASE, not a copy: the surface goes back to the pool the
     // moment this object dies, and the pool may hand the same memory out again.
     // Everything that has to outlive this scope is copied out first.
@@ -251,6 +278,22 @@ void Capture::OnFrameArrived() {
         ++m_head;
     }
 
+    if (m_trace) {
+        std::lock_guard<std::mutex> tr(m_traceMutex);
+        if (m_traceBuffer.size() < 512 * 1024) {
+            char line[192];
+            const double dWgc = m_lastTraceWgcMs > 0.0 ? contentMs - m_lastTraceWgcMs : 0.0;
+            const double dQpc = m_lastTraceQpcMs > 0.0 ? arrivalMs - m_lastTraceQpcMs : 0.0;
+            _snprintf_s(line, sizeof(line), _TRUNCATE,
+                        "  ARR wgc=%.3f dWgc=%7.3f  qpc=%.3f dQpc=%7.3f  lag=%7.3f  %ux%u\n",
+                        contentMs, dWgc, arrivalMs, dQpc, arrivalMs - contentMs,
+                        srcDesc.Width, srcDesc.Height);
+            m_traceBuffer += line;
+        }
+        m_lastTraceWgcMs = contentMs;
+        m_lastTraceQpcMs = arrivalMs;
+    }
+
     m_width.store(w ? w : srcDesc.Width, std::memory_order_relaxed);
     m_height.store(h ? h : srcDesc.Height, std::memory_order_relaxed);
     m_produced.fetch_add(1, std::memory_order_relaxed);
@@ -287,6 +330,13 @@ void Capture::Release(const CapturedFrame& frame) {
 int Capture::QueueDepth() const {
     std::lock_guard<std::mutex> ring(m_ringMutex);
     return static_cast<int>(m_head - m_tail);
+}
+
+std::string Capture::TakeTrace() {
+    std::lock_guard<std::mutex> tr(m_traceMutex);
+    std::string out;
+    out.swap(m_traceBuffer);
+    return out;
 }
 
 void Capture::ResetCounters() {
