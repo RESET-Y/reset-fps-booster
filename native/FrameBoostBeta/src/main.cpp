@@ -2916,6 +2916,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << "/" << capture.FramesRetrieved()
             << " | Lost in pool: " << capture.FramesLostInPool()
             << " | Pool buffers: " << capture.PoolBufferCount()
+            << " | Pool rebuilds: " << capture.PoolRecreates()
             << " | Capture arrival spacing: " << captureIntervals.meanMs << " ms mean, min "
             << captureIntervals.minMs << ", max " << captureIntervals.maxMs
             << ", sd " << captureIntervals.stdDevMs

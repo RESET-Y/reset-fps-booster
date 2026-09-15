@@ -114,6 +114,8 @@ public:
 
     // Number of buffers the frame pool currently holds.
     int PoolBufferCount() const { return m_poolBufferCount; }
+    // How often the frame pool had to be rebuilt for a size change.
+    uint64_t PoolRecreates() const { return m_poolRecreates; }
 
     ~CaptureEngine();
 
@@ -122,6 +124,13 @@ private:
 
     winrt::Windows::Graphics::Capture::GraphicsCaptureItem m_item{ nullptr };
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool m_framePool{ nullptr };
+    // The device the pool was created with, and the size it was created FOR.
+    // Both are needed to call Recreate when the captured item changes size -
+    // see CollectArrivedFrames.
+    winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice m_wrappedDevice{ nullptr };
+    int32_t m_poolWidth = 0;
+    int32_t m_poolHeight = 0;
+    uint64_t m_poolRecreates = 0;
     winrt::Windows::Graphics::Capture::GraphicsCaptureSession m_session{ nullptr };
     winrt::com_ptr<ID3D11Texture2D> m_lastFrameTex;
     winrt::com_ptr<ID3D11Device> m_device;

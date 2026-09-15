@@ -114,6 +114,11 @@ bool CaptureEngine::StartFromItem(ID3D11Device* device) {
             // show for it.
             wrappedDevice, DirectXPixelFormat::B8G8R8A8UIntNormalized, 6, size);
         m_poolBufferCount = 6;
+        // Kept so the pool can be rebuilt at a new size without tearing the
+        // whole session down - see CollectArrivedFrames.
+        m_wrappedDevice = wrappedDevice;
+        m_poolWidth = size.Width;
+        m_poolHeight = size.Height;
 
         // Consumes the frame here, on the pool.s worker thread, instead of
         // leaving it for the main loop to fetch. See the ring buffer in the
@@ -219,6 +224,48 @@ void CaptureEngine::CollectArrivedFrames() {
 
             const auto contentSize = frame.ContentSize();
             if (contentSize.Width <= 0 || contentSize.Height <= 0) continue;
+
+            // THE POOL HAS TO BE TOLD WHEN THE ITEM CHANGES SIZE.
+            //
+            // Recreate was never called here. The pool was built once, for the
+            // size the window had at start, and nothing ever updated it -
+            // ContentSize was read only to label our own slot textures.
+            //
+            // Microsoft names Recreate as the way to change "aspects of the
+            // frame pool, including the size of frame buffers", and OSSS, which
+            // does this same job with these same APIs, describes what happens
+            // when it is skipped: "the frame pool was sized against a surface
+            // that no longer exists, and the session never recovers on its
+            // own."
+            //
+            // That is a precise description of the CS2 failure measured today -
+            // frames still arriving, byte-identical across 114,012 sampled
+            // offsets, while the game was visibly rendering - and it happens on
+            // any resolution change, window resize or mode switch, not only
+            // there.
+            //
+            // Recreate discards whatever is pending, which is why it is done
+            // here and then the drain restarts: taking one more frame from a
+            // pool that is about to be replaced would be reading a surface that
+            // is going away.
+            if (contentSize.Width != m_poolWidth || contentSize.Height != m_poolHeight) {
+                const int32_t newW = contentSize.Width, newH = contentSize.Height;
+                frame = nullptr; // give the lease back before replacing the pool
+                try {
+                    m_framePool.Recreate(m_wrappedDevice,
+                        DirectXPixelFormat::B8G8R8A8UIntNormalized, 6,
+                        { newW, newH });
+                    m_poolWidth = newW;
+                    m_poolHeight = newH;
+                    ++m_poolRecreates;
+                    Logger::Log("[FrameBoostBeta] Capture item changed size to "
+                        + std::to_string(newW) + "x" + std::to_string(newH)
+                        + " - frame pool rebuilt.");
+                } catch (...) {
+                    Logger::Log("[FrameBoostBeta] Frame pool could not be rebuilt for the new size.");
+                }
+                continue;
+            }
 
             auto surface = frame.Surface();
             auto access = surface.as<::Windows::Graphics::DirectX::Direct3D11::IDirect3DDxgiInterfaceAccess>();
