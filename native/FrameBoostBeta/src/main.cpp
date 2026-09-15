@@ -1013,6 +1013,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // separately from generated frames: they are a different promise, and a
     // rising number means the game is stuttering, not that we are working.
     uint64_t gapFillsSinceReport = 0;
+    // Re-presents of the newest real frame, made only because nothing else went
+    // out. A screen that stops updating is the worst failure this can have.
+    uint64_t keepAlivePresents = 0;
+    bool presentedAnythingYet = false;
     // Generated frames thrown away because their moment had already passed.
     uint64_t generatedDroppedLate = 0;
 
@@ -2205,6 +2209,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         }
         lastPresentWasGenerated = thisOneGenerated;
         lastPresentAtMs = presentEndMs;
+        // The keep-alive must not fire before the first real present, or it
+        // would push an empty texture at a window that has never drawn.
+        presentedAnythingYet = true;
     };
 
     double phasePresentMsSum = 0.0;   // CopyResource + Present, incl. any vsync block
@@ -2536,6 +2543,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             << " | Still picture: " << (pictureIsStill ? "standing aside" : "no")
             << " (moving EMA " << movingEma << ", difference EMA " << diffEma << ")"
             << " | Gap fills/s: " << (gapFillsSinceReport / elapsed)
+            << " | Keep-alive/s: " << (keepAlivePresents / elapsed)
             << " | Vsync: " << (presentSyncInterval == 0 ? "off" : "on")
             << " | Refresh lock: " << (refreshLockEnabled ? "on" : "off")
             << " | Generation factor: " << generationFactor << "x"
@@ -2636,6 +2644,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         nativeFramesSinceReport = 0;
         generatedFramesSinceReport = 0;
         gapFillsSinceReport = 0;
+        keepAlivePresents = 0;
         generatedDroppedLate = 0;
         generatedSkippedBackwards = 0;
         intervalResetsSinceReport = 0;
@@ -3962,6 +3971,40 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                         // skips the whole interpolation path.
                         interpolator.SetExtrapolateAhead(0.0f);
                     }
+                }
+            }
+
+            // KEEP-ALIVE: THE SCREEN MUST NEVER STOP FOLLOWING THE GAME.
+            //
+            // Reported: standing still, the output goes to 0 and stays there -
+            // "ich sehe 0 bewegungen". The chain that produces it:
+            //
+            //   the picture barely changes -> the duplicate detector calls every
+            //   arriving frame a duplicate (it compares a 64x36 thumbnail, which
+            //   cannot see small movement) -> haveNewContent is cleared -> the
+            //   gap filler covers about 55 ms and then stops by design, because
+            //   "a genuinely paused game should look paused" -> and from there
+            //   nothing is presented at all.
+            //
+            // The flaw in that last step is that our overlay is ON TOP. Stopping
+            // presenting does not reveal the paused game; it leaves OUR last
+            // picture on the screen. Anything that happens underneath - a menu
+            // animation, the view moving when the mouse does - is never shown.
+            // Measured in CS2: duplicates 42 of 42 arrivals, output 0.0, jitter
+            // 576 ms.
+            //
+            // So when nothing has gone out for two output slots, the newest real
+            // frame goes out again, unchanged. No generation, no extrapolation,
+            // nothing that can drift - the worst case is showing a correct frame
+            // twice, which is exactly what a paused game looks like anyway. It
+            // costs one present and cannot make the picture wrong.
+            if (overlayShowing && presentedAnythingYet
+                    && outputSlotMs > 0.0 && lastPresentAtMs > 0.0
+                    && NowMs() - lastPresentAtMs > outputSlotMs * 2.0) {
+                if (ID3D11Texture2D* newest = estimator.CurrFrameTexture()) {
+                    presenter.PresentFrame(context.get(), newest, presentSyncInterval);
+                    ++keepAlivePresents;
+                    RecordPresentGap(NowMs(), false);
                 }
             }
 
