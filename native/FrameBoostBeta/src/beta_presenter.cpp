@@ -539,25 +539,29 @@ void Presenter::TrackOverlayTarget() {
     // Reported that way, and confirmed by the fact that presenting both kinds
     // of frame ourselves made it stop.
     //
-    // NO INSET HERE, and the reasoning below is why - I re-added one this
-    // morning without reading to the end of it, and Lukas reported the exact
-    // symptom it describes within ten minutes: "das spiele menue verschiebt
-    // sich immer links rechts links rechts".
+    // ONE COLUMN OFF THE RIGHT EDGE - position unchanged.
     //
-    // The occlusion problem it was meant to solve is real and was measured
-    // today - covering the window halved CS2s frame rate and froze the surface
-    // we capture (source 34.8 with the overlay shown against 71.8 with it
-    // hidden, arrivals 28.75 ms against 13.93). But geometry is the wrong tool
-    // for it here, because the overlay and the captured texture must line up to
-    // the pixel or the two present paths disagree by one.
+    // Occlusion is real and measured: covering the window halved CS2s frame
+    // rate and froze the surface we capture (source 34.8 with the overlay shown
+    // against 71.8 with it hidden). A window that does not FULLY cover another
+    // cannot occlude it, so one uncovered column fixes it.
     //
-    // The right place to look next is opacity rather than position: give the
-    // DirectComposition visual an opacity just under 1.0, which is what
-    // alpha 254 used to do before this window stopped having a redirection
-    // surface for a layered attribute to apply to.
+    // The first attempt at this shifted the window one pixel RIGHT, which moved
+    // our whole image one pixel off the game. Generated and real frames then
+    // alternated between two positions seventy times a second and menu text
+    // appeared to slide - reported as "links rechts links rechts". The mistake
+    // was moving the ORIGIN. Taking the column off the right edge instead
+    // leaves every pixel where it was and only stops covering the last one.
+    //
+    // Tried in between and abandoned: IDCompositionVisual3::SetOpacity(0.996),
+    // which is the principled fix - not opaque, so nothing below is occluded -
+    // and which logged "could not set visual opacity below 1.0" on this
+    // machine. The interface is not available here, so the geometric answer it
+    // was meant to replace is the one that works.
+    constexpr int kAntiOcclusionInsetPx = 1;
     SetWindowPos(m_hwnd, HWND_TOPMOST,
         topLeft.x, topLeft.y,
-        width, height,
+        width - kAntiOcclusionInsetPx, height,
         SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 }
 
