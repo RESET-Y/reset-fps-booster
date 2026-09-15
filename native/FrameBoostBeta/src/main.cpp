@@ -4487,7 +4487,28 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
                     const double realMomentMs = scheduleAnchorMs + arrivalLagEmaMs
                         + pairIntervalMs * (static_cast<double>(outputPerReal - 1) / outputPerReal);
                     const double slackMs = realMomentMs - NowMs();
-                    if (slackMs < 0.0) {
+                    // THE FIRST ONE IS THE PROMISE, and it is never dropped.
+                    //
+                    // "Es werden immer weniger frames generiert als ich native
+                    // fps habe, es soll gleich halten." That is what the feature
+                    // is: one generated frame per real frame, so generated never
+                    // reads below native. This rule was taking 26 a second out
+                    // of that:
+                    //
+                    //   17:07:07  src 64.0  nat 63  gen 54.0  dropped late 26/s
+                    //
+                    // and what filled the hole was a keep-alive REPEAT - the
+                    // same picture twice, in place of a frame that was built,
+                    // correct, and a few milliseconds behind. A late generated
+                    // frame still advances the picture; a repeat cannot. Between
+                    // those two the late frame wins every time, which is the
+                    // opposite of what this rule was choosing.
+                    //
+                    // Steps beyond the first are the adaptive extras, above the
+                    // 2x promise. They may still be dropped when they run out of
+                    // room: losing one costs a fraction of an interval and never
+                    // breaks the guarantee.
+                    if (slackMs < 0.0 && step > 1) {
                         ++generatedDroppedLate;
                         droppedLateByMsSum += -slackMs;
                         if (-slackMs > droppedLateByMsMax) droppedLateByMsMax = -slackMs;
