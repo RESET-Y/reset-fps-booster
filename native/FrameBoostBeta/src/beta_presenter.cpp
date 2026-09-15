@@ -500,13 +500,36 @@ void Presenter::TrackOverlayTarget() {
     // Reported that way, and confirmed by the fact that presenting both kinds
     // of frame ourselves made it stop.
     //
-    // The throttling it avoided belongs to MONITOR capture, where the game
-    // must keep being composited for us to see it. With window capture we
-    // read the window.s own presentation, which continues while it is
-    // covered - as the whole window-capture path demonstrates.
+    // THE SAME ONE-PIXEL INSET AS MONITOR MODE. It was left out here on the
+    // assumption written below, and that assumption is wrong.
+    //
+    // What used to stand here: "with window capture we read the window's own
+    // presentation, which continues while it is covered - as the whole
+    // window-capture path demonstrates." It does not. Measured on CS2 with the
+    // overlay suppressed entirely and everything else running:
+    //
+    //   overlay shown     source 34.8   arrivals 28.75 ms   difference 0.02-0.9
+    //                     native 0      duplicates 34/s (all of them)
+    //   overlay hidden    source 71.8   arrivals 13.93 ms   difference 13-36
+    //                     native = source   duplicates 0
+    //
+    // Covering the window halved the game's frame rate AND froze the surface
+    // we capture. Two consecutive captured frames were byte-identical across
+    // 114,012 sampled offsets while the game was visibly rendering.
+    //
+    // The alpha-254 guard in the constructor is meant to prevent exactly this
+    // by not counting as an opaque occluder. It predates the
+    // WS_EX_NOREDIRECTIONBITMAP + DirectComposition window, which has no
+    // redirection surface for that layered attribute to apply to, so whatever
+    // it once did it no longer does here. Geometry still works: a window that
+    // does not FULLY cover another cannot occlude it.
+    //
+    // One pixel column, on the left, invisible in practice - and it is what
+    // the monitor path has been doing all along.
+    constexpr int kAntiOcclusionInsetPx = 1;
     SetWindowPos(m_hwnd, HWND_TOPMOST,
-        topLeft.x, topLeft.y,
-        width, height,
+        topLeft.x + kAntiOcclusionInsetPx, topLeft.y,
+        width - kAntiOcclusionInsetPx, height,
         SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 }
 

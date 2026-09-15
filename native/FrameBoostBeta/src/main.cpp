@@ -1230,38 +1230,42 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     //
     // Hiding it also costs nothing: no capture processing reaches the screen, no
     // present, no latency - the player simply sees their game.
-    // OUR OWN WINDOW MUST BE INVISIBLE TO THE CAPTURE.
+    // The overlay is excluded from capture by the presenter itself, which
+    // already carries the reasoning and the monitor-only condition. A second
+    // call was added here earlier today in ignorance of that; it is gone.
+
+    // NEVER SHOW THE OVERLAY - a diagnostic, not a mode anyone should run.
     //
-    // Monitor capture reads the whole screen, and our overlay sits on top of
-    // it. Without this we capture our own output, interpolate frames that
-    // already contain interpolated frames, and feed the result back in - a
-    // closed loop. Reported straight away as "sehr starke doppelbilder", and
-    // that is exactly what a feedback loop of this kind looks like.
+    //     nooverlay = on      in frameboost.ini
     //
-    // SetWindowDisplayAffinity with WDA_EXCLUDEFROMCAPTURE removes a window
-    // from what capture APIs see, while leaving it perfectly visible on the
-    // physical display. It is the documented mechanism for precisely this, it
-    // is user-mode, it touches nothing outside our own window, and it needs
-    // Windows 10 2004. Where it is unavailable the call fails and monitor
-    // capture keeps the loop it had, which is why the result is logged rather
-    // than assumed.
+    // Window capture on CS2 delivers frames that are byte-identical while the
+    // game renders - proved with the dump, 114,012 sampled offsets and zero
+    // differences - and the source rate reads 34 for a game capped at 72,
+    // which is half. Both are what a game does when Windows tells it its
+    // window is covered: DXGI reports the swapchain occluded and presentation
+    // throttles.
     //
-    // Only in monitor mode: under window capture our overlay is not in the
-    // captured window's content anyway, and excluding it there would be a
-    // change with no reason behind it.
-    if (monitorMode) {
-        if (HWND hwnd = presenter.WindowHandle()) {
-            const BOOL ok = SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
-            FrameBoostBeta::Logger::Log(ok
-                ? "[FrameBoostBeta] Overlay excluded from capture - monitor capture now sees the game"
-                  " without our own output composited over it."
-                : "[FrameBoostBeta] Could not exclude the overlay from capture (needs Windows 10 2004)."
-                  " Monitor capture will read our own frames back in; expect double images.");
-        }
+    // The only thing covering that window is this overlay. There is already a
+    // guard against exactly this - alpha 254 rather than 255, so the window is
+    // not counted as an opaque occluder - but it predates the
+    // DirectComposition swapchain and has never been re-tested against it.
+    //
+    // With this on, everything runs except the presenting: capture, duplicate
+    // detection, estimation, generation, telemetry. If native FPS then climbs
+    // to the source rate and the frame-to-frame difference stops reading 0.02,
+    // the overlay is what kills the capture and the fix is in this file. If
+    // nothing changes, it is CS2's presentation path and no amount of work
+    // here will reach it.
+    const bool overlaySuppressed = Setting(L"nooverlay");
+    if (overlaySuppressed) {
+        FrameBoostBeta::Logger::Log("[FrameBoostBeta] DIAGNOSTIC: the overlay will never be shown."
+            " Nothing will appear on screen - this measures whether our own window is what stops"
+            " the capture from updating.");
     }
 
     bool overlayHidden = false;
     auto SetOverlayVisible = [&](bool visible) {
+        if (overlaySuppressed) visible = false;
         if (visible == !overlayHidden) return;
         overlayHidden = !visible;
         if (HWND hwnd = presenter.WindowHandle())
