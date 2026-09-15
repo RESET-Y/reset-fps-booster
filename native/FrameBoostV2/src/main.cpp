@@ -278,8 +278,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     const UINT initialW = std::max<UINT>(1, static_cast<UINT>(client.right - client.left));
     const UINT initialH = std::max<UINT>(1, static_cast<UINT>(client.bottom - client.top));
 
+    // MEASURE ONLY: capture and timestamp, present nothing, show nothing.
+    //
+    // Apex is capped at 72 and arrives at 48 - every frame exactly three
+    // display refreshes apart instead of two. Two explanations, pointing at
+    // opposite places: the game cannot hold 72 under load, or our overlay and
+    // our presents are costing it the difference. V1 had that second failure
+    // and it took a day to find ("our own overlay was halving the game's frame
+    // rate"), so it is not a theoretical concern.
+    //
+    // With no overlay and no presents, whatever the source then delivers is
+    // what the game does on its own. If it is 72 here and 48 with the engine
+    // running, the cost is ours.
+    const bool measureOnly = HasArg(args, L"measure");
+
     Presenter presenter;
-    if (!presenter.Create(device.get(), initialW, initialH, target)) {
+    if (measureOnly) {
+        Logger::Log("[FrameBoostV2] MEASURE ONLY - capturing and timestamping, presenting "
+                    "nothing. Nothing will appear on screen; this measures what the game "
+                    "delivers when we are not in its way.");
+    } else if (!presenter.Create(device.get(), initialW, initialH, target)) {
         Logger::Log("[FrameBoostV2] Presenter could not start - exiting.");
         return 1;
     }
@@ -352,6 +370,24 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         }
 
         telemetry.NoteSourceArrival();
+
+        if (measureOnly) {
+            // The arrival timeline and nothing else. Recorded through the same
+            // sequence log so the content deltas can be read out exactly as
+            // they are for a normal run.
+            if (havePrev) telemetry.NotePairIntervalMs(frame.contentMs - prevContentMs);
+            telemetry.NoteSequence({ nextOutputId++, false, frame.frameId, frame.frameId,
+                                     frame.contentMs, 0.0, frame.arrivalMs,
+                                     frame.contentMs, frame.contentMs });
+            capture.Release(frame);
+            havePrev = true;
+            prevId = frame.frameId;
+            prevContentMs = frame.contentMs;
+            telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
+            telemetry.ReportIfDue();
+            continue;
+        }
+
         presenter.TrackTarget();
         presenter.Resize(frame.width, frame.height);
 
@@ -441,7 +477,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
     Logger::Log("[FrameBoostV2] Shutting down.");
     if (!syntheticMode) capture.Stop();
-    presenter.Destroy();
+    if (!measureOnly) presenter.Destroy();
     if (timer) CloseHandle(timer);
     timeEndPeriod(1);
     return 0;
