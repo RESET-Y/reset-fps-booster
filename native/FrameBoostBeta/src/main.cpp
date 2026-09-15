@@ -2158,7 +2158,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
     // design, but generating until the refresh rate is full is not what this
     // feature promises, and every extra generated frame is another guess
     // between the same two known ones. "timedriven" selects it.
-    bool simpleDoubleMode = !HasArg(L"timedriven");
+    // THE BUFFERED PATH, reachable from the settings file and not only from
+    // the command line the app does not pass.
+    //
+    // AMD document the architecture this needs: presentation and pacing on
+    // their own CPU threads, separate from the render loop, and they note that
+    // reworking late frames "does not correct the source of the problem... if
+    // buffering time is not increased". Our loop does capture, estimation,
+    // generation and presentation in series, so anything that blocks in the
+    // present delays the next capture - which is what the numbers say:
+    //
+    //   17:28:10  src 64  nat 64  gen 39  out 103
+    //             dropped late 26/s  slack 4.59 ms  collisions 37.6%
+    //
+    // The separate pacing thread is the real answer and it is not a small
+    // change. The buffering half already exists here as the time-driven path
+    // with its frame queue, and it was only reachable through an argument the
+    // app never passes - so it has never actually been tried against this.
+    //
+    // "timedriven = on" in frameboost.ini selects it.
+    bool simpleDoubleMode = !HasArg(L"timedriven") && !Setting(L"timedriven");
 
     // DOUBLE THE SOURCE, ON A SMOOTH CLOCK.
     //
