@@ -178,12 +178,25 @@ void Presenter::Resize(UINT width, UINT height) {
 bool Presenter::Present(ID3D11DeviceContext* context, ID3D11Texture2D* texture) {
     if (!m_swapChain || !texture || !context) return false;
 
-    if (m_frameLatencyWaitable) {
-        const double t0 = NowMs();
-        WaitForSingleObjectEx(m_frameLatencyWaitable, 100, TRUE);
-        m_waitMsSum += NowMs() - t0;
-    }
-
+    // NO WAIT ON THE FRAME-LATENCY WAITABLE. It is a cap, and this engine
+    // does not have one.
+    //
+    // That object is signalled as the display CONSUMES presents, so blocking
+    // on it throttles the output to the refresh rate. It is not written as a
+    // number anywhere, which is exactly why it survived an audit for "144":
+    // it is the same limit expressed as a wait. At a 100 fps source the
+    // engine wants 200 presents a second and this would have held it at 144.
+    //
+    // Sync interval 0 with DXGI_PRESENT_ALLOW_TEARING is what makes going
+    // past the refresh legal: the scan-out takes whatever is current and
+    // tears, which is how any uncapped game exceeds its monitor. The panel
+    // still cannot show 200 distinct pictures a second - that is physics -
+    // but it is the panel that drops them, at the very end, and not us.
+    //
+    // Nothing runs away as a result: the present rate is two per source frame
+    // and no more, so the source is the only thing that sets it.
+    //
+    // The waitable handle is kept for measurement, unused for control.
     winrt::com_ptr<ID3D11Texture2D> backBuffer;
     if (FAILED(m_swapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.put())))) return false;
 

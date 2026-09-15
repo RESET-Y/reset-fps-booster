@@ -38,6 +38,7 @@
 #include "capture.h"
 #include "presenter.h"
 #include "telemetry.h"
+#include "synthetic.h"
 #include "logger.h"
 
 #include "motion_estimation.h"
@@ -48,6 +49,7 @@
 #include <dxgi1_6.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -60,6 +62,16 @@ namespace {
 bool HasArg(const std::vector<std::wstring>& args, const wchar_t* name) {
     for (const auto& a : args) if (a == name) return true;
     return false;
+}
+
+// "synthetic" on its own means 120; "synthetic 200" means 200. The value is
+// the SOURCE rate, so the output to look for is twice it.
+double ArgValue(const std::vector<std::wstring>& args, const wchar_t* name, double fallback) {
+    for (size_t i = 0; i + 1 < args.size(); ++i) {
+        if (args[i] != name) continue;
+        try { return std::stod(args[i + 1]); } catch (...) { return fallback; }
+    }
+    return fallback;
 }
 
 double MonitorRefreshHz(HWND window) {
@@ -145,8 +157,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     Logger::Log("[FrameBoostV2] Display refresh: " + std::to_string(displayHz)
                 + " Hz. Noted for the record only - it does not gate the output rate.");
 
+    // DIAGNOSTIC SOURCE, for the rates no window on this machine produces.
+    // Everything downstream is identical - same pairing, same phase, same
+    // scheduler, same presenter - so what it measures is the real pipeline.
+    const bool syntheticMode = HasArg(args, L"synthetic");
+    SyntheticSource synthetic;
     Capture capture;
-    if (!capture.StartWindow(target, device.get())) {
+
+    if (syntheticMode) {
+        const double fps = ArgValue(args, L"synthetic", 120.0);
+        if (!synthetic.Init(device.get(), 1280, 720, fps, 400.0)) {
+            Logger::Log("[FrameBoostV2] Synthetic source could not start - exiting.");
+            return 1;
+        }
+    } else if (!capture.StartWindow(target, device.get())) {
         Logger::Log("[FrameBoostV2] Capture could not start - exiting.");
         return 1;
     }
@@ -211,11 +235,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         if (PeekMessageW(&peek, nullptr, WM_QUIT, WM_QUIT, PM_NOREMOVE)) break;
 
         CapturedFrame frame{};
-        if (!capture.Acquire(frame)) {
+        const bool got = syntheticMode ? synthetic.Produce(context.get(), frame)
+                                       : capture.Acquire(frame);
+        if (!got) {
             // Nothing new. Give the core back rather than spin on it - the game
             // needs it more than we do.
             Sleep(1);
-            telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
+            telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
+                            syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
             telemetry.ReportIfDue();
             continue;
         }
@@ -287,21 +314,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             telemetry.NoteDropped();
         }
 
-        capture.Release(frame);
+        if (!syntheticMode) capture.Release(frame);
 
         havePrev = true;
         prevId = currId;
         prevContentMs = currContentMs;
 
         telemetry.NoteGpu(estimator.LastGpuTimeMs(), interpolator.LastGpuTimeMs());
-        telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
+        telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
+                            syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
         telemetry.NotePresentWaitMs(presenter.WaitMsSum(), presenter.CallMsSum(),
                                     presenter.CallMsMax(), presenter.Presents());
         if (telemetry.ReportIfDue()) presenter.ResetStats();
     }
 
     Logger::Log("[FrameBoostV2] Shutting down.");
-    capture.Stop();
+    if (!syntheticMode) capture.Stop();
     presenter.Destroy();
     if (timer) CloseHandle(timer);
     timeEndPeriod(1);
