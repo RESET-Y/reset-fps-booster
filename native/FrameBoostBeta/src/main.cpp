@@ -4174,9 +4174,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             const double cadenceMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
                                    ? lockedPeriodMs * 0.5
                                    : (outputSlotMs > 0.0 ? outputSlotMs : 6.94);
+
+            // A MARGIN, or this races the stream it is meant to back up.
+            //
+            // Firing at exactly the cadence means firing at exactly the moment
+            // the scheduled frame is also due. Ordinary jitter then puts the
+            // keep-alive a fraction earlier, the scheduled present follows right
+            // behind it, and the output carries more frames than it should at
+            // uneven spacing. Measured immediately: source 72, generated 71 -
+            // which is 143 - against an output of 160.
+            //
+            // At one and a half cadences the scheduled present has always
+            // happened and reset the timer, so during motion this never fires
+            // at all. On a genuinely still picture, where nothing else
+            // presents, it holds a steady stream on its own - slower than the
+            // doubled rate, and steady, which is the property that was wanted.
+            constexpr double kKeepAliveMargin = 1.5;
             if (overlayShowing && presentedAnythingYet
                     && lastPresentAtMs > 0.0
-                    && NowMs() - lastPresentAtMs >= cadenceMs) {
+                    && NowMs() - lastPresentAtMs >= cadenceMs * kKeepAliveMargin) {
                 if (ID3D11Texture2D* newest = estimator.CurrFrameTexture()) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
