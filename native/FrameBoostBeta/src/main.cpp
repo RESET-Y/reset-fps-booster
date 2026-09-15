@@ -2485,7 +2485,27 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
         // failure - but they are reported on their own line and counted nowhere
         // else. If output reads near zero while keep-alive reads 67, that is the
         // truth being told plainly: nothing new is being shown.
-        double outputFps = nativeFps + generatedFps + duplicatePassthroughs / elapsed;
+        // COUNTS EVERY PRESENT, with the breakdown beside it.
+        //
+        // I have moved this twice today and it needs to stop moving, so both
+        // halves are written down here.
+        //
+        // Against counting repeats: showing the same picture again adds no
+        // information, and a counter that reads 144 while the screen holds one
+        // frame is the number this project promised never to produce.
+        //
+        // For counting them: the figure names how often the display was given a
+        // frame, which is a fact about the output and not a claim about
+        // novelty - and with the cadence now held through still pictures,
+        // excluding them would make the number collapse exactly where the
+        // engine is working as designed.
+        //
+        // Resolved by reporting both rather than choosing: Output FPS is every
+        // present, and "Keep-alive/s" beside it says how many of those carried
+        // nothing new. When the picture is static those two are near equal, and
+        // the pair says plainly what a single number cannot.
+        double outputFps = nativeFps + generatedFps
+                         + (duplicatePassthroughs + keepAlivePresents) / elapsed;
         double avgLatencyMs = latencySamples > 0 ? (latencySumMs / latencySamples) : -1.0;
 
         // What the display actually showed, straight from DXGI, versus what
@@ -4133,9 +4153,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // nothing that can drift - the worst case is showing a correct frame
             // twice, which is exactly what a paused game looks like anyway. It
             // costs one present and cannot make the picture wrong.
+            // HOLD THE OUTPUT CADENCE, do not merely rescue a stall.
+            //
+            // This used to wait for two output slots of silence, so on a static
+            // picture the output fell to zero and climbed back only when motion
+            // returned. Lukas: "beim stehen geht es wieder auf 0 output fps
+            // runter es soll immer auf max bleiben".
+            //
+            // He is right about the mechanism, and the reason is the transition
+            // rather than the still picture. Stopping and restarting the present
+            // stream is where the 500 ms jitter spikes measured this morning
+            // came from; a cadence that never stops has no such transition. The
+            // frames themselves add nothing while nothing moves - two identical
+            // source frames have an identical frame between them - so this buys
+            // steadiness, not detail, and that is the honest reason to do it.
+            //
+            // Half a source interval is the doubled cadence: 6.94 ms at 72 fps.
+            // Measured against the SOURCE period rather than the display, like
+            // everything else since the slot wait came out.
+            const double cadenceMs = (lockedPeriodMs > 1.0 && lockedPeriodMs < 100.0)
+                                   ? lockedPeriodMs * 0.5
+                                   : (outputSlotMs > 0.0 ? outputSlotMs : 6.94);
             if (overlayShowing && presentedAnythingYet
-                    && outputSlotMs > 0.0 && lastPresentAtMs > 0.0
-                    && NowMs() - lastPresentAtMs > outputSlotMs * 2.0) {
+                    && lastPresentAtMs > 0.0
+                    && NowMs() - lastPresentAtMs >= cadenceMs) {
                 if (ID3D11Texture2D* newest = estimator.CurrFrameTexture()) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
