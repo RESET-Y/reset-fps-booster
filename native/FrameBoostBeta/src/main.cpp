@@ -4189,10 +4189,39 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int) {
             // at all. On a genuinely still picture, where nothing else
             // presents, it holds a steady stream on its own - slower than the
             // doubled rate, and steady, which is the property that was wanted.
-            constexpr double kKeepAliveMargin = 1.5;
+            // THE DISPLAY SLOT IS THE TARGET, not half the source interval.
+            //
+            // Measured with the previous version: source 71, generated 72,
+            // keep-alive 7 - an output of 150 where 144 was wanted. And when
+            // standing still the source itself falls to 36, so doubling gives
+            // 71.8 and no margin can turn that into 144.
+            //
+            // Both follow from pacing the keep-alive against the SOURCE. Paced
+            // against the DISPLAY instead, one slot is 6.94 ms at 144 Hz and the
+            // arithmetic works out in both states:
+            //
+            //   moving, source 72:  real and generated already fill every slot
+            //                       6.94 ms apart, so this never fires
+            //   still,  source 36:  the stream presents every 13.9 ms and this
+            //                       fills the slot between, giving 144
+            //
+            // 1.3 slots as the threshold rather than exactly one: at exactly one
+            // it fires at the same instant the scheduled frame is due and jitter
+            // decides which goes first, which is what produced 160 earlier.
+            //
+            // Honest about what it does NOT fix: on a still picture the spacing
+            // alternates rather than being even, because the filler goes in at
+            // 9 ms after the last present and the next scheduled frame follows
+            // 4.9 ms later. The count is right and the rhythm is not quite. On a
+            // still picture every one of those frames is the same image, so the
+            // unevenness has nothing to show through it - but it is there, and
+            // pacing it to the midpoint of the expected gap is the real answer
+            // if it ever matters.
+            const double slotMs = (outputSlotMs > 0.0) ? outputSlotMs : cadenceMs;
+            constexpr double kKeepAliveMargin = 1.3;
             if (overlayShowing && presentedAnythingYet
                     && lastPresentAtMs > 0.0
-                    && NowMs() - lastPresentAtMs >= cadenceMs * kKeepAliveMargin) {
+                    && NowMs() - lastPresentAtMs >= slotMs * kKeepAliveMargin) {
                 if (ID3D11Texture2D* newest = estimator.CurrFrameTexture()) {
                     presenter.PresentFrame(context.get(), newest, presentSyncInterval);
                     ++keepAlivePresents;
