@@ -413,6 +413,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // running, the cost is ours.
     const bool measureOnly = HasArg(args, L"measure");
 
+    // ON by default, decided by measurement rather than by argument.
+    //
+    // Two runs of one build against Apex, 178 s without and 149 s with:
+    //
+    //                          without hold      with hold
+    //   present gaps > 20 ms        261               10
+    //   worst gap                 66.72 ms         36.95 ms
+    //   seconds with a gap > 20 ms     39 %              5 %
+    //   pipeline latency          10.48 ms         14.41 ms
+    //
+    // The 261 are almost all the source's own: 258 of them carry a source
+    // interval that already explains the gap, most at exactly 27.78 ms, which
+    // is two frames of a 72 fps source - Apex missing one. Without the hold
+    // that lands on screen as a 27 ms freeze, because G sits right next to its
+    // partner and leaves the whole interval empty. With the hold G sits IN the
+    // gap, and the same stutter becomes two ordinary intervals.
+    //
+    // It is not free: 3.9 ms of input latency on average, 6.5 ms at worst, on
+    // the real frame the mouse is attached to. Bought deliberately.
+    //
+    // `nohold` turns it off so the comparison stays one build, two runs.
+    const bool holdHalfInterval = !HasArg(args, L"nohold");
+
     Presenter presenter;
     if (measureOnly) {
         Logger::Log("[FrameBoostV2] MEASURE ONLY - capturing and timestamping, presenting "
@@ -449,6 +472,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     bool     havePrev = false;
     uint64_t prevId = 0;
     double   prevContentMs = 0.0;
+    double   prevArrivalMs = 0.0;
+    int      pairInvalidLogged = 0;
     uint64_t nextOutputId = 1;
 
     // THE TWO CLOCKS DO NOT SHARE AN ORIGIN, and the first run said so:
@@ -494,6 +519,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                                           ? capture.FingerprintMsSum() / capture.FingerprintCount()
                                           : 0.0);
             if (telemetry.ReportIfDue()) {
+            pairInvalidLogged = 0;
             if (!syntheticMode) capture.ResetCounters();
                 const std::string tr = capture.TakeTrace();
                 if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
@@ -507,7 +533,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             // The arrival timeline and nothing else. Recorded through the same
             // sequence log so the content deltas can be read out exactly as
             // they are for a normal run.
-            if (havePrev) telemetry.NotePairIntervalMs(frame.contentMs - prevContentMs);
+            if (havePrev) {
+                telemetry.NotePairIntervalMs(frame.arrivalMs - prevArrivalMs);
+                telemetry.NoteSrtIntervalMs(frame.contentMs - prevContentMs);
+                if (frame.contentMs - prevContentMs <= 0.0) telemetry.NoteContentDtZero();
+            }
             telemetry.NoteSequence({ nextOutputId++, false, frame.frameId, frame.frameId,
                                      frame.contentMs, 0.0, frame.arrivalMs,
                                      frame.contentMs, frame.contentMs });
@@ -515,6 +545,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             havePrev = true;
             prevId = frame.frameId;
             prevContentMs = frame.contentMs;
+            prevArrivalMs = frame.arrivalMs;
             telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
             if (!syntheticMode)
                 telemetry.NoteCapture(capture.Acquired(), capture.DupTimestamp(),
@@ -523,6 +554,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                                           ? capture.FingerprintMsSum() / capture.FingerprintCount()
                                           : 0.0);
             if (telemetry.ReportIfDue()) {
+            pairInvalidLogged = 0;
             if (!syntheticMode) capture.ResetCounters();
                 const std::string tr = capture.TakeTrace();
                 if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
@@ -539,35 +571,70 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
         const uint64_t currId = frame.frameId;
         const double currContentMs = frame.contentMs;
-        const double pairIntervalMs = havePrev ? (currContentMs - prevContentMs) : 0.0;
+        const double currArrivalMs = frame.arrivalMs;
 
-        // dt > 0 IS THE WHOLE RULE, and it is not a tolerance.
+        // THE CADENCE CLOCK IS QPC ARRIVAL. SystemRelativeTime is measured
+        // beside it and decides nothing.
         //
-        // Two captured frames can carry the SAME compositor timestamp while
-        // holding different pixels - measured at up to 14 a second against
-        // Apex. There is then no interval for a midpoint to sit in, and the
-        // phase would be a division by zero.
+        // SystemRelativeTime is the moment DWM COMPOSED the frame, not the
+        // moment Apex rendered it. Two different game frames that land in one
+        // compose window carry one stamp, which is why dt could be zero while
+        // the fingerprint proved the pixels differed - a pair with real motion
+        // in it, thrown away because the compositor's clock had not ticked.
         //
-        // Nothing is invented for that case. No substituted timestamp, no
+        // QPC arrival is the moment the frame reached THIS process. It is a
+        // different thing from the render time and does not pretend otherwise:
+        // it carries scheduling jitter that the render clock would not have.
+        // What it does have is monotonicity and a tick per frame, which is what
+        // a cadence needs and what the compose stamp could not supply.
+        //
+        // The frame keeps both stamps. srtIntervalMs is reported so the choice
+        // stays checkable rather than becoming an assumption.
+        const double pairIntervalMs = havePrev ? (currArrivalMs - prevArrivalMs) : 0.0;
+        const double srtIntervalMs  = havePrev ? (currContentMs - prevContentMs) : 0.0;
+
+        if (havePrev) {
+            telemetry.NotePairIntervalMs(pairIntervalMs);
+            telemetry.NoteSrtIntervalMs(srtIntervalMs);
+            if (srtIntervalMs <= 0.0) telemetry.NoteContentDtZero();
+        }
+
+        // dt > 0 IS STILL THE WHOLE RULE, and it is still not a tolerance.
+        //
+        // QPC is monotonic, so on this clock dtQpc <= 0 should never happen. If
+        // the log ever shows one, it is not repaired: no substituted stamp, no
         // forced 0.5, no minimum interval stood in for the real one. The pair
         // produces no generated frame, the real frame goes out on its own, and
-        // the counter says it happened. The next pair is simply waited for.
-        //
-        // The threshold used to be 1.0 ms, which was arbitrary and would have
-        // rejected legitimate pairs above 1000 fps. The upper bound stays as a
-        // sanity limit: a gap of a fifth of a second is a stall, not a pair.
+        // PAIR_INVALID below prints every clock for both halves so the cause
+        // can be found instead of guessed at.
         const bool dtValid = havePrev && pairIntervalMs > 0.0 && pairIntervalMs < 200.0;
         const bool pairUsable = dtValid && haveMotion;
 
         if (havePrev) {
-            if (!dtValid)            telemetry.NotePairDtZero();
+            if (!dtValid) {
+                telemetry.NotePairDtZero();
+                // Capped per report window. QPC being monotonic, this should
+                // print nothing at all; the cap is only so that a clock which
+                // surprises us cannot turn the logger into the bottleneck and
+                // destroy the very measurement it is reporting.
+                if (pairInvalidLogged < 50) {
+                    ++pairInvalidLogged;
+                    std::ostringstream pi;
+                    pi.setf(std::ios::fixed); pi.precision(4);
+                    pi << "[FrameBoostV2] PAIR_INVALID"
+                       << " A=" << prevId << " B=" << currId
+                       << " | qpcA=" << prevArrivalMs << " qpcB=" << currArrivalMs
+                       << " dtQpc=" << pairIntervalMs
+                       << " | srtA=" << prevContentMs << " srtB=" << currContentMs
+                       << " dtSrt=" << srtIntervalMs;
+                    Logger::Log(pi.str());
+                }
+            }
             else if (!haveMotion)    telemetry.NotePairNoMotion();
             else                     telemetry.NoteValidPair();
         }
 
         if (pairUsable) {
-            telemetry.NotePairIntervalMs(pairIntervalMs);
-
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
 
@@ -577,7 +644,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                                            estimator.MotionVectorSRV(),
                                            desc.Width, desc.Height,
                                            DXGI_FORMAT_B8G8R8A8_UNORM, nullptr)) {
-                const double genContentMs = prevContentMs + pairIntervalMs * 0.5;
+                // The midpoint lives in the same clock the interval was
+                // measured in. Mixing the two domains here would put the
+                // generated frame's stamp on a timeline nothing else uses.
+                const double genContentMs = prevArrivalMs + pairIntervalMs * 0.5;
                 telemetry.NoteGeneratedProduced();
                 if (presenter.Present(context.get(), interpolator.GeneratedFrameTexture())) {
                     const double shownAt = NowMs();
@@ -586,7 +656,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                     telemetry.NoteGenerated(shownAt - frame.arrivalMs);
                     telemetry.NoteSequence({ nextOutputId++, true, prevId, currId,
                                              genContentMs, 0.5, shownAt,
-                                             prevContentMs, currContentMs });
+                                             prevArrivalMs, currArrivalMs });
                 } else {
                     telemetry.NoteDropped();
                 }
@@ -598,11 +668,30 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             }
         }
 
-        // The real frame, half a source interval after its generated partner.
-        // Held from the moment that partner went out, not from an absolute
-        // grid, so a source that speeds up or slows down carries the spacing
-        // with it.
-        if (pairUsable) {
+        // THE HALF-INTERVAL HOLD IS OFF BY DEFAULT, and this is the trade.
+        //
+        // It used to be unconditional: the real frame B was held back half a
+        // source interval after its generated partner, so the two went out
+        // evenly spaced. That spacing cost ~6.94 ms of input latency on the
+        // REAL frame - the one the mouse is attached to - and it is the single
+        // largest deliberate delay left in the pipeline.
+        //
+        // Without it, G and B are presented back to back. Spacing then comes
+        // only from the source's own arrival cadence, and there is a real risk
+        // to watch for: with tearing presents at sync interval 0, a G that is
+        // overwritten microseconds later may never be scanned out at all. That
+        // would be a counted frame nobody saw, which is exactly the thing this
+        // engine does not do. "Present interval: min" is the number that says
+        // whether it is happening - a min near zero means G is being buried.
+        //
+        // Both paths stay in one binary; `nohold` selects the other one.
+        //
+        // The measured answer to the buried-frame worry above: without the hold
+        // the shortest gap averaged 1.53 ms and reached 0.28 ms, WITH it 0.88
+        // and 0.25 - the hold does not fix that and slightly worsens it, since
+        // it only moves the tight gap from G-then-B to B-then-G. It was kept
+        // for what it does fix, which is the long gaps, not this.
+        if (pairUsable && holdHalfInterval) {
             WaitUntil(NowMs() + pairIntervalMs * 0.5, timer);
         }
 
@@ -616,17 +705,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             telemetry.NoteNative(captureLatencyMs, shownAt - frame.arrivalMs);
             telemetry.NotePipelineLatencyMs(shownAt - frame.arrivalMs + captureLatencyMs);
             telemetry.NoteSequence({ nextOutputId++, false, currId, currId,
-                                     currContentMs, 0.0, shownAt,
-                                     currContentMs, currContentMs });
+                                     currArrivalMs, 0.0, shownAt,
+                                     currArrivalMs, currArrivalMs });
         } else {
             telemetry.NoteDropped();
         }
 
         if (!syntheticMode) capture.Release(frame);
 
+        // ONLY PUBLISHED FRAMES ADVANCE THE CADENCE. A frame the ring never
+        // handed over never reaches this line, so no QPC delta is ever taken
+        // across a frame that was dropped or filtered - the interval is always
+        // between two frames that both became source frames.
         havePrev = true;
         prevId = currId;
         prevContentMs = currContentMs;
+        prevArrivalMs = currArrivalMs;
 
         telemetry.NoteGpu(estimator.LastGpuTimeMs(), interpolator.LastGpuTimeMs());
         telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
@@ -640,6 +734,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                                       ? capture.FingerprintMsSum() / capture.FingerprintCount()
                                       : 0.0);
         if (telemetry.ReportIfDue()) {
+            pairInvalidLogged = 0;
             if (!syntheticMode) capture.ResetCounters();
             presenter.ResetStats();
             const std::string tr = capture.TakeTrace();

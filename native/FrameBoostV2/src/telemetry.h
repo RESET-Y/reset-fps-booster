@@ -77,7 +77,18 @@ public:
     void NotePairDtZero()  { ++m_pairDtZero; }
     void NotePairNoMotion(){ ++m_pairNoMotion; }
     void NoteGpu(double motionMs, double interpMs);
+
+    // TWO CLOCKS, MEASURED SIDE BY SIDE, so the choice between them stays a
+    // measurement. NotePairIntervalMs is the QPC arrival delta - the one the
+    // cadence is now built on. NoteSrtIntervalMs is the SystemRelativeTime
+    // delta for the same pair, which decides nothing and is only reported.
+    //
+    // m_contentDtZero counts the pairs whose compositor stamps were equal or
+    // went backwards. Under the old cadence every one of those cost a
+    // generated frame; now it costs nothing, and the count is what proves it.
     void NotePairIntervalMs(double ms);
+    void NoteSrtIntervalMs(double ms);
+    void NoteContentDtZero() { ++m_contentDtZero; }
     void NotePresentWaitMs(double sumMs, double callSumMs, double callMaxMs, uint64_t presents);
     void NoteQueue(int depth, int overflowCount);
 
@@ -124,6 +135,9 @@ private:
     uint64_t m_presents = 0;
     int      m_queueDepth = 0, m_queueOverflow = 0;
     uint64_t m_pairValid = 0, m_pairDtZero = 0, m_pairNoMotion = 0;
+    double   m_srtIntervalSum = 0.0; uint64_t m_srtIntervalCount = 0;
+    double   m_srtIntervalMin = 0.0, m_srtIntervalMax = 0.0;
+    uint64_t m_contentDtZero = 0;
     uint64_t m_capAcquired = 0, m_capDupTs = 0, m_capDupContent = 0;
     double   m_capFpMs = 0.0;
     double   m_pipelineLatencySum = 0.0; uint64_t m_pipelineLatencyCount = 0;

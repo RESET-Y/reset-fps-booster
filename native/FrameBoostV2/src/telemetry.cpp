@@ -50,6 +50,18 @@ void Telemetry::NotePairIntervalMs(double ms) {
     ++m_pairIntervalCount;
 }
 
+// No lower guard, deliberately. The whole question about SystemRelativeTime is
+// how often and how far it fails to advance, so a zero or a negative belongs in
+// the minimum rather than being filtered out of the evidence. The upper bound
+// stays, because a gap of a second is a stall and not an interval.
+void Telemetry::NoteSrtIntervalMs(double ms) {
+    if (ms > 1000.0) return;
+    m_srtIntervalSum += ms;
+    if (m_srtIntervalCount == 0 || ms < m_srtIntervalMin) m_srtIntervalMin = ms;
+    if (m_srtIntervalCount == 0 || ms > m_srtIntervalMax) m_srtIntervalMax = ms;
+    ++m_srtIntervalCount;
+}
+
 void Telemetry::NotePresentWaitMs(double sumMs, double callSumMs,
                                   double callMaxMs, uint64_t presents) {
     m_presentWaitSum = sumMs;
@@ -190,8 +202,13 @@ bool Telemetry::ReportIfDue() {
     }
 
     // ---- V2's own, free to change -------------------------------------------
-    oss << " | Pair interval: " << pairAvg << " ms mean, min " << m_pairIntervalMin
+    oss << " | QPC pair interval: " << pairAvg << " ms mean, min " << m_pairIntervalMin
         << ", max " << m_pairIntervalMax
+        << " | SRT pair interval: "
+        << (m_srtIntervalCount ? m_srtIntervalSum / m_srtIntervalCount : 0.0)
+        << " ms mean, min " << m_srtIntervalMin << ", max " << m_srtIntervalMax
+        << " | dtQpc<=0/s: " << (m_pairDtZero / elapsed)
+        << " | dtContent<=0/s: " << (m_contentDtZero / elapsed)
         << " | Queue depth: " << m_queueDepth
         << " | Ring overflows/s: " << (m_overflow / elapsed)
         << " | Dropped/s: " << (m_dropped / elapsed)
@@ -227,6 +244,9 @@ bool Telemetry::ReportIfDue() {
     m_pairIntervalSum = 0.0; m_pairIntervalCount = 0;
     m_pairIntervalMin = m_pairIntervalMax = 0.0;
     m_pairValid = m_pairDtZero = m_pairNoMotion = 0;
+    m_srtIntervalSum = 0.0; m_srtIntervalCount = 0;
+    m_srtIntervalMin = m_srtIntervalMax = 0.0;
+    m_contentDtZero = 0;
     m_pipelineLatencySum = 0.0; m_pipelineLatencyCount = 0;
     return true;
 }
