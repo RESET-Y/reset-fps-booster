@@ -226,32 +226,36 @@ private:
     // staging index the result will land in, or -1 if unavailable.
     int  RunFingerprint(int slot, const D3D11_TEXTURE2D_DESC& desc);
     bool TryReadFingerprint(int stagingSlot, uint32_t out[4]);
-    void ResolvePending();
+    void MonitorFingerprint();
 
-    // ONE FRAME IS ALWAYS HELD BACK, and this is why.
+    // NOTHING IS HELD BACK. The fingerprint watches; it does not gate.
     //
-    // A fingerprint is only readable once the next frame arrives - the copy
-    // back from the GPU is asynchronous by design, because waiting for it
-    // would be the per-frame stall this whole approach exists to avoid.
+    // It used to. Every frame waited in the slot at m_head, invisible, until
+    // the next arrival brought its fingerprint and the verdict - which made a
+    // duplicate impossible to reach the screen, and cost one full arrival of
+    // input latency doing it.
     //
-    // So a frame cannot be judged at the moment it arrives. It waits in the
-    // slot at m_head, invisible to the consumer, until the next arrival brings
-    // its verdict: published if it carries new content, dropped where it lies
-    // if it does not. A duplicate therefore never becomes a source frame and
-    // never reaches the screen.
+    // With generation running, that price became visible:
     //
-    // The cost is one arrival of latency, about 13.9 ms at 72 fps, on top of
-    // the half interval interpolation needs. That is the price of the
-    // requirement, and it is paid in full rather than half-paid by letting one
-    // duplicate through.
+    //   pipeline latency 27-34 ms, on-screen age 19.4-22.9 ms
+    //   of which ~13.9 ms was this hold and ~6.9 ms the interpolation itself
     //
-    // Published frames are [m_tail, m_head). The pending one sits AT m_head,
-    // so publishing it is a single increment and dropping it is doing nothing -
-    // the next arrival simply writes over the same slot.
-    bool     m_havePending = false;
-    int      m_pendingFpSlot = -1;
-    uint32_t m_lastPubFp[4]{};
-    bool     m_haveLastPubFp = false;
+    // Reported as exactly what it is: "sehr hohe Latenz, bei der Maus spuert
+    // man es richtig, auf Gamepad ist es noch okay" - which is what 14 ms of
+    // added input delay feels like.
+    //
+    // And it caught nothing. fp-dup read 0.0 in every second of every run,
+    // capture-only and full pipeline alike. Paying 14 ms of mouse latency for
+    // a guarantee with nothing to guard against is the wrong trade, so the
+    // frame goes out the moment it arrives.
+    //
+    // The fingerprint is NOT removed. It still runs on every frame at 0.006 ms
+    // and still compares against its predecessor - it just reports instead of
+    // deciding. The moment fp-dup stops being zero, the log says so and the
+    // trade can be re-made against data rather than against caution.
+    int      m_watchFpSlot = -1;
+    uint32_t m_lastFp[4]{};
+    bool     m_haveLastFp = false;
 
     bool m_trace = false;
     std::mutex m_traceMutex;

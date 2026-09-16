@@ -181,6 +181,14 @@ bool Telemetry::ReportIfDue() {
             << " | Fingerprint GPU: " << m_capFpMs << " ms";
     }
 
+    // ---- the pairing stage --------------------------------------------------
+    {
+        oss << " | Valid pairs/s: " << (m_pairValid / elapsed)
+            << " | Invalid pairs/s: " << ((m_pairDtZero + m_pairNoMotion) / elapsed)
+            << " (dt<=0 " << (m_pairDtZero / elapsed)
+            << ", no motion field " << (m_pairNoMotion / elapsed) << ")";
+    }
+
     // ---- V2's own, free to change -------------------------------------------
     oss << " | Pair interval: " << pairAvg << " ms mean, min " << m_pairIntervalMin
         << ", max " << m_pairIntervalMax
@@ -218,6 +226,7 @@ bool Telemetry::ReportIfDue() {
     m_ageSum = 0.0; m_ageMax = 0.0; m_ageCount = 0;
     m_pairIntervalSum = 0.0; m_pairIntervalCount = 0;
     m_pairIntervalMin = m_pairIntervalMax = 0.0;
+    m_pairValid = m_pairDtZero = m_pairNoMotion = 0;
     m_pipelineLatencySum = 0.0; m_pipelineLatencyCount = 0;
     return true;
 }

@@ -541,10 +541,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         const double currContentMs = frame.contentMs;
         const double pairIntervalMs = havePrev ? (currContentMs - prevContentMs) : 0.0;
 
-        // A pair is only usable if its two halves are a plausible interval
-        // apart. Outside that, the safe answer is the real frame on its own.
-        const bool pairUsable = havePrev && haveMotion
-                             && pairIntervalMs > 1.0 && pairIntervalMs < 200.0;
+        // dt > 0 IS THE WHOLE RULE, and it is not a tolerance.
+        //
+        // Two captured frames can carry the SAME compositor timestamp while
+        // holding different pixels - measured at up to 14 a second against
+        // Apex. There is then no interval for a midpoint to sit in, and the
+        // phase would be a division by zero.
+        //
+        // Nothing is invented for that case. No substituted timestamp, no
+        // forced 0.5, no minimum interval stood in for the real one. The pair
+        // produces no generated frame, the real frame goes out on its own, and
+        // the counter says it happened. The next pair is simply waited for.
+        //
+        // The threshold used to be 1.0 ms, which was arbitrary and would have
+        // rejected legitimate pairs above 1000 fps. The upper bound stays as a
+        // sanity limit: a gap of a fifth of a second is a stall, not a pair.
+        const bool dtValid = havePrev && pairIntervalMs > 0.0 && pairIntervalMs < 200.0;
+        const bool pairUsable = dtValid && haveMotion;
+
+        if (havePrev) {
+            if (!dtValid)            telemetry.NotePairDtZero();
+            else if (!haveMotion)    telemetry.NotePairNoMotion();
+            else                     telemetry.NoteValidPair();
+        }
 
         if (pairUsable) {
             telemetry.NotePairIntervalMs(pairIntervalMs);

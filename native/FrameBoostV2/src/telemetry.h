@@ -65,6 +65,17 @@ public:
     void NoteDropped()  { ++m_dropped; }
     void NoteOverflow() { ++m_overflow; }
     void NoteMissedDeadline() { ++m_missedDeadline; }
+
+    // WHY A PAIR DID OR DID NOT PRODUCE A FRAME, counted apart.
+    //
+    // dt <= 0 is its own category because it is not a fault and not a dropped
+    // frame: two captured frames can carry the same compositor stamp, measured
+    // at up to 14 a second. There is no interval to place a midpoint in, so no
+    // frame is generated and none is invented. The count says how often the
+    // source costs us a generated frame that way.
+    void NoteValidPair()   { ++m_pairValid; }
+    void NotePairDtZero()  { ++m_pairDtZero; }
+    void NotePairNoMotion(){ ++m_pairNoMotion; }
     void NoteGpu(double motionMs, double interpMs);
     void NotePairIntervalMs(double ms);
     void NotePresentWaitMs(double sumMs, double callSumMs, double callMaxMs, uint64_t presents);
@@ -112,6 +123,7 @@ private:
     double   m_presentWaitSum = 0.0, m_presentCallSum = 0.0, m_presentCallMax = 0.0;
     uint64_t m_presents = 0;
     int      m_queueDepth = 0, m_queueOverflow = 0;
+    uint64_t m_pairValid = 0, m_pairDtZero = 0, m_pairNoMotion = 0;
     uint64_t m_capAcquired = 0, m_capDupTs = 0, m_capDupContent = 0;
     double   m_capFpMs = 0.0;
     double   m_pipelineLatencySum = 0.0; uint64_t m_pipelineLatencyCount = 0;

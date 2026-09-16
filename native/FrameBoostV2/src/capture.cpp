@@ -371,36 +371,24 @@ bool Capture::TryReadFingerprint(int stagingSlot, uint32_t out[4]) {
     return true;
 }
 
-// The verdict on the frame held at m_head, delivered by the arrival that
-// follows it. Publish it, or drop it where it lies.
-void Capture::ResolvePending() {
-    if (!m_havePending) return;
+// The previous frame's fingerprint, read one arrival late and compared. It
+// changes nothing about the stream - the frame it describes went out long
+// before this runs. All it does is count, so that "there are no content
+// duplicates here" stays a measurement and does not quietly become an
+// assumption.
+void Capture::MonitorFingerprint() {
+    if (m_watchFpSlot < 0) return;
 
     uint32_t fp[4]{};
-    const bool haveFp = TryReadFingerprint(m_pendingFpSlot, fp);
+    const bool haveFp = TryReadFingerprint(m_watchFpSlot, fp);
+    m_watchFpSlot = -1;
+    if (!haveFp) return;
 
-    bool duplicate = false;
-    if (haveFp) {
-        duplicate = m_haveLastPubFp && std::memcmp(fp, m_lastPubFp, sizeof(fp)) == 0;
-        if (!duplicate) {
-            std::memcpy(m_lastPubFp, fp, sizeof(fp));
-            m_haveLastPubFp = true;
-        }
-    }
-    // No fingerprint means no evidence, and a frame is not thrown away on
-    // suspicion. Publishing an occasional duplicate is a blemish; discarding a
-    // real frame is a hole in the timeline, and the timeline is the product.
-
-    m_havePending = false;
-    m_pendingFpSlot = -1;
-
-    if (duplicate) {
+    if (m_haveLastFp && std::memcmp(fp, m_lastFp, sizeof(fp)) == 0)
         m_dupContent.fetch_add(1, std::memory_order_relaxed);
-        return;   // head does not move; the next arrival overwrites this slot
-    }
 
-    std::lock_guard<std::mutex> ring(m_ringMutex);
-    ++m_head;
+    std::memcpy(m_lastFp, fp, sizeof(fp));
+    m_haveLastFp = true;
 }
 
 void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
@@ -412,10 +400,9 @@ void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
 
     m_acquired.fetch_add(1, std::memory_order_relaxed);
 
-    // The frame held back last time is judged now, before anything else - its
-    // fingerprint has had a whole arrival to come back, and the slot it sits in
-    // is the one this arrival may need.
-    ResolvePending();
+    // The previous frame's fingerprint has had a whole arrival to come back.
+    // Read and counted here, and that is the end of it - nothing waits on it.
+    MonitorFingerprint();
 
     // THE TIMESTAMP TEST DECIDES NOTHING. It counts, and that is all.
     //
@@ -464,10 +451,7 @@ void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
         // the stale end of a backlog would be replaying the past; the whole
         // point of a bounded ring is that it stays near live. Counted, because
         // an overflow means the consumer is behind and that has to be visible.
-        // One slot short of the ring: the frame at m_head is pending and not
-        // yet published, so it is not part of [m_tail, m_head) and must still
-        // have somewhere to live.
-        if (m_head - m_tail >= static_cast<uint64_t>(kSlots - 1)) {
+        if (m_head - m_tail >= static_cast<uint64_t>(kSlots)) {
             const int oldest = static_cast<int>(m_tail % kSlots);
             if (oldest == m_inUseSlot) {
                 // The consumer is holding the oldest frame right now. Dropping
@@ -479,9 +463,6 @@ void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
             ++m_tail;
             m_overflows.fetch_add(1, std::memory_order_relaxed);
         }
-        // The pending frame lives at m_head, so that is where this one goes -
-        // either over the duplicate that was just dropped, or into the space
-        // the one just published left behind.
         slot = static_cast<int>(m_head % kSlots);
     }
 
@@ -508,18 +489,17 @@ void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
 
     m_context->CopyResource(m_slotTex[slot].get(), source.get());
 
-    // Written into the slot at m_head and left there, invisible: the consumer
-    // only ever sees [m_tail, m_head). ResolvePending on the next arrival
-    // decides whether this becomes a source frame.
+    // Published immediately. The consumer can have it on this very turn of its
+    // loop; nothing downstream waits for a verdict that no longer gates.
     {
         std::lock_guard<std::mutex> ring(m_ringMutex);
         m_slotFrameId[slot]  = m_nextFrameId++;
         m_slotContentMs[slot] = contentMs;
         m_slotArrivalMs[slot] = arrivalMs;
+        ++m_head;
     }
 
-    m_pendingFpSlot = EnsureFingerprint(srcDesc) ? RunFingerprint(slot, srcDesc) : -1;
-    m_havePending = true;
+    m_watchFpSlot = EnsureFingerprint(srcDesc) ? RunFingerprint(slot, srcDesc) : -1;
 
     if (m_trace) {
         std::lock_guard<std::mutex> tr(m_traceMutex);
@@ -599,9 +579,8 @@ void Capture::ReleaseSlots() {
     for (auto& v : m_fpSlotSRV) v = nullptr;
     m_head = m_tail = 0;
     m_inUseSlot = -1;
-    m_havePending = false;
-    m_pendingFpSlot = -1;
-    m_haveLastPubFp = false;
+    m_watchFpSlot = -1;
+    m_haveLastFp = false;
 }
 
 void Capture::Stop() {
