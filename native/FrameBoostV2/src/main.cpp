@@ -527,6 +527,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             continue;
         }
 
+        // The first stamp of the chain: the frame is ours from here on, so
+        // everything after this point is time WE spent.
+        const double acquireMs = NowMs();
+        double genStartMs = 0.0, genEndMs = 0.0;
+        double holdRequestedMs = 0.0, holdWaitMs = 0.0;
+        double presentStartMs = 0.0, presentReturnMs = 0.0;
+        const int queueDepthNow = syntheticMode ? 0 : capture.QueueDepth();
+
         telemetry.NoteSourceArrival();
 
         if (measureOnly) {
@@ -638,25 +646,36 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
 
+            genStartMs = NowMs();
             if (interpolator.GenerateFrame(device.get(), context.get(),
                                            estimator.PrevFrameSRV(),
                                            estimator.CurrFrameSRV(),
                                            estimator.MotionVectorSRV(),
                                            desc.Width, desc.Height,
                                            DXGI_FORMAT_B8G8R8A8_UNORM, nullptr)) {
+                genEndMs = NowMs();
                 // The midpoint lives in the same clock the interval was
                 // measured in. Mixing the two domains here would put the
                 // generated frame's stamp on a timeline nothing else uses.
                 const double genContentMs = prevArrivalMs + pairIntervalMs * 0.5;
                 telemetry.NoteGeneratedProduced();
-                if (presenter.Present(context.get(), interpolator.GeneratedFrameTexture())) {
-                    const double shownAt = NowMs();
+                presentStartMs = NowMs();
+                const bool okG = presenter.Present(context.get(), interpolator.GeneratedFrameTexture());
+                presentReturnMs = NowMs();
+                if (okG) {
+                    const double shownAt = presentReturnMs;
                     if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
                     lastPresentMs = shownAt;
                     telemetry.NoteGenerated(shownAt - frame.arrivalMs);
-                    telemetry.NoteSequence({ nextOutputId++, true, prevId, currId,
-                                             genContentMs, 0.5, shownAt,
-                                             prevArrivalMs, currArrivalMs });
+                    FrameRecord r{ nextOutputId++, true, prevId, currId,
+                                   genContentMs, 0.5, shownAt,
+                                   prevArrivalMs, currArrivalMs };
+                    r.acquireMs = acquireMs;
+                    r.genStartMs = genStartMs; r.genEndMs = genEndMs;
+                    r.holdRequestedMs = holdRequestedMs; r.holdWaitMs = holdWaitMs;
+                    r.presentStartMs = presentStartMs; r.presentReturnMs = presentReturnMs;
+                    r.queueDepth = queueDepthNow;
+                    telemetry.NoteSequence(r);
                 } else {
                     telemetry.NoteDropped();
                 }
@@ -692,11 +711,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // it only moves the tight gap from G-then-B to B-then-G. It was kept
         // for what it does fix, which is the long gaps, not this.
         if (pairUsable && holdHalfInterval) {
-            WaitUntil(NowMs() + pairIntervalMs * 0.5, timer);
+            const double holdFrom = NowMs();
+            holdRequestedMs = pairIntervalMs * 0.5;
+            WaitUntil(holdFrom + holdRequestedMs, timer);
+            holdWaitMs = NowMs() - holdFrom;
         }
 
-        if (presenter.Present(context.get(), frame.texture)) {
-            const double shownAt = NowMs();
+        presentStartMs = NowMs();
+        const bool okN = presenter.Present(context.get(), frame.texture);
+        presentReturnMs = NowMs();
+        if (okN) {
+            const double shownAt = presentReturnMs;
             if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
             lastPresentMs = shownAt;
             const double rawOffset = frame.arrivalMs - frame.contentMs;
@@ -704,9 +729,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             const double captureLatencyMs = rawOffset - epochOffsetMs;
             telemetry.NoteNative(captureLatencyMs, shownAt - frame.arrivalMs);
             telemetry.NotePipelineLatencyMs(shownAt - frame.arrivalMs + captureLatencyMs);
-            telemetry.NoteSequence({ nextOutputId++, false, currId, currId,
-                                     currArrivalMs, 0.0, shownAt,
-                                     currArrivalMs, currArrivalMs });
+            FrameRecord r{ nextOutputId++, false, currId, currId,
+                           currArrivalMs, 0.0, shownAt,
+                           currArrivalMs, currArrivalMs };
+            r.acquireMs = acquireMs;
+            r.genStartMs = genStartMs; r.genEndMs = genEndMs;
+            r.holdRequestedMs = holdRequestedMs; r.holdWaitMs = holdWaitMs;
+            r.presentStartMs = presentStartMs; r.presentReturnMs = presentReturnMs;
+            r.queueDepth = queueDepthNow;
+            telemetry.NoteSequence(r);
         } else {
             telemetry.NoteDropped();
         }

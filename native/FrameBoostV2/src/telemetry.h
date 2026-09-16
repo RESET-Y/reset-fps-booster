@@ -39,6 +39,26 @@ struct FrameRecord {
     double   presentedMs = 0.0;
     double   sourceAMs = 0.0;   // tA
     double   sourceBMs = 0.0;   // tB
+
+    // EVERY STAGE STAMPED, so a gap can be attributed instead of argued about.
+    //
+    // Three stalls came out of the last run that the source does not explain:
+    // two of 52 and 67 ms, and a hold that slept 25 to 37 ms where 7 was
+    // asked for. With only arrival and present times there was no way to say
+    // which stage ate the difference, so each stage now says so itself:
+    //
+    //   acquireMs        the loop took the frame off the ring
+    //   genStartMs/EndMs around GenerateFrame - the GPU submit, not the work
+    //   holdWaitMs       what the hold ACTUALLY slept, beside what it asked
+    //   presentStart/Return  around Present, so a blocked DXGI is visible
+    //
+    // Zero means the stage did not run for this frame: a native frame has no
+    // generation, and without a partner it has no hold either.
+    double   acquireMs = 0.0;
+    double   genStartMs = 0.0, genEndMs = 0.0;
+    double   holdRequestedMs = 0.0, holdWaitMs = 0.0;
+    double   presentStartMs = 0.0, presentReturnMs = 0.0;
+    int      queueDepth = 0;
 };
 
 class Telemetry {

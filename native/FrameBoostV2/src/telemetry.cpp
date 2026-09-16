@@ -94,7 +94,12 @@ void Telemetry::NoteSequence(const FrameRecord& r) {
         oss << "Native   ";
     }
     oss << " tA=" << r.sourceAMs << " tB=" << r.sourceBMs
-        << " content=" << r.contentMs << " presented=" << r.presentedMs << '\n';
+        << " content=" << r.contentMs << " presented=" << r.presentedMs
+        << " acq=" << r.acquireMs
+        << " gen=" << r.genStartMs << '/' << r.genEndMs
+        << " hold=" << r.holdWaitMs << '/' << r.holdRequestedMs
+        << " pres=" << r.presentStartMs << '/' << r.presentReturnMs
+        << " q=" << r.queueDepth << '\n';
     m_sequenceBuffer += oss.str();
 }
 
