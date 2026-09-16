@@ -39,6 +39,16 @@ compile_shader(frame_interpolation.hlsl         frame_interpolation_cs.h        
 compile_shader(upscale.hlsl                     upscale_cs.h                     g_UpscaleCS)
 compile_shader(thumbnail.hlsl                   thumbnail_cs.h                   g_ThumbnailCS)
 
+# V2's own shader, not part of the shared core: the fingerprint exists to
+# answer a capture question and nothing in the generation path uses it.
+add_custom_command(
+    OUTPUT "${GEN_DIR}/frame_fingerprint_cs.h"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain
+            /Fh "${GEN_DIR}/frame_fingerprint_cs.h" /Vn g_FrameFingerprintCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/frame_fingerprint.hlsl"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/frame_fingerprint.hlsl"
+    COMMENT "Compiling frame_fingerprint.hlsl")
+
 add_custom_target(CompileV2Shaders DEPENDS
     "${GEN_DIR}/motion_estimation_cs.h"
     "${GEN_DIR}/motion_estimation_coarse_cs.h"
@@ -47,6 +57,7 @@ add_custom_target(CompileV2Shaders DEPENDS
     "${GEN_DIR}/frame_interpolation_cs.h"
     "${GEN_DIR}/upscale_cs.h"
     "${GEN_DIR}/thumbnail_cs.h"
+    "${GEN_DIR}/frame_fingerprint_cs.h"
 )
 
 # FrameBoostBeta, deliberately. The C# side starts

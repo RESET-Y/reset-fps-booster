@@ -88,6 +88,20 @@ public:
     uint64_t Produced()  const { return m_produced.load(std::memory_order_relaxed); }
     uint64_t Consumed()  const { return m_consumed.load(std::memory_order_relaxed); }
     uint64_t Overflows() const { return m_overflows.load(std::memory_order_relaxed); }
+
+    // THE THREE NUMBERS THAT DECIDE WHETHER THE FILTER IS RIGHT.
+    //
+    // Acquired is every frame WGC handed over. Published is what reached the
+    // ring as a source frame. The two duplicate counters say why the rest did
+    // not, and they are kept apart because they answer different questions:
+    // a timestamp duplicate is certain, a fingerprint duplicate is a judgement
+    // about pixels.
+    uint64_t Acquired()   const { return m_acquired.load(std::memory_order_relaxed); }
+    uint64_t DupTimestamp() const { return m_dupTimestamp.load(std::memory_order_relaxed); }
+    uint64_t DupContent()   const { return m_dupContent.load(std::memory_order_relaxed); }
+    double   FingerprintMsSum() const { return m_fpMsSum.load(std::memory_order_relaxed); }
+    uint64_t FingerprintCount() const { return m_fpCount.load(std::memory_order_relaxed); }
+    bool     FingerprintReady() const { return m_fpReady; }
     int      QueueDepth() const;
     void     ResetCounters();
 
@@ -164,6 +178,80 @@ private:
     uint64_t m_nextFrameId = 1;
 
     UINT m_poolWidth = 0, m_poolHeight = 0;
+
+    // STAGE 1: the free, exact test.
+    //
+    // WGC stamps every frame with the compositor time of the picture it holds.
+    // Re-delivering the same composed frame re-uses that stamp exactly, which
+    // showed up in the trace the moment MinUpdateInterval was lowered:
+    //
+    //   dWgc = 13.888   a real new frame
+    //   dWgc =  0.000   the same frame again
+    //
+    // Equality is proof. A SHORT gap is not - 6.944 ms is half a source
+    // interval and can carry genuinely new content, so nothing here thresholds
+    // on time.
+    double m_lastArrivalContentMs = -1.0;
+
+    // STAGE 2: the fingerprint, on the GPU.
+    //
+    // Catches the other kind: a different timestamp carrying an identical
+    // picture, because DWM recomposed a frame the game did not redraw.
+    //
+    // MEASURES BEFORE IT FILTERS, deliberately. The readback is asynchronous,
+    // so a fingerprint is only readable once the NEXT frame arrives - filtering
+    // on it would mean holding every frame back one arrival, about 13.9 ms at
+    // 72 fps. That is a real latency cost to pay for a class of duplicate we
+    // have not yet seen a single instance of. So it counts them first; if the
+    // count is zero the cost is never paid, and if it is not, the number says
+    // what the trade would buy.
+    static constexpr int kFpSlots = 3;
+    static constexpr UINT kFpLanes = 4;
+    winrt::com_ptr<ID3D11ComputeShader>       m_fpShader;
+    winrt::com_ptr<ID3D11Buffer>              m_fpBuffer;      // 4 uints, GPU
+    winrt::com_ptr<ID3D11UnorderedAccessView> m_fpUAV;
+    winrt::com_ptr<ID3D11Buffer>              m_fpParams;
+    winrt::com_ptr<ID3D11Buffer>              m_fpStaging[kFpSlots];
+    winrt::com_ptr<ID3D11ShaderResourceView>  m_fpSlotSRV[kSlots];
+    uint64_t m_fpSeq = 0;
+    bool     m_fpReady = false;
+    uint32_t m_fpPrev[kFpLanes]{};
+    bool     m_fpHavePrev = false;
+    std::atomic<double>   m_fpMsSum{ 0.0 };
+    std::atomic<uint64_t> m_fpCount{ 0 };
+    std::atomic<uint64_t> m_acquired{ 0 }, m_dupTimestamp{ 0 }, m_dupContent{ 0 };
+
+    bool EnsureFingerprint(const D3D11_TEXTURE2D_DESC& desc);
+    // Dispatches the hash for one slot and starts its copy back. Returns the
+    // staging index the result will land in, or -1 if unavailable.
+    int  RunFingerprint(int slot, const D3D11_TEXTURE2D_DESC& desc);
+    bool TryReadFingerprint(int stagingSlot, uint32_t out[4]);
+    void ResolvePending();
+
+    // ONE FRAME IS ALWAYS HELD BACK, and this is why.
+    //
+    // A fingerprint is only readable once the next frame arrives - the copy
+    // back from the GPU is asynchronous by design, because waiting for it
+    // would be the per-frame stall this whole approach exists to avoid.
+    //
+    // So a frame cannot be judged at the moment it arrives. It waits in the
+    // slot at m_head, invisible to the consumer, until the next arrival brings
+    // its verdict: published if it carries new content, dropped where it lies
+    // if it does not. A duplicate therefore never becomes a source frame and
+    // never reaches the screen.
+    //
+    // The cost is one arrival of latency, about 13.9 ms at 72 fps, on top of
+    // the half interval interpolation needs. That is the price of the
+    // requirement, and it is paid in full rather than half-paid by letting one
+    // duplicate through.
+    //
+    // Published frames are [m_tail, m_head). The pending one sits AT m_head,
+    // so publishing it is a single increment and dropping it is doing nothing -
+    // the next arrival simply writes over the same slot.
+    bool     m_havePending = false;
+    int      m_pendingFpSlot = -1;
+    uint32_t m_lastPubFp[4]{};
+    bool     m_haveLastPubFp = false;
 
     bool m_trace = false;
     std::mutex m_traceMutex;

@@ -69,6 +69,18 @@ public:
     void NotePairIntervalMs(double ms);
     void NotePresentWaitMs(double sumMs, double callSumMs, double callMaxMs, uint64_t presents);
     void NoteQueue(int depth, int overflowCount);
+
+    // THE CAPTURE STAGE, SEPARATED. Acquired is what WGC handed over; the two
+    // duplicate counts say why some of it is not a source frame. Unique falls
+    // out as acquired minus both, and unique is the only number that answers
+    // "does the engine see what the game drew".
+    void NoteCapture(uint64_t acquired, uint64_t dupTimestamp, uint64_t dupContent,
+                     double fingerprintMsAvg) {
+        m_capAcquired = acquired;
+        m_capDupTs = dupTimestamp;
+        m_capDupContent = dupContent;
+        m_capFpMs = fingerprintMsAvg;
+    }
     void NotePipelineLatencyMs(double ms);
 
     // THE FRAME SEQUENCE, one line per presented frame.
@@ -100,6 +112,8 @@ private:
     double   m_presentWaitSum = 0.0, m_presentCallSum = 0.0, m_presentCallMax = 0.0;
     uint64_t m_presents = 0;
     int      m_queueDepth = 0, m_queueOverflow = 0;
+    uint64_t m_capAcquired = 0, m_capDupTs = 0, m_capDupContent = 0;
+    double   m_capFpMs = 0.0;
     double   m_pipelineLatencySum = 0.0; uint64_t m_pipelineLatencyCount = 0;
 
     // BUFFERED, because writing it per frame would distort what it measures.

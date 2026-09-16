@@ -487,7 +487,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             Sleep(1);
             telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
                             syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
+            if (!syntheticMode)
+                telemetry.NoteCapture(capture.Acquired(), capture.DupTimestamp(),
+                                      capture.DupContent(),
+                                      capture.FingerprintCount()
+                                          ? capture.FingerprintMsSum() / capture.FingerprintCount()
+                                          : 0.0);
             if (telemetry.ReportIfDue()) {
+            if (!syntheticMode) capture.ResetCounters();
                 const std::string tr = capture.TakeTrace();
                 if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
             }
@@ -509,7 +516,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             prevId = frame.frameId;
             prevContentMs = frame.contentMs;
             telemetry.NoteQueue(capture.QueueDepth(), static_cast<int>(capture.Overflows()));
+            if (!syntheticMode)
+                telemetry.NoteCapture(capture.Acquired(), capture.DupTimestamp(),
+                                      capture.DupContent(),
+                                      capture.FingerprintCount()
+                                          ? capture.FingerprintMsSum() / capture.FingerprintCount()
+                                          : 0.0);
             if (telemetry.ReportIfDue()) {
+            if (!syntheticMode) capture.ResetCounters();
                 const std::string tr = capture.TakeTrace();
                 if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);
             }
@@ -600,7 +614,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                             syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
         telemetry.NotePresentWaitMs(presenter.WaitMsSum(), presenter.CallMsSum(),
                                     presenter.CallMsMax(), presenter.Presents());
+        if (!syntheticMode)
+            telemetry.NoteCapture(capture.Acquired(), capture.DupTimestamp(),
+                                  capture.DupContent(),
+                                  capture.FingerprintCount()
+                                      ? capture.FingerprintMsSum() / capture.FingerprintCount()
+                                      : 0.0);
         if (telemetry.ReportIfDue()) {
+            if (!syntheticMode) capture.ResetCounters();
             presenter.ResetStats();
             const std::string tr = capture.TakeTrace();
             if (!tr.empty()) Logger::Log("[FrameBoostV2][arrivals]\n" + tr);

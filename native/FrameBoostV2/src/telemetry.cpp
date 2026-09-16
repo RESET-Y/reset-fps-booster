@@ -149,6 +149,38 @@ bool Telemetry::ReportIfDue() {
             << ", max " << mx << " ms over " << v.size() << " presents";
     }
 
+    // ---- the capture stage --------------------------------------------------
+    //
+    // Acquired counts every delivery. Unique is what survived both duplicate
+    // tests and became a source frame - the number to compare against the
+    // game's own counter, and the one that read 50 against Apex's 72 for a
+    // week.
+    // FOUR SEPARATE NUMBERS, because they answer four different questions.
+    //
+    //   acquired     what WGC handed over
+    //   ts-equal     how often the compositor stamp repeated - OBSERVATION
+    //                only; it discards nothing and never has any effect on
+    //                the stream
+    //   fp-dup       frames the content fingerprint found identical to the
+    //                one before. The only thing that discards.
+    //   unique       acquired minus fp-dup: what became a source frame
+    //
+    // Reading ts-equal against fp-dup is the point of the pair. If they track
+    // each other, a repeated stamp really does mean a repeated picture. If
+    // ts-equal is large and fp-dup is zero, the stamp was never evidence -
+    // which is what the last run suggested, after it had already thrown away
+    // 5 to 12 real frames a second on that assumption.
+    {
+        const double acq = m_capAcquired / elapsed;
+        const double tsEqual = m_capDupTs / elapsed;
+        const double fpDup = m_capDupContent / elapsed;
+        oss << " | Acquire/s: " << acq
+            << " | Timestamp-equal/s: " << tsEqual
+            << " | Fingerprint-duplicate/s: " << fpDup
+            << " | Unique/s: " << (acq - fpDup)
+            << " | Fingerprint GPU: " << m_capFpMs << " ms";
+    }
+
     // ---- V2's own, free to change -------------------------------------------
     oss << " | Pair interval: " << pairAvg << " ms mean, min " << m_pairIntervalMin
         << ", max " << m_pairIntervalMax
