@@ -39,7 +39,7 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:g}'}" Style="{StaticResource Text.Caption}"/>
-                                        <TextBlock Text="{Binding ModuleName}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding ModuleName}" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.AccentBright}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Text="{Binding SettingName}" FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.TextPrimary}" FontSize="13.5"/>

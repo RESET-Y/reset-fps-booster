@@ -52,13 +52,13 @@
                         <TextBlock Text="{Binding SignedInEmail}" Style="{StaticResource Text.Body}" Margin="0,8,0,0"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                            <Border CornerRadius="3" Padding="8,3" Background="{StaticResource Brush.Success}"
+                            <Border CornerRadius="2" Padding="8,3" Background="{StaticResource Brush.Success}"
                                     Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="PREMIUM" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
                             </Border>
                             <TextBlock Text="{Binding PremiumUntilText}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="10,0,0,0"
                                        Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}"/>
-                            <Border CornerRadius="3" Padding="8,3" Background="{StaticResource Brush.SurfaceElevated}"
+                            <Border CornerRadius="2" Padding="8,3" Background="{StaticResource Brush.SurfaceElevated}"
                                     Visibility="{Binding IsPremium, Converter={StaticResource InverseBoolToVis}}">
                                 <TextBlock Text="FREE" FontFamily="Segoe UI Semibold" FontSize="11"
                                            Foreground="{StaticResource Brush.TextSecondary}"/>
@@ -66,7 +66,7 @@
                         </StackPanel>
 
                         <!-- Buying: only for a signed-in user without premium. -->
-                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="14,12" Margin="0,18,0,0"
+                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="2" Padding="14,12" Margin="0,18,0,0"
                                 Visibility="{Binding CanUpgrade, Converter={StaticResource BoolToVis}}">
                             <StackPanel>
                                 <TextBlock Text="{DynamicResource Account.UpgradeTitle}" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
@@ -106,7 +106,7 @@
                 <TextBlock Text="{Binding Message}" Style="{StaticResource Text.Caption}" Margin="0,12,0,0" TextWrapping="Wrap"
                            Visibility="{Binding Message, Converter={StaticResource NullToVis}}">
                     <TextBlock.Foreground>
-                        <SolidColorBrush Color="#FFD27A"/>
+                        <StaticResource ResourceKey="Brush.Warning"/>
                     </TextBlock.Foreground>
                 </TextBlock>
             </StackPanel>

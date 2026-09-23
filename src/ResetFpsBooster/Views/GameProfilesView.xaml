@@ -32,68 +32,107 @@
                 <ItemsControl ItemsSource="{Binding Games}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:GameProfileItemViewModel}">
-                            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Grid.Column="0">
+                            <!-- One game. An optimized game gets the accent strip down its left edge. -->
+                            <Border x:Name="card" Margin="0,0,0,14">
+                                <Border.Style>
+                                    <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                        <Setter Property="Padding" Value="22,18"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOptimized}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}"/>
+                                                <Setter Property="BorderThickness" Value="3,1,1,1"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <!-- Name, platform, status -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                            <Border Background="{StaticResource Brush.SurfaceHover}" CornerRadius="8" Padding="8,2" Margin="10,0,0,0">
-                                                <TextBlock Text="{Binding SourceLabel}" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
+                                            <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="22"
+                                                       Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                            <Border Background="{StaticResource Brush.SurfaceHover}" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                    RenderTransformOrigin="0.5,0.5">
+                                                <Border.RenderTransform><SkewTransform AngleX="-12"/></Border.RenderTransform>
+                                                <TextBlock Text="{Binding SourceLabel, Converter={StaticResource ToUpper}}" Style="{StaticResource Text.Telemetry}" FontSize="10.5"
+                                                           Foreground="{StaticResource Brush.TextSecondary}"/>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding InstallPath}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Text.Body}" Margin="0,8,0,0"/>
-                                        <TextBlock Text="{Binding LastActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0"
-                                                   Visibility="{Binding LastActionMessage, Converter={StaticResource NullToVis}}"/>
-
-                                        <Border Background="{StaticResource Brush.SurfaceHover}" CornerRadius="6" Padding="12" Margin="0,14,0,0"
-                                                Visibility="{Binding SupportsAutoexec, Converter={StaticResource BoolToVis}}">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding AutoexecHeaderLabel}" FontFamily="Segoe UI Semibold" FontSize="12.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                                <TextBlock Text="Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                                                <TextBlock Text="{Binding AutoexecStatusLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
-                                                <TextBlock Text="{Binding AutoexecActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0" TextWrapping="Wrap"
-                                                           Visibility="{Binding AutoexecActionMessage, Converter={StaticResource NullToVis}}"/>
-                                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                                    <Button Content="Install Autoexec" Style="{StaticResource Button.Secondary}"
-                                                            Command="{Binding DataContext.InstallAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding}" Margin="0,0,8,0"
-                                                            Visibility="{Binding IsAutoexecApplied, Converter={StaticResource InverseBoolToVis}}"/>
-                                                    <Button Content="Remove Autoexec" Style="{StaticResource Button.Secondary}"
-                                                            Command="{Binding DataContext.RestoreAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding}" Margin="0,0,8,0"
-                                                            Visibility="{Binding IsAutoexecApplied, Converter={StaticResource BoolToVis}}"/>
-                                                    <Button Content="Copy Steam Launch Option" Style="{StaticResource Button.Ghost}"
-                                                            Command="{Binding DataContext.CopySteamLaunchOptionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                            CommandParameter="{Binding}"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                        <Border Grid.Column="1" Padding="10,3" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                            <Border.RenderTransform><SkewTransform AngleX="-12"/></Border.RenderTransform>
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{StaticResource Brush.SurfaceHover}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOptimized}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource Brush.Accent}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding StatusLabel, Converter={StaticResource ToUpper}}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="11"
+                                                       Foreground="White"/>
                                         </Border>
-                                    </StackPanel>
+                                    </Grid>
 
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <Button Content="Browse for .exe" Style="{StaticResource Button.Ghost}"
-                                                Command="{Binding DataContext.BrowseForExecutableCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}" Margin="0,0,0,6"/>
-                                        <Button Content="Optimize Game" Style="{StaticResource Button.Primary}"
-                                                Command="{Binding DataContext.OptimizeGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}" Margin="0,0,0,6"
-                                                Visibility="{Binding IsOptimized, Converter={StaticResource InverseBoolToVis}}"/>
-                                        <Button Content="Restore Game Settings" Style="{StaticResource Button.Secondary}"
-                                                Command="{Binding DataContext.RestoreGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}" Margin="0,0,0,6"
-                                                Visibility="{Binding IsOptimized, Converter={StaticResource BoolToVis}}"/>
-                                        <Button Content="Remove" Style="{StaticResource Button.Ghost}"
+                                    <!-- Only the exe path: that is the one the user may need to fix -->
+                                    <TextBlock Text="{Binding ExecutableLabel}" Style="{StaticResource Text.Telemetry}" Margin="0,8,0,0"
+                                               TextTrimming="CharacterEllipsis" ToolTip="{Binding InstallPath}"/>
+                                    <TextBlock Text="{Binding LastActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,6,0,0"
+                                               Visibility="{Binding LastActionMessage, Converter={StaticResource NullToVis}}"/>
+
+                                    <!-- Actions -->
+                                    <Grid Margin="0,16,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="Optimize Game" Style="{StaticResource Button.Primary}" Margin="0,0,10,0"
+                                                    Command="{Binding DataContext.OptimizeGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Visibility="{Binding IsOptimized, Converter={StaticResource InverseBoolToVis}}"/>
+                                            <Button Content="Restore Game Settings" Style="{StaticResource Button.Secondary}" Margin="0,0,10,0"
+                                                    Command="{Binding DataContext.RestoreGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Visibility="{Binding IsOptimized, Converter={StaticResource BoolToVis}}"/>
+                                            <Button Content="Browse for .exe" Style="{StaticResource Button.Ghost}"
+                                                    Command="{Binding DataContext.BrowseForExecutableCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                        </StackPanel>
+                                        <Button Content="Remove" Style="{StaticResource Button.Ghost}" HorizontalAlignment="Right"
                                                 Command="{Binding DataContext.RemoveGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}" Foreground="{StaticResource Brush.TextTertiary}"/>
-                                    </StackPanel>
-                                </Grid>
+                                    </Grid>
+
+                                    <!-- Autoexec: its own section under a rule, not squeezed beside the actions -->
+                                    <Border BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,16,0,0"
+                                            Visibility="{Binding SupportsAutoexec, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding AutoexecHeaderLabel}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="13"
+                                                           Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding AutoexecStatusLabel}" Style="{StaticResource Text.Telemetry}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="{Binding AutoexecActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                       Visibility="{Binding AutoexecActionMessage, Converter={StaticResource NullToVis}}"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                                <Button Content="Install Autoexec" Style="{StaticResource Button.Secondary}"
+                                                        Command="{Binding DataContext.InstallAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" Margin="0,0,10,0"
+                                                        Visibility="{Binding IsAutoexecApplied, Converter={StaticResource InverseBoolToVis}}"/>
+                                                <Button Content="Remove Autoexec" Style="{StaticResource Button.Secondary}"
+                                                        Command="{Binding DataContext.RestoreAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}" Margin="0,0,10,0"
+                                                        Visibility="{Binding IsAutoexecApplied, Converter={StaticResource BoolToVis}}"/>
+                                                <Button Content="Copy Steam Launch Option" Style="{StaticResource Button.Ghost}"
+                                                        Command="{Binding DataContext.CopySteamLaunchOptionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

@@ -128,7 +128,7 @@
                                         ToolTip="{Binding Name}">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
-                                            <Border CornerRadius="18" Background="{Binding Swatch}"
+                                            <Border CornerRadius="2" Background="{Binding Swatch}"
                                                     BorderThickness="2" BorderBrush="{StaticResource Brush.Border}"/>
                                         </ControlTemplate>
                                     </Button.Template>
@@ -186,9 +186,9 @@
                                Visibility="{Binding UpdateStatusMessage, Converter={StaticResource NullToVis}}"/>
 
                     <StackPanel Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}" Margin="0,14,0,0">
-                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="14" BorderBrush="{StaticResource Brush.Accent}" BorderThickness="1,0,0,0">
+                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="2" Padding="14" BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1,0,0,0">
                             <StackPanel>
-                                <TextBlock FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.AccentBright}" FontSize="13">
+                                <TextBlock FontFamily="Segoe UI Semibold" Foreground="{DynamicResource Brush.AccentBright}" FontSize="13">
                                     <Run Text="{DynamicResource Settings.VersionPrefix}"/><Run Text="{Binding LatestVersionText, Mode=OneWay}"/><Run Text="{DynamicResource Settings.VersionSuffix}"/>
                                 </TextBlock>
                                 <TextBlock Text="{Binding ReleaseNotes}" Style="{StaticResource Text.Body}" Margin="0,8,0,0" MaxHeight="120"
@@ -229,11 +229,7 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="{DynamicResource Settings.About}" Style="{StaticResource Text.SectionTitle}"/>
-                    <Image Source="/Assets/logo_wide.png" Height="40" HorizontalAlignment="Left" Stretch="Uniform" Margin="0,16,0,0" RenderOptions.BitmapScalingMode="HighQuality">
-                        <Image.Effect>
-                            <DropShadowEffect Color="#E8121F" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
-                        </Image.Effect>
-                    </Image>
+                    <Image Source="/Assets/logo_wide.png" Height="40" HorizontalAlignment="Left" Stretch="Uniform" Margin="0,16,0,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="{Binding Source={x:Static vm:SettingsViewModel.AppVersion}, StringFormat='Version {0}'}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0"/>
                     <TextBlock Text="{DynamicResource Settings.MadeByLukas}" Style="{StaticResource Text.Body}" Margin="0,14,0,0"/>
                 </StackPanel>

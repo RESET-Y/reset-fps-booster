@@ -42,7 +42,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Description}" FontFamily="Segoe UI Semibold" FontSize="14.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                        <TextBlock Text="{Binding Description}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="14.5" Foreground="{StaticResource Brush.TextPrimary}"/>
                                         <TextBlock Text="{Binding CreatedAt, StringFormat='Created {0:g}'}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
                                         <TextBlock Text="{Binding RegistryEntries.Count, StringFormat='{}{0} setting(s) captured'}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0"/>
                                         <TextBlock Text="Restored" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0"
