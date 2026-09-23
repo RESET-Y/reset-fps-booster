@@ -29,6 +29,7 @@ public sealed class AuthService : IAuthService
     private Session? _session;
 
     public string? CurrentEmail => _session?.User?.Email;
+    public string? CurrentUserId => _session?.User?.Id;
     public bool IsSignedIn => _session is not null;
     public event EventHandler? SignInStateChanged;
 

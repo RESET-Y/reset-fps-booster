@@ -63,6 +63,25 @@
                             </Border>
                         </StackPanel>
 
+                        <!-- Buying: only for a signed-in user without premium. -->
+                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="14,12" Margin="0,18,0,0"
+                                Visibility="{Binding CanUpgrade, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Account.UpgradeTitle}" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Account.UpgradeHint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                            Visibility="{Binding StoreOpen, Converter={StaticResource BoolToVis}}">
+                                    <Button Content="{DynamicResource Account.BuyMonthly}" Style="{StaticResource Button.Primary}" Command="{Binding BuyMonthlyCommand}"/>
+                                    <Button Content="{DynamicResource Account.BuyLifetime}" Style="{StaticResource Button.Primary}" Margin="10,0,0,0" Command="{Binding BuyLifetimeCommand}"/>
+                                </StackPanel>
+                                <TextBlock Text="{DynamicResource Account.StoreSoon}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0"
+                                           Visibility="{Binding StoreOpen, Converter={StaticResource InverseBoolToVis}}"/>
+                                <Button Content="{DynamicResource Account.CheckAgain}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left"
+                                        Margin="0,10,0,0" Command="{Binding CheckAgainCommand}"
+                                        Visibility="{Binding StoreOpen, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                        </Border>
+
                         <Button Content="{DynamicResource Account.SignOut}" Style="{StaticResource Button.Secondary}"
                                 HorizontalAlignment="Left" Margin="0,18,0,0"
                                 Command="{Binding SignOutCommand}"/>

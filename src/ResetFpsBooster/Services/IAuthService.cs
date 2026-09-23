@@ -4,6 +4,10 @@ public interface IAuthService
 {
     /// The signed-in user's e-mail, or null when signed out.
     string? CurrentEmail { get; }
+
+    /// The signed-in user's id, or null. Passed to the checkout so the payment
+    /// webhook can tell whose purchase it is.
+    string? CurrentUserId { get; }
     bool IsSignedIn { get; }
 
     /// Raised whenever the sign-in state changes, so views can follow it.

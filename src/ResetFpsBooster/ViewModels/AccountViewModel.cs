@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ResetFpsBooster.Core;
@@ -14,7 +15,14 @@ public sealed partial class AccountViewModel : ViewModelBase
     [ObservableProperty] private string? _message;
     [ObservableProperty] private bool _messageIsError;
     [ObservableProperty] private bool _isBusy;
-    [ObservableProperty] private bool _isPremium;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanUpgrade))]
+    private bool _isPremium;
+
+    /// Offered only to someone signed in without premium: buying needs an
+    /// account to attach the purchase to, and a premium user has nothing to buy.
+    public bool CanUpgrade => _auth.IsSignedIn && !IsPremium;
+    public bool StoreOpen => StoreConfig.IsConfigured;
 
     /// The password never lives in a bound property. It is handed over from the
     /// PasswordBox at the moment of the call and dropped straight after, so it
@@ -38,6 +46,7 @@ public sealed partial class AccountViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSignedIn));
         OnPropertyChanged(nameof(IsSignedOut));
         OnPropertyChanged(nameof(SignedInEmail));
+        OnPropertyChanged(nameof(CanUpgrade));
         _ = RefreshPremiumAsync();
     }
 
@@ -48,6 +57,37 @@ public sealed partial class AccountViewModel : ViewModelBase
 
     [RelayCommand]
     private async Task SignUpAsync() => await RunAsync(pw => _auth.SignUpAsync(Email.Trim(), pw), success: Loc.T("Account.Created"));
+
+    [RelayCommand] private void BuyMonthly() => OpenCheckout(StoreConfig.MonthlyPaymentLink);
+    [RelayCommand] private void BuyLifetime() => OpenCheckout(StoreConfig.LifetimePaymentLink);
+
+    /// Opens the Stripe Payment Link in the browser with the user's id as
+    /// client_reference_id - the one thing that lets the webhook attach the
+    /// purchase to this account - and the e-mail prefilled so nobody pays
+    /// under a different address by mistake.
+    private void OpenCheckout(string link)
+    {
+        if (string.IsNullOrWhiteSpace(link) || _auth.CurrentUserId is not { } uid)
+        {
+            ShowError(Loc.T("Account.StoreSoon"));
+            return;
+        }
+        var url = $"{link}?client_reference_id={Uri.EscapeDataString(uid)}";
+        if (_auth.CurrentEmail is { } email)
+            url += $"&prefilled_email={Uri.EscapeDataString(email)}";
+        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+
+    /// After paying in the browser, the webhook grants premium within seconds.
+    /// Asking the server again is all it takes - nothing is set locally.
+    [RelayCommand]
+    private async Task CheckAgainAsync()
+    {
+        await RefreshPremiumAsync();
+        if (IsPremium) Message = null;
+        else { MessageIsError = false; Message = Loc.T("Account.StillFree"); }
+    }
 
     [RelayCommand]
     private async Task SignOutAsync()

@@ -1,0 +1,5 @@
+# Stripe calls the webhook without a Supabase token, so the platform JWT
+# check must be off for it. The function verifies the Stripe-Signature header
+# instead - see functions/stripe-webhook/index.ts.
+[functions.stripe-webhook]
+verify_jwt = false

@@ -1,112 +1,553 @@
 {
   "_comment": "THE ONE SOURCE OF EVERY USER-FACING TEXT. Each key carries all three languages side by side, so none can lack a text the others have. After editing, run: node Languages/generate.js - it writes Strings.en.xaml, Strings.de.xaml and Strings.ru.xaml and refuses to run if any entry is missing a language. Russian: reviewed by a native speaker before release is still open.",
-
-  "Nav.Dashboard":        { "en": "Dashboard",          "de": "Dashboard",          "ru": "Панель" },
-  "Nav.Optimizer":        { "en": "Optimizer",          "de": "Optimierer",         "ru": "Оптимизация" },
-  "Nav.GameProfiles":     { "en": "Game Profiles",      "de": "Spielprofile",       "ru": "Профили игр" },
-  "Nav.Performance":      { "en": "Performance",        "de": "Leistung",           "ru": "Производительность" },
-  "Nav.BottleneckEngine": { "en": "Bottleneck Engine",  "de": "Engpass-Analyse",    "ru": "Узкие места" },
-  "Nav.FrameBoost":       { "en": "FrameBoost",         "de": "FrameBoost",         "ru": "FrameBoost" },
-  "Nav.System":           { "en": "System",             "de": "System",             "ru": "Система" },
-  "Nav.Backups":          { "en": "Backups",            "de": "Sicherungen",        "ru": "Резервные копии" },
-  "Nav.Logs":             { "en": "Logs",               "de": "Protokoll",          "ru": "Журнал" },
-  "Nav.Account":          { "en": "Account",            "de": "Konto",              "ru": "Аккаунт" },
-  "Nav.Settings":         { "en": "Settings",           "de": "Einstellungen",      "ru": "Настройки" },
-
-  "Shell.StandardMode":   { "en": "Standard mode", "de": "Standardmodus", "ru": "Обычный режим" },
-  "Shell.NeedsAdmin":     { "en": "Some optimizations need administrator rights", "de": "Einige Optimierungen brauchen Administratorrechte", "ru": "Для некоторых оптимизаций нужны права администратора" },
-  "Shell.MadeBy":         { "en": "Made by", "de": "Entwickelt von", "ru": "Разработчик" },
-
-  "Settings.Title":              { "en": "Settings", "de": "Einstellungen", "ru": "Настройки" },
-  "Settings.Subtitle":           { "en": "General preferences for RESET FPS BOOSTER.", "de": "Allgemeine Einstellungen für RESET FPS BOOSTER.", "ru": "Общие настройки RESET FPS BOOSTER." },
-  "Settings.General":            { "en": "General", "de": "Allgemein", "ru": "Общие" },
-  "Settings.Language":           { "en": "Language", "de": "Sprache", "ru": "Язык" },
-  "Settings.LanguageHint":       { "en": "Changes the language of the whole app immediately.", "de": "Ändert die Sprache der ganzen App sofort.", "ru": "Сразу меняет язык всего приложения." },
-  "Settings.StartWithWindows":   { "en": "Start RESET FPS BOOSTER with Windows", "de": "RESET FPS BOOSTER mit Windows starten", "ru": "Запускать RESET FPS BOOSTER вместе с Windows" },
-  "Settings.StartWithWindowsHint": { "en": "Launches minimized in the background at sign-in.", "de": "Startet bei der Anmeldung minimiert im Hintergrund.", "ru": "Запускается свёрнутым в фоне при входе в систему." },
-  "Settings.LaunchElevated":     { "en": "Launch elevated automatically", "de": "Automatisch mit Adminrechten starten", "ru": "Автоматически запускать с правами администратора" },
-  "Settings.LaunchElevatedHint": { "en": "Starts as Administrator at logon with no UAC prompt (uses a Task Scheduler entry instead of the Run key).", "de": "Startet bei der Anmeldung als Administrator ohne UAC-Abfrage (über die Aufgabenplanung statt des Autostart-Schlüssels).", "ru": "Запускается от имени администратора при входе без запроса UAC (через Планировщик заданий, а не ключ автозапуска)." },
-  "Settings.Toasts":             { "en": "Toast notifications", "de": "Benachrichtigungen", "ru": "Уведомления" },
-  "Settings.ToastsHint":         { "en": "Show a notification after Optimize Now finishes.", "de": "Zeigt eine Benachrichtigung, wenn „Jetzt optimieren“ fertig ist.", "ru": "Показывать уведомление после завершения оптимизации." },
-  "Settings.Confirm":            { "en": "Confirm before applying changes", "de": "Vor dem Anwenden bestätigen", "ru": "Подтверждать перед применением изменений" },
-  "Settings.ConfirmHint":        { "en": "Always review the exact change list before it's applied.", "de": "Die genaue Liste der Änderungen immer vorher prüfen.", "ru": "Всегда показывать точный список изменений перед применением." },
-  "Settings.Optimization":       { "en": "Optimization", "de": "Optimierung", "ru": "Оптимизация" },
-  "Settings.Experimental":       { "en": "Enable experimental optimizations", "de": "Experimentelle Optimierungen aktivieren", "ru": "Включить экспериментальные оптимизации" },
-  "Settings.ExperimentalHint":   { "en": "Shows optimizations flagged Experimental in the Optimizer. Off by default.", "de": "Zeigt als experimentell markierte Optimierungen im Optimierer. Standardmäßig aus.", "ru": "Показывает в Оптимизации пункты с пометкой «экспериментально». По умолчанию выключено." },
-  "Settings.GameBoost":          { "en": "Game Boost Mode", "de": "Game-Boost-Modus", "ru": "Режим Game Boost" },
-  "Settings.GameBoostHint":      { "en": "While a detected game is running, other background apps are temporarily deprioritized (never closed) and restored the instant the game exits. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato tools) and voice chat (Discord, Teams, TeamSpeak) are always left untouched, so streaming stays smooth.", "de": "Solange ein erkanntes Spiel läuft, bekommen andere Hintergrund-Apps vorübergehend eine niedrigere Priorität (sie werden nie beendet) und sind sofort wieder normal, sobald das Spiel endet. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato) und Sprachchat (Discord, Teams, TeamSpeak) bleiben immer unberührt, damit Streams flüssig bleiben.", "ru": "Пока запущена распознанная игра, другие фоновые приложения временно получают пониженный приоритет (они никогда не закрываются) и сразу восстанавливаются после выхода из игры. Стриминг (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato) и голосовой чат (Discord, Teams, TeamSpeak) никогда не затрагиваются, поэтому трансляция остаётся плавной." },
-  "Settings.Appearance":         { "en": "Appearance", "de": "Darstellung", "ru": "Оформление" },
-  "Settings.AccentColor":        { "en": "Accent color", "de": "Akzentfarbe", "ru": "Цвет акцента" },
-  "Settings.AppliedOnRestart":   { "en": "Applied on next app start.", "de": "Wird beim nächsten App-Start übernommen.", "ru": "Применится при следующем запуске." },
-  "Settings.RestartNow":         { "en": "Restart Now", "de": "Jetzt neu starten", "ru": "Перезапустить" },
-  "Settings.AdminAccess":        { "en": "Administrator Access", "de": "Administratorrechte", "ru": "Права администратора" },
-  "Settings.CurrentStatus":      { "en": "Current status: ", "de": "Aktueller Status: ", "ru": "Текущий статус: " },
-  "Settings.RestartAsAdmin":     { "en": "Restart as Administrator", "de": "Als Administrator neu starten", "ru": "Перезапустить от имени администратора" },
-  "Settings.Updates":            { "en": "Updates", "de": "Updates", "ru": "Обновления" },
-  "Settings.UpdateRepo":         { "en": "GitHub repository (owner/repo)", "de": "GitHub-Repository (Besitzer/Repo)", "ru": "Репозиторий GitHub (владелец/репозиторий)" },
-  "Settings.UpdateRepoHint":     { "en": "Checks this repository's GitHub Releases for a newer version. Leave empty to disable update checks.", "de": "Sucht in den GitHub-Releases dieses Repositorys nach einer neueren Version. Leer lassen, um die Update-Prüfung abzuschalten.", "ru": "Проверяет релизы GitHub этого репозитория на новую версию. Оставьте пустым, чтобы отключить проверку." },
-  "Settings.AutoCheck":          { "en": "Check automatically on startup", "de": "Beim Start automatisch prüfen", "ru": "Проверять автоматически при запуске" },
-  "Settings.AutoCheckHint":      { "en": "A quick, silent check — never downloads anything without your say-so.", "de": "Eine kurze, stille Prüfung – lädt nie etwas ohne deine Zustimmung herunter.", "ru": "Быстрая тихая проверка — ничего не скачивает без вашего согласия." },
-  "Settings.CheckForUpdates":    { "en": "Check for Updates", "de": "Nach Updates suchen", "ru": "Проверить обновления" },
-  "Settings.VersionPrefix":      { "en": "Version ", "de": "Version ", "ru": "Доступна версия " },
-  "Settings.VersionSuffix":      { "en": " available", "de": " verfügbar", "ru": "" },
-  "Settings.Download":           { "en": "Download", "de": "Herunterladen", "ru": "Скачать" },
-  "Settings.InstallRestart":     { "en": "Install & Restart", "de": "Installieren & neu starten", "ru": "Установить и перезапустить" },
-  "Settings.About":              { "en": "About", "de": "Über", "ru": "О программе" },
-  "Settings.MadeByLukas":        { "en": "Made by Lukas Reschke", "de": "Entwickelt von Lukas Reschke", "ru": "Разработчик: Lukas Reschke" },
-
-  "Account.Title":          { "en": "ACCOUNT", "de": "KONTO", "ru": "АККАУНТ" },
-  "Account.Intro":          { "en": "Sign in to unlock premium features. Your sign-in is stored encrypted on this PC, so you only need to do it once.", "de": "Melde dich an, um Premium-Funktionen freizuschalten. Die Anmeldung wird verschlüsselt auf diesem PC gespeichert, du musst sie also nur einmal machen.", "ru": "Войдите, чтобы открыть премиум-функции. Данные входа хранятся на этом ПК в зашифрованном виде, поэтому входить нужно только один раз." },
-  "Account.NotAvailable":   { "en": "Accounts are not available in this build yet.", "de": "In dieser Version sind Konten noch nicht verfügbar.", "ru": "В этой сборке аккаунты пока недоступны." },
-  "Account.SignInTitle":    { "en": "Sign in", "de": "Anmelden", "ru": "Вход" },
-  "Account.Email":          { "en": "E-mail", "de": "E-Mail", "ru": "Эл. почта" },
-  "Account.Password":       { "en": "Password", "de": "Passwort", "ru": "Пароль" },
-  "Account.SignIn":         { "en": "Sign in", "de": "Anmelden", "ru": "Войти" },
-  "Account.CreateAccount":  { "en": "Create account", "de": "Konto erstellen", "ru": "Создать аккаунт" },
-  "Account.SignedIn":       { "en": "Signed in", "de": "Angemeldet", "ru": "Вы вошли" },
-  "Account.SignOut":        { "en": "Sign out", "de": "Abmelden", "ru": "Выйти" },
-  "Account.Created":        { "en": "Account created.", "de": "Konto erstellt.", "ru": "Аккаунт создан." },
-  "Account.EnterBoth":      { "en": "Enter your e-mail and a password.", "de": "Gib deine E-Mail und ein Passwort ein.", "ru": "Введите адрес эл. почты и пароль." },
-
-  "Auth.NotSetUp":          { "en": "Accounts are not set up in this build yet.", "de": "Konten sind in dieser Version noch nicht eingerichtet.", "ru": "В этой сборке аккаунты ещё не настроены." },
-  "Auth.Offline":           { "en": "Could not reach the account server. Check your internet connection.", "de": "Der Kontoserver ist nicht erreichbar. Prüfe deine Internetverbindung.", "ru": "Не удалось связаться с сервером аккаунтов. Проверьте подключение к интернету." },
-  "Auth.Unreadable":        { "en": "The server's answer could not be read.", "de": "Die Antwort des Servers konnte nicht gelesen werden.", "ru": "Не удалось прочитать ответ сервера." },
-  "Auth.ConfirmPending":    { "en": "Almost done - check your inbox and confirm your e-mail address, then sign in.", "de": "Fast geschafft – bestätige deine E-Mail-Adresse über den Link in deinem Postfach und melde dich dann an.", "ru": "Почти готово — подтвердите адрес эл. почты по ссылке в письме, затем войдите." },
-  "Auth.WrongCredentials":  { "en": "E-mail or password is wrong.", "de": "E-Mail oder Passwort ist falsch.", "ru": "Неверный адрес эл. почты или пароль." },
-  "Auth.NotConfirmed":      { "en": "Confirm your e-mail address first - the link is in your inbox.", "de": "Bestätige zuerst deine E-Mail-Adresse – der Link ist in deinem Postfach.", "ru": "Сначала подтвердите адрес эл. почты — ссылка в вашем почтовом ящике." },
-  "Auth.AlreadyRegistered": { "en": "There is already an account with this e-mail. Sign in instead.", "de": "Mit dieser E-Mail gibt es schon ein Konto. Melde dich stattdessen an.", "ru": "Аккаунт с этим адресом уже существует. Войдите в него." },
-  "Auth.PasswordRejected":  { "en": "The password was not accepted.", "de": "Das Passwort wurde nicht akzeptiert.", "ru": "Пароль не принят." },
-  "Auth.RateLimited":       { "en": "Too many attempts. Wait a minute and try again.", "de": "Zu viele Versuche. Warte eine Minute und versuch es erneut.", "ru": "Слишком много попыток. Подождите минуту и попробуйте снова." },
-  "Auth.SignUpFailed":      { "en": "Sign-up failed.", "de": "Registrierung fehlgeschlagen.", "ru": "Не удалось зарегистрироваться." },
-  "Auth.SignInFailed":      { "en": "Sign-in failed.", "de": "Anmeldung fehlgeschlagen.", "ru": "Не удалось войти." },
-
-  "FB.Beta":              { "en": "EXPERIMENTAL BETA", "de": "EXPERIMENTELLE BETA", "ru": "ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА" },
-  "FB.Intro":             { "en": "System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.", "de": "Bildgenerierung auf Systemebene für den ganzen Bildschirm, über die offiziellen Windows-Bildschirmaufnahme-Schnittstellen – kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. Einschalten und spielen; alles auf dem Hauptbildschirm wird beschleunigt. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.", "ru": "Генерация кадров на уровне системы для всего экрана через официальные API захвата экрана Windows — без изменения игры, без инъекций, без доступа к памяти. Включите и играйте: ускоряется всё на основном дисплее. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки." },
-  "FB.FrameGeneration":   { "en": "Frame generation", "de": "Bildgenerierung", "ru": "Генерация кадров" },
-  "FB.MainDisplay":       { "en": "Boosts the main display — no window to pick.", "de": "Beschleunigt den Hauptbildschirm – kein Fenster auszuwählen.", "ru": "Ускоряет основной дисплей — окно выбирать не нужно." },
-  "FB.BestResult":        { "en": "For the best result", "de": "Für das beste Ergebnis", "ru": "Для лучшего результата" },
-  "FB.YourMonitor":       { "en": "Your monitor:", "de": "Dein Monitor:", "ru": "Ваш монитор:" },
-  "FB.CapAdvice":         { "en": "Cap the game at {0} FPS. FrameBoost doubles it to {1}, which is what a {1} Hz monitor can show.", "de": "Begrenze das Spiel auf {0} FPS. FrameBoost verdoppelt das auf {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.", "ru": "Ограничьте игру до {0} FPS. FrameBoost удвоит это до {1} — ровно столько, сколько может показать монитор {1} Гц." },
-  "FB.GpuRoom":           { "en": "Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't.", "de": "Lass der Grafikkarte etwas Luft. FrameBoost braucht für jedes erzeugte Bild ein paar Millisekunden GPU-Zeit. Läuft die GPU im Spiel schon auf 100 %, senke Auflösung oder Grafikeinstellungen, bis das nicht mehr so ist.", "ru": "Оставьте видеокарте запас. FrameBoost тратит несколько миллисекунд GPU на каждый созданный кадр. Если игра уже загружает GPU на 100 %, снизьте разрешение или настройки графики." },
-  "FB.SteadyCap":         { "en": "A steady, capped frame rate works much better than an uncapped one that jumps around.", "de": "Eine feste, begrenzte Bildrate funktioniert viel besser als eine unbegrenzte, die ständig schwankt.", "ru": "Стабильная ограниченная частота кадров работает гораздо лучше, чем неограниченная и скачущая." },
-  "FB.PremiumFeature":    { "en": "FrameBoost is a Premium feature", "de": "FrameBoost ist eine Premium-Funktion", "ru": "FrameBoost — премиум-функция" },
-  "FB.PremiumFeatureDot": { "en": "FrameBoost is a Premium feature.", "de": "FrameBoost ist eine Premium-Funktion.", "ru": "FrameBoost — премиум-функция." },
-  "FB.PremiumHint":       { "en": "Sign in with an account that has Premium to turn FrameBoost on.", "de": "Melde dich mit einem Konto mit Premium an, um FrameBoost einzuschalten.", "ru": "Войдите в аккаунт с Премиумом, чтобы включить FrameBoost." },
-  "FB.GoToAccount":       { "en": "Go to Account", "de": "Zum Konto", "ru": "Перейти в аккаунт" },
-  "FB.TurnOn":            { "en": "Turn FrameBoost on", "de": "FrameBoost einschalten", "ru": "Включить FrameBoost" },
-  "FB.TurnOff":           { "en": "Turn FrameBoost off", "de": "FrameBoost ausschalten", "ru": "Выключить FrameBoost" },
-  "FB.LowLatency":        { "en": "Low latency mode", "de": "Modus mit geringer Latenz", "ru": "Режим низкой задержки" },
-  "FB.LowLatencyHint":    { "en": "Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest.", "de": "Weniger Eingabeverzögerung, weichere generierte Bilder. Bilder werden gezeigt, sobald sie fertig sind, statt gleichmäßig verteilt zu werden, und in halber Auflösung erzeugt. Gemessen: etwa 9 ms weniger Verzögerung durch das Verteilen und 2–3 ms durch die leichtere Arbeit, am meisten dort, wo sich das Bild am schnellsten bewegt.", "ru": "Меньше задержка ввода, мягче сгенерированные кадры. Кадры показываются сразу по готовности, без равномерного распределения, и строятся в половинном разрешении. Измерено: около 9 мс меньше задержки за счёт распределения и 2–3 мс за счёт более лёгкой работы, больше всего — там, где картинка движется быстрее." },
-  "FB.Status":            { "en": "Status", "de": "Status", "ru": "Статус" },
-  "FB.Active":            { "en": "ACTIVE", "de": "AKTIV", "ru": "АКТИВНО" },
-  "FB.GameFps":           { "en": "GAME FPS", "de": "SPIEL-FPS", "ru": "FPS ИГРЫ" },
-  "FB.GeneratedFps":      { "en": "GENERATED FPS", "de": "GENERIERTE FPS", "ru": "СГЕНЕРИРОВАНО FPS" },
-  "FB.OutputFps":         { "en": "OUTPUT FPS", "de": "AUSGABE-FPS", "ru": "ИТОГОВЫЙ FPS" },
-  "FB.DebugTelemetry":    { "en": "Debug telemetry", "de": "Debug-Messwerte", "ru": "Отладочная телеметрия" },
-  "FB.DebugHint":         { "en": "Real, measured values from the native engine — never fabricated.", "de": "Echte, gemessene Werte der Engine – nie erfunden.", "ru": "Реальные измеренные значения из движка — никогда не выдуманные." },
-  "FB.CaptureLatency":    { "en": "Capture latency (real, avg)", "de": "Aufnahme-Latenz (echt, Ø)", "ru": "Задержка захвата (реальная, средн.)" },
-  "FB.OnScreenAge":       { "en": "On-screen age (avg)", "de": "Alter auf dem Bildschirm (Ø)", "ru": "Возраст на экране (средн.)" },
-  "FB.MotionGpu":         { "en": "Motion estimation GPU time", "de": "GPU-Zeit Bewegungsschätzung", "ru": "Время GPU: оценка движения" },
-  "FB.InterpGpu":         { "en": "Interpolation GPU time", "de": "GPU-Zeit Interpolation", "ru": "Время GPU: интерполяция" },
-  "FB.PollTime":          { "en": "Poll time", "de": "Abfragezeit", "ru": "Время опроса" }
+  "Nav.Dashboard": {
+    "en": "Dashboard",
+    "de": "Dashboard",
+    "ru": "Панель"
+  },
+  "Nav.Optimizer": {
+    "en": "Optimizer",
+    "de": "Optimierer",
+    "ru": "Оптимизация"
+  },
+  "Nav.GameProfiles": {
+    "en": "Game Profiles",
+    "de": "Spielprofile",
+    "ru": "Профили игр"
+  },
+  "Nav.Performance": {
+    "en": "Performance",
+    "de": "Leistung",
+    "ru": "Производительность"
+  },
+  "Nav.BottleneckEngine": {
+    "en": "Bottleneck Engine",
+    "de": "Engpass-Analyse",
+    "ru": "Узкие места"
+  },
+  "Nav.FrameBoost": {
+    "en": "FrameBoost",
+    "de": "FrameBoost",
+    "ru": "FrameBoost"
+  },
+  "Nav.System": {
+    "en": "System",
+    "de": "System",
+    "ru": "Система"
+  },
+  "Nav.Backups": {
+    "en": "Backups",
+    "de": "Sicherungen",
+    "ru": "Резервные копии"
+  },
+  "Nav.Logs": {
+    "en": "Logs",
+    "de": "Protokoll",
+    "ru": "Журнал"
+  },
+  "Nav.Account": {
+    "en": "Account",
+    "de": "Konto",
+    "ru": "Аккаунт"
+  },
+  "Nav.Settings": {
+    "en": "Settings",
+    "de": "Einstellungen",
+    "ru": "Настройки"
+  },
+  "Shell.StandardMode": {
+    "en": "Standard mode",
+    "de": "Standardmodus",
+    "ru": "Обычный режим"
+  },
+  "Shell.NeedsAdmin": {
+    "en": "Some optimizations need administrator rights",
+    "de": "Einige Optimierungen brauchen Administratorrechte",
+    "ru": "Для некоторых оптимизаций нужны права администратора"
+  },
+  "Shell.MadeBy": {
+    "en": "Made by",
+    "de": "Entwickelt von",
+    "ru": "Разработчик"
+  },
+  "Settings.Title": {
+    "en": "Settings",
+    "de": "Einstellungen",
+    "ru": "Настройки"
+  },
+  "Settings.Subtitle": {
+    "en": "General preferences for RESET FPS BOOSTER.",
+    "de": "Allgemeine Einstellungen für RESET FPS BOOSTER.",
+    "ru": "Общие настройки RESET FPS BOOSTER."
+  },
+  "Settings.General": {
+    "en": "General",
+    "de": "Allgemein",
+    "ru": "Общие"
+  },
+  "Settings.Language": {
+    "en": "Language",
+    "de": "Sprache",
+    "ru": "Язык"
+  },
+  "Settings.LanguageHint": {
+    "en": "Changes the language of the whole app immediately.",
+    "de": "Ändert die Sprache der ganzen App sofort.",
+    "ru": "Сразу меняет язык всего приложения."
+  },
+  "Settings.StartWithWindows": {
+    "en": "Start RESET FPS BOOSTER with Windows",
+    "de": "RESET FPS BOOSTER mit Windows starten",
+    "ru": "Запускать RESET FPS BOOSTER вместе с Windows"
+  },
+  "Settings.StartWithWindowsHint": {
+    "en": "Launches minimized in the background at sign-in.",
+    "de": "Startet bei der Anmeldung minimiert im Hintergrund.",
+    "ru": "Запускается свёрнутым в фоне при входе в систему."
+  },
+  "Settings.LaunchElevated": {
+    "en": "Launch elevated automatically",
+    "de": "Automatisch mit Adminrechten starten",
+    "ru": "Автоматически запускать с правами администратора"
+  },
+  "Settings.LaunchElevatedHint": {
+    "en": "Starts as Administrator at logon with no UAC prompt (uses a Task Scheduler entry instead of the Run key).",
+    "de": "Startet bei der Anmeldung als Administrator ohne UAC-Abfrage (über die Aufgabenplanung statt des Autostart-Schlüssels).",
+    "ru": "Запускается от имени администратора при входе без запроса UAC (через Планировщик заданий, а не ключ автозапуска)."
+  },
+  "Settings.Toasts": {
+    "en": "Toast notifications",
+    "de": "Benachrichtigungen",
+    "ru": "Уведомления"
+  },
+  "Settings.ToastsHint": {
+    "en": "Show a notification after Optimize Now finishes.",
+    "de": "Zeigt eine Benachrichtigung, wenn „Jetzt optimieren“ fertig ist.",
+    "ru": "Показывать уведомление после завершения оптимизации."
+  },
+  "Settings.Confirm": {
+    "en": "Confirm before applying changes",
+    "de": "Vor dem Anwenden bestätigen",
+    "ru": "Подтверждать перед применением изменений"
+  },
+  "Settings.ConfirmHint": {
+    "en": "Always review the exact change list before it's applied.",
+    "de": "Die genaue Liste der Änderungen immer vorher prüfen.",
+    "ru": "Всегда показывать точный список изменений перед применением."
+  },
+  "Settings.Optimization": {
+    "en": "Optimization",
+    "de": "Optimierung",
+    "ru": "Оптимизация"
+  },
+  "Settings.Experimental": {
+    "en": "Enable experimental optimizations",
+    "de": "Experimentelle Optimierungen aktivieren",
+    "ru": "Включить экспериментальные оптимизации"
+  },
+  "Settings.ExperimentalHint": {
+    "en": "Shows optimizations flagged Experimental in the Optimizer. Off by default.",
+    "de": "Zeigt als experimentell markierte Optimierungen im Optimierer. Standardmäßig aus.",
+    "ru": "Показывает в Оптимизации пункты с пометкой «экспериментально». По умолчанию выключено."
+  },
+  "Settings.GameBoost": {
+    "en": "Game Boost Mode",
+    "de": "Game-Boost-Modus",
+    "ru": "Режим Game Boost"
+  },
+  "Settings.GameBoostHint": {
+    "en": "While a detected game is running, other background apps are temporarily deprioritized (never closed) and restored the instant the game exits. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato tools) and voice chat (Discord, Teams, TeamSpeak) are always left untouched, so streaming stays smooth.",
+    "de": "Solange ein erkanntes Spiel läuft, bekommen andere Hintergrund-Apps vorübergehend eine niedrigere Priorität (sie werden nie beendet) und sind sofort wieder normal, sobald das Spiel endet. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato) und Sprachchat (Discord, Teams, TeamSpeak) bleiben immer unberührt, damit Streams flüssig bleiben.",
+    "ru": "Пока запущена распознанная игра, другие фоновые приложения временно получают пониженный приоритет (они никогда не закрываются) и сразу восстанавливаются после выхода из игры. Стриминг (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato) и голосовой чат (Discord, Teams, TeamSpeak) никогда не затрагиваются, поэтому трансляция остаётся плавной."
+  },
+  "Settings.Appearance": {
+    "en": "Appearance",
+    "de": "Darstellung",
+    "ru": "Оформление"
+  },
+  "Settings.AccentColor": {
+    "en": "Accent color",
+    "de": "Akzentfarbe",
+    "ru": "Цвет акцента"
+  },
+  "Settings.AppliedOnRestart": {
+    "en": "Applied on next app start.",
+    "de": "Wird beim nächsten App-Start übernommen.",
+    "ru": "Применится при следующем запуске."
+  },
+  "Settings.RestartNow": {
+    "en": "Restart Now",
+    "de": "Jetzt neu starten",
+    "ru": "Перезапустить"
+  },
+  "Settings.AdminAccess": {
+    "en": "Administrator Access",
+    "de": "Administratorrechte",
+    "ru": "Права администратора"
+  },
+  "Settings.CurrentStatus": {
+    "en": "Current status: ",
+    "de": "Aktueller Status: ",
+    "ru": "Текущий статус: "
+  },
+  "Settings.RestartAsAdmin": {
+    "en": "Restart as Administrator",
+    "de": "Als Administrator neu starten",
+    "ru": "Перезапустить от имени администратора"
+  },
+  "Settings.Updates": {
+    "en": "Updates",
+    "de": "Updates",
+    "ru": "Обновления"
+  },
+  "Settings.UpdateRepo": {
+    "en": "GitHub repository (owner/repo)",
+    "de": "GitHub-Repository (Besitzer/Repo)",
+    "ru": "Репозиторий GitHub (владелец/репозиторий)"
+  },
+  "Settings.UpdateRepoHint": {
+    "en": "Checks this repository's GitHub Releases for a newer version. Leave empty to disable update checks.",
+    "de": "Sucht in den GitHub-Releases dieses Repositorys nach einer neueren Version. Leer lassen, um die Update-Prüfung abzuschalten.",
+    "ru": "Проверяет релизы GitHub этого репозитория на новую версию. Оставьте пустым, чтобы отключить проверку."
+  },
+  "Settings.AutoCheck": {
+    "en": "Check automatically on startup",
+    "de": "Beim Start automatisch prüfen",
+    "ru": "Проверять автоматически при запуске"
+  },
+  "Settings.AutoCheckHint": {
+    "en": "A quick, silent check — never downloads anything without your say-so.",
+    "de": "Eine kurze, stille Prüfung – lädt nie etwas ohne deine Zustimmung herunter.",
+    "ru": "Быстрая тихая проверка — ничего не скачивает без вашего согласия."
+  },
+  "Settings.CheckForUpdates": {
+    "en": "Check for Updates",
+    "de": "Nach Updates suchen",
+    "ru": "Проверить обновления"
+  },
+  "Settings.VersionPrefix": {
+    "en": "Version ",
+    "de": "Version ",
+    "ru": "Доступна версия "
+  },
+  "Settings.VersionSuffix": {
+    "en": " available",
+    "de": " verfügbar",
+    "ru": ""
+  },
+  "Settings.Download": {
+    "en": "Download",
+    "de": "Herunterladen",
+    "ru": "Скачать"
+  },
+  "Settings.InstallRestart": {
+    "en": "Install & Restart",
+    "de": "Installieren & neu starten",
+    "ru": "Установить и перезапустить"
+  },
+  "Settings.About": {
+    "en": "About",
+    "de": "Über",
+    "ru": "О программе"
+  },
+  "Settings.MadeByLukas": {
+    "en": "Made by Lukas Reschke",
+    "de": "Entwickelt von Lukas Reschke",
+    "ru": "Разработчик: Lukas Reschke"
+  },
+  "Account.Title": {
+    "en": "ACCOUNT",
+    "de": "KONTO",
+    "ru": "АККАУНТ"
+  },
+  "Account.Intro": {
+    "en": "Sign in to unlock premium features. Your sign-in is stored encrypted on this PC, so you only need to do it once.",
+    "de": "Melde dich an, um Premium-Funktionen freizuschalten. Die Anmeldung wird verschlüsselt auf diesem PC gespeichert, du musst sie also nur einmal machen.",
+    "ru": "Войдите, чтобы открыть премиум-функции. Данные входа хранятся на этом ПК в зашифрованном виде, поэтому входить нужно только один раз."
+  },
+  "Account.NotAvailable": {
+    "en": "Accounts are not available in this build yet.",
+    "de": "In dieser Version sind Konten noch nicht verfügbar.",
+    "ru": "В этой сборке аккаунты пока недоступны."
+  },
+  "Account.SignInTitle": {
+    "en": "Sign in",
+    "de": "Anmelden",
+    "ru": "Вход"
+  },
+  "Account.Email": {
+    "en": "E-mail",
+    "de": "E-Mail",
+    "ru": "Эл. почта"
+  },
+  "Account.Password": {
+    "en": "Password",
+    "de": "Passwort",
+    "ru": "Пароль"
+  },
+  "Account.SignIn": {
+    "en": "Sign in",
+    "de": "Anmelden",
+    "ru": "Войти"
+  },
+  "Account.CreateAccount": {
+    "en": "Create account",
+    "de": "Konto erstellen",
+    "ru": "Создать аккаунт"
+  },
+  "Account.SignedIn": {
+    "en": "Signed in",
+    "de": "Angemeldet",
+    "ru": "Вы вошли"
+  },
+  "Account.SignOut": {
+    "en": "Sign out",
+    "de": "Abmelden",
+    "ru": "Выйти"
+  },
+  "Account.Created": {
+    "en": "Account created.",
+    "de": "Konto erstellt.",
+    "ru": "Аккаунт создан."
+  },
+  "Account.EnterBoth": {
+    "en": "Enter your e-mail and a password.",
+    "de": "Gib deine E-Mail und ein Passwort ein.",
+    "ru": "Введите адрес эл. почты и пароль."
+  },
+  "Auth.NotSetUp": {
+    "en": "Accounts are not set up in this build yet.",
+    "de": "Konten sind in dieser Version noch nicht eingerichtet.",
+    "ru": "В этой сборке аккаунты ещё не настроены."
+  },
+  "Auth.Offline": {
+    "en": "Could not reach the account server. Check your internet connection.",
+    "de": "Der Kontoserver ist nicht erreichbar. Prüfe deine Internetverbindung.",
+    "ru": "Не удалось связаться с сервером аккаунтов. Проверьте подключение к интернету."
+  },
+  "Auth.Unreadable": {
+    "en": "The server's answer could not be read.",
+    "de": "Die Antwort des Servers konnte nicht gelesen werden.",
+    "ru": "Не удалось прочитать ответ сервера."
+  },
+  "Auth.ConfirmPending": {
+    "en": "Almost done - check your inbox and confirm your e-mail address, then sign in.",
+    "de": "Fast geschafft – bestätige deine E-Mail-Adresse über den Link in deinem Postfach und melde dich dann an.",
+    "ru": "Почти готово — подтвердите адрес эл. почты по ссылке в письме, затем войдите."
+  },
+  "Auth.WrongCredentials": {
+    "en": "E-mail or password is wrong.",
+    "de": "E-Mail oder Passwort ist falsch.",
+    "ru": "Неверный адрес эл. почты или пароль."
+  },
+  "Auth.NotConfirmed": {
+    "en": "Confirm your e-mail address first - the link is in your inbox.",
+    "de": "Bestätige zuerst deine E-Mail-Adresse – der Link ist in deinem Postfach.",
+    "ru": "Сначала подтвердите адрес эл. почты — ссылка в вашем почтовом ящике."
+  },
+  "Auth.AlreadyRegistered": {
+    "en": "There is already an account with this e-mail. Sign in instead.",
+    "de": "Mit dieser E-Mail gibt es schon ein Konto. Melde dich stattdessen an.",
+    "ru": "Аккаунт с этим адресом уже существует. Войдите в него."
+  },
+  "Auth.PasswordRejected": {
+    "en": "The password was not accepted.",
+    "de": "Das Passwort wurde nicht akzeptiert.",
+    "ru": "Пароль не принят."
+  },
+  "Auth.RateLimited": {
+    "en": "Too many attempts. Wait a minute and try again.",
+    "de": "Zu viele Versuche. Warte eine Minute und versuch es erneut.",
+    "ru": "Слишком много попыток. Подождите минуту и попробуйте снова."
+  },
+  "Auth.SignUpFailed": {
+    "en": "Sign-up failed.",
+    "de": "Registrierung fehlgeschlagen.",
+    "ru": "Не удалось зарегистрироваться."
+  },
+  "Auth.SignInFailed": {
+    "en": "Sign-in failed.",
+    "de": "Anmeldung fehlgeschlagen.",
+    "ru": "Не удалось войти."
+  },
+  "FB.Beta": {
+    "en": "EXPERIMENTAL BETA",
+    "de": "EXPERIMENTELLE BETA",
+    "ru": "ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА"
+  },
+  "FB.Intro": {
+    "en": "System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.",
+    "de": "Bildgenerierung auf Systemebene für den ganzen Bildschirm, über die offiziellen Windows-Bildschirmaufnahme-Schnittstellen – kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. Einschalten und spielen; alles auf dem Hauptbildschirm wird beschleunigt. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.",
+    "ru": "Генерация кадров на уровне системы для всего экрана через официальные API захвата экрана Windows — без изменения игры, без инъекций, без доступа к памяти. Включите и играйте: ускоряется всё на основном дисплее. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки."
+  },
+  "FB.FrameGeneration": {
+    "en": "Frame generation",
+    "de": "Bildgenerierung",
+    "ru": "Генерация кадров"
+  },
+  "FB.MainDisplay": {
+    "en": "Boosts the main display — no window to pick.",
+    "de": "Beschleunigt den Hauptbildschirm – kein Fenster auszuwählen.",
+    "ru": "Ускоряет основной дисплей — окно выбирать не нужно."
+  },
+  "FB.BestResult": {
+    "en": "For the best result",
+    "de": "Für das beste Ergebnis",
+    "ru": "Для лучшего результата"
+  },
+  "FB.YourMonitor": {
+    "en": "Your monitor:",
+    "de": "Dein Monitor:",
+    "ru": "Ваш монитор:"
+  },
+  "FB.CapAdvice": {
+    "en": "Cap the game at {0} FPS. FrameBoost doubles it to {1}, which is what a {1} Hz monitor can show.",
+    "de": "Begrenze das Spiel auf {0} FPS. FrameBoost verdoppelt das auf {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.",
+    "ru": "Ограничьте игру до {0} FPS. FrameBoost удвоит это до {1} — ровно столько, сколько может показать монитор {1} Гц."
+  },
+  "FB.GpuRoom": {
+    "en": "Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't.",
+    "de": "Lass der Grafikkarte etwas Luft. FrameBoost braucht für jedes erzeugte Bild ein paar Millisekunden GPU-Zeit. Läuft die GPU im Spiel schon auf 100 %, senke Auflösung oder Grafikeinstellungen, bis das nicht mehr so ist.",
+    "ru": "Оставьте видеокарте запас. FrameBoost тратит несколько миллисекунд GPU на каждый созданный кадр. Если игра уже загружает GPU на 100 %, снизьте разрешение или настройки графики."
+  },
+  "FB.SteadyCap": {
+    "en": "A steady, capped frame rate works much better than an uncapped one that jumps around.",
+    "de": "Eine feste, begrenzte Bildrate funktioniert viel besser als eine unbegrenzte, die ständig schwankt.",
+    "ru": "Стабильная ограниченная частота кадров работает гораздо лучше, чем неограниченная и скачущая."
+  },
+  "FB.PremiumFeature": {
+    "en": "FrameBoost is a Premium feature",
+    "de": "FrameBoost ist eine Premium-Funktion",
+    "ru": "FrameBoost — премиум-функция"
+  },
+  "FB.PremiumFeatureDot": {
+    "en": "FrameBoost is a Premium feature.",
+    "de": "FrameBoost ist eine Premium-Funktion.",
+    "ru": "FrameBoost — премиум-функция."
+  },
+  "FB.PremiumHint": {
+    "en": "Sign in with an account that has Premium to turn FrameBoost on.",
+    "de": "Melde dich mit einem Konto mit Premium an, um FrameBoost einzuschalten.",
+    "ru": "Войдите в аккаунт с Премиумом, чтобы включить FrameBoost."
+  },
+  "FB.GoToAccount": {
+    "en": "Go to Account",
+    "de": "Zum Konto",
+    "ru": "Перейти в аккаунт"
+  },
+  "FB.TurnOn": {
+    "en": "Turn FrameBoost on",
+    "de": "FrameBoost einschalten",
+    "ru": "Включить FrameBoost"
+  },
+  "FB.TurnOff": {
+    "en": "Turn FrameBoost off",
+    "de": "FrameBoost ausschalten",
+    "ru": "Выключить FrameBoost"
+  },
+  "FB.LowLatency": {
+    "en": "Low latency mode",
+    "de": "Modus mit geringer Latenz",
+    "ru": "Режим низкой задержки"
+  },
+  "FB.LowLatencyHint": {
+    "en": "Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest.",
+    "de": "Weniger Eingabeverzögerung, weichere generierte Bilder. Bilder werden gezeigt, sobald sie fertig sind, statt gleichmäßig verteilt zu werden, und in halber Auflösung erzeugt. Gemessen: etwa 9 ms weniger Verzögerung durch das Verteilen und 2–3 ms durch die leichtere Arbeit, am meisten dort, wo sich das Bild am schnellsten bewegt.",
+    "ru": "Меньше задержка ввода, мягче сгенерированные кадры. Кадры показываются сразу по готовности, без равномерного распределения, и строятся в половинном разрешении. Измерено: около 9 мс меньше задержки за счёт распределения и 2–3 мс за счёт более лёгкой работы, больше всего — там, где картинка движется быстрее."
+  },
+  "FB.Status": {
+    "en": "Status",
+    "de": "Status",
+    "ru": "Статус"
+  },
+  "FB.Active": {
+    "en": "ACTIVE",
+    "de": "AKTIV",
+    "ru": "АКТИВНО"
+  },
+  "FB.GameFps": {
+    "en": "GAME FPS",
+    "de": "SPIEL-FPS",
+    "ru": "FPS ИГРЫ"
+  },
+  "FB.GeneratedFps": {
+    "en": "GENERATED FPS",
+    "de": "GENERIERTE FPS",
+    "ru": "СГЕНЕРИРОВАНО FPS"
+  },
+  "FB.OutputFps": {
+    "en": "OUTPUT FPS",
+    "de": "AUSGABE-FPS",
+    "ru": "ИТОГОВЫЙ FPS"
+  },
+  "FB.DebugTelemetry": {
+    "en": "Debug telemetry",
+    "de": "Debug-Messwerte",
+    "ru": "Отладочная телеметрия"
+  },
+  "FB.DebugHint": {
+    "en": "Real, measured values from the native engine — never fabricated.",
+    "de": "Echte, gemessene Werte der Engine – nie erfunden.",
+    "ru": "Реальные измеренные значения из движка — никогда не выдуманные."
+  },
+  "FB.CaptureLatency": {
+    "en": "Capture latency (real, avg)",
+    "de": "Aufnahme-Latenz (echt, Ø)",
+    "ru": "Задержка захвата (реальная, средн.)"
+  },
+  "FB.OnScreenAge": {
+    "en": "On-screen age (avg)",
+    "de": "Alter auf dem Bildschirm (Ø)",
+    "ru": "Возраст на экране (средн.)"
+  },
+  "FB.MotionGpu": {
+    "en": "Motion estimation GPU time",
+    "de": "GPU-Zeit Bewegungsschätzung",
+    "ru": "Время GPU: оценка движения"
+  },
+  "FB.InterpGpu": {
+    "en": "Interpolation GPU time",
+    "de": "GPU-Zeit Interpolation",
+    "ru": "Время GPU: интерполяция"
+  },
+  "FB.PollTime": {
+    "en": "Poll time",
+    "de": "Abfragezeit",
+    "ru": "Время опроса"
+  },
+  "Account.UpgradeTitle": {
+    "en": "Get Premium",
+    "de": "Premium holen",
+    "ru": "Получить Премиум"
+  },
+  "Account.UpgradeHint": {
+    "en": "Premium unlocks FrameBoost. Payment is handled securely by Stripe; your purchase is linked to this account automatically.",
+    "de": "Premium schaltet FrameBoost frei. Die Zahlung läuft sicher über Stripe, der Kauf wird automatisch mit diesem Konto verknüpft.",
+    "ru": "Премиум открывает FrameBoost. Оплата безопасно проходит через Stripe, покупка автоматически привязывается к этому аккаунту."
+  },
+  "Account.BuyMonthly": {
+    "en": "Monthly",
+    "de": "Monatlich",
+    "ru": "Ежемесячно"
+  },
+  "Account.BuyLifetime": {
+    "en": "Lifetime",
+    "de": "Lifetime",
+    "ru": "Навсегда"
+  },
+  "Account.CheckAgain": {
+    "en": "I have paid - check again",
+    "de": "Ich habe bezahlt – erneut prüfen",
+    "ru": "Я оплатил — проверить снова"
+  },
+  "Account.StoreSoon": {
+    "en": "Purchasing is not open yet.",
+    "de": "Der Kauf ist noch nicht freigeschaltet.",
+    "ru": "Покупка пока недоступна."
+  },
+  "Account.StillFree": {
+    "en": "No Premium yet. If you just paid, wait a few seconds and check again.",
+    "de": "Noch kein Premium. Falls du gerade bezahlt hast, warte ein paar Sekunden und prüfe erneut.",
+    "ru": "Премиума пока нет. Если вы только что оплатили, подождите несколько секунд и проверьте снова."
+  }
 }

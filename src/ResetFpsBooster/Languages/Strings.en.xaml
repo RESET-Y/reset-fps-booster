@@ -105,4 +105,11 @@
     <sys:String x:Key="FB.MotionGpu" xml:space="preserve">Motion estimation GPU time</sys:String>
     <sys:String x:Key="FB.InterpGpu" xml:space="preserve">Interpolation GPU time</sys:String>
     <sys:String x:Key="FB.PollTime" xml:space="preserve">Poll time</sys:String>
+    <sys:String x:Key="Account.UpgradeTitle" xml:space="preserve">Get Premium</sys:String>
+    <sys:String x:Key="Account.UpgradeHint" xml:space="preserve">Premium unlocks FrameBoost. Payment is handled securely by Stripe; your purchase is linked to this account automatically.</sys:String>
+    <sys:String x:Key="Account.BuyMonthly" xml:space="preserve">Monthly</sys:String>
+    <sys:String x:Key="Account.BuyLifetime" xml:space="preserve">Lifetime</sys:String>
+    <sys:String x:Key="Account.CheckAgain" xml:space="preserve">I have paid - check again</sys:String>
+    <sys:String x:Key="Account.StoreSoon" xml:space="preserve">Purchasing is not open yet.</sys:String>
+    <sys:String x:Key="Account.StillFree" xml:space="preserve">No Premium yet. If you just paid, wait a few seconds and check again.</sys:String>
 </ResourceDictionary>

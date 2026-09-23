@@ -105,4 +105,11 @@
     <sys:String x:Key="FB.MotionGpu" xml:space="preserve">Время GPU: оценка движения</sys:String>
     <sys:String x:Key="FB.InterpGpu" xml:space="preserve">Время GPU: интерполяция</sys:String>
     <sys:String x:Key="FB.PollTime" xml:space="preserve">Время опроса</sys:String>
+    <sys:String x:Key="Account.UpgradeTitle" xml:space="preserve">Получить Премиум</sys:String>
+    <sys:String x:Key="Account.UpgradeHint" xml:space="preserve">Премиум открывает FrameBoost. Оплата безопасно проходит через Stripe, покупка автоматически привязывается к этому аккаунту.</sys:String>
+    <sys:String x:Key="Account.BuyMonthly" xml:space="preserve">Ежемесячно</sys:String>
+    <sys:String x:Key="Account.BuyLifetime" xml:space="preserve">Навсегда</sys:String>
+    <sys:String x:Key="Account.CheckAgain" xml:space="preserve">Я оплатил — проверить снова</sys:String>
+    <sys:String x:Key="Account.StoreSoon" xml:space="preserve">Покупка пока недоступна.</sys:String>
+    <sys:String x:Key="Account.StillFree" xml:space="preserve">Премиума пока нет. Если вы только что оплатили, подождите несколько секунд и проверьте снова.</sys:String>
 </ResourceDictionary>
