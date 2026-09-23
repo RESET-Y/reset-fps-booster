@@ -107,16 +107,72 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public FrameBoostBetaViewModel(IFrameBoostBetaService service, ISettingsService settings)
+    /// FRAMEBOOST IS PREMIUM, and the answer comes from the server.
+    ///
+    /// IsPremium starts false and is filled in by asking Supabase, never read
+    /// from anything local the user could edit. It is asked again whenever the
+    /// sign-in state changes - the stored session is restored in the background
+    /// at start-up, so a premium user who opens this page in the first second
+    /// sees it unlock a moment later rather than stay locked.
+    ///
+    /// What this does NOT protect against, stated so nobody mistakes it for
+    /// more: a check inside a desktop app can be patched out, and the engine
+    /// executable can be started by hand. It keeps honest users honest. Real
+    /// enforcement would need the engine itself to verify a signed token.
+    private readonly IAuthService _auth;
+    private readonly Action _openAccount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLocked))]
+    private bool _isPremium;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLocked))]
+    private bool _premiumChecked;
+
+    /// Locked only once the server has answered no. While the question is
+    /// still out, neither the lock nor the buttons are shown - a paying user
+    /// should not see a lock flash up for a second.
+    public bool IsLocked => PremiumChecked && !IsPremium;
+    public bool IsSignedIn => _auth.IsSignedIn;
+
+    public FrameBoostBetaViewModel(IFrameBoostBetaService service, ISettingsService settings,
+                                   IAuthService auth, Action openAccount)
     {
         _service = service;
         _settings = settings;
+        _auth = auth;
+        _openAccount = openAccount;
+        _auth.SignInStateChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsSignedIn));
+            _ = CheckPremiumAsync();
+        };
+        _ = CheckPremiumAsync();
         _displayHz = settings.Current.FrameBoostDisplayHz > 0 ? settings.Current.FrameBoostDisplayHz : 144;
     }
 
-    [RelayCommand]
-    public void StartCapture()
+    private async Task CheckPremiumAsync()
     {
+        IsPremium = await _auth.IsPremiumAsync();
+        PremiumChecked = true;
+    }
+
+    [RelayCommand]
+    private void OpenAccount() => _openAccount();
+
+    [RelayCommand]
+    public async Task StartCapture()
+    {
+        // Asked again at the moment it matters, not trusted from when the page
+        // opened: premium can lapse, or be revoked, while the page sits open.
+        await CheckPremiumAsync();
+        if (!IsPremium)
+        {
+            StatusMessage = "FrameBoost is a Premium feature.";
+            return;
+        }
+
         var error = _service.Start(LowLatency);
         if (error is not null)
         {

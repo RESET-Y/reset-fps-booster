@@ -14,12 +14,12 @@
                 </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs â€” no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
+                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
 
             <Border Style="{StaticResource Card}" Margin="0,20,0,16">
                 <StackPanel>
                     <TextBlock Text="Frame generation" Style="{StaticResource Text.SectionTitle}"/>
-                    <TextBlock Text="Boosts the main display â€” no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Boosts the main display — no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
 
                     <!-- Before the buttons on purpose: this is set up in the game
                          BEFORE FrameBoost starts, and it decides more of the result
@@ -40,20 +40,44 @@
                         </StackPanel>
                     </Border>
 
-                    <Grid Margin="0,16,0,0">
-                        <Button Content="Turn FrameBoost on" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
-                                HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVis}}"/>
-                        <Button Content="Turn FrameBoost off" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
-                                HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
-                    </Grid>
+                    <!-- PREMIUM. The lock appears only once the server has said no,
+                         and the controls only once it has said yes; while the answer
+                         is out, neither shows, so a paying user never sees a lock
+                         flash up. -->
+                    <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="16,14" Margin="0,16,0,0"
+                            Visibility="{Binding IsLocked, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="{StaticResource Brush.Accent}" CornerRadius="3" Padding="8,3">
+                                    <TextBlock Text="PREMIUM" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
+                                </Border>
+                                <TextBlock Text="FrameBoost is a Premium feature" FontWeight="SemiBold" Margin="10,0,0,0"
+                                           VerticalAlignment="Center" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                       Text="Sign in with an account that has Premium to turn FrameBoost on."/>
+                            <Button Content="Go to Account" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left"
+                                    Margin="0,12,0,0" Command="{Binding OpenAccountCommand}"/>
+                        </StackPanel>
+                    </Border>
 
-                    <!-- Disabled while running, not hidden: the engine reads this
-                         once at launch, so toggling it mid-run would look like it
-                         did something and change nothing. -->
-                    <CheckBox Content="Low latency mode" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
-                              IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
-                    <TextBlock Style="{StaticResource Text.Caption}" Margin="22,4,0,0" TextWrapping="Wrap"
-                               Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2â€“3 ms from the lighter work, most of it where the picture moves fastest."/>
+                    <StackPanel Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}">
+                        <Grid Margin="0,16,0,0">
+                            <Button Content="Turn FrameBoost on" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
+                                    HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVis}}"/>
+                            <Button Content="Turn FrameBoost off" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
+                                    HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
+                        </Grid>
+
+                        <!-- Disabled while running, not hidden: the engine reads this
+                             once at launch, so toggling it mid-run would look like it
+                             did something and change nothing. -->
+                        <CheckBox Content="Low latency mode" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
+                                  IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+                        <TextBlock Style="{StaticResource Text.Caption}" Margin="22,4,0,0" TextWrapping="Wrap"
+                                   Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest."/>
+
+                    </StackPanel>
 
                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource Brush.Warning}" Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
@@ -111,7 +135,7 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Debug telemetry" Style="{StaticResource Text.SectionTitle}"/>
-                        <TextBlock Text="Real, measured values from the native engine â€” never fabricated." Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
+                        <TextBlock Text="Real, measured values from the native engine — never fabricated." Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
