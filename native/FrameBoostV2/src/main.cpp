@@ -481,7 +481,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // the real frame the mouse is attached to. Bought deliberately.
     //
     // `nohold` turns it off so the comparison stays one build, two runs.
-    const bool holdHalfInterval = !HasArg(args, L"nohold");
+    // LOW LATENCY MODE, and what it actually trades.
+    //
+    // Measured in CS2, 49 s, with the hold already off - total 10.79 ms:
+    //
+    //   capture (WGC delivery)      4.73 ms   not ours to cut
+    //   motion estimation GPU       3.25 ms   peaks to 9.59
+    //   interpolation GPU           0.88 ms
+    //   loop and present            ~1.9 ms
+    //
+    // So the GPU is about a third of it, and the motion search is nearly all
+    // of that. Generating at half resolution and dropping the expensive warp
+    // filter cuts into exactly that part - worth a few milliseconds on
+    // average and considerably more at the motion peaks, which is where a
+    // stall is felt. It does NOT touch the capture cost, so this cannot
+    // halve the number.
+    //
+    // The hold is the larger single lever at roughly half a source interval,
+    // so low latency turns it off as well.
+    const bool lowLatency = HasArg(args, L"lowlatency");
+    const bool holdHalfInterval = !HasArg(args, L"nohold") && !lowLatency;
 
     // A red block on generated frames, green on real ones. Diagnostic only.
     const bool markFrames = HasArg(args, L"mark");
@@ -508,6 +527,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // an uneven source moves the generated frame with it instead of leaving it
     // stranded on a grid.
     interpolator.SetPhase(0.5f);
+    if (lowLatency) {
+        interpolator.SetInterpScale(2);   // generate at half resolution
+        interpolator.SetWarpFilter(0);    // bilinear instead of Catmull-Rom
+        Logger::Log("[FrameBoostV2] LOW LATENCY: hold off, interpolation at half "
+                    "resolution, cheap warp filter. Generated frames are softer.");
+    }
 
     // `showblend` paints every cross-faded pixel blue. The interpolation shader
     // falls back to a plain lerp of the two real frames wherever it does not

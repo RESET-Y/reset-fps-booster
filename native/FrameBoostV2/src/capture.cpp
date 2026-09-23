@@ -147,6 +147,23 @@ bool Capture::StartFromItem(ID3D11Device* device, int captureMonitorHz) {
             s3.IsBorderRequired(false);
     } catch (...) {}
 
+    // THE CURSOR STAYS OUT OF THE CAPTURE.
+    //
+    // WGC draws the mouse pointer into every captured frame unless told not
+    // to, and it was never told. So each frame we showed carried a pointer
+    // exactly one pipeline-latency behind the real one, and the overlay put
+    // that stale pointer on top of the live one - two pointers, the second
+    // trailing the first. Reported as "selbst wenn ich die Maus bewege sehe
+    // ich die Maus hinterher bewegen". In generated frames it was worse: the
+    // motion estimator treated the pointer as moving content and warped it.
+    //
+    // The real hardware pointer is drawn by Windows above our overlay anyway,
+    // so leaving it out of the capture loses nothing.
+    try {
+        if (auto s2 = m_session.try_as<IGraphicsCaptureSession2>())
+            s2.IsCursorCaptureEnabled(false);
+    } catch (...) {}
+
     // THE DELIVERY FLOOR. This was the whole of "Apex renders 72 and we see 50".
     //
     // MinUpdateInterval is the minimum spacing WGC will put between delivered

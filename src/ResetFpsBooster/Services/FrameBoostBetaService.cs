@@ -21,7 +21,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public bool IsRunning => _process is { HasExited: false };
 
-    public string? Start()
+    public string? Start(bool lowLatency = false)
     {
         Stop();
 
@@ -59,7 +59,12 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 // turned off the frame buffer and raised the generation factor,
                 // and the judder came back. Started from here, the tuned
                 // configuration is the only one that runs.
-                Arguments = "window slotwait",
+                // `lowlatency` also turns the half-interval hold off, which is
+                // the larger single lever: it costs about half a source
+                // interval, 8.8 ms at 57 fps, against the 2-3 ms the quality
+                // reduction buys.
+                Arguments = lowLatency ? "window slotwait lowlatency"
+                                       : "window slotwait",
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };

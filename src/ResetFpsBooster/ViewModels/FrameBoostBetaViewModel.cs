@@ -16,6 +16,12 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private FrameBoostBetaTelemetry _telemetry = new();
 
+    /// Picked BEFORE starting, because the engine reads it once at launch.
+    /// Changing it while FrameBoost runs does nothing until the next start,
+    /// which is why the toggle is disabled while it is running rather than
+    /// silently ignored.
+    [ObservableProperty] private bool _lowLatency;
+
     /// What the engine is doing right now, in the user.s terms. Three states
     /// read as "Native FPS: 0" on their own and mean completely different
     /// things: a still picture, a source that is too fast to double, and a
@@ -80,7 +86,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public void StartCapture()
     {
-        var error = _service.Start();
+        var error = _service.Start(LowLatency);
         if (error is not null)
         {
             StatusMessage = error;

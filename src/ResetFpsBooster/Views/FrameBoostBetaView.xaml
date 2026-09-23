@@ -28,6 +28,14 @@
                                 HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
                     </Grid>
 
+                    <!-- Disabled while running, not hidden: the engine reads this
+                         once at launch, so toggling it mid-run would look like it
+                         did something and change nothing. -->
+                    <CheckBox Content="Low latency mode" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
+                              IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="22,4,0,0" TextWrapping="Wrap"
+                               Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest."/>
+
                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource Brush.Warning}" Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
                 </StackPanel>
