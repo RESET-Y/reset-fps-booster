@@ -132,6 +132,22 @@ public sealed class AuthService : IAuthService
         return ok && body.Trim() == "true";
     }
 
+    public async Task<(bool Active, DateTimeOffset? Until)> PremiumStatusAsync(CancellationToken ct = default)
+    {
+        var (ok, body) = await RpcAsync("premium_status", new { }, ct);
+        if (!ok) return (false, null);
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var active = root.TryGetProperty("active", out var a) && a.ValueKind == JsonValueKind.True;
+            DateTimeOffset? until = root.TryGetProperty("until", out var u) && u.ValueKind == JsonValueKind.String
+                && DateTimeOffset.TryParse(u.GetString(), out var parsed) ? parsed : null;
+            return (active, until);
+        }
+        catch { return (false, null); }
+    }
+
     public async Task<string> RedeemCodeAsync(string code, CancellationToken ct = default)
     {
         var (ok, body) = await RpcAsync("redeem_premium_code", new { p_code = code }, ct);

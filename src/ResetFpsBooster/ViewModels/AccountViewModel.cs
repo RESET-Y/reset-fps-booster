@@ -26,6 +26,25 @@ public sealed partial class AccountViewModel : ViewModelBase
 
     [ObservableProperty] private string _redeemCode = "";
 
+    private DateTimeOffset? _premiumUntil;
+
+    /// How long premium lasts, in words, from the server's date. Days are
+    /// counted to the end of the last day, so "30 days" on a 30-day code means
+    /// thirty, not twenty-nine and some hours.
+    public string PremiumUntilText
+    {
+        get
+        {
+            if (!IsPremium) return "";
+            if (_premiumUntil is not { } until) return Loc.T("Account.NoExpiry");
+            var local = until.ToLocalTime();
+            var date = local.ToString("d", System.Globalization.CultureInfo.CurrentUICulture);
+            var days = (int)Math.Ceiling((local - DateTimeOffset.Now).TotalDays);
+            if (days <= 0 || local.Date == DateTime.Today) return Loc.F("Account.EndsToday", date);
+            return days == 1 ? Loc.F("Account.ValidUntilOneDay", date) : Loc.F("Account.ValidUntilFmt", date, days);
+        }
+    }
+
     /// The password never lives in a bound property. It is handed over from the
     /// PasswordBox at the moment of the call and dropped straight after, so it
     /// is not sitting in memory for the lifetime of the page.
@@ -41,6 +60,7 @@ public sealed partial class AccountViewModel : ViewModelBase
         _auth = auth;
         _auth.SignInStateChanged += (_, _) => OnSignInStateChanged();
         _ = RefreshPremiumAsync();
+        Loc.LanguageChanged += (_, _) => OnPropertyChanged(nameof(PremiumUntilText));
     }
 
     private void OnSignInStateChanged()
@@ -52,7 +72,13 @@ public sealed partial class AccountViewModel : ViewModelBase
         _ = RefreshPremiumAsync();
     }
 
-    private async Task RefreshPremiumAsync() => IsPremium = await _auth.IsPremiumAsync();
+    private async Task RefreshPremiumAsync()
+    {
+        var (active, until) = await _auth.PremiumStatusAsync();
+        _premiumUntil = until;
+        IsPremium = active;
+        OnPropertyChanged(nameof(PremiumUntilText));
+    }
 
     [RelayCommand]
     private async Task SignInAsync() => await RunAsync(pw => _auth.SignInAsync(Email.Trim(), pw), success: null);

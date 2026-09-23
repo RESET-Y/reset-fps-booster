@@ -56,6 +56,8 @@
                                     Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="PREMIUM" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
                             </Border>
+                            <TextBlock Text="{Binding PremiumUntilText}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="10,0,0,0"
+                                       Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}"/>
                             <Border CornerRadius="3" Padding="8,3" Background="{StaticResource Brush.SurfaceElevated}"
                                     Visibility="{Binding IsPremium, Converter={StaticResource InverseBoolToVis}}">
                                 <TextBlock Text="FREE" FontFamily="Segoe UI Semibold" FontSize="11"

@@ -714,5 +714,25 @@
     "en": "deactivated",
     "de": "deaktiviert",
     "ru": "отключён"
+  },
+  "Account.NoExpiry": {
+    "en": "No expiry",
+    "de": "Ohne Ablauf",
+    "ru": "Без срока действия"
+  },
+  "Account.ValidUntilFmt": {
+    "en": "Valid until {0} · {1} days left",
+    "de": "Gültig bis {0} · noch {1} Tage",
+    "ru": "Действует до {0} · осталось дней: {1}"
+  },
+  "Account.ValidUntilOneDay": {
+    "en": "Valid until {0} · 1 day left",
+    "de": "Gültig bis {0} · noch 1 Tag",
+    "ru": "Действует до {0} · остался 1 день"
+  },
+  "Account.EndsToday": {
+    "en": "Valid until {0} · ends today",
+    "de": "Gültig bis {0} · endet heute",
+    "ru": "Действует до {0} · заканчивается сегодня"
   }
 }

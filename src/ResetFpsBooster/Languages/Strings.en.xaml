@@ -145,4 +145,8 @@
     <sys:String x:Key="Manager.UsesFmt" xml:space="preserve">used {0} of {1}</sys:String>
     <sys:String x:Key="Manager.DaysFmt" xml:space="preserve">{0} days</sys:String>
     <sys:String x:Key="Manager.Inactive" xml:space="preserve">deactivated</sys:String>
+    <sys:String x:Key="Account.NoExpiry" xml:space="preserve">No expiry</sys:String>
+    <sys:String x:Key="Account.ValidUntilFmt" xml:space="preserve">Valid until {0} · {1} days left</sys:String>
+    <sys:String x:Key="Account.ValidUntilOneDay" xml:space="preserve">Valid until {0} · 1 day left</sys:String>
+    <sys:String x:Key="Account.EndsToday" xml:space="preserve">Valid until {0} · ends today</sys:String>
 </ResourceDictionary>

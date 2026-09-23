@@ -145,4 +145,8 @@
     <sys:String x:Key="Manager.UsesFmt" xml:space="preserve">использовано {0} из {1}</sys:String>
     <sys:String x:Key="Manager.DaysFmt" xml:space="preserve">{0} дн.</sys:String>
     <sys:String x:Key="Manager.Inactive" xml:space="preserve">отключён</sys:String>
+    <sys:String x:Key="Account.NoExpiry" xml:space="preserve">Без срока действия</sys:String>
+    <sys:String x:Key="Account.ValidUntilFmt" xml:space="preserve">Действует до {0} · осталось дней: {1}</sys:String>
+    <sys:String x:Key="Account.ValidUntilOneDay" xml:space="preserve">Действует до {0} · остался 1 день</sys:String>
+    <sys:String x:Key="Account.EndsToday" xml:space="preserve">Действует до {0} · заканчивается сегодня</sys:String>
 </ResourceDictionary>

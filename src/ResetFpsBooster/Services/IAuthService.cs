@@ -40,6 +40,10 @@ public interface IAuthService
     /// False when signed out, offline or on any error - never assumed.
     Task<bool> IsManagerAsync(CancellationToken ct = default);
 
+    /// How long premium lasts, from the server. Until is null for premium
+    /// without an end; Active false means none at all, or the call failed.
+    Task<(bool Active, DateTimeOffset? Until)> PremiumStatusAsync(CancellationToken ct = default);
+
     /// Returns the server's status word: ok, not_found, inactive, used_up,
     /// already_redeemed - or "error" when the call itself failed.
     Task<string> RedeemCodeAsync(string code, CancellationToken ct = default);
