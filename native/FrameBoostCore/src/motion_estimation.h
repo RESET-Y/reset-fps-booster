@@ -115,6 +115,7 @@ private:
     ID3D11Buffer* m_blockGridDimsCB = nullptr;
 
     bool m_havePrevFrame = false;
+    bool m_haveCurrFrame = false;
 
     // GPU timing (Phase 6/7): a small ring of query sets so we never stall
     // waiting on the GPU - we only read a query's result several frames

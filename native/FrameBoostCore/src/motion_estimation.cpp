@@ -89,6 +89,7 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     SafeRelease(m_frameDimsCB); m_frameDimsCB = nullptr;
     SafeRelease(m_blockGridDimsCB); m_blockGridDimsCB = nullptr;
     m_havePrevFrame = false;
+    m_haveCurrFrame = false;
 
     m_width = frameDesc.Width;
     m_height = frameDesc.Height;
@@ -297,11 +298,32 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
     if (!EnsureResources(device, desc))
         return false;
 
+    // THE PROMOTION HAPPENS FIRST, and that placement is the whole point.
+    //
+    // It used to be the last statement of this function: compute the vectors
+    // from A and B, then copy B over A "for the next frame". That left prev
+    // and curr holding the SAME picture for the entire rest of the caller's
+    // turn - and the interpolator runs in that rest. It was handed B and B,
+    // and a warp between two identical images is that image, however good the
+    // vectors are. Every generated frame was a copy of the real frame it came
+    // from: the counters read 2x, DXGI displayed all of it, and the screen
+    // showed the source rate. Measured by dumping prev / generated / curr to
+    // disk - all three pixel-identical, twice, at different positions.
+    //
+    // Promoting here instead means the pair is intact from this point until
+    // the next call: prev = A, curr = B, for the vectors AND for everyone
+    // downstream who asks for them.
+    if (m_haveCurrFrame) {
+        context->CopyResource(m_prevFrameTex, m_currFrameTex);
+        m_havePrevFrame = true;
+    }
+
     // Into mip 0, then let the GPU build the chain: the pyramid's coarse stage
     // searches mip 2. CopyResource cannot be used any more now that the
     // destination has mips and the source does not.
     context->CopySubresourceRegion(m_currFrameTex, 0, 0, 0, 0, backBuffer, 0, nullptr);
     context->GenerateMips(m_currFrameSRV);
+    m_haveCurrFrame = true;
 
     bool computedThisFrame = false;
 
@@ -456,10 +478,8 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
         computedThisFrame = true;
     }
 
-    // Current becomes previous for the next frame - stays entirely GPU-side.
-    context->CopyResource(m_prevFrameTex, m_currFrameTex);
-    m_havePrevFrame = true;
-
+    // The promotion used to live here. See the comment at the top of this
+    // function for why it moved and what it cost while it was here.
     return computedThisFrame;
 }
 

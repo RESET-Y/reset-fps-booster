@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Pacing Test</title>
+<!--
+  A CONTROLLED SOURCE, so the engine can be judged without a game in the way.
+
+  Three bars cross the screen at a rate the page holds itself to, not the
+  display's. That makes the capture see exactly this many frames a second, the
+  way a game with an fps cap would behave, and it makes a generated frame's
+  content checkable: with a known speed and a known rate, a true midpoint frame
+  must put the bar exactly half a step between two real ones. Anything else -
+  a copy, a cross-fade - lands on the same lattice as the real frames, and a
+  screenshot says which happened.
+-->
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; height: 100%; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #ui {
+    position: fixed; left: 50%; top: 12px; transform: translateX(-50%);
+    font: 600 14px/1.4 system-ui, sans-serif; color: #ddd;
+    background: rgba(0,0,0,.72); border: 1px solid #333; border-radius: 8px;
+    padding: 8px 12px; display: flex; gap: 10px; align-items: center;
+    user-select: none;
+  }
+  button {
+    font: 600 13px system-ui, sans-serif; color: #ddd; background: #1b1b1b;
+    border: 1px solid #3a3a3a; border-radius: 5px; padding: 5px 10px; cursor: pointer;
+  }
+  button.on { background: #2f6d3f; border-color: #48a05c; color: #fff; }
+  #fps { min-width: 108px; font-variant-numeric: tabular-nums; }
+  #hint { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+          font: 500 12px system-ui, sans-serif; color: #777; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <span>Quellrate:</span>
+  <button data-fps="24">24</button>
+  <button data-fps="30" class="on">30</button>
+  <button data-fps="40">40</button>
+  <button data-fps="60">60</button>
+  <button data-fps="72">72</button>
+  <span id="fps">– fps</span>
+</div>
+<div id="hint">F11 für Vollbild</div>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d', { alpha: false });
+  var W = 0, H = 0;
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.round(window.innerWidth * dpr);
+    H = Math.round(window.innerHeight * dpr);
+    canvas.width = W; canvas.height = H;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Built once and reused, so the pattern travels WITH the bar instead of
+  // shimmering in place - a pattern that changes every frame would be noise to
+  // the estimator rather than something to track.
+  var texture = (function () {
+    var t = document.createElement('canvas');
+    t.width = 96; t.height = 96;
+    var tc = t.getContext('2d');
+    var img = tc.createImageData(96, 96);
+    var seed = 12345;
+    for (var i = 0; i < 96 * 96; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      var v = 60 + (seed >> 16) % 196;
+      img.data[i * 4] = v;
+      img.data[i * 4 + 1] = v;
+      img.data[i * 4 + 2] = v;
+      img.data[i * 4 + 3] = 255;
+    }
+    tc.putImageData(img, 0, 0);
+    return t;
+  })();
+
+  var targetFps = 30;
+  var speed = 900;
+  var pos = 0, dir = 1;
+  var lastDraw = 0, lastTick = 0;
+  var frames = 0, fpsAt = 0;
+
+  document.querySelectorAll('button[data-fps]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('button[data-fps]').forEach(function (o) { o.classList.remove('on'); });
+      b.classList.add('on');
+      targetFps = parseInt(b.dataset.fps, 10);
+    });
+  });
+
+  function draw(now) {
+    var dt = lastTick ? (now - lastTick) / 1000 : 1 / targetFps;
+    lastTick = now;
+    if (dt > 0.25) dt = 1 / targetFps;
+
+    var dpr = W / Math.max(window.innerWidth, 1);
+    var barW = Math.round(90 * dpr);
+    var span = W - barW;
+
+    pos += dir * speed * dpr * dt;
+    if (pos <= 0)    { pos = 0;    dir = 1; }
+    if (pos >= span) { pos = span; dir = -1; }
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#242424';
+    ctx.fillRect(Math.round(W / 2) - 1, 0, 2, H);
+
+    // TEXTURED, NOT FLAT, and that turned out to be the whole difference.
+    //
+    // The first version of this page used plain white bars, and the engine
+    // produced generated frames that carried no new position at all - the
+    // boosted half showed exactly the same 31 px lattice as the untouched one.
+    // That was the test's fault, not the engine's: a block of uniform white
+    // matches equally well anywhere along a uniform bar, so block matching has
+    // nothing to lock onto and correctly reports no motion. The aperture
+    // problem, handed to the estimator on a plate.
+    //
+    // Game content has texture. These bars now do too - a fixed random pattern
+    // that moves with them - so the estimator has something to track and the
+    // question becomes about the engine rather than about the stimulus.
+    var x = Math.round(pos);
+    var heights = [0.18, 0.42, 0.66];
+    for (var bi = 0; bi < heights.length; bi++) {
+      var by = Math.round(H * heights[bi]);
+      var bh = Math.round(H * 0.16);
+      ctx.drawImage(texture, x, by, barW, bh);
+    }
+
+    frames++;
+    if (now - fpsAt >= 500) {
+      document.getElementById('fps').textContent =
+        (frames * 1000 / (now - fpsAt)).toFixed(1) + ' fps';
+      frames = 0; fpsAt = now;
+    }
+  }
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    var interval = 1000 / targetFps;
+    if (now - lastDraw < interval - 0.5) return;
+    lastDraw = now;
+    draw(now);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

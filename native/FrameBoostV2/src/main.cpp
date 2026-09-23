@@ -41,6 +41,7 @@
 #include "synthetic.h"
 #include "picker.h"
 #include "logger.h"
+#include "bmp_writer.h"
 
 #include "motion_estimation.h"
 #include "interpolation.h"
@@ -61,6 +62,52 @@ using FrameBoost::MotionEstimation::Estimator;
 using FrameBoost::Interpolation::Interpolator;
 
 namespace {
+
+// THE THREE FRAMES, WRITTEN OUT ONCE, so the generated one can be checked
+// against its own parents with arithmetic instead of with an eye.
+//
+// Every attempt today to settle "does the generated frame carry a new moment"
+// from a screen capture failed on its own noise: edge detection on a textured
+// object wobbles by a pixel or two, which is enough to invent intermediate
+// positions that are not there. These are the exact GPU surfaces, so there is
+// nothing left to misread.
+void DumpTexture(ID3D11Device* device, ID3D11DeviceContext* context,
+                 ID3D11Texture2D* tex, const std::wstring& path) {
+    if (!tex) return;
+    D3D11_TEXTURE2D_DESC d{};
+    tex->GetDesc(&d);
+
+    D3D11_TEXTURE2D_DESC s{};
+    // MipLevels must MATCH, not be 1. The estimator's frame textures carry a
+    // mip chain - the search runs on mip 1, 4 and 16 - and CopyResource
+    // requires identical descriptions, so a staging texture with one level
+    // fails silently and leaves a black image. That cost a round of confusion
+    // here: two of three dumps came out empty and looked like missing frames.
+    s.Width = d.Width; s.Height = d.Height; s.MipLevels = d.MipLevels; s.ArraySize = 1;
+    s.Format = d.Format; s.SampleDesc.Count = 1;
+    s.Usage = D3D11_USAGE_STAGING;
+    s.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    winrt::com_ptr<ID3D11Texture2D> staging;
+    HRESULT hr = device->CreateTexture2D(&s, nullptr, staging.put());
+    if (FAILED(hr)) {
+        std::ostringstream e; e << "[FrameBoostV2] dump: CreateTexture2D failed 0x"
+          << std::hex << static_cast<unsigned>(hr) << " format=" << std::dec << d.Format;
+        Logger::Log(e.str()); return;
+    }
+    context->CopyResource(staging.get(), tex);
+
+    D3D11_MAPPED_SUBRESOURCE m{};
+    hr = context->Map(staging.get(), 0, D3D11_MAP_READ, 0, &m);
+    if (FAILED(hr)) {
+        std::ostringstream e; e << "[FrameBoostV2] dump: Map failed 0x" << std::hex << static_cast<unsigned>(hr);
+        Logger::Log(e.str()); return;
+    }
+    const bool ok = FrameBoost::BmpWriter::SaveRgba8AsBmp(path, d.Width, d.Height,
+                                          static_cast<const uint8_t*>(m.pData), m.RowPitch);
+    context->Unmap(staging.get(), 0);
+    if (!ok) Logger::Log("[FrameBoostV2] dump: SaveRgba8AsBmp returned false.");
+}
 
 bool HasArg(const std::vector<std::wstring>& args, const wchar_t* name) {
     for (const auto& a : args) if (a == name) return true;
@@ -436,7 +483,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // `nohold` turns it off so the comparison stays one build, two runs.
     const bool holdHalfInterval = !HasArg(args, L"nohold");
 
+    // A red block on generated frames, green on real ones. Diagnostic only.
+    const bool markFrames = HasArg(args, L"mark");
+
+    // Overlay on the left half only, untouched game on the right.
+    const bool halfWidth = HasArg(args, L"half");
+
     Presenter presenter;
+    presenter.EnableHalfWidth(halfWidth);
+    presenter.EnableVsync(HasArg(args, L"vsync"));
     if (measureOnly) {
         Logger::Log("[FrameBoostV2] MEASURE ONLY - capturing and timestamping, presenting "
                     "nothing. Nothing will appear on screen; this measures what the game "
@@ -453,6 +508,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // an uneven source moves the generated frame with it instead of leaving it
     // stranded on a grid.
     interpolator.SetPhase(0.5f);
+
+    // `showblend` paints every cross-faded pixel blue. The interpolation shader
+    // falls back to a plain lerp of the two real frames wherever it does not
+    // trust its motion vectors, and a blend carries no new moment in time - two
+    // samples are two copies, not a midpoint. If the screen turns blue, the
+    // doubling is nominal and the eye is right to see no difference.
+    if (HasArg(args, L"showblend")) interpolator.SetDebugTint(5);
+
+    // `dump` writes prev / generated / curr once, a few seconds in so the
+    // pipeline is settled, then keeps running untouched.
+    const bool dumpFrames = HasArg(args, L"dump");
+    int dumpCountdown = dumpFrames ? 150 : -1;
 
     Telemetry telemetry;
     telemetry.Init(displayHz);
@@ -533,6 +600,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         double genStartMs = 0.0, genEndMs = 0.0;
         double holdRequestedMs = 0.0, holdWaitMs = 0.0;
         double presentStartMs = 0.0, presentReturnMs = 0.0;
+        Presenter::PresentTiming pt{};
+        int queueAtPresent = 0;
         const int queueDepthNow = syntheticMode ? 0 : capture.QueueDepth();
 
         telemetry.NoteSourceArrival();
@@ -659,8 +728,25 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                 // generated frame's stamp on a timeline nothing else uses.
                 const double genContentMs = prevArrivalMs + pairIntervalMs * 0.5;
                 telemetry.NoteGeneratedProduced();
+
+                if (dumpCountdown > 0 && --dumpCountdown == 0) {
+                    // Forward slashes on purpose: Windows accepts them and they
+                    // survive every layer of escaping between here and the disk.
+                    const std::wstring dir =
+                        L"C:/Users/Eto jA/FPS Booster/native/FrameBoostV2/tools/";
+                    DumpTexture(device.get(), context.get(),
+                                estimator.PrevFrameTexture(), dir + L"dump_1_prev.bmp");
+                    DumpTexture(device.get(), context.get(),
+                                interpolator.GeneratedFrameTexture(), dir + L"dump_2_generated.bmp");
+                    DumpTexture(device.get(), context.get(),
+                                estimator.CurrFrameTexture(), dir + L"dump_3_curr.bmp");
+                    Logger::Log("[FrameBoostV2] Frame dump written to tools/.");
+                }
                 presentStartMs = NowMs();
-                const bool okG = presenter.Present(context.get(), interpolator.GeneratedFrameTexture());
+                queueAtPresent = syntheticMode ? 0 : capture.QueueDepth();
+                const bool okG = presenter.Present(context.get(), interpolator.GeneratedFrameTexture(), &pt,
+                                                  markFrames ? Presenter::Marker::Generated
+                                                             : Presenter::Marker::None);
                 presentReturnMs = NowMs();
                 if (okG) {
                     const double shownAt = presentReturnMs;
@@ -675,6 +761,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                     r.holdRequestedMs = holdRequestedMs; r.holdWaitMs = holdWaitMs;
                     r.presentStartMs = presentStartMs; r.presentReturnMs = presentReturnMs;
                     r.queueDepth = queueDepthNow;
+                    r.copyMs = pt.copyMs; r.presentCallMs = pt.presentMs;
+                    r.waitableFree = pt.waitableFree; r.waitableKnown = pt.waitableKnown;
+                    r.submitted = pt.submitted; r.displayed = pt.displayed;
+                    r.queueAtPresent = queueAtPresent;
+                    r.statPresentCount = pt.statPresentCount;
+                    r.statPresentRefresh = pt.statPresentRefresh;
+                    r.statSyncRefresh = pt.statSyncRefresh;
+                    r.statRefreshKnown = pt.statRefreshKnown;
                     telemetry.NoteSequence(r);
                 } else {
                     telemetry.NoteDropped();
@@ -718,7 +812,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         }
 
         presentStartMs = NowMs();
-        const bool okN = presenter.Present(context.get(), frame.texture);
+        queueAtPresent = syntheticMode ? 0 : capture.QueueDepth();
+        pt = Presenter::PresentTiming{};
+        const bool okN = presenter.Present(context.get(), frame.texture, &pt,
+                                          markFrames ? Presenter::Marker::Native
+                                                     : Presenter::Marker::None);
         presentReturnMs = NowMs();
         if (okN) {
             const double shownAt = presentReturnMs;
@@ -737,6 +835,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             r.holdRequestedMs = holdRequestedMs; r.holdWaitMs = holdWaitMs;
             r.presentStartMs = presentStartMs; r.presentReturnMs = presentReturnMs;
             r.queueDepth = queueDepthNow;
+            r.copyMs = pt.copyMs; r.presentCallMs = pt.presentMs;
+            r.waitableFree = pt.waitableFree; r.waitableKnown = pt.waitableKnown;
+            r.submitted = pt.submitted; r.displayed = pt.displayed;
+            r.queueAtPresent = queueAtPresent;
+            r.statPresentCount = pt.statPresentCount;
+            r.statPresentRefresh = pt.statPresentRefresh;
+            r.statSyncRefresh = pt.statSyncRefresh;
+            r.statRefreshKnown = pt.statRefreshKnown;
             telemetry.NoteSequence(r);
         } else {
             telemetry.NoteDropped();

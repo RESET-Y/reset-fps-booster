@@ -59,6 +59,24 @@ struct FrameRecord {
     double   holdRequestedMs = 0.0, holdWaitMs = 0.0;
     double   presentStartMs = 0.0, presentReturnMs = 0.0;
     int      queueDepth = 0;
+
+    // THE PRESENT STAGE, SPLIT. copyMs is GetBuffer plus a full-resolution
+    // CopyResource; presentMs is DXGI's Present alone. waitableFree says
+    // whether the frame-latency semaphore was signalled just before the call -
+    // not signalled means the present queue was full, which is the direct
+    // evidence for or against presenting faster than DXGI drains.
+    // submitted minus displayed is what we handed over but the panel never
+    // showed.
+    double   copyMs = 0.0, presentCallMs = 0.0;
+    bool     waitableFree = false, waitableKnown = false;
+    unsigned submitted = 0, displayed = 0;
+    int      queueAtPresent = 0;
+
+    // The panel's own account, carried per frame. statRefreshKnown false means
+    // DXGI had nothing usable for this present - recorded as unknown, never
+    // substituted.
+    unsigned statPresentCount = 0, statPresentRefresh = 0, statSyncRefresh = 0;
+    bool     statRefreshKnown = false;
 };
 
 class Telemetry {

@@ -99,7 +99,14 @@ void Telemetry::NoteSequence(const FrameRecord& r) {
         << " gen=" << r.genStartMs << '/' << r.genEndMs
         << " hold=" << r.holdWaitMs << '/' << r.holdRequestedMs
         << " pres=" << r.presentStartMs << '/' << r.presentReturnMs
-        << " q=" << r.queueDepth << '\n';
+        << " copy=" << r.copyMs << " dxgi=" << r.presentCallMs
+        << " wait=" << (r.waitableKnown ? (r.waitableFree ? "free" : "FULL") : "?")
+        << " sub/disp=" << r.submitted << '/' << r.displayed
+        << " stat=" << (r.statRefreshKnown ? "y" : "n")
+        << ':' << r.statPresentCount
+        << '/' << r.statPresentRefresh
+        << '/' << r.statSyncRefresh
+        << " q=" << r.queueDepth << '/' << r.queueAtPresent << '\n';
     m_sequenceBuffer += oss.str();
 }
 

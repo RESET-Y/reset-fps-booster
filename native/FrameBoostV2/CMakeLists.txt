@@ -75,6 +75,7 @@ add_executable(FrameBoostBeta WIN32
     "${CORE_DIR}/src/motion_estimation.cpp"
     "${CORE_DIR}/src/interpolation.cpp"
     "${CORE_DIR}/src/logger.cpp"
+    "${CORE_DIR}/src/bmp_writer.cpp"
 )
 
 target_include_directories(FrameBoostBeta PRIVATE
