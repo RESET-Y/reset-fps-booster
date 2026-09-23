@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RESET FPS BOOSTER</title>
+<meta name="description" content="Real Windows and NVIDIA optimization you can see and undo, plus RESET FRAMEBOOST frame generation. No placebo, no fake FPS.">
+<link rel="icon" href="assets/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800;900&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* One visual world, like the app: near-black, livery red, slanted type. */
+:root {
+  --bg: #050505;
+  --surface: #0c0c0c;
+  --surface-2: #141414;
+  --hover: #1c1c1c;
+  --border: #262626;
+  --text: #ffffff;
+  --text-2: #a8a8a8;
+  --text-3: #6a6a6a;
+  --accent: #e8121f;
+  --accent-bright: #ff3242;
+  --success: #3dd68c;
+  --warning: #f5a623;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, monospace;
+  --skew: -12deg;
+  --max: 1180px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { display: block; max-width: 100%; }
+:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
+
+/* hatched racing stripe, same as the app's top edge */
+.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
+
+.wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+
+/* ---------- nav ---------- */
+header { position: sticky; top: 0; z-index: 10; background: rgba(5,5,5,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+.nav { display: flex; align-items: center; gap: 28px; height: 64px; }
+.nav img { height: 28px; width: auto; }
+.nav .links { display: flex; gap: 24px; margin-left: auto; }
+.nav .lang { margin-left: auto; }
+.nav .links + .lang { margin-left: 0; }
+.nav .links a { font: 800 italic 15px var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--text-2); transition: color .15s; }
+.nav .links a:hover { color: var(--text); }
+
+/* ---------- slanted buttons ---------- */
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; transform: skewX(var(--skew)); text-decoration: none;
+       font: 900 italic 17px var(--display); letter-spacing: .05em; text-transform: uppercase; transition: transform .15s, background .15s; border: 1px solid transparent; }
+.btn > span { transform: skewX(12deg); display: inline-block; }
+.btn:hover { transform: skewX(var(--skew)) scale(1.05); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-bright); }
+.btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--accent); }
+.btn-small { padding: 9px 18px; font-size: 14px; }
+
+/* ---------- type ---------- */
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); display: flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); }
+h1, h2, h3 { font-family: var(--display); font-style: italic; font-weight: 900; text-transform: uppercase; line-height: .95; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(52px, 8vw, 104px); letter-spacing: -.01em; }
+h2 { font-size: clamp(38px, 5vw, 64px); }
+h3 { font-size: 24px; line-height: 1.05; }
+.accent { color: var(--accent); }
+.lead { color: var(--text-2); font-size: 19px; max-width: 58ch; margin: 22px 0 0; }
+.mono { font-family: var(--mono); }
+
+section { padding: 110px 0; border-bottom: 1px solid var(--border); }
+.head { display: grid; gap: 16px; margin-bottom: 52px; max-width: 760px; }
+.head p { color: var(--text-2); margin: 0; max-width: 60ch; }
+
+/* ---------- hero ---------- */
+.hero { padding: 90px 0 100px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 56px; align-items: center; }
+.status { font: 500 12px var(--mono); letter-spacing: .12em; color: var(--success); margin-bottom: 26px; display: inline-flex; align-items: center; gap: 10px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); position: relative; }
+.dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--success); animation: pulse 1.2s ease-out infinite; }
+@keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(2.6); opacity: 0; } }
+.ctas { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 36px; }
+.fine { margin-top: 18px; font: 400 12px var(--mono); color: var(--text-3); }
+
+/* telemetry panel: the FrameBoost readout from the app */
+.panel { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 26px 28px; }
+.panel-top { display: flex; justify-content: space-between; align-items: center; font: 900 italic 18px var(--display); text-transform: uppercase; }
+.panel-top .live { display: inline-flex; align-items: center; gap: 10px; }
+.readout { display: flex; align-items: flex-end; gap: 18px; margin-top: 22px; flex-wrap: wrap; }
+.readout .label { font: 400 11px var(--mono); color: var(--text-3); letter-spacing: .08em; }
+.num { font: 900 italic 64px/0.9 var(--display); font-variant-numeric: tabular-nums; }
+.num.big { font-size: 104px; color: var(--accent-bright); }
+.num .unit { font-size: 20px; color: var(--accent); margin-left: 4px; }
+.slash { font: 900 italic 64px/0.9 var(--display); color: var(--accent); padding-bottom: 4px; }
+.segs { display: flex; gap: 3px; margin-top: 20px; }
+.segs i { flex: 1; height: 9px; background: var(--hover); transform: skewX(-15deg); transition: background .3s; }
+.segs i.on { background: var(--accent); }
+.tele { margin-top: 16px; font: 400 12px var(--mono); color: var(--text-3); }
+.tele b { color: var(--text); font-weight: 500; }
+.panel-note { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-3); }
+
+/* ---------- stat strip ---------- */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.stat { padding: 28px 24px; border-right: 1px solid var(--border); }
+.stat:last-child { border-right: 0; }
+.stat .num { font-size: 56px; }
+.stat p { margin: 6px 0 0; font: 400 12px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+
+/* ---------- cards ---------- */
+.grid { display: grid; gap: 16px; }
+.grid-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.card { background: var(--surface); border: 1px solid var(--border); padding: 24px; transition: border-color .2s, transform .2s; }
+.card:hover { border-color: #3a3a3a; transform: translateY(-3px); }
+.card p { color: var(--text-2); margin: 10px 0 0; font-size: 15px; }
+.tags { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.tag { display: inline-block; padding: 3px 10px; transform: skewX(var(--skew)); background: var(--hover); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.tag > span { display: inline-block; transform: skewX(12deg); }
+.tag.red { background: var(--accent); color: #fff; }
+.risk { font: 400 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.risk.low { color: var(--success); }
+.risk.med { color: var(--warning); }
+
+/* ---------- FrameBoost ---------- */
+.fb { background: linear-gradient(180deg, #0a0506 0%, var(--bg) 70%); }
+.fb-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 56px; align-items: start; }
+.facts { display: grid; gap: 0; margin-top: 30px; }
+.fact { display: grid; grid-template-columns: 150px 1fr; gap: 20px; padding: 16px 0; border-top: 1px solid var(--border); }
+.fact dt { font: 900 italic 17px var(--display); text-transform: uppercase; }
+.fact dd { margin: 0; color: var(--text-2); font-size: 15px; }
+.modes { display: grid; gap: 16px; }
+.mode { border-left: 3px solid var(--accent); }
+.mode.alt { border-left-color: var(--text-3); }
+.mode .num { font-size: 44px; }
+
+/* ---------- steps ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--border); }
+.step { padding: 28px 24px; border-right: 1px solid var(--border); position: relative; }
+.step:last-child { border-right: 0; }
+.step .n { font: 900 italic 56px/1 var(--display); color: var(--accent); }
+.step p { color: var(--text-2); font-size: 15px; margin: 10px 0 0; }
+
+/* ---------- game boost terminal ---------- */
+.split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 48px; align-items: center; }
+.split + .split { margin-top: 90px; }
+.split ul { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+.split li { color: var(--text-2); padding-left: 22px; position: relative; }
+.split li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
+.term { background: #000; border: 1px solid var(--border); padding: 22px; font: 400 13px/1.8 var(--mono); color: var(--text-2); overflow-x: auto; white-space: pre; }
+.term .h { color: var(--accent-bright); }
+.term .ok { color: var(--success); }
+
+/* ---------- pricing ---------- */
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; align-items: stretch; }
+.plan { display: flex; flex-direction: column; }
+.plan .tag, .plan .btn { align-self: flex-start; }
+.plan.featured { border: 2px solid var(--accent); }
+.plan .price { font: 900 italic 60px/1 var(--display); margin: 18px 0 4px; }
+.plan .price small { font-size: 18px; color: var(--text-3); }
+.plan ul { list-style: none; padding: 0; margin: 18px 0 26px; display: grid; gap: 8px; flex: 1; }
+.plan li { color: var(--text-2); font-size: 15px; padding-left: 22px; position: relative; }
+.plan li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
+.plan .soon { margin: 0 0 14px; }
+.head p a { color: var(--accent-bright); }
+.plan .soon { font: 500 12px var(--mono); color: var(--warning); letter-spacing: .08em; text-transform: uppercase; }
+.plans-note { margin-top: 22px; font-size: 14px; color: var(--text-3); }
+
+/* ---------- download ---------- */
+.dl { text-align: left; }
+.dl-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-top: 40px; }
+.dl-card .ver { font: 900 italic 40px var(--display); }
+.dl-card .meta { font: 400 12px var(--mono); color: var(--text-3); margin: 6px 0 22px; }
+
+footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
+.foot { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
+.foot nav { display: flex; gap: 20px; }
+.foot a { text-decoration: none; color: var(--text-2); }
+.foot a:hover { color: var(--text); }
+
+/* language switch */
+.lang { display: inline-flex; transform: skewX(var(--skew)); border: 1px solid var(--border); }
+.lang button { background: none; border: 0; color: var(--text-3); font: 800 italic 13px var(--display); letter-spacing: .06em; padding: 6px 10px; cursor: pointer; }
+.lang button > span { display: inline-block; transform: skewX(12deg); }
+.lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.lang button:hover:not([aria-pressed="true"]) { color: var(--text); }
+
+/* language switch: a slanted livery panel sweeps across, the language changes under it */
+#wipe { position: fixed; top: -10vh; bottom: -10vh; left: -25vw; width: 150vw; z-index: 90; pointer-events: none;
+        display: grid; place-items: center; transform: translateX(-140%) skewX(-12deg);
+        background:
+          repeating-linear-gradient(-56deg, #000 0 8px, transparent 8px 16px) left / 34px 100% no-repeat,
+          repeating-linear-gradient(-56deg, #000 0 8px, transparent 8px 16px) right / 34px 100% no-repeat,
+          var(--accent); }
+#wipe span { transform: skewX(12deg); font: 900 italic clamp(120px, 26vw, 340px)/1 var(--display); color: #fff; letter-spacing: -.02em; }
+#wipe span small { display: block; font: 500 14px var(--mono); letter-spacing: .3em; text-align: center; margin-top: 6px; }
+.scrambling { color: var(--accent-bright) !important; }
+
+/* intro: once per visit, built by JS so the page itself never waits on it */
+#intro { position: fixed; inset: 0; z-index: 100; background: #000; display: grid; place-items: center; cursor: pointer;
+         transition: transform .7s cubic-bezier(.7,0,.3,1); }
+#intro.out { transform: translateY(-104%) skewY(-3deg); }
+#intro .stripe { position: absolute; left: 0; right: 0; top: 0; transform-origin: left; animation: sweep .8s cubic-bezier(.2,.8,.2,1) both; }
+#intro .stripe.bottom { top: auto; bottom: 0; transform-origin: right; }
+@keyframes sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+#intro .core { display: grid; justify-items: center; gap: 22px; width: min(460px, 80vw); }
+#intro img { width: 100%; height: auto; animation: logoIn .7s .15s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes logoIn { from { opacity: 0; transform: skewX(-12deg) translateX(-40px); } to { opacity: 1; transform: none; } }
+#intro .bar { display: flex; gap: 4px; width: 100%; }
+#intro .bar i { flex: 1; height: 8px; background: #1c1c1c; transform: skewX(-15deg); }
+#intro .bar i.on { background: var(--accent); }
+#intro .line { font: 400 12px var(--mono); letter-spacing: .14em; color: var(--text-3); min-height: 1.4em; }
+#intro .skip { position: absolute; right: 24px; bottom: 24px; font: 400 11px var(--mono); letter-spacing: .1em; color: var(--text-3); text-transform: uppercase; }
+
+/* reveal: content is visible without JS; JS only animates it in */
+.js .rv { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
+.js .rv.in { opacity: 1; transform: none; }
+
+@media (max-width: 960px) {
+  .hero-grid, .fb-grid, .split { grid-template-columns: minmax(0,1fr); }
+  .grid-4, .steps { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .step:nth-child(2) { border-right: 0; }
+  .step:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .plans { grid-template-columns: minmax(0,1fr); }
+  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .stat:nth-child(2) { border-right: 0; }
+  .stat:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .nav .links { display: none; }
+  .nav .links + .lang { margin-left: auto; }
+}
+@media (max-width: 600px) {
+  .wrap { padding: 0 16px; }
+  section { padding: 76px 0; }
+  .grid-4, .grid-2, .steps, .dl-grid { grid-template-columns: minmax(0,1fr); }
+  .step { border-right: 0; border-bottom: 1px solid var(--border); }
+  .num.big { font-size: 80px; }
+  .fact { grid-template-columns: minmax(0,1fr); gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .js .rv { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap nav">
+    <a href="#top" aria-label="RESET FPS BOOSTER home"><img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="112" height="28"></a>
+    <nav class="links" aria-label="Sections">
+      <a href="#modules">Modules</a>
+      <a href="#frameboost">FrameBoost</a>
+      <a href="#premium">Premium</a>
+      <a href="#undo">Undo</a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="true"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="false"><span>DE</span></button>
+    </div>
+    <a class="btn btn-primary btn-small" href="#download"><span>Download</span></a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- ================= HERO ================= -->
+  <div class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="status"><span class="dot"></span>SYSTEM ONLINE // PERFORMANCE ENGINE READY</div>
+        <h1>Real optimization.<br><span class="accent">No placebo.</span></h1>
+        <p class="lead">RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every change can be undone.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="#download"><span>Download for Windows</span></a>
+          <a class="btn btn-secondary" href="#frameboost"><span>See FrameBoost</span></a>
+        </div>
+        <p class="fine">Windows 10/11 x64 · Free core app · No telemetry</p>
+      </div>
+
+      <div class="panel rv" aria-label="Example FrameBoost readout">
+        <div class="panel-top">
+          <span class="live"><span class="dot"></span>FrameBoost active</span>
+          <span class="tag red"><span>Premium</span></span>
+        </div>
+        <div class="readout">
+          <div><div class="label">GAME FPS</div><div class="num" id="src">60</div></div>
+          <div class="slash">//</div>
+          <div><div class="label">OUTPUT FPS</div><div class="num big"><span id="out">120</span><span class="unit">FPS</span></div></div>
+        </div>
+        <div class="segs" id="segs"></div>
+        <div class="tele">LAT <b id="lat">11.8ms</b> · CAP <b>2.1ms</b> · GPU <b>0.84ms</b></div>
+        <div class="panel-note">Example readout from Apex Legends on an RTX 3060, capped at 60.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat rv"><div class="num">8</div><p>Optimization modules</p></div>
+      <div class="stat rv"><div class="num">100<span class="unit" style="font-size:24px;color:var(--accent)">%</span></div><p>Reversible changes</p></div>
+      <div class="stat rv"><div class="num">0</div><p>Fabricated FPS claims</p></div>
+      <div class="stat rv"><div class="num">2<span class="unit" style="font-size:24px;color:var(--accent)">×</span></div><p>Frames with FrameBoost</p></div>
+    </div>
+  </div>
+
+  <!-- ================= MODULES ================= -->
+  <section id="modules">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Modules</div>
+        <h2>Every module, <span class="accent">one purpose</span></h2>
+        <p>Each one reads the real setting first, tells you what it will change and how risky that is, and logs the old value before touching it.</p>
+      </div>
+      <div class="grid grid-4">
+        <article class="card rv"><div class="tags"><span class="tag"><span>Gaming</span></span><span class="risk low">Low risk</span></div><h3>Game Mode &amp; Game DVR</h3><p>Prioritizes your game's scheduling and turns off the Xbox Game Bar capture buffer that quietly eats CPU, GPU and disk I/O.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>Windows</span></span><span class="risk low">Low risk</span></div><h3>Power plan &amp; startup</h3><p>High Performance so the CPU stops downclocking, and non-essential startup helpers off. Gaming platforms are never touched.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>GPU</span></span><span class="risk med">Medium risk</span></div><h3>GPU scheduling</h3><p>Hardware-accelerated GPU scheduling for lower latency on supported cards. Needs a restart, so it's opt-in.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>GPU</span></span><span class="risk med">Medium risk</span></div><h3>NVIDIA max performance</h3><p>Power management, threaded optimization, texture filtering and V-Sync, set through NVIDIA's own NVAPI.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>Network</span></span><span class="risk low">Low risk</span></div><h3>Network throttling</h3><p>Removes the roughly 10,000 packets per second cap Windows applies while a multimedia or gaming task runs.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>Memory</span></span><span class="risk low">Low risk</span></div><h3>RAM cleaner</h3><p>Trims idle background working sets and clears the standby list. Nothing is closed; pages come back on next use.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>Storage</span></span><span class="risk low">Low risk</span></div><h3>Temp file cleanup</h3><p>Shows the reclaimable size of your temp folders before deleting a single byte.</p></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>CPU</span></span><span class="risk low">Low risk</span></div><h3>Power throttling</h3><p>Stops Windows from throttling background processes. Flagged on laptops, where it costs battery.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FRAMEBOOST ================= -->
+  <section id="frameboost" class="fb">
+    <div class="wrap fb-grid">
+      <div class="rv">
+        <div class="eyebrow">RESET FrameBoost · Beta</div>
+        <h2 style="margin-top:16px">Twice the frames.<br><span class="accent">Nothing injected.</span></h2>
+        <p class="lead">FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.</p>
+        <dl class="facts">
+          <div class="fact"><dt>No injection</dt><dd>No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.</dd></div>
+          <div class="fact"><dt>Honest count</dt><dd>A picture shown twice is one frame. Output FPS only counts frames that are actually new.</dd></div>
+          <div class="fact"><dt>Best setup</dt><dd>Cap the game at half your refresh rate and leave the GPU some headroom. The app tells you the cap for your monitor.</dd></div>
+        </dl>
+      </div>
+      <div class="modes">
+        <div class="card mode rv">
+          <div class="tags"><span class="tag red"><span>Quality</span></span><span class="risk">Default</span></div>
+          <div class="num">60 <span class="accent">//</span> 120</div>
+          <p>Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.</p>
+        </div>
+        <div class="card mode alt rv">
+          <div class="tags"><span class="tag"><span>Low latency</span></span><span class="risk">One switch</span></div>
+          <div class="num">LOW <span class="accent">LAT</span></div>
+          <p>Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PROCESS ================= -->
+  <section>
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Process</div>
+        <h2>Four steps, <span class="accent">always in this order</span></h2>
+        <p>Nothing is applied before you've seen it.</p>
+      </div>
+      <div class="steps rv">
+        <div class="step"><div class="n">01</div><h3>Scan</h3><p>Reads your real CPU, GPU, RAM and storage and the current state of every module.</p></div>
+        <div class="step"><div class="n">02</div><h3>Review</h3><p>Shows the exact setting each module changes, its risk, and whether it needs admin or a restart.</p></div>
+        <div class="step"><div class="n">03</div><h3>Apply</h3><p>Writes only what you approved, through the registry, NVAPI or power-plan APIs.</p></div>
+        <div class="step"><div class="n">04</div><h3>Backup</h3><p>The previous value of every change is stored first, so each one can be reverted on its own.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLAY ================= -->
+  <section>
+    <div class="wrap">
+      <div class="split">
+        <div class="rv">
+          <div class="eyebrow">Game Boost</div>
+          <h2 style="margin-top:16px">Detects your game. <span class="accent">Clears the track.</span></h2>
+          <p class="lead">When a game starts, other background apps drop in CPU priority. Nothing is suspended or closed, and everything returns to normal the moment you quit.</p>
+          <ul>
+            <li>Streaming software stays untouched: OBS, Streamlabs, XSplit, NVIDIA Broadcast</li>
+            <li>Voice chat stays smooth: Discord, Teams, TeamSpeak</li>
+            <li>Every activation lands in the change log</li>
+          </ul>
+        </div>
+        <div class="term rv" role="img" aria-label="Game Boost log example"><span class="h">[GAME BOOST]</span> Counter-Strike 2 detected (PID 41208)
+&gt; deprioritized 14 background process(es)
+&gt; game process priority: AboveNormal
+<span class="ok">✓</span> OBS64.exe untouched
+<span class="ok">✓</span> Discord.exe untouched
+&gt; waiting for exit…</div>
+      </div>
+      <div class="split">
+        <div class="term rv" role="img" aria-label="Autoexec example"><span class="h">// Managed by RESET FPS BOOSTER</span>
+fps_max              0
+r_shadows            0
+mat_bloomscale       0
+stream_drop_unused   1
+<span class="ok">✓</span> previous autoexec.cfg backed up</div>
+        <div class="rv">
+          <div class="eyebrow">Game profiles</div>
+          <h2 style="margin-top:16px">Every Steam and Epic install. <span class="accent">No fixed list.</span></h2>
+          <p class="lead">Games are found from your real library metadata. Apex Legends and Counter-Strike 2 get a curated autoexec.cfg in one click, with your old file backed up.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= UNDO ================= -->
+  <section id="undo">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Trust</div>
+        <h2>You can undo <span class="accent">anything</span></h2>
+      </div>
+      <div class="grid grid-2">
+        <article class="card rv"><h3>Backup per change</h3><p>Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.</p></article>
+        <article class="card rv"><h3>Plain-language log</h3><p>"Power Management: Adaptive → Prefer Maximum Performance." The actual old and new value, not a code.</p></article>
+        <article class="card rv"><h3>Windows restore points</h3><p>On top of its own snapshots, the app creates a real System Restore point in one click.</p></article>
+        <article class="card rv"><h3>Admin-aware</h3><p>Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PREMIUM ================= -->
+  <section id="premium">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Premium</div>
+        <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
+        <p>Premium unlocks RESET FrameBoost on your RESET account. Online checkout isn&#39;t open yet, so for now FrameBoost is unlocked on request: email <a href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock">lukas.reschke80@gmail.com</a> with the e-mail address of your account.</p>
+      </div>
+      <div class="plans">
+        <article class="card plan rv">
+          <span class="tag"><span>Free</span></span>
+          <div class="price">0 €</div>
+          <ul>
+            <li>All optimization modules</li>
+            <li>Game Boost and game profiles</li>
+            <li>Backups, restore points, change log</li>
+            <li>Performance monitor</li>
+          </ul>
+          <a class="btn btn-secondary" href="#download"><span>Download</span></a>
+        </article>
+        <article class="card plan featured rv">
+          <span class="tag red"><span>Lifetime</span></span>
+          <div class="price">19,99 € <small>once</small></div>
+          <ul>
+            <li>Everything in Free</li>
+            <li>RESET FrameBoost, for good</li>
+            <li>Quality and low-latency modes</li>
+            <li>Future FrameBoost updates</li>
+          </ul>
+          <p class="soon">Online checkout opens soon</p>
+          <a class="btn btn-primary" href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock"><span>Request unlock</span></a>
+        </article>
+        <article class="card plan rv">
+          <span class="tag"><span>Monthly</span></span>
+          <div class="price">2,99 € <small>/ month</small></div>
+          <ul>
+            <li>Everything in Free</li>
+            <li>RESET FrameBoost</li>
+            <li>Cancel anytime</li>
+          </ul>
+          <p class="soon">Online checkout opens soon</p>
+          <a class="btn btn-secondary" href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock"><span>Request unlock</span></a>
+        </article>
+      </div>
+      <p class="plans-note">Create your account in the app first (Account page), then send that e-mail address. You get an unlock code to redeem on the same page.</p>
+    </div>
+  </section>
+
+  <!-- ================= DOWNLOAD ================= -->
+  <section id="download" class="dl">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Download</div>
+        <h2>Get <span class="accent">RESET FPS BOOSTER</span></h2>
+        <p>Self-contained installer, no extra runtimes. The app updates itself.</p>
+      </div>
+      <div class="dl-grid">
+        <article class="card dl-card rv">
+          <span class="tag"><span>Stable</span></span>
+          <div class="ver" style="margin-top:14px">v1.2.5</div>
+          <div class="meta">Windows 10/11 x64 · optimizer, game boost, backups</div>
+          <a class="btn btn-secondary" href="https://github.com/RESET-Y/reset-fps-booster/releases/tag/v1.2.5"><span>Download stable</span></a>
+        </article>
+        <article class="card dl-card rv" style="border-left:3px solid var(--accent)">
+          <span class="tag red"><span>Beta</span></span>
+          <div class="ver" style="margin-top:14px">v1.3.0-beta</div>
+          <div class="meta">Adds RESET FrameBoost, accounts, German and Russian</div>
+          <a class="btn btn-primary" href="https://github.com/RESET-Y/reset-fps-booster/releases/tag/v1.3.0-beta"><span>Download beta</span></a>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Made by Lukas Reschke</span>
+    <nav aria-label="Links">
+      <a href="https://github.com/RESET-Y/reset-fps-booster">Source</a>
+      <a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a>
+      <a href="https://github.com/RESET-Y/reset-fps-booster/issues">Report a problem</a>
+    </nav>
+  </div>
+</footer>
+<div class="stripe"></div>
+
+<script>
+document.documentElement.classList.add("js");
+
+// ---------- language: English in the markup, German swapped in text node by text node ----------
+const DE = {
+ "Modules": "Module",
+ "Undo": "Rückgängig",
+ "SYSTEM ONLINE // PERFORMANCE ENGINE READY": "SYSTEM ONLINE // PERFORMANCE ENGINE BEREIT",
+ "Real optimization.": "Echte Optimierung.",
+ "No placebo.": "Kein Placebo.",
+ "RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every change can be undone.": "RESET FPS BOOSTER liest deine echte Hardware aus, setzt dokumentierte Windows- und NVIDIA-Einstellungen über ihre echten Schnittstellen und zeigt dir genau, was sich geändert hat. Jeder Wert vorher und nachher, und jede Änderung lässt sich rückgängig machen.",
+ "Download for Windows": "Für Windows laden",
+ "See FrameBoost": "FrameBoost ansehen",
+ "Windows 10/11 x64 · Free core app · No telemetry": "Windows 10/11 x64 · Kern-App kostenlos · Keine Telemetrie",
+ "FrameBoost active": "FrameBoost aktiv",
+ "GAME FPS": "SPIEL-FPS",
+ "OUTPUT FPS": "AUSGABE-FPS",
+ "Example readout from Apex Legends on an RTX 3060, capped at 60.": "Beispielwerte aus Apex Legends auf einer RTX 3060, begrenzt auf 60.",
+ "Optimization modules": "Optimierungsmodule",
+ "Reversible changes": "Umkehrbare Änderungen",
+ "Fabricated FPS claims": "Erfundene FPS-Angaben",
+ "Frames with FrameBoost": "Frames mit FrameBoost",
+ "Every module,": "Jedes Modul,",
+ "one purpose": "ein Zweck",
+ "Each one reads the real setting first, tells you what it will change and how risky that is, and logs the old value before touching it.": "Jedes liest zuerst die echte Einstellung, sagt dir, was es ändert und wie riskant das ist, und sichert den alten Wert, bevor es etwas anfasst.",
+ "Low risk": "Geringes Risiko",
+ "Medium risk": "Mittleres Risiko",
+ "Game Mode & Game DVR": "Spielmodus & Game DVR",
+ "Prioritizes your game's scheduling and turns off the Xbox Game Bar capture buffer that quietly eats CPU, GPU and disk I/O.": "Priorisiert dein Spiel und schaltet den Aufnahmepuffer der Xbox Game Bar ab, der still CPU, GPU und Festplatte belastet.",
+ "Power plan & startup": "Energieplan & Autostart",
+ "High Performance so the CPU stops downclocking, and non-essential startup helpers off. Gaming platforms are never touched.": "Höchstleistung, damit die CPU nicht heruntertaktet, und unnötige Autostart-Helfer aus. Spieleplattformen bleiben immer unberührt.",
+ "GPU scheduling": "GPU-Planung",
+ "Hardware-accelerated GPU scheduling for lower latency on supported cards. Needs a restart, so it's opt-in.": "Hardwarebeschleunigte GPU-Planung für weniger Latenz auf unterstützten Karten. Braucht einen Neustart, deshalb nur auf Wunsch.",
+ "NVIDIA max performance": "NVIDIA Maximale Leistung",
+ "Power management, threaded optimization, texture filtering and V-Sync, set through NVIDIA's own NVAPI.": "Energieverwaltung, Threaded Optimization, Texturfilterung und V-Sync, gesetzt über NVIDIAs eigene NVAPI.",
+ "Network": "Netzwerk",
+ "Network throttling": "Netzwerkdrosselung",
+ "Removes the roughly 10,000 packets per second cap Windows applies while a multimedia or gaming task runs.": "Entfernt die Grenze von rund 10.000 Paketen pro Sekunde, die Windows setzt, solange Multimedia oder ein Spiel läuft.",
+ "Memory": "Arbeitsspeicher",
+ "RAM cleaner": "RAM-Reiniger",
+ "Trims idle background working sets and clears the standby list. Nothing is closed; pages come back on next use.": "Verkleinert den Speicher untätiger Hintergrundprozesse und leert die Standby-Liste. Nichts wird geschlossen, die Daten kommen bei Bedarf zurück.",
+ "Storage": "Speicher",
+ "Temp file cleanup": "Temp-Dateien bereinigen",
+ "Shows the reclaimable size of your temp folders before deleting a single byte.": "Zeigt, wie viel Platz deine Temp-Ordner freigeben, bevor ein einziges Byte gelöscht wird.",
+ "Power throttling": "Energiedrosselung",
+ "Stops Windows from throttling background processes. Flagged on laptops, where it costs battery.": "Verhindert, dass Windows Hintergrundprozesse drosselt. Auf Laptops markiert, weil es Akku kostet.",
+ "Twice the frames.": "Doppelte Frames.",
+ "Nothing injected.": "Nichts injiziert.",
+ "FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.": "FrameBoost nimmt dein Spielfenster auf, schätzt die Bewegung zwischen zwei echten Frames und zeigt dazwischen einen erzeugten Frame. Es läuft neben dem Spiel, nie darin.",
+ "No injection": "Kein Injecting",
+ "No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.": "Keine DLL, keine Hooks, kein Zugriff auf Spielspeicher oder Spieldateien. Es liest das Spielfenster so, wie eine Bildschirmaufnahme es tut.",
+ "Honest count": "Ehrlich gezählt",
+ "A picture shown twice is one frame. Output FPS only counts frames that are actually new.": "Ein Bild, das zweimal gezeigt wird, ist ein Frame. Die Ausgabe-FPS zählen nur Frames, die wirklich neu sind.",
+ "Best setup": "Beste Einstellung",
+ "Cap the game at half your refresh rate and leave the GPU some headroom. The app tells you the cap for your monitor.": "Begrenze das Spiel auf die halbe Bildwiederholrate und lass der GPU etwas Luft. Die App zeigt dir das Limit für deinen Monitor.",
+ "Quality": "Qualität",
+ "Default": "Standard",
+ "Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.": "Bewegungsschätzung in voller Auflösung für die saubersten Zwischenbilder, dafür etwas mehr Latenz.",
+ "Low latency": "Low Latency",
+ "One switch": "Ein Schalter",
+ "Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.": "Zeigt Frames, sobald sie fertig sind, und schätzt Bewegung in geringerer Auflösung. Weniger Verzögerung, etwas weichere erzeugte Frames.",
+ "Process": "Ablauf",
+ "Four steps,": "Vier Schritte,",
+ "always in this order": "immer in dieser Reihenfolge",
+ "Nothing is applied before you've seen it.": "Nichts wird angewendet, bevor du es gesehen hast.",
+ "Reads your real CPU, GPU, RAM and storage and the current state of every module.": "Liest deine echte CPU, GPU, RAM und Speicher aus und den aktuellen Zustand jedes Moduls.",
+ "Review": "Prüfen",
+ "Shows the exact setting each module changes, its risk, and whether it needs admin or a restart.": "Zeigt genau, welche Einstellung jedes Modul ändert, sein Risiko und ob es Adminrechte oder einen Neustart braucht.",
+ "Apply": "Anwenden",
+ "Writes only what you approved, through the registry, NVAPI or power-plan APIs.": "Schreibt nur, was du freigegeben hast, über Registry, NVAPI oder Energieplan-Schnittstellen.",
+ "Backup": "Sichern",
+ "The previous value of every change is stored first, so each one can be reverted on its own.": "Der vorherige Wert jeder Änderung wird zuerst gespeichert, damit sich jede einzeln zurücknehmen lässt.",
+ "Detects your game.": "Erkennt dein Spiel.",
+ "Clears the track.": "Macht die Strecke frei.",
+ "When a game starts, other background apps drop in CPU priority. Nothing is suspended or closed, and everything returns to normal the moment you quit.": "Sobald ein Spiel startet, sinkt die CPU-Priorität anderer Hintergrund-Apps. Nichts wird angehalten oder geschlossen, und beim Beenden ist sofort alles wie vorher.",
+ "Streaming software stays untouched: OBS, Streamlabs, XSplit, NVIDIA Broadcast": "Streaming-Software bleibt unberührt: OBS, Streamlabs, XSplit, NVIDIA Broadcast",
+ "Voice chat stays smooth: Discord, Teams, TeamSpeak": "Voice-Chat läuft weiter flüssig: Discord, Teams, TeamSpeak",
+ "Every activation lands in the change log": "Jede Aktivierung landet im Änderungsprotokoll",
+ "Game profiles": "Spielprofile",
+ "Every Steam and Epic install.": "Jede Steam- und Epic-Installation.",
+ "No fixed list.": "Keine feste Liste.",
+ "Games are found from your real library metadata. Apex Legends and Counter-Strike 2 get a curated autoexec.cfg in one click, with your old file backed up.": "Spiele werden aus deinen echten Bibliotheksdaten gefunden. Apex Legends und Counter-Strike 2 bekommen mit einem Klick eine abgestimmte autoexec.cfg, deine alte Datei wird gesichert.",
+ "Trust": "Vertrauen",
+ "You can undo": "Du kannst alles",
+ "anything": "rückgängig machen",
+ "Backup per change": "Backup pro Änderung",
+ "Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.": "Jeder Registry-Wert, jede Treibereinstellung und jede Datei wird vorher gesichert. Stell eine Änderung oder eine ganze Sitzung wieder her.",
+ "Plain-language log": "Protokoll in Klartext",
+ "\"Power Management: Adaptive → Prefer Maximum Performance.\" The actual old and new value, not a code.": "„Energieverwaltung: Adaptiv → Maximale Leistung bevorzugen.“ Der echte alte und neue Wert, kein Code.",
+ "Windows restore points": "Windows-Wiederherstellungspunkte",
+ "On top of its own snapshots, the app creates a real System Restore point in one click.": "Zusätzlich zu den eigenen Backups erstellt die App mit einem Klick einen echten Systemwiederherstellungspunkt.",
+ "Admin-aware": "Kennt Adminrechte",
+ "Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.": "Module, die Adminrechte brauchen, sagen es vorher, und die App bietet einen Neustart mit Adminrechten an, statt still zu scheitern.",
+ "The optimizer is free.": "Der Optimierer ist kostenlos.",
+ "FrameBoost is Premium.": "FrameBoost ist Premium.",
+ "Premium unlocks RESET FrameBoost on your RESET account. Online checkout isn't open yet, so for now FrameBoost is unlocked on request: email": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Der Online-Kauf ist noch nicht offen, deshalb wird FrameBoost vorerst auf Anfrage freigeschaltet: schreib an",
+ "with the e-mail address of your account.": "mit der E-Mail-Adresse deines Accounts.",
+ "Free": "Kostenlos",
+ "All optimization modules": "Alle Optimierungsmodule",
+ "Game Boost and game profiles": "Game Boost und Spielprofile",
+ "Backups, restore points, change log": "Backups, Wiederherstellungspunkte, Änderungsprotokoll",
+ "Performance monitor": "Leistungsmonitor",
+ "once": "einmalig",
+ "Everything in Free": "Alles aus Kostenlos",
+ "RESET FrameBoost, for good": "RESET FrameBoost, für immer",
+ "Quality and low-latency modes": "Qualitäts- und Low-Latency-Modus",
+ "Future FrameBoost updates": "Künftige FrameBoost-Updates",
+ "Online checkout opens soon": "Online-Kauf folgt bald",
+ "Request unlock": "Freischaltung anfragen",
+ "Monthly": "Monatlich",
+ "/ month": "/ Monat",
+ "Cancel anytime": "Jederzeit kündbar",
+ "Create your account in the app first (Account page), then send that e-mail address. You get an unlock code to redeem on the same page.": "Leg zuerst in der App einen Account an (Seite Konto) und schick dann diese E-Mail-Adresse. Du bekommst einen Code, den du auf derselben Seite einlöst.",
+ "Get": "Hol dir",
+ "Self-contained installer, no extra runtimes. The app updates itself.": "Installer ohne zusätzliche Laufzeitumgebungen. Die App aktualisiert sich selbst.",
+ "Windows 10/11 x64 · optimizer, game boost, backups": "Windows 10/11 x64 · Optimierer, Game Boost, Backups",
+ "Download stable": "Stable laden",
+ "Adds RESET FrameBoost, accounts, German and Russian": "Mit RESET FrameBoost, Accounts, Deutsch und Russisch",
+ "Download beta": "Beta laden",
+ "Made by Lukas Reschke": "Entwickelt von Lukas Reschke",
+ "Source": "Quellcode",
+ "Report a problem": "Problem melden",
+ "Skip": "Überspringen"
+};
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const textNodes = [];
+(function collect(node) {
+  for (const c of node.childNodes) {
+    if (c.nodeType === 3 && c.nodeValue.trim()) {
+      const key = c.nodeValue.replace(/\s+/g, " ").trim();
+      if (DE[key]) textNodes.push({ node: c, en: c.nodeValue, key });
+    } else if (c.nodeType === 1 && !c.classList.contains("term") && c.tagName !== "SCRIPT") collect(c);
+  }
+})(document.body);
+function setLang(lang) {
+  for (const t of textNodes) {
+    const lead = t.en.match(/^\s*/)[0], tail = t.en.match(/\s*$/)[0];
+    t.node.nodeValue = lang === "de" ? lead + DE[t.key] + tail : t.en;
+  }
+  document.documentElement.lang = lang;
+  document.querySelectorAll(".lang button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  store.set("rfb-lang", lang);
+}
+// the switch itself: panel in, swap, panel out, visible text decodes into place
+const wipe = document.createElement("div");
+wipe.id = "wipe"; wipe.setAttribute("aria-hidden", "true");
+wipe.innerHTML = "<span></span>";
+document.body.appendChild(wipe);
+let switching = false;
+function switchLang(lang) {
+  if (switching || document.documentElement.lang === lang) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !wipe.animate) { setLang(lang); return; }
+  switching = true;
+  wipe.firstChild.innerHTML = lang.toUpperCase() + "<small>" + (lang === "de" ? "DEUTSCH" : "ENGLISH") + "</small>";
+  const inAnim = wipe.animate([{ transform: "translateX(-140%) skewX(-12deg)" }, { transform: "translateX(0) skewX(-12deg)" }],
+                              { duration: 380, easing: "cubic-bezier(.7,0,.3,1)", fill: "forwards" });
+  inAnim.onfinish = () => {
+    setLang(lang);
+    setTimeout(() => {
+      wipe.animate([{ transform: "translateX(0) skewX(-12deg)" }, { transform: "translateX(140%) skewX(-12deg)" }],
+                   { duration: 420, easing: "cubic-bezier(.7,0,.3,1)", fill: "forwards" }).onfinish = () => { switching = false; };
+      decodeVisible();
+    }, 160);
+  };
+}
+document.querySelectorAll(".lang button").forEach(b => b.addEventListener("click", () => switchLang(b.dataset.lang)));
+
+// short texts on screen resolve left to right from random glyphs
+function decodeVisible() {
+  const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/#%";
+  for (const t of textNodes) {
+    const el = t.node.parentElement;
+    const final = t.node.nodeValue;
+    if (final.trim().length > 60) continue;
+    const r = el.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight || r.width === 0) continue;
+    const start = performance.now(), dur = 520;
+    el.classList.add("scrambling");
+    (function frame(now) {
+      const k = Math.min(1, (now - start) / dur);
+      const shown = Math.floor(final.length * k);
+      let out = final.slice(0, shown);
+      for (let i = shown; i < final.length; i++) out += /\s/.test(final[i]) ? final[i] : glyphs[(Math.random() * glyphs.length) | 0];
+      t.node.nodeValue = out;
+      if (k < 1) requestAnimationFrame(frame);
+      else { t.node.nodeValue = final; el.classList.remove("scrambling"); }
+    })(start);
+  }
+}
+const startLang = store.get("rfb-lang") || ((navigator.language || "").toLowerCase().startsWith("de") ? "de" : "en");
+if (startLang === "de") setLang("de");
+
+// ---------- intro: once per visit, click or any key skips ----------
+(function intro() {
+  let seen = false;
+  try { seen = sessionStorage.getItem("rfb-intro") === "1"; sessionStorage.setItem("rfb-intro", "1"); } catch {}
+  if (seen || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const el = document.createElement("div");
+  el.id = "intro";
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = '<div class="stripe"></div><div class="core"><img src="assets/logo_wide.png" alt=""><div class="bar"></div><div class="line"></div></div>'
+               + '<div class="skip">' + (document.documentElement.lang === "de" ? DE.Skip : "Skip") + '</div><div class="stripe bottom"></div>';
+  document.body.appendChild(el);
+  document.body.style.overflow = "hidden";
+  const bar = el.querySelector(".bar"), line = el.querySelector(".line");
+  for (let i = 0; i < 20; i++) bar.appendChild(document.createElement("i"));
+  const lines = ["BOOTING PERFORMANCE ENGINE", "READING HARDWARE", "SYSTEM ONLINE"];
+  let i = 0, done = false;
+  const tick = setInterval(() => {
+    if (i < 20) bar.children[i].classList.add("on");
+    line.textContent = lines[Math.min(2, Math.floor(i / 7))];
+    if (++i > 22) finish();
+  }, 55);
+  function finish() {
+    if (done) return; done = true; clearInterval(tick);
+    el.classList.add("out");
+    document.body.style.overflow = "";
+    setTimeout(() => el.remove(), 800);
+  }
+  el.addEventListener("click", finish);
+  addEventListener("keydown", finish, { once: true });
+  setTimeout(finish, 3200);
+})();
+
+// reveal on scroll; anything already on screen shows at once
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+}), { threshold: 0.12 });
+document.querySelectorAll(".rv").forEach(el => io.observe(el));
+
+// hero readout: fills its bar, then breathes like a live counter
+const segs = document.getElementById("segs");
+const N = 24;
+for (let i = 0; i < N; i++) segs.appendChild(document.createElement("i"));
+const bars = [...segs.children];
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function show(out) {
+  document.getElementById("out").textContent = out;
+  const lit = Math.round(out / 144 * N);
+  bars.forEach((b, i) => b.classList.toggle("on", i < lit));
+}
+if (reduce) show(120);
+else {
+  let v = 0;
+  const up = setInterval(() => { v += 6; show(Math.min(v, 120)); if (v >= 120) { clearInterval(up); breathe(); } }, 30);
+  function breathe() {
+    setInterval(() => {
+      const src = 59 + Math.round(Math.random() * 2);
+      document.getElementById("src").textContent = src;
+      show(src * 2 - Math.round(Math.random()));
+      document.getElementById("lat").textContent = (11 + Math.random() * 2).toFixed(1) + "ms";
+    }, 900);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Netlify: the website is the static folder site/, no build step.
+[build]
+  publish = "site"
+  command = ""
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
