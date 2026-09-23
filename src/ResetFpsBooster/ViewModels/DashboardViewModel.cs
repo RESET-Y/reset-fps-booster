@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 using ResetFpsBooster.Monitoring;
@@ -54,13 +55,47 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
 
     public Action<NavigationSection>? NavigateRequested { get; set; }
 
+    // ---- Customizing: which widgets show, remembered in the settings ----
+    private readonly ISettingsService? _settings;
+    public DashboardWidgetSet Widgets { get; } = new();
+    public ObservableCollection<DashboardWidget> HiddenWidgets { get; } = new();
+    public bool HasNoHiddenWidgets => HiddenWidgets.Count == 0;
+    [ObservableProperty] private bool _isEditing;
+
+    [RelayCommand]
+    private void ToggleEdit() => IsEditing = !IsEditing;
+
+    [RelayCommand]
+    private void HideWidget(string id) => SetWidgetVisible(id, false);
+
+    [RelayCommand]
+    private void ShowWidget(string id) => SetWidgetVisible(id, true);
+
+    private void SetWidgetVisible(string id, bool visible)
+    {
+        if (!Widgets.TryGet(id, out var widget)) return;
+        widget.IsVisible = visible;
+        RefreshHiddenWidgets();
+        if (_settings is null) return;
+        _settings.Current.DashboardHiddenWidgets = Widgets.All.Where(w => !w.IsVisible).Select(w => w.Id).ToList();
+        _settings.Save();
+    }
+
+    private void RefreshHiddenWidgets()
+    {
+        HiddenWidgets.Clear();
+        foreach (var w in Widgets.All.Where(w => !w.IsVisible)) HiddenWidgets.Add(w);
+        OnPropertyChanged(nameof(HasNoHiddenWidgets));
+    }
+
     public DashboardViewModel(
         IHardwareService hardwareService,
         IOptimizationService optimizationService,
         IScoreService scoreService,
         ISystemScanService scanService,
         IChangeLogService changeLogService,
-        IGameLibraryService gameLibraryService)
+        IGameLibraryService gameLibraryService,
+        ISettingsService? settings = null)
     {
         _hardwareService = hardwareService;
         _optimizationService = optimizationService;
@@ -69,6 +104,12 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
         _changeLogService = changeLogService;
         _gameLibraryService = gameLibraryService;
         IsAdministrator = AdminHelper.IsRunningAsAdministrator();
+
+        _settings = settings;
+        foreach (var id in settings?.Current.DashboardHiddenWidgets ?? new List<string>())
+            if (Widgets.TryGet(id, out var hidden)) hidden.IsVisible = false;
+        RefreshHiddenWidgets();
+        Loc.LanguageChanged += (_, _) => { foreach (var w in Widgets.All) w.Relabel(); };
     }
 
     [RelayCommand]

@@ -5,12 +5,10 @@ using System.Windows.Media.Animation;
 
 namespace ResetFpsBooster.Controls;
 
-/// <summary>A circular percentage gauge: a background track ring plus an animated foreground arc.</summary>
+/// <summary>A telemetry readout: big slanted number over an animated segmented bar.
+/// Kept under its old name so the pages that place it need no change.</summary>
 public partial class RadialGauge : UserControl
 {
-    private const double StartAngleDeg = 215;
-    private const double SweepAngleDeg = 290;
-
     public static readonly DependencyProperty ValueProperty = DependencyProperty.Register(
         nameof(Value), typeof(double), typeof(RadialGauge),
         new PropertyMetadata(0.0, OnValueChanged));
@@ -99,11 +97,13 @@ public partial class RadialGauge : UserControl
 
     public string CenterLabel => Value.ToString(Decimals == 0 ? "0" : "0." + new string('#', Decimals));
 
+    private const int SegmentCount = 16;
+
     public RadialGauge()
     {
         InitializeComponent();
         AccentBrush ??= (Brush)FindResource("Brush.Accent");
-        Loaded += (_, _) => RedrawTrack();
+        Loaded += (_, _) => Redraw();
     }
 
     private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -123,49 +123,36 @@ public partial class RadialGauge : UserControl
 
     private static void OnGeometryAffectingChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        (d as RadialGauge)?.RedrawArc();
+        (d as RadialGauge)?.Redraw();
     }
 
-    private void RedrawTrack()
-    {
-        TrackPath.Data = BuildArcGeometry(1.0);
-        RedrawArc();
-    }
-
-    private void RedrawArc()
+    /// Diameter keeps its old meaning as the overall size: it sets the bar
+    /// width, and the number scales from CenterFontSize.
+    private void Redraw()
     {
         if (!IsLoaded) return;
+        CenterText.FontSize = CenterFontSize * 1.8;
+
         var max = Maximum <= 0 ? 100 : Maximum;
         var fraction = Math.Clamp((double)GetValue(DisplayValueProperty) / max, 0.0, 1.0);
-        FillPath.Data = BuildArcGeometry(fraction);
-        TrackPath.Data = BuildArcGeometry(1.0);
-    }
+        var lit = (int)Math.Round(fraction * SegmentCount);
+        var gap = 2.0;
+        var width = Math.Max(2, (Diameter * 1.4 - gap * (SegmentCount - 1)) / SegmentCount);
+        var off = (Brush)FindResource("Brush.SurfaceHover");
 
-    private Geometry BuildArcGeometry(double fraction)
-    {
-        var d = Diameter;
-        var thickness = Thickness;
-        var radius = (d - thickness) / 2.0;
-        var center = new Point(d / 2.0, d / 2.0);
-
-        var sweep = SweepAngleDeg * Math.Max(fraction, 0.0001);
-        var startPoint = PointOnCircle(center, radius, StartAngleDeg);
-        var endPoint = PointOnCircle(center, radius, StartAngleDeg + sweep);
-        var isLargeArc = sweep > 180.0;
-
-        var figure = new PathFigure { StartPoint = startPoint, IsClosed = false };
-        figure.Segments.Add(new ArcSegment(endPoint, new Size(radius, radius), 0, isLargeArc, SweepDirection.Clockwise, true));
-
-        var geometry = new PathGeometry();
-        geometry.Figures.Add(figure);
-        return geometry;
-    }
-
-    private static Point PointOnCircle(Point center, double radius, double angleDegrees)
-    {
-        var rad = angleDegrees * Math.PI / 180.0;
-        return new Point(
-            center.X + radius * Math.Sin(rad),
-            center.Y - radius * Math.Cos(rad));
+        if (Segments.Children.Count != SegmentCount)
+        {
+            Segments.Children.Clear();
+            for (var i = 0; i < SegmentCount; i++)
+                Segments.Children.Add(new Border { Margin = new Thickness(0, 0, i == SegmentCount - 1 ? 0 : gap, 0),
+                                                   RenderTransform = new SkewTransform(-15, 0) });
+        }
+        for (var i = 0; i < SegmentCount; i++)
+        {
+            var seg = (Border)Segments.Children[i];
+            seg.Width = width;
+            seg.Height = Math.Max(4, Thickness + 1);
+            seg.Background = i < lit ? AccentBrush : off;
+        }
     }
 }

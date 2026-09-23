@@ -124,7 +124,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             NavigationSection.Dashboard => new DashboardViewModel(
                 _services.Hardware, _services.Optimization, _services.Score,
-                _services.SystemScan, _services.ChangeLog, _services.GameLibrary)
+                _services.SystemScan, _services.ChangeLog, _services.GameLibrary, _services.Settings)
             {
                 NavigateRequested = NavigateTo
             },

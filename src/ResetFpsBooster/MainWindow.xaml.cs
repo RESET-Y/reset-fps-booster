@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using ResetFpsBooster.ViewModels;
 
@@ -31,5 +32,13 @@ public partial class MainWindow : Window
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
         };
         ContentHost.BeginAnimation(OpacityProperty, fadeIn);
+
+        // and slides up into place, like a new screen dropping in
+        var slide = new TranslateTransform(0, 18);
+        ContentHost.RenderTransform = slide;
+        slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(18, 0, TimeSpan.FromMilliseconds(280))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        });
     }
 }

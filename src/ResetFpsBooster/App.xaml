@@ -23,6 +23,7 @@
             <conv:BoolToTextConverter x:Key="BoolToEnabledDisabled" TrueText="Enabled" FalseText="Disabled"/>
             <conv:BoolToTextConverter x:Key="BoolToCheckmark" TrueText="✓" FalseText="…"/>
             <conv:InverseBoolConverter x:Key="InverseBool"/>
+            <conv:ToUpperConverter x:Key="ToUpper"/>
             <conv:CountToVisibilityConverter x:Key="CountToVisWhenZero" VisibleWhenZero="True"/>
             <conv:IconKindToGeometryConverter x:Key="IconToGeometry"/>
 

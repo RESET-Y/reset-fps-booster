@@ -114,6 +114,15 @@ public sealed class IconKindToGeometryConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
+/// Upper-cases a label for the racing look; WPF has no text-transform.
+public sealed class ToUpperConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        => (value as string)?.ToUpper(culture) ?? value;
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public sealed class InverseBoolConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => !(value is bool b && b);

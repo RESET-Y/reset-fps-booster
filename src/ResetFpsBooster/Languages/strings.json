@@ -734,5 +734,85 @@
     "en": "Valid until {0} · ends today",
     "de": "Gültig bis {0} · endet heute",
     "ru": "Действует до {0} · заканчивается сегодня"
+  },
+  "Common.Remove": {
+    "en": "Remove",
+    "de": "Entfernen",
+    "ru": "Убрать"
+  },
+  "Dashboard.Customize": {
+    "en": "Customize",
+    "de": "Anpassen",
+    "ru": "Настроить"
+  },
+  "Dashboard.Done": {
+    "en": "Done",
+    "de": "Fertig",
+    "ru": "Готово"
+  },
+  "Dashboard.AddWidgets": {
+    "en": "Add widgets",
+    "de": "Widgets hinzufügen",
+    "ru": "Добавить виджеты"
+  },
+  "Dashboard.AllVisible": {
+    "en": "Every widget is on your dashboard. Remove one with the × in its corner.",
+    "de": "Alle Widgets sind auf deinem Dashboard. Entferne eins mit dem × in seiner Ecke.",
+    "ru": "Все виджеты уже на панели. Убрать виджет можно крестиком × в его углу."
+  },
+  "Widget.Hardware": {
+    "en": "Hardware",
+    "de": "Hardware",
+    "ru": "Железо"
+  },
+  "Widget.Score": {
+    "en": "Performance score",
+    "de": "Performance-Score",
+    "ru": "Оценка производительности"
+  },
+  "Widget.Boost": {
+    "en": "Boost",
+    "de": "Boost",
+    "ru": "Ускорение"
+  },
+  "Widget.Scan": {
+    "en": "System scan",
+    "de": "Systemscan",
+    "ru": "Сканирование системы"
+  },
+  "Widget.Optimizations": {
+    "en": "Optimizations",
+    "de": "Optimierungen",
+    "ru": "Оптимизации"
+  },
+  "Widget.Changes": {
+    "en": "Recent changes",
+    "de": "Letzte Änderungen",
+    "ru": "Последние изменения"
+  },
+  "Widget.SystemInfo": {
+    "en": "System information",
+    "de": "Systeminformationen",
+    "ru": "Информация о системе"
+  },
+  "Widget.Driver": {
+    "en": "GPU driver",
+    "de": "GPU-Treiber",
+    "ru": "Драйвер GPU"
+  },
+  "Widget.PowerPlan": {
+    "en": "Power plan",
+    "de": "Energiesparplan",
+    "ru": "План электропитания"
+  },
+  "Widget.GameMode": {
+    "en": "Game Mode",
+    "de": "Spielmodus",
+    "ru": "Игровой режим"
+  },
+  "Widget.Games": {
+    "en": "Game profiles",
+    "de": "Spielprofile",
+    "ru": "Игровые профили"
   }
 }

@@ -149,4 +149,20 @@
     <sys:String x:Key="Account.ValidUntilFmt" xml:space="preserve">Gültig bis {0} · noch {1} Tage</sys:String>
     <sys:String x:Key="Account.ValidUntilOneDay" xml:space="preserve">Gültig bis {0} · noch 1 Tag</sys:String>
     <sys:String x:Key="Account.EndsToday" xml:space="preserve">Gültig bis {0} · endet heute</sys:String>
+    <sys:String x:Key="Common.Remove" xml:space="preserve">Entfernen</sys:String>
+    <sys:String x:Key="Dashboard.Customize" xml:space="preserve">Anpassen</sys:String>
+    <sys:String x:Key="Dashboard.Done" xml:space="preserve">Fertig</sys:String>
+    <sys:String x:Key="Dashboard.AddWidgets" xml:space="preserve">Widgets hinzufügen</sys:String>
+    <sys:String x:Key="Dashboard.AllVisible" xml:space="preserve">Alle Widgets sind auf deinem Dashboard. Entferne eins mit dem × in seiner Ecke.</sys:String>
+    <sys:String x:Key="Widget.Hardware" xml:space="preserve">Hardware</sys:String>
+    <sys:String x:Key="Widget.Score" xml:space="preserve">Performance-Score</sys:String>
+    <sys:String x:Key="Widget.Boost" xml:space="preserve">Boost</sys:String>
+    <sys:String x:Key="Widget.Scan" xml:space="preserve">Systemscan</sys:String>
+    <sys:String x:Key="Widget.Optimizations" xml:space="preserve">Optimierungen</sys:String>
+    <sys:String x:Key="Widget.Changes" xml:space="preserve">Letzte Änderungen</sys:String>
+    <sys:String x:Key="Widget.SystemInfo" xml:space="preserve">Systeminformationen</sys:String>
+    <sys:String x:Key="Widget.Driver" xml:space="preserve">GPU-Treiber</sys:String>
+    <sys:String x:Key="Widget.PowerPlan" xml:space="preserve">Energiesparplan</sys:String>
+    <sys:String x:Key="Widget.GameMode" xml:space="preserve">Spielmodus</sys:String>
+    <sys:String x:Key="Widget.Games" xml:space="preserve">Spielprofile</sys:String>
 </ResourceDictionary>

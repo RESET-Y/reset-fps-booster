@@ -40,4 +40,9 @@ public sealed class AppSettings
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>
     public string? Language { get; set; }
+
+    /// <summary>Dashboard widgets the user removed, by id (see DashboardWidgetSet).
+    /// Everything not listed is shown, so a widget added in a later version
+    /// appears on its own.</summary>
+    public List<string> DashboardHiddenWidgets { get; set; } = new();
 }

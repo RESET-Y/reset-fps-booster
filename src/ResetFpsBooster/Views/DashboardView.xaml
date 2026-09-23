@@ -15,6 +15,62 @@
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
+        <!-- Customizing -->
+        <Style x:Key="WidgetHost" TargetType="Grid">
+            <Style.Triggers>
+                <Trigger Property="IsVisible" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard><Storyboard>
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+                        </Storyboard></BeginStoryboard>
+                    </Trigger.EnterActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="WidgetEditFrame" TargetType="Rectangle">
+            <Setter Property="Stroke" Value="{StaticResource Brush.Accent}"/>
+            <Setter Property="StrokeThickness" Value="1.5"/>
+            <Setter Property="StrokeDashArray" Value="4 3"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Margin" Value="-4,-4,-4,8"/>
+            <Setter Property="Visibility" Value="{Binding DataContext.IsEditing, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+        </Style>
+        <Style x:Key="WidgetRemove" TargetType="Button">
+            <Setter Property="Command" Value="{Binding DataContext.HideWidgetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+            <Setter Property="Visibility" Value="{Binding DataContext.IsEditing, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="Margin" Value="0,-12,-10,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTip" Value="{DynamicResource Common.Remove}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Width="26" Height="26" Background="{StaticResource Brush.Accent}" RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform><TransformGroup><SkewTransform AngleX="-12"/><ScaleTransform/></TransformGroup></Border.RenderTransform>
+                            <Path Data="M0,0 L8,8 M8,0 L0,8" Stroke="White" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource Brush.AccentBright}"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="RenderTransform.Children[1].ScaleX" To="1.15" Duration="0:0:0.1"/>
+                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="RenderTransform.Children[1].ScaleY" To="1.15" Duration="0:0:0.1"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard><Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="RenderTransform.Children[1].ScaleX" To="1" Duration="0:0:0.12"/>
+                                        <DoubleAnimation Storyboard.TargetName="bd" Storyboard.TargetProperty="RenderTransform.Children[1].ScaleY" To="1" Duration="0:0:0.12"/>
+                                    </Storyboard></BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,26,32,26">
@@ -77,370 +133,430 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Customize: edit mode puts an × on every widget and lists the removed ones here -->
+                <Button HorizontalAlignment="Right" Style="{StaticResource Button.Secondary}" Margin="0,-10,0,16" Command="{Binding ToggleEditCommand}">
+                    <Grid>
+                        <TextBlock Text="{DynamicResource Dashboard.Customize}" Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"/>
+                        <TextBlock Text="{DynamicResource Dashboard.Done}" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
+                </Button>
+                <Border Style="{StaticResource Card.Accented}" Margin="0,0,0,16" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Dashboard.AddWidgets}" Style="{StaticResource Text.SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource Dashboard.AllVisible}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding HasNoHiddenWidgets, Converter={StaticResource BoolToVis}}"/>
+                        <ItemsControl ItemsSource="{Binding HiddenWidgets}" Margin="0,12,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource Button.Secondary}" Margin="0,0,12,10" CommandParameter="{Binding Id}"
+                                            Command="{Binding DataContext.ShowWidgetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                        <TextBlock><Run Text="+ " Foreground="{StaticResource Brush.AccentBright}"/><Run Text="{Binding Label, Mode=OneWay}"/></TextBlock>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Hardware cards -->
-                <UniformGrid Columns="4" Margin="0,0,0,16">
-                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="{Binding CpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="{Binding CpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                            <controls:RadialGauge Value="{Binding CpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Center" Margin="0,12,0,10"/>
-                            <TextBlock Text="{Binding CpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding CpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="{Binding GpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                            <controls:RadialGauge Value="{Binding GpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Center" Margin="0,12,0,10"/>
-                            <TextBlock Text="{Binding GpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding GpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding GpuCard.TemperatureLabel}" Foreground="{StaticResource Brush.AccentBright}" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"
-                                       Visibility="{Binding GpuCard.TemperatureLabel, Converter={StaticResource NullToVis}}"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="{Binding RamCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="{Binding RamCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                            <controls:RadialGauge Value="{Binding RamCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Center" Margin="0,12,0,10"/>
-                            <TextBlock Text="{Binding RamCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding RamCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Card}" Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="{Binding StorageCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="{Binding StorageCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                            <controls:RadialGauge Value="{Binding StorageCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Center" Margin="0,12,0,10"/>
-                            <TextBlock Text="{Binding StorageCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding StorageCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[hardware].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <UniformGrid Columns="4" Margin="0,0,0,16">
+                        <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="{Binding CpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding CpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                <controls:RadialGauge Value="{Binding CpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <TextBlock Text="{Binding CpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding CpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="{Binding GpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                <controls:RadialGauge Value="{Binding GpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <TextBlock Text="{Binding GpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding GpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding GpuCard.TemperatureLabel}" Foreground="{StaticResource Brush.AccentBright}" FontSize="11" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                           Visibility="{Binding GpuCard.TemperatureLabel, Converter={StaticResource NullToVis}}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="{Binding RamCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding RamCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                <controls:RadialGauge Value="{Binding RamCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <TextBlock Text="{Binding RamCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding RamCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="{Binding StorageCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding StorageCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                                <controls:RadialGauge Value="{Binding StorageCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <TextBlock Text="{Binding StorageCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding StorageCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="hardware"/>
+                </Grid>
 
                 <!-- Score + CTA -->
-                <Grid Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                <UniformGrid Rows="1" Margin="0,0,0,16">
 
-                    <Border Grid.Column="0" Style="{StaticResource Card}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="Performance Score" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                <TextBlock Text="{Binding ScoreVerdict}" Style="{StaticResource Text.Body}" Margin="0,2,0,10"/>
-                                <ItemsControl ItemsSource="{Binding ScoreChecklist}">
+                    <Grid Style="{StaticResource WidgetHost}" Margin="0,0,8,0" Visibility="{Binding Widgets[score].IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource Card}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                                    <TextBlock Text="Performance Score" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Text="{Binding ScoreVerdict}" Style="{StaticResource Text.Body}" Margin="0,2,0,10"/>
+                                    <ItemsControl ItemsSource="{Binding ScoreChecklist}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:ChecklistItemViewModel}">
+                                                <StackPanel Orientation="Horizontal" Margin="0,3">
+                                                    <Ellipse Width="14" Height="14" VerticalAlignment="Center">
+                                                        <Ellipse.Style>
+                                                            <Style TargetType="Ellipse">
+                                                                <Setter Property="Fill" Value="{StaticResource Brush.Success}"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsGood}" Value="False">
+                                                                        <Setter Property="Fill" Value="{StaticResource Brush.TextTertiary}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Ellipse.Style>
+                                                    </Ellipse>
+                                                    <TextBlock Text="{Binding Text}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <controls:RadialGauge Grid.Row="0" Value="{Binding Score}" Diameter="150" Thickness="9" CenterFontSize="30" ShowUnit="False"/>
+                            </Grid>
+                        </Border>
+                        <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                        <Button Style="{StaticResource WidgetRemove}" CommandParameter="score"/>
+                    </Grid>
+
+                    <Grid Style="{StaticResource WidgetHost}" Margin="8,0,0,0" Visibility="{Binding Widgets[boost].IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M9,1 L3,9 L7,9 L6,15 L13,6 L9,6 Z" Fill="{StaticResource Brush.Accent}" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Ready to boost your FPS?" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Text.Body}" Margin="0,10,0,16">
+                                    <Run Text="We found "/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/><Run Text=" optimization(s) that can improve your system's performance and stability."/>
+                                </TextBlock>
+                                <Button Content="⚡ OPTIMIZE NOW" Style="{StaticResource Button.Primary}" FontSize="15" Command="{Binding GoToOptimizerCommand}"/>
+                                <TextBlock Text="View Details →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand" HorizontalAlignment="Center" Margin="0,12,0,0">
+                                    <TextBlock.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick" Command="{Binding GoToOptimizerCommand}"/>
+                                    </TextBlock.InputBindings>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                        <Button Style="{StaticResource WidgetRemove}" CommandParameter="boost"/>
+                    </Grid>
+                </UniformGrid>
+
+                <!-- Scan / Optimizations / Recent changes -->
+                <UniformGrid Rows="1">
+
+                    <!-- System scan -->
+                    <Grid Style="{StaticResource WidgetHost}" Margin="0,0,8,0" Visibility="{Binding Widgets[scan].IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="System Scan" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="1" Text="Completed" FontSize="10.5" Foreground="{StaticResource Brush.Success}"
+                                               Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVis}}"/>
+                                    <TextBlock Grid.Column="1" Text="Scanning..." FontSize="10.5" Foreground="{StaticResource Brush.AccentBright}"
+                                               Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding ScanSteps}" Margin="0,12,0,10">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type vm:ChecklistItemViewModel}">
-                                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                                <Ellipse Width="14" Height="14" VerticalAlignment="Center">
-                                                    <Ellipse.Style>
-                                                        <Style TargetType="Ellipse">
-                                                            <Setter Property="Fill" Value="{StaticResource Brush.Success}"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsGood}" Value="False">
-                                                                    <Setter Property="Fill" Value="{StaticResource Brush.TextTertiary}"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Ellipse.Style>
-                                                </Ellipse>
-                                                <TextBlock Text="{Binding Text}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" Margin="8,0,0,0"/>
+                                        <DataTemplate>
+                                            <Grid Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="OK" FontSize="10" Foreground="{StaticResource Brush.Success}" Margin="8,0,0,0"
+                                                           Visibility="{Binding Completed, Converter={StaticResource BoolToVis}}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <ProgressBar Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="100" Value="{Binding ScanProgressPercent, Mode=OneWay}"/>
+                            </StackPanel>
+                        </Border>
+                        <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                        <Button Style="{StaticResource WidgetRemove}" CommandParameter="scan"/>
+                    </Grid>
+
+                    <!-- Optimization categories -->
+                    <Grid Style="{StaticResource WidgetHost}" Margin="8,0,8,0" Visibility="{Binding Widgets[optimizations].IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Optimizations" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CategorySummaries.Count, StringFormat='{}{0} categories'}" Style="{StaticResource Text.Caption}"/>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding CategorySummaries}" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="12.5"/>
+                                                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Background="{StaticResource Brush.Accent}" CornerRadius="9" MinWidth="18" Padding="5,1" VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding Count}" FontSize="10" Foreground="White" HorizontalAlignment="Center" FontFamily="Segoe UI Semibold"/>
+                                                </Border>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                        <Button Style="{StaticResource WidgetRemove}" CommandParameter="optimizations"/>
+                    </Grid>
+
+                    <!-- Recent changes -->
+                    <Grid Style="{StaticResource WidgetHost}" Margin="8,0,0,0" Visibility="{Binding Widgets[changes].IsVisible, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource Card}" Padding="16">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Recent Changes" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
+                                        <TextBlock.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick" Command="{Binding GoToLogsCommand}"/>
+                                        </TextBlock.InputBindings>
+                                    </TextBlock>
+                                </Grid>
+                                <TextBlock Text="No changes yet." Style="{StaticResource Text.Caption}" Margin="0,12,0,0"
+                                           Visibility="{Binding RecentChanges.Count, Converter={StaticResource CountToVisWhenZero}}"/>
+                                <ItemsControl ItemsSource="{Binding RecentChanges}" Margin="0,10,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6" VerticalAlignment="Top">
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.Success}" Margin="0,4,8,0" VerticalAlignment="Top"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding SettingName}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="12.5"/>
+                                                    <TextBlock Style="{StaticResource Text.Caption}">
+                                                        <Run Text="{Binding OldValue, Mode=OneWay}"/><Run Text=" → "/><Run Text="{Binding NewValue, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>
-                            <controls:RadialGauge Grid.Column="0" Value="{Binding Score}" Diameter="120" Thickness="10" CenterFontSize="30" ShowUnit="False" VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
-
-                    <Border Grid.Column="2" Style="{StaticResource Card}">
-                        <StackPanel VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="M9,1 L3,9 L7,9 L6,15 L13,6 L9,6 Z" Fill="{StaticResource Brush.Accent}" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="Ready to boost your FPS?" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Style="{StaticResource Text.Body}" Margin="0,10,0,16">
-                                <Run Text="We found "/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/><Run Text=" optimization(s) that can improve your system's performance and stability."/>
-                            </TextBlock>
-                            <Button Content="⚡ OPTIMIZE NOW" Style="{StaticResource Button.Primary}" FontSize="15" Command="{Binding GoToOptimizerCommand}"/>
-                            <TextBlock Text="View Details →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand" HorizontalAlignment="Center" Margin="0,12,0,0">
-                                <TextBlock.InputBindings>
-                                    <MouseBinding MouseAction="LeftClick" Command="{Binding GoToOptimizerCommand}"/>
-                                </TextBlock.InputBindings>
-                            </TextBlock>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <!-- Scan / Optimizations / Recent changes -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <!-- System scan -->
-                    <Border Grid.Column="0" Style="{StaticResource Card}" Padding="16">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="System Scan" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                <TextBlock Grid.Column="1" Text="Completed" FontSize="10.5" Foreground="{StaticResource Brush.Success}"
-                                           Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVis}}"/>
-                                <TextBlock Grid.Column="1" Text="Scanning..." FontSize="10.5" Foreground="{StaticResource Brush.AccentBright}"
-                                           Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
-                            </Grid>
-                            <ItemsControl ItemsSource="{Binding ScanSteps}" Margin="0,12,0,10">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.TextSecondary}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="1" Text="OK" FontSize="10" Foreground="{StaticResource Brush.Success}" Margin="8,0,0,0"
-                                                       Visibility="{Binding Completed, Converter={StaticResource BoolToVis}}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <ProgressBar Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="100" Value="{Binding ScanProgressPercent, Mode=OneWay}"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Optimization categories -->
-                    <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Optimizations" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                <TextBlock Grid.Column="1" Text="{Binding CategorySummaries.Count, StringFormat='{}{0} categories'}" Style="{StaticResource Text.Caption}"/>
-                            </Grid>
-                            <ItemsControl ItemsSource="{Binding CategorySummaries}" Margin="0,10,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Margin="0,8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="12.5"/>
-                                                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                            <Border Grid.Column="1" Background="{StaticResource Brush.Accent}" CornerRadius="9" MinWidth="18" Padding="5,1" VerticalAlignment="Top">
-                                                <TextBlock Text="{Binding Count}" FontSize="10" Foreground="White" HorizontalAlignment="Center" FontFamily="Segoe UI Semibold"/>
-                                            </Border>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Recent changes -->
-                    <Border Grid.Column="4" Style="{StaticResource Card}" Padding="16">
-                        <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Recent Changes" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
-                                    <TextBlock.InputBindings>
-                                        <MouseBinding MouseAction="LeftClick" Command="{Binding GoToLogsCommand}"/>
-                                    </TextBlock.InputBindings>
-                                </TextBlock>
-                            </Grid>
-                            <TextBlock Text="No changes yet." Style="{StaticResource Text.Caption}" Margin="0,12,0,0"
-                                       Visibility="{Binding RecentChanges.Count, Converter={StaticResource CountToVisWhenZero}}"/>
-                            <ItemsControl ItemsSource="{Binding RecentChanges}" Margin="0,10,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="0,6" VerticalAlignment="Top">
-                                            <Ellipse Width="7" Height="7" Fill="{StaticResource Brush.Success}" Margin="0,4,8,0" VerticalAlignment="Top"/>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding SettingName}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="12.5"/>
-                                                <TextBlock Style="{StaticResource Text.Caption}">
-                                                    <Run Text="{Binding OldValue, Mode=OneWay}"/><Run Text=" → "/><Run Text="{Binding NewValue, Mode=OneWay}"/>
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                        </Border>
+                        <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                        <Button Style="{StaticResource WidgetRemove}" CommandParameter="changes"/>
+                    </Grid>
+                </UniformGrid>
             </StackPanel>
 
             <!-- ============ Right column ============ -->
             <StackPanel Grid.Column="1">
 
-                <Border Style="{StaticResource SidebarCard}">
-                    <StackPanel>
-                        <TextBlock Text="System Information" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
-                        <ItemsControl ItemsSource="{Binding SystemInfoRows}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="90"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Label}" Style="{StaticResource Text.Caption}"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11.5" TextWrapping="Wrap"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource SidebarCard}">
-                    <StackPanel>
-                        <TextBlock Text="GPU Driver" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                        <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Margin="0,4,0,0">
-                            <Run Text="Version " Foreground="{StaticResource Brush.TextTertiary}" FontSize="11"/><Run Text="{Binding GpuDriverVersion, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
-                        </TextBlock>
-                    </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource SidebarCard}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Power Plan" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Text="{Binding PowerPlanLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[sysinfo].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SidebarCard}">
+                        <StackPanel>
+                            <TextBlock Text="System Information" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
+                            <ItemsControl ItemsSource="{Binding SystemInfoRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="90"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" Style="{StaticResource Text.Caption}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" FontSize="11.5" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
-                        <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
-                            <TextBlock FontSize="10" FontFamily="Segoe UI Semibold">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Default"/>
-                                        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding PowerPlanActive}" Value="True">
-                                                <Setter Property="Text" Value="Active"/>
-                                                <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="sysinfo"/>
+                </Grid>
 
-                <Border Style="{StaticResource SidebarCard}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Game Mode" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Margin="0,6,0,0">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
-                                        <Setter Property="Text" Value="Off"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding GameModeActive}" Value="True">
-                                                <Setter Property="Text" Value="On"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[driver].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SidebarCard}">
+                        <StackPanel>
+                            <TextBlock Text="GPU Driver" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Margin="0,4,0,0">
+                                <Run Text="Version " Foreground="{StaticResource Brush.TextTertiary}" FontSize="11"/><Run Text="{Binding GpuDriverVersion, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
                             </TextBlock>
                         </StackPanel>
-                        <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
-                            <TextBlock FontSize="10" FontFamily="Segoe UI Semibold">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Off"/>
-                                        <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding GameModeActive}" Value="True">
-                                                <Setter Property="Text" Value="Active"/>
-                                                <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                    </Grid>
-                </Border>
+                    </Border>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="driver"/>
+                </Grid>
 
-                <Border Style="{StaticResource SidebarCard}">
-                    <StackPanel>
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[powerplan].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SidebarCard}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Game Profiles" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                            <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
-                                <TextBlock.InputBindings>
-                                    <MouseBinding MouseAction="LeftClick" Command="{Binding GoToGamesCommand}"/>
-                                </TextBlock.InputBindings>
-                            </TextBlock>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Power Plan" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding PowerPlanLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
+                                <TextBlock FontSize="10" FontFamily="Segoe UI Semibold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Default"/>
+                                            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PowerPlanActive}" Value="True">
+                                                    <Setter Property="Text" Value="Active"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
                         </Grid>
-                        <TextBlock Text="No games detected yet." Style="{StaticResource Text.Caption}" Margin="0,10,0,0"
-                                   Visibility="{Binding QuickGames.Count, Converter={StaticResource CountToVisWhenZero}}"/>
-                        <ItemsControl ItemsSource="{Binding QuickGames}" Margin="0,8,0,0">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,5">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="1" FontSize="10.5" FontFamily="Segoe UI Semibold">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="Not found"/>
-                                                    <Setter Property="Foreground" Value="{StaticResource Brush.TextTertiary}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsOptimized}" Value="True">
-                                                            <Setter Property="Text" Value="Optimized"/>
-                                                            <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="powerplan"/>
+                </Grid>
+
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[gamemode].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SidebarCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Game Mode" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Margin="0,6,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+                                            <Setter Property="Text" Value="Off"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding GameModeActive}" Value="True">
+                                                    <Setter Property="Text" Value="On"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                            <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
+                                <TextBlock FontSize="10" FontFamily="Segoe UI Semibold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Off"/>
+                                            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding GameModeActive}" Value="True">
+                                                    <Setter Property="Text" Value="Active"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="gamemode"/>
+                </Grid>
+
+                <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[games].IsVisible, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SidebarCard}">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Game Profiles" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
+                                    <TextBlock.InputBindings>
+                                        <MouseBinding MouseAction="LeftClick" Command="{Binding GoToGamesCommand}"/>
+                                    </TextBlock.InputBindings>
+                                </TextBlock>
+                            </Grid>
+                            <TextBlock Text="No games detected yet." Style="{StaticResource Text.Caption}" Margin="0,10,0,0"
+                                       Visibility="{Binding QuickGames.Count, Converter={StaticResource CountToVisWhenZero}}"/>
+                            <ItemsControl ItemsSource="{Binding QuickGames}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextSecondary}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" FontSize="10.5" FontFamily="Segoe UI Semibold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Not found"/>
+                                                        <Setter Property="Foreground" Value="{StaticResource Brush.TextTertiary}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOptimized}" Value="True">
+                                                                <Setter Property="Text" Value="Optimized"/>
+                                                                <Setter Property="Foreground" Value="{StaticResource Brush.Success}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <Rectangle Style="{StaticResource WidgetEditFrame}"/>
+                    <Button Style="{StaticResource WidgetRemove}" CommandParameter="games"/>
+                </Grid>
             </StackPanel>
         </Grid>
     </ScrollViewer>

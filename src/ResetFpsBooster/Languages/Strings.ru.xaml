@@ -149,4 +149,20 @@
     <sys:String x:Key="Account.ValidUntilFmt" xml:space="preserve">Действует до {0} · осталось дней: {1}</sys:String>
     <sys:String x:Key="Account.ValidUntilOneDay" xml:space="preserve">Действует до {0} · остался 1 день</sys:String>
     <sys:String x:Key="Account.EndsToday" xml:space="preserve">Действует до {0} · заканчивается сегодня</sys:String>
+    <sys:String x:Key="Common.Remove" xml:space="preserve">Убрать</sys:String>
+    <sys:String x:Key="Dashboard.Customize" xml:space="preserve">Настроить</sys:String>
+    <sys:String x:Key="Dashboard.Done" xml:space="preserve">Готово</sys:String>
+    <sys:String x:Key="Dashboard.AddWidgets" xml:space="preserve">Добавить виджеты</sys:String>
+    <sys:String x:Key="Dashboard.AllVisible" xml:space="preserve">Все виджеты уже на панели. Убрать виджет можно крестиком × в его углу.</sys:String>
+    <sys:String x:Key="Widget.Hardware" xml:space="preserve">Железо</sys:String>
+    <sys:String x:Key="Widget.Score" xml:space="preserve">Оценка производительности</sys:String>
+    <sys:String x:Key="Widget.Boost" xml:space="preserve">Ускорение</sys:String>
+    <sys:String x:Key="Widget.Scan" xml:space="preserve">Сканирование системы</sys:String>
+    <sys:String x:Key="Widget.Optimizations" xml:space="preserve">Оптимизации</sys:String>
+    <sys:String x:Key="Widget.Changes" xml:space="preserve">Последние изменения</sys:String>
+    <sys:String x:Key="Widget.SystemInfo" xml:space="preserve">Информация о системе</sys:String>
+    <sys:String x:Key="Widget.Driver" xml:space="preserve">Драйвер GPU</sys:String>
+    <sys:String x:Key="Widget.PowerPlan" xml:space="preserve">План электропитания</sys:String>
+    <sys:String x:Key="Widget.GameMode" xml:space="preserve">Игровой режим</sys:String>
+    <sys:String x:Key="Widget.Games" xml:space="preserve">Игровые профили</sys:String>
 </ResourceDictionary>
