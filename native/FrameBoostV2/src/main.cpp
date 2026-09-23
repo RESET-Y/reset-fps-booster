@@ -588,6 +588,31 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // an average and the average is what hides uneven spacing.
     double lastPresentMs = -1.0;
 
+    // THE HOLD, from the mean of MEASURED arrival intervals.
+    //
+    // It used to be half of this pair's own arrival interval. That interval
+    // is not the game's: Apex renders a steady 16.7 ms, but frames reach us on
+    // the compositor's 144 Hz grid, so arrivals alternate between two and
+    // three refreshes - 13.9 and 20.8 ms. Half of that swung the hold between
+    // 5 and 12 ms, and a long hold running into a short interval put the next
+    // generated frame 0.2 to 2 ms after the real one. With tearing presents
+    // the first of two frames that close is never scanned out, so those pairs
+    // showed as 60: "ich spuere ab und zu 120 fps". Measured over 20 s of
+    // Apex: present interval min 0.2, p50 9.4, p95 17 ms.
+    //
+    // cadenceMs is an exponential mean of the real QPC arrival intervals - no
+    // refresh rate, no fixed interval, no substituted timestamp, and the
+    // interpolation phase stays 0.5 of the actual pair. Only the hold before
+    // the REAL frame uses it. The generated frame still goes out the moment
+    // it exists.
+    //
+    // THAT LAST PART IS NOT NEGOTIABLE, and the reason is measured. A first
+    // version also held the generated frame back to keep it half a beat from
+    // its predecessor. That made one loop turn a FULL beat plus the work -
+    // slightly slower than the source - and the ring filled: queue 7, source
+    // consumed at 20 instead of 60, latency 400 ms and climbing.
+    double cadenceMs = 0.0;
+
     bool running = true;
     while (running) {
         presenter.PumpMessages();
@@ -698,6 +723,10 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         if (havePrev) {
             telemetry.NotePairIntervalMs(pairIntervalMs);
             telemetry.NoteSrtIntervalMs(srtIntervalMs);
+            // Only plausible real intervals; a stall is not a beat.
+            if (pairIntervalMs > 0.0 && pairIntervalMs < 100.0)
+                cadenceMs = (cadenceMs <= 0.0) ? pairIntervalMs
+                                               : cadenceMs + 0.1 * (pairIntervalMs - cadenceMs);
             if (srtIntervalMs <= 0.0) telemetry.NoteContentDtZero();
         }
 
@@ -829,9 +858,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // and 0.25 - the hold does not fix that and slightly worsens it, since
         // it only moves the tight gap from G-then-B to B-then-G. It was kept
         // for what it does fix, which is the long gaps, not this.
-        if (pairUsable && holdHalfInterval) {
+        // NO HOLD WHILE A NEWER FRAME IS ALREADY WAITING. Holding then only
+        // pushes everything behind it later; skipping it lets the loop catch up
+        // instead of settling into a backlog it can never leave.
+        // > 1, not > 0: QueueDepth counts the frame being worked on, which is
+        // only released after its present. With > 0 this was always true and
+        // the hold never ran - measured as a 6.5 ms pipeline, below the 8.3 ms
+        // a hold alone would cost.
+        const bool behind = !syntheticMode && capture.QueueDepth() > 1;
+        if (pairUsable && holdHalfInterval && !behind) {
             const double holdFrom = NowMs();
-            holdRequestedMs = pairIntervalMs * 0.5;
+            holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * 0.5;
             WaitUntil(holdFrom + holdRequestedMs, timer);
             holdWaitMs = NowMs() - holdFrom;
         }
