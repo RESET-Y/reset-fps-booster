@@ -94,7 +94,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.BottleneckEngine => new BottleneckEngineViewModel(_services.GameLibrary),
 #if RFB_BETA
-            NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta),
+            NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta, _services.Settings),
 #endif
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),

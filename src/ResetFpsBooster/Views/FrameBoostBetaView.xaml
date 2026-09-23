@@ -1,4 +1,4 @@
-<UserControl x:Class="ResetFpsBooster.Views.FrameBoostBetaView"
+﻿<UserControl x:Class="ResetFpsBooster.Views.FrameBoostBetaView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
@@ -14,12 +14,31 @@
                 </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
+                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs â€” no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
 
             <Border Style="{StaticResource Card}" Margin="0,20,0,16">
                 <StackPanel>
                     <TextBlock Text="Frame generation" Style="{StaticResource Text.SectionTitle}"/>
-                    <TextBlock Text="Boosts the main display — no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Boosts the main display â€” no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
+
+                    <!-- Before the buttons on purpose: this is set up in the game
+                         BEFORE FrameBoost starts, and it decides more of the result
+                         than anything on this page. -->
+                    <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,10" Margin="0,14,0,0">
+                        <StackPanel>
+                            <TextBlock Text="For the best result" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock Text="Your monitor:" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"/>
+                                <ComboBox ItemsSource="{Binding RefreshRates}" SelectedItem="{Binding DisplayHz}"
+                                          ItemStringFormat="{}{0} Hz" Width="96" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CapAdvice}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Text="Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't."/>
+                            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                       Text="A steady, capped frame rate works much better than an uncapped one that jumps around."/>
+                        </StackPanel>
+                    </Border>
 
                     <Grid Margin="0,16,0,0">
                         <Button Content="Turn FrameBoost on" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
@@ -34,7 +53,7 @@
                     <CheckBox Content="Low latency mode" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
                               IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
                     <TextBlock Style="{StaticResource Text.Caption}" Margin="22,4,0,0" TextWrapping="Wrap"
-                               Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest."/>
+                               Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2â€“3 ms from the lighter work, most of it where the picture moves fastest."/>
 
                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource Brush.Warning}" Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
@@ -92,7 +111,7 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="Debug telemetry" Style="{StaticResource Text.SectionTitle}"/>
-                        <TextBlock Text="Real, measured values from the native engine — never fabricated." Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
+                        <TextBlock Text="Real, measured values from the native engine â€” never fabricated." Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>

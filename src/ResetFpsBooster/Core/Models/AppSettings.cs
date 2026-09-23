@@ -30,4 +30,10 @@ public sealed class AppSettings
     /// software is always left untouched. Off by default — this runs continuously in the
     /// background, so it's opt-in rather than a one-time tweak.</summary>
     public bool EnableGameBoost { get; set; }
+
+    /// <summary>The refresh rate of the monitor the user plays on, as the user
+    /// chose it. FrameBoost recommends capping the game at half of it. Chosen,
+    /// not detected: with two monitors, reading the primary one picked the
+    /// wrong display often enough to be asked to go.</summary>
+    public int FrameBoostDisplayHz { get; set; } = 144;
 }

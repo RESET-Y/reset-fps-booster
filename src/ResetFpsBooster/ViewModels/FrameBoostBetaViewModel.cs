@@ -22,6 +22,35 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     /// silently ignored.
     [ObservableProperty] private bool _lowLatency;
 
+    /// THE CAP TO RECOMMEND, from the refresh rate the user picks.
+    ///
+    /// FrameBoost doubles the game's frame rate, so the game should run at no
+    /// more than half the refresh rate for the doubled output to fit the panel:
+    /// 72 on 144 Hz, 60 on 120 Hz. It is also a GPU budget: generating one
+    /// frame costs several milliseconds at 1440p and peaks near 10 ms under
+    /// fast motion, and a game already holding the GPU at 100% leaves none.
+    ///
+    /// Picked from a list rather than read from Windows. Reading the primary
+    /// display was wrong for anyone playing on the other of two monitors, and
+    /// a recommendation built on the wrong number is worse than none.
+    private readonly ISettingsService _settings;
+
+    public IReadOnlyList<int> RefreshRates { get; } =
+        new[] { 60, 75, 100, 120, 144, 165, 170, 180, 200, 240, 280, 360 };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CapAdvice))]
+    private int _displayHz;
+
+    partial void OnDisplayHzChanged(int value)
+    {
+        _settings.Current.FrameBoostDisplayHz = value;
+        _settings.Save();
+    }
+
+    public string CapAdvice =>
+        $"Cap the game at {DisplayHz / 2} FPS. FrameBoost doubles it to {DisplayHz}, which is what a {DisplayHz} Hz monitor can show.";
+
     /// What the engine is doing right now, in the user.s terms. Three states
     /// read as "Native FPS: 0" on their own and mean completely different
     /// things: a still picture, a source that is too fast to double, and a
@@ -78,9 +107,11 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public FrameBoostBetaViewModel(IFrameBoostBetaService service)
+    public FrameBoostBetaViewModel(IFrameBoostBetaService service, ISettingsService settings)
     {
         _service = service;
+        _settings = settings;
+        _displayHz = settings.Current.FrameBoostDisplayHz > 0 ? settings.Current.FrameBoostDisplayHz : 144;
     }
 
     [RelayCommand]
