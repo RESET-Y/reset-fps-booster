@@ -13,7 +13,7 @@
     <Configurations>Debug;Release;Beta</Configurations>
     <Company>Lukas Reschke</Company>
     <Product>RESET FPS BOOSTER</Product>
-    <Version>1.2.5</Version>
+    <Version>1.3.0-beta</Version>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -57,11 +57,23 @@
     <Resource Include="Assets\logo_square.png" />
   </ItemGroup>
 
-  <!-- Beta-only: ship the native FrameBoost engine (built separately via
-       native/FrameBoostBeta/build.ps1 + CMake, not by this csproj) next to
-       the app's own exe, in its own subfolder. -->
+  <!-- Beta-only: ship the native FrameBoost V2 engine (built separately via
+       native/FrameBoostV2/build.ps1 + CMake, not by this csproj) next to
+       the app's own exe, in its own subfolder.
+
+       This pointed at native/FrameBoostBeta until the V1 engine moved to
+       FrameBoostLegacy. An Exists() condition then quietly dropped the engine
+       from every build - nothing failed, the app simply had no FrameBoost to
+       start - and it went unnoticed only because the V2 exe was being copied
+       into bin by hand during development. Hence RequireFrameBoostEngine
+       below: a Beta build without its engine now stops instead of shipping. -->
+  <Target Name="RequireFrameBoostEngine" BeforeTargets="Build" Condition="'$(Configuration)'=='Beta'">
+    <Error Condition="!Exists('..\..\native\FrameBoostV2\build\bin\FrameBoostBeta.exe')"
+           Text="FrameBoost V2 engine not built: run native/FrameBoostV2/build.ps1 first. A Beta build without it would ship an app whose FrameBoost cannot start." />
+  </Target>
+
   <ItemGroup Condition="'$(Configuration)'=='Beta'">
-    <Content Include="..\..\native\FrameBoostBeta\build\bin\FrameBoostBeta.exe" Condition="Exists('..\..\native\FrameBoostBeta\build\bin\FrameBoostBeta.exe')">
+    <Content Include="..\..\native\FrameBoostV2\build\bin\FrameBoostBeta.exe">
       <Link>FrameBoostBeta\FrameBoostBeta.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

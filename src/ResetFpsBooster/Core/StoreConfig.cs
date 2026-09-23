@@ -17,6 +17,15 @@ public static class StoreConfig
     public const string MonthlyPaymentLink = "https://buy.stripe.com/test_aFafZh0Cg5992rObCc73G00";
     public const string LifetimePaymentLink = "https://buy.stripe.com/test_00w6oH5WAdFFfeAfSs73G01";
 
+    /// OFF UNTIL STRIPE IS LIVE. The links above are test-mode links: they only
+    /// accept Stripe's test cards, so a real user clicking Buy would reach a
+    /// checkout that can never take their money. With this false the Account
+    /// page says purchasing is not open yet, and Premium comes only from codes.
+    /// Flip to true together with swapping in the live links.
+    public const bool StoreLive = false;
+
     public static bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(MonthlyPaymentLink) && !string.IsNullOrWhiteSpace(LifetimePaymentLink);
+        StoreLive
+        && !string.IsNullOrWhiteSpace(MonthlyPaymentLink)
+        && !string.IsNullOrWhiteSpace(LifetimePaymentLink);
 }
