@@ -23,19 +23,19 @@ public sealed partial class MainViewModel : ObservableObject
 
         NavigationItems = new ObservableCollection<NavigationItem>
         {
-            new(NavigationSection.Dashboard, "Dashboard", IconKind.Dashboard),
-            new(NavigationSection.Optimizer, "Optimizer", IconKind.Optimizer),
-            new(NavigationSection.GameProfiles, "Game Profiles", IconKind.Games),
-            new(NavigationSection.Performance, "Performance", IconKind.Performance),
-            new(NavigationSection.BottleneckEngine, "Bottleneck Engine", IconKind.BottleneckEngine),
+            new(NavigationSection.Dashboard, "Nav.Dashboard", IconKind.Dashboard),
+            new(NavigationSection.Optimizer, "Nav.Optimizer", IconKind.Optimizer),
+            new(NavigationSection.GameProfiles, "Nav.GameProfiles", IconKind.Games),
+            new(NavigationSection.Performance, "Nav.Performance", IconKind.Performance),
+            new(NavigationSection.BottleneckEngine, "Nav.BottleneckEngine", IconKind.BottleneckEngine),
 #if RFB_BETA
-            new(NavigationSection.FrameBoostBeta, "FrameBoost", IconKind.FrameBoostBeta),
+            new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta),
 #endif
-            new(NavigationSection.System, "System", IconKind.System),
-            new(NavigationSection.Backups, "Backups", IconKind.Backups),
-            new(NavigationSection.Logs, "Logs", IconKind.Logs),
-            new(NavigationSection.Account, "Account", IconKind.Account),
-            new(NavigationSection.Settings, "Settings", IconKind.Settings),
+            new(NavigationSection.System, "Nav.System", IconKind.System),
+            new(NavigationSection.Backups, "Nav.Backups", IconKind.Backups),
+            new(NavigationSection.Logs, "Nav.Logs", IconKind.Logs),
+            new(NavigationSection.Account, "Nav.Account", IconKind.Account),
+            new(NavigationSection.Settings, "Nav.Settings", IconKind.Settings),
         };
 
         NavigateTo(NavigationSection.Dashboard);

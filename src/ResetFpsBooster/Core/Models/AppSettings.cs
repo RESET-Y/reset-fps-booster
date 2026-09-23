@@ -36,4 +36,8 @@ public sealed class AppSettings
     /// not detected: with two monitors, reading the primary one picked the
     /// wrong display often enough to be asked to go.</summary>
     public int FrameBoostDisplayHz { get; set; } = 144;
+
+    /// <summary>The app language ("en", "de", "ru"). Null until the user picks
+    /// one, which means: follow Windows if we offer its language, else English.</summary>
+    public string? Language { get; set; }
 }

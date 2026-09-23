@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Services;
+using ResetFpsBooster.Core.Localization;
 
 namespace ResetFpsBooster.ViewModels;
 
@@ -48,8 +49,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         _settings.Save();
     }
 
-    public string CapAdvice =>
-        $"Cap the game at {DisplayHz / 2} FPS. FrameBoost doubles it to {DisplayHz}, which is what a {DisplayHz} Hz monitor can show.";
+    public string CapAdvice => Loc.F("FB.CapAdvice", DisplayHz / 2, DisplayHz);
 
     /// What the engine is doing right now, in the user.s terms. Three states
     /// read as "Native FPS: 0" on their own and mean completely different
@@ -150,6 +150,10 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         };
         _ = CheckPremiumAsync();
         _displayHz = settings.Current.FrameBoostDisplayHz > 0 ? settings.Current.FrameBoostDisplayHz : 144;
+
+        // Built in code from a format string, so it has to be re-announced
+        // when the language changes; the XAML texts follow on their own.
+        Loc.LanguageChanged += (_, _) => OnPropertyChanged(nameof(CapAdvice));
     }
 
     private async Task CheckPremiumAsync()
@@ -169,7 +173,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         await CheckPremiumAsync();
         if (!IsPremium)
         {
-            StatusMessage = "FrameBoost is a Premium feature.";
+            StatusMessage = Loc.T("FB.PremiumFeatureDot");
             return;
         }
 

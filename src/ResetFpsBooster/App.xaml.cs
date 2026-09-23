@@ -17,7 +17,12 @@ public partial class App : Application
         base.OnStartup(e);
 
         AppPaths.EnsureFoldersExist();
-        ThemeColorHelper.ApplyAccentColor(new SettingsService().Current.AccentColorHex);
+        var startupSettings = new SettingsService().Current;
+        ThemeColorHelper.ApplyAccentColor(startupSettings.AccentColorHex);
+
+        // Before any window exists, so the first frame is already in the
+        // right language rather than flashing English and then switching.
+        ResetFpsBooster.Core.Localization.Loc.Apply(startupSettings.Language);
 
 #if RFB_BETA
         Resources.MergedDictionaries.Add(new ResourceDictionary

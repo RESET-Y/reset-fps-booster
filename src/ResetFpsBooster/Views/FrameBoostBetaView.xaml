@@ -10,33 +10,33 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="RESET FRAMEBOOST" Style="{StaticResource Text.Title}"/>
                 <Border Background="{StaticResource Brush.Accent}" CornerRadius="3" Padding="8,3" Margin="14,4,0,0" VerticalAlignment="Top">
-                    <TextBlock Text="EXPERIMENTAL BETA" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
+                    <TextBlock Text="{DynamicResource FB.Beta}" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
                 </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured."/>
+                       Text="{DynamicResource FB.Intro}"/>
 
             <Border Style="{StaticResource Card}" Margin="0,20,0,16">
                 <StackPanel>
-                    <TextBlock Text="Frame generation" Style="{StaticResource Text.SectionTitle}"/>
-                    <TextBlock Text="Boosts the main display — no window to pick." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
+                    <TextBlock Text="{DynamicResource FB.FrameGeneration}" Style="{StaticResource Text.SectionTitle}"/>
+                    <TextBlock Text="{DynamicResource FB.MainDisplay}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
 
                     <!-- Before the buttons on purpose: this is set up in the game
                          BEFORE FrameBoost starts, and it decides more of the result
                          than anything on this page. -->
                     <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,10" Margin="0,14,0,0">
                         <StackPanel>
-                            <TextBlock Text="For the best result" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{DynamicResource FB.BestResult}" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBlock Text="Your monitor:" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{DynamicResource FB.YourMonitor}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"/>
                                 <ComboBox ItemsSource="{Binding RefreshRates}" SelectedItem="{Binding DisplayHz}"
                                           ItemStringFormat="{}{0} Hz" Width="96" Margin="8,0,0,0"/>
                             </StackPanel>
                             <TextBlock Text="{Binding CapAdvice}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                             <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                       Text="Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't."/>
+                                       Text="{DynamicResource FB.GpuRoom}"/>
                             <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
-                                       Text="A steady, capped frame rate works much better than an uncapped one that jumps around."/>
+                                       Text="{DynamicResource FB.SteadyCap}"/>
                         </StackPanel>
                     </Border>
 
@@ -51,31 +51,31 @@
                                 <Border Background="{StaticResource Brush.Accent}" CornerRadius="3" Padding="8,3">
                                     <TextBlock Text="PREMIUM" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="White"/>
                                 </Border>
-                                <TextBlock Text="FrameBoost is a Premium feature" FontWeight="SemiBold" Margin="10,0,0,0"
+                                <TextBlock Text="{DynamicResource FB.PremiumFeature}" FontWeight="SemiBold" Margin="10,0,0,0"
                                            VerticalAlignment="Center" Foreground="{StaticResource Brush.TextPrimary}"/>
                             </StackPanel>
                             <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
-                                       Text="Sign in with an account that has Premium to turn FrameBoost on."/>
-                            <Button Content="Go to Account" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left"
+                                       Text="{DynamicResource FB.PremiumHint}"/>
+                            <Button Content="{DynamicResource FB.GoToAccount}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left"
                                     Margin="0,12,0,0" Command="{Binding OpenAccountCommand}"/>
                         </StackPanel>
                     </Border>
 
                     <StackPanel Visibility="{Binding IsPremium, Converter={StaticResource BoolToVis}}">
                         <Grid Margin="0,16,0,0">
-                            <Button Content="Turn FrameBoost on" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
+                            <Button Content="{DynamicResource FB.TurnOn}" Style="{StaticResource Button.Primary}" Command="{Binding StartCaptureCommand}"
                                     HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVis}}"/>
-                            <Button Content="Turn FrameBoost off" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
+                            <Button Content="{DynamicResource FB.TurnOff}" Style="{StaticResource Button.Secondary}" Command="{Binding StopCaptureCommand}"
                                     HorizontalAlignment="Left" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
 
                         <!-- Disabled while running, not hidden: the engine reads this
                              once at launch, so toggling it mid-run would look like it
                              did something and change nothing. -->
-                        <CheckBox Content="Low latency mode" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
+                        <CheckBox Content="{DynamicResource FB.LowLatency}" IsChecked="{Binding LowLatency}" Margin="0,16,0,0"
                                   IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
                         <TextBlock Style="{StaticResource Text.Caption}" Margin="22,4,0,0" TextWrapping="Wrap"
-                                   Text="Less input lag, softer generated frames. Frames are shown as soon as they are ready instead of being spaced out, and they are built at half resolution. Measured: about 9 ms less delay from the spacing and 2–3 ms from the lighter work, most of it where the picture moves fastest."/>
+                                   Text="{DynamicResource FB.LowLatencyHint}"/>
 
                     </StackPanel>
 
@@ -88,7 +88,7 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,16"
                         Visibility="{Binding StatusNotice, Converter={StaticResource NullToVis}}">
                     <StackPanel>
-                        <TextBlock Text="Status" Style="{StaticResource Text.SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource FB.Status}" Style="{StaticResource Text.SectionTitle}"/>
                         <TextBlock Text="{Binding StatusNotice}" Style="{StaticResource Text.Body}"
                                    Margin="0,8,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
@@ -98,7 +98,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="10" Height="10" Fill="{StaticResource Brush.Success}" VerticalAlignment="Center"/>
-                            <TextBlock Text="ACTIVE" FontFamily="Segoe UI Semibold" FontSize="16" Margin="10,0,0,0" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{DynamicResource FB.Active}" FontFamily="Segoe UI Semibold" FontSize="16" Margin="10,0,0,0" Foreground="{StaticResource Brush.TextPrimary}"/>
                         </StackPanel>
 
                         <Grid Margin="0,20,0,0">
@@ -109,21 +109,21 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="GAME FPS" Style="{StaticResource Text.Caption}"/>
+                                <TextBlock Text="{DynamicResource FB.GameFps}" Style="{StaticResource Text.Caption}"/>
                                 <TextBlock FontFamily="Consolas" FontSize="24" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,6,0,0">
                                     <Run Text="{Binding Telemetry.SourceFps, StringFormat='{}{0:0.0}', TargetNullValue=N/A}"/>
                                 </TextBlock>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="GENERATED FPS" Style="{StaticResource Text.Caption}"/>
+                                <TextBlock Text="{DynamicResource FB.GeneratedFps}" Style="{StaticResource Text.Caption}"/>
                                 <TextBlock FontFamily="Consolas" FontSize="24" Foreground="{StaticResource Brush.TextSecondary}" Margin="0,6,0,0">
                                     <Run Text="{Binding Telemetry.GeneratedFps, StringFormat='{}{0:0.0}', TargetNullValue=N/A}"/>
                                 </TextBlock>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="OUTPUT FPS" Style="{StaticResource Text.Caption}"/>
+                                <TextBlock Text="{DynamicResource FB.OutputFps}" Style="{StaticResource Text.Caption}"/>
                                 <TextBlock FontFamily="Consolas" FontSize="24" Foreground="{StaticResource Brush.AccentBright}" Margin="0,6,0,0">
                                     <Run Text="{Binding Telemetry.OutputFps, StringFormat='{}{0:0.0}', TargetNullValue=N/A}"/>
                                 </TextBlock>
@@ -134,15 +134,15 @@
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Text="Debug telemetry" Style="{StaticResource Text.SectionTitle}"/>
-                        <TextBlock Text="Real, measured values from the native engine — never fabricated." Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
+                        <TextBlock Text="{DynamicResource FB.DebugTelemetry}" Style="{StaticResource Text.SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource FB.DebugHint}" Style="{StaticResource Text.Caption}" Margin="0,4,0,14"/>
 
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Capture latency (real, avg)" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource FB.CaptureLatency}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
                                 <Run Text="{Binding Telemetry.CaptureLatencyMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>
                             </TextBlock>
@@ -152,7 +152,7 @@
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="On-screen age (avg)" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource FB.OnScreenAge}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
                                 <Run Text="{Binding Telemetry.OnScreenAgeMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>
                             </TextBlock>
@@ -162,7 +162,7 @@
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Motion estimation GPU time" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource FB.MotionGpu}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
                                 <Run Text="{Binding Telemetry.MotionEstimationGpuMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>
                             </TextBlock>
@@ -172,7 +172,7 @@
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Interpolation GPU time" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource FB.InterpGpu}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextPrimary}">
                                 <Run Text="{Binding Telemetry.InterpolationGpuMs, StringFormat='{}{0:0.00} ms', TargetNullValue=N/A}"/>
                             </TextBlock>
@@ -182,7 +182,7 @@
                                 <ColumnDefinition Width="220"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Poll time" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Grid.Column="0" Text="{DynamicResource FB.PollTime}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Grid.Column="1" FontFamily="Consolas" Foreground="{StaticResource Brush.TextTertiary}">
                                 <Run Text="{Binding Telemetry.PollTimeMs, StringFormat='{}{0:0.000} ms', TargetNullValue=N/A}"/>
                             </TextBlock>

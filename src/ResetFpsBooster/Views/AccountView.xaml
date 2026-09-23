@@ -7,16 +7,16 @@
              d:DataContext="{d:DesignInstance vm:AccountViewModel}">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="36,32" MaxWidth="560" HorizontalAlignment="Left">
-            <TextBlock Text="ACCOUNT" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="{DynamicResource Account.Title}" Style="{StaticResource Text.Title}"/>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
-                       Text="Sign in to unlock premium features. Your sign-in is stored encrypted on this PC, so you only need to do it once."/>
+                       Text="{DynamicResource Account.Intro}"/>
 
             <!-- Shown in a build that has no backend configured yet, instead of
                  a form that fails on every click. -->
             <Border Style="{StaticResource Card}" Margin="0,20,0,0"
                     Visibility="{Binding IsConfigured, Converter={StaticResource InverseBoolToVis}}">
                 <TextBlock Style="{StaticResource Text.Body}" TextWrapping="Wrap"
-                           Text="Accounts are not available in this build yet."/>
+                           Text="{DynamicResource Account.NotAvailable}"/>
             </Border>
 
             <StackPanel Visibility="{Binding IsConfigured, Converter={StaticResource BoolToVis}}">
@@ -25,19 +25,19 @@
                 <Border Style="{StaticResource Card}" Margin="0,20,0,0"
                         Visibility="{Binding IsSignedOut, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
-                        <TextBlock Text="Sign in" Style="{StaticResource Text.SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource Account.SignInTitle}" Style="{StaticResource Text.SectionTitle}"/>
 
-                        <TextBlock Text="E-mail" Style="{StaticResource Text.Caption}" Margin="0,16,0,4"/>
+                        <TextBlock Text="{DynamicResource Account.Email}" Style="{StaticResource Text.Caption}" Margin="0,16,0,4"/>
                         <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" Padding="8,6"/>
 
-                        <TextBlock Text="Password" Style="{StaticResource Text.Caption}" Margin="0,12,0,4"/>
+                        <TextBlock Text="{DynamicResource Account.Password}" Style="{StaticResource Text.Caption}" Margin="0,12,0,4"/>
                         <PasswordBox x:Name="PasswordInput" Padding="8,6"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                            <Button Content="Sign in" Style="{StaticResource Button.Primary}"
+                            <Button Content="{DynamicResource Account.SignIn}" Style="{StaticResource Button.Primary}"
                                     Command="{Binding SignInCommand}"
                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
-                            <Button Content="Create account" Style="{StaticResource Button.Secondary}" Margin="10,0,0,0"
+                            <Button Content="{DynamicResource Account.CreateAccount}" Style="{StaticResource Button.Secondary}" Margin="10,0,0,0"
                                     Command="{Binding SignUpCommand}"
                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
                         </StackPanel>
@@ -48,7 +48,7 @@
                 <Border Style="{StaticResource Card}" Margin="0,20,0,0"
                         Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
-                        <TextBlock Text="Signed in" Style="{StaticResource Text.SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource Account.SignedIn}" Style="{StaticResource Text.SectionTitle}"/>
                         <TextBlock Text="{Binding SignedInEmail}" Style="{StaticResource Text.Body}" Margin="0,8,0,0"/>
 
                         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
@@ -63,7 +63,7 @@
                             </Border>
                         </StackPanel>
 
-                        <Button Content="Sign out" Style="{StaticResource Button.Secondary}"
+                        <Button Content="{DynamicResource Account.SignOut}" Style="{StaticResource Button.Secondary}"
                                 HorizontalAlignment="Left" Margin="0,18,0,0"
                                 Command="{Binding SignOutCommand}"/>
                     </StackPanel>

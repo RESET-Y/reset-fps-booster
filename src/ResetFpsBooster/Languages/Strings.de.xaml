@@ -1,0 +1,108 @@
+<!-- GENERATED from strings.json by generate.js. Do not edit by hand. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <sys:String x:Key="Nav.Dashboard" xml:space="preserve">Dashboard</sys:String>
+    <sys:String x:Key="Nav.Optimizer" xml:space="preserve">Optimierer</sys:String>
+    <sys:String x:Key="Nav.GameProfiles" xml:space="preserve">Spielprofile</sys:String>
+    <sys:String x:Key="Nav.Performance" xml:space="preserve">Leistung</sys:String>
+    <sys:String x:Key="Nav.BottleneckEngine" xml:space="preserve">Engpass-Analyse</sys:String>
+    <sys:String x:Key="Nav.FrameBoost" xml:space="preserve">FrameBoost</sys:String>
+    <sys:String x:Key="Nav.System" xml:space="preserve">System</sys:String>
+    <sys:String x:Key="Nav.Backups" xml:space="preserve">Sicherungen</sys:String>
+    <sys:String x:Key="Nav.Logs" xml:space="preserve">Protokoll</sys:String>
+    <sys:String x:Key="Nav.Account" xml:space="preserve">Konto</sys:String>
+    <sys:String x:Key="Nav.Settings" xml:space="preserve">Einstellungen</sys:String>
+    <sys:String x:Key="Shell.StandardMode" xml:space="preserve">Standardmodus</sys:String>
+    <sys:String x:Key="Shell.NeedsAdmin" xml:space="preserve">Einige Optimierungen brauchen Administratorrechte</sys:String>
+    <sys:String x:Key="Shell.MadeBy" xml:space="preserve">Entwickelt von</sys:String>
+    <sys:String x:Key="Settings.Title" xml:space="preserve">Einstellungen</sys:String>
+    <sys:String x:Key="Settings.Subtitle" xml:space="preserve">Allgemeine Einstellungen für RESET FPS BOOSTER.</sys:String>
+    <sys:String x:Key="Settings.General" xml:space="preserve">Allgemein</sys:String>
+    <sys:String x:Key="Settings.Language" xml:space="preserve">Sprache</sys:String>
+    <sys:String x:Key="Settings.LanguageHint" xml:space="preserve">Ändert die Sprache der ganzen App sofort.</sys:String>
+    <sys:String x:Key="Settings.StartWithWindows" xml:space="preserve">RESET FPS BOOSTER mit Windows starten</sys:String>
+    <sys:String x:Key="Settings.StartWithWindowsHint" xml:space="preserve">Startet bei der Anmeldung minimiert im Hintergrund.</sys:String>
+    <sys:String x:Key="Settings.LaunchElevated" xml:space="preserve">Automatisch mit Adminrechten starten</sys:String>
+    <sys:String x:Key="Settings.LaunchElevatedHint" xml:space="preserve">Startet bei der Anmeldung als Administrator ohne UAC-Abfrage (über die Aufgabenplanung statt des Autostart-Schlüssels).</sys:String>
+    <sys:String x:Key="Settings.Toasts" xml:space="preserve">Benachrichtigungen</sys:String>
+    <sys:String x:Key="Settings.ToastsHint" xml:space="preserve">Zeigt eine Benachrichtigung, wenn „Jetzt optimieren“ fertig ist.</sys:String>
+    <sys:String x:Key="Settings.Confirm" xml:space="preserve">Vor dem Anwenden bestätigen</sys:String>
+    <sys:String x:Key="Settings.ConfirmHint" xml:space="preserve">Die genaue Liste der Änderungen immer vorher prüfen.</sys:String>
+    <sys:String x:Key="Settings.Optimization" xml:space="preserve">Optimierung</sys:String>
+    <sys:String x:Key="Settings.Experimental" xml:space="preserve">Experimentelle Optimierungen aktivieren</sys:String>
+    <sys:String x:Key="Settings.ExperimentalHint" xml:space="preserve">Zeigt als experimentell markierte Optimierungen im Optimierer. Standardmäßig aus.</sys:String>
+    <sys:String x:Key="Settings.GameBoost" xml:space="preserve">Game-Boost-Modus</sys:String>
+    <sys:String x:Key="Settings.GameBoostHint" xml:space="preserve">Solange ein erkanntes Spiel läuft, bekommen andere Hintergrund-Apps vorübergehend eine niedrigere Priorität (sie werden nie beendet) und sind sofort wieder normal, sobald das Spiel endet. Streaming (OBS, Streamlabs, XSplit, NVIDIA Broadcast, Elgato) und Sprachchat (Discord, Teams, TeamSpeak) bleiben immer unberührt, damit Streams flüssig bleiben.</sys:String>
+    <sys:String x:Key="Settings.Appearance" xml:space="preserve">Darstellung</sys:String>
+    <sys:String x:Key="Settings.AccentColor" xml:space="preserve">Akzentfarbe</sys:String>
+    <sys:String x:Key="Settings.AppliedOnRestart" xml:space="preserve">Wird beim nächsten App-Start übernommen.</sys:String>
+    <sys:String x:Key="Settings.RestartNow" xml:space="preserve">Jetzt neu starten</sys:String>
+    <sys:String x:Key="Settings.AdminAccess" xml:space="preserve">Administratorrechte</sys:String>
+    <sys:String x:Key="Settings.CurrentStatus" xml:space="preserve">Aktueller Status: </sys:String>
+    <sys:String x:Key="Settings.RestartAsAdmin" xml:space="preserve">Als Administrator neu starten</sys:String>
+    <sys:String x:Key="Settings.Updates" xml:space="preserve">Updates</sys:String>
+    <sys:String x:Key="Settings.UpdateRepo" xml:space="preserve">GitHub-Repository (Besitzer/Repo)</sys:String>
+    <sys:String x:Key="Settings.UpdateRepoHint" xml:space="preserve">Sucht in den GitHub-Releases dieses Repositorys nach einer neueren Version. Leer lassen, um die Update-Prüfung abzuschalten.</sys:String>
+    <sys:String x:Key="Settings.AutoCheck" xml:space="preserve">Beim Start automatisch prüfen</sys:String>
+    <sys:String x:Key="Settings.AutoCheckHint" xml:space="preserve">Eine kurze, stille Prüfung – lädt nie etwas ohne deine Zustimmung herunter.</sys:String>
+    <sys:String x:Key="Settings.CheckForUpdates" xml:space="preserve">Nach Updates suchen</sys:String>
+    <sys:String x:Key="Settings.VersionPrefix" xml:space="preserve">Version </sys:String>
+    <sys:String x:Key="Settings.VersionSuffix" xml:space="preserve"> verfügbar</sys:String>
+    <sys:String x:Key="Settings.Download" xml:space="preserve">Herunterladen</sys:String>
+    <sys:String x:Key="Settings.InstallRestart" xml:space="preserve">Installieren &amp; neu starten</sys:String>
+    <sys:String x:Key="Settings.About" xml:space="preserve">Über</sys:String>
+    <sys:String x:Key="Settings.MadeByLukas" xml:space="preserve">Entwickelt von Lukas Reschke</sys:String>
+    <sys:String x:Key="Account.Title" xml:space="preserve">KONTO</sys:String>
+    <sys:String x:Key="Account.Intro" xml:space="preserve">Melde dich an, um Premium-Funktionen freizuschalten. Die Anmeldung wird verschlüsselt auf diesem PC gespeichert, du musst sie also nur einmal machen.</sys:String>
+    <sys:String x:Key="Account.NotAvailable" xml:space="preserve">In dieser Version sind Konten noch nicht verfügbar.</sys:String>
+    <sys:String x:Key="Account.SignInTitle" xml:space="preserve">Anmelden</sys:String>
+    <sys:String x:Key="Account.Email" xml:space="preserve">E-Mail</sys:String>
+    <sys:String x:Key="Account.Password" xml:space="preserve">Passwort</sys:String>
+    <sys:String x:Key="Account.SignIn" xml:space="preserve">Anmelden</sys:String>
+    <sys:String x:Key="Account.CreateAccount" xml:space="preserve">Konto erstellen</sys:String>
+    <sys:String x:Key="Account.SignedIn" xml:space="preserve">Angemeldet</sys:String>
+    <sys:String x:Key="Account.SignOut" xml:space="preserve">Abmelden</sys:String>
+    <sys:String x:Key="Account.Created" xml:space="preserve">Konto erstellt.</sys:String>
+    <sys:String x:Key="Account.EnterBoth" xml:space="preserve">Gib deine E-Mail und ein Passwort ein.</sys:String>
+    <sys:String x:Key="Auth.NotSetUp" xml:space="preserve">Konten sind in dieser Version noch nicht eingerichtet.</sys:String>
+    <sys:String x:Key="Auth.Offline" xml:space="preserve">Der Kontoserver ist nicht erreichbar. Prüfe deine Internetverbindung.</sys:String>
+    <sys:String x:Key="Auth.Unreadable" xml:space="preserve">Die Antwort des Servers konnte nicht gelesen werden.</sys:String>
+    <sys:String x:Key="Auth.ConfirmPending" xml:space="preserve">Fast geschafft – bestätige deine E-Mail-Adresse über den Link in deinem Postfach und melde dich dann an.</sys:String>
+    <sys:String x:Key="Auth.WrongCredentials" xml:space="preserve">E-Mail oder Passwort ist falsch.</sys:String>
+    <sys:String x:Key="Auth.NotConfirmed" xml:space="preserve">Bestätige zuerst deine E-Mail-Adresse – der Link ist in deinem Postfach.</sys:String>
+    <sys:String x:Key="Auth.AlreadyRegistered" xml:space="preserve">Mit dieser E-Mail gibt es schon ein Konto. Melde dich stattdessen an.</sys:String>
+    <sys:String x:Key="Auth.PasswordRejected" xml:space="preserve">Das Passwort wurde nicht akzeptiert.</sys:String>
+    <sys:String x:Key="Auth.RateLimited" xml:space="preserve">Zu viele Versuche. Warte eine Minute und versuch es erneut.</sys:String>
+    <sys:String x:Key="Auth.SignUpFailed" xml:space="preserve">Registrierung fehlgeschlagen.</sys:String>
+    <sys:String x:Key="Auth.SignInFailed" xml:space="preserve">Anmeldung fehlgeschlagen.</sys:String>
+    <sys:String x:Key="FB.Beta" xml:space="preserve">EXPERIMENTELLE BETA</sys:String>
+    <sys:String x:Key="FB.Intro" xml:space="preserve">Bildgenerierung auf Systemebene für den ganzen Bildschirm, über die offiziellen Windows-Bildschirmaufnahme-Schnittstellen – kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. Einschalten und spielen; alles auf dem Hauptbildschirm wird beschleunigt. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.</sys:String>
+    <sys:String x:Key="FB.FrameGeneration" xml:space="preserve">Bildgenerierung</sys:String>
+    <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Beschleunigt den Hauptbildschirm – kein Fenster auszuwählen.</sys:String>
+    <sys:String x:Key="FB.BestResult" xml:space="preserve">Für das beste Ergebnis</sys:String>
+    <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Dein Monitor:</sys:String>
+    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Begrenze das Spiel auf {0} FPS. FrameBoost verdoppelt das auf {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.</sys:String>
+    <sys:String x:Key="FB.GpuRoom" xml:space="preserve">Lass der Grafikkarte etwas Luft. FrameBoost braucht für jedes erzeugte Bild ein paar Millisekunden GPU-Zeit. Läuft die GPU im Spiel schon auf 100 %, senke Auflösung oder Grafikeinstellungen, bis das nicht mehr so ist.</sys:String>
+    <sys:String x:Key="FB.SteadyCap" xml:space="preserve">Eine feste, begrenzte Bildrate funktioniert viel besser als eine unbegrenzte, die ständig schwankt.</sys:String>
+    <sys:String x:Key="FB.PremiumFeature" xml:space="preserve">FrameBoost ist eine Premium-Funktion</sys:String>
+    <sys:String x:Key="FB.PremiumFeatureDot" xml:space="preserve">FrameBoost ist eine Premium-Funktion.</sys:String>
+    <sys:String x:Key="FB.PremiumHint" xml:space="preserve">Melde dich mit einem Konto mit Premium an, um FrameBoost einzuschalten.</sys:String>
+    <sys:String x:Key="FB.GoToAccount" xml:space="preserve">Zum Konto</sys:String>
+    <sys:String x:Key="FB.TurnOn" xml:space="preserve">FrameBoost einschalten</sys:String>
+    <sys:String x:Key="FB.TurnOff" xml:space="preserve">FrameBoost ausschalten</sys:String>
+    <sys:String x:Key="FB.LowLatency" xml:space="preserve">Modus mit geringer Latenz</sys:String>
+    <sys:String x:Key="FB.LowLatencyHint" xml:space="preserve">Weniger Eingabeverzögerung, weichere generierte Bilder. Bilder werden gezeigt, sobald sie fertig sind, statt gleichmäßig verteilt zu werden, und in halber Auflösung erzeugt. Gemessen: etwa 9 ms weniger Verzögerung durch das Verteilen und 2–3 ms durch die leichtere Arbeit, am meisten dort, wo sich das Bild am schnellsten bewegt.</sys:String>
+    <sys:String x:Key="FB.Status" xml:space="preserve">Status</sys:String>
+    <sys:String x:Key="FB.Active" xml:space="preserve">AKTIV</sys:String>
+    <sys:String x:Key="FB.GameFps" xml:space="preserve">SPIEL-FPS</sys:String>
+    <sys:String x:Key="FB.GeneratedFps" xml:space="preserve">GENERIERTE FPS</sys:String>
+    <sys:String x:Key="FB.OutputFps" xml:space="preserve">AUSGABE-FPS</sys:String>
+    <sys:String x:Key="FB.DebugTelemetry" xml:space="preserve">Debug-Messwerte</sys:String>
+    <sys:String x:Key="FB.DebugHint" xml:space="preserve">Echte, gemessene Werte der Engine – nie erfunden.</sys:String>
+    <sys:String x:Key="FB.CaptureLatency" xml:space="preserve">Aufnahme-Latenz (echt, Ø)</sys:String>
+    <sys:String x:Key="FB.OnScreenAge" xml:space="preserve">Alter auf dem Bildschirm (Ø)</sys:String>
+    <sys:String x:Key="FB.MotionGpu" xml:space="preserve">GPU-Zeit Bewegungsschätzung</sys:String>
+    <sys:String x:Key="FB.InterpGpu" xml:space="preserve">GPU-Zeit Interpolation</sys:String>
+    <sys:String x:Key="FB.PollTime" xml:space="preserve">Abfragezeit</sys:String>
+</ResourceDictionary>

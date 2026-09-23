@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ResetFpsBooster.Core;
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Services;
 
 namespace ResetFpsBooster.ViewModels;
@@ -46,7 +47,7 @@ public sealed partial class AccountViewModel : ViewModelBase
     private async Task SignInAsync() => await RunAsync(pw => _auth.SignInAsync(Email.Trim(), pw), success: null);
 
     [RelayCommand]
-    private async Task SignUpAsync() => await RunAsync(pw => _auth.SignUpAsync(Email.Trim(), pw), success: "Account created.");
+    private async Task SignUpAsync() => await RunAsync(pw => _auth.SignUpAsync(Email.Trim(), pw), success: Loc.T("Account.Created"));
 
     [RelayCommand]
     private async Task SignOutAsync()
@@ -60,7 +61,7 @@ public sealed partial class AccountViewModel : ViewModelBase
         var password = ReadPassword?.Invoke() ?? "";
         if (string.IsNullOrWhiteSpace(Email) || password.Length == 0)
         {
-            ShowError("Enter your e-mail and a password.");
+            ShowError(Loc.T("Account.EnterBoth"));
             return;
         }
 
@@ -73,7 +74,10 @@ public sealed partial class AccountViewModel : ViewModelBase
                 MessageIsError = false;
                 Message = success;
             }
-            else if (error.StartsWith("Almost done"))
+            // Compared against the translated text, not an English prefix: in
+            // German or Russian an English check would never match and a
+            // successful sign-up would be shown as an error.
+            else if (error == Loc.T("Auth.ConfirmPending"))
             {
                 // Not a failure: sign-up worked, confirmation is pending.
                 MessageIsError = false;

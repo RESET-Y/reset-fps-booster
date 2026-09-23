@@ -63,13 +63,13 @@
                     <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,10" Margin="0,0,0,14"
                             Visibility="{Binding IsAdministrator, Converter={StaticResource InverseBoolToVis}}">
                         <StackPanel>
-                            <TextBlock Text="Standard mode" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold" FontSize="12"/>
-                            <TextBlock Text="Some optimizations need administrator rights" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            <TextBlock Text="{DynamicResource Shell.StandardMode}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold" FontSize="12"/>
+                            <TextBlock Text="{DynamicResource Shell.NeedsAdmin}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border BorderBrush="{StaticResource Brush.Accent}" BorderThickness="2,0,0,0" Padding="10,0,0,0">
                         <StackPanel>
-                            <TextBlock Text="Made by" Style="{StaticResource Text.Caption}"/>
+                            <TextBlock Text="{DynamicResource Shell.MadeBy}" Style="{StaticResource Text.Caption}"/>
                             <TextBlock Text="Lukas Reschke" Foreground="{StaticResource Brush.TextSecondary}" FontFamily="Segoe UI Semibold" FontSize="12" Margin="0,1,0,0"/>
                         </StackPanel>
                     </Border>

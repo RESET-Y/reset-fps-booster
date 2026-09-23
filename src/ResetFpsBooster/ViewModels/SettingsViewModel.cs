@@ -4,12 +4,32 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Services;
 
 namespace ResetFpsBooster.ViewModels;
 
 public sealed partial class SettingsViewModel : ViewModelBase
 {
+    /// Each language listed under its own name, so someone who cannot read
+    /// the current language can still find theirs.
+    public IReadOnlyList<Loc.Language> Languages => Loc.Available;
+
+    /// Applied the moment it is picked and remembered. The whole app relabels
+    /// itself without a restart.
+    public Loc.Language SelectedLanguage
+    {
+        get => Loc.Available.First(l => l.Code == Loc.Current);
+        set
+        {
+            if (value is null || value.Code == Loc.Current) return;
+            Loc.Apply(value.Code);
+            Settings.Language = value.Code;
+            _settingsService.Save();
+            OnPropertyChanged();
+        }
+    }
+
     private readonly ISettingsService _settingsService;
     private readonly IUpdateService _updateService;
     private readonly IGameBoostService _gameBoostService;

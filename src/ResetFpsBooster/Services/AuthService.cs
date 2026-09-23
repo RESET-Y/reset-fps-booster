@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ResetFpsBooster.Core;
 using ResetFpsBooster.Core.Utilities;
+using ResetFpsBooster.Core.Localization;
 
 namespace ResetFpsBooster.Services;
 
@@ -47,7 +48,7 @@ public sealed class AuthService : IAuthService
 
     public async Task<string?> SignInAsync(string email, string password, CancellationToken ct = default)
     {
-        if (!SupabaseConfig.IsConfigured) return "Accounts are not set up in this build yet.";
+        if (!SupabaseConfig.IsConfigured) return Loc.T("Auth.NotSetUp");
         try
         {
             using var res = await PostAuthAsync("token?grant_type=password",
@@ -56,19 +57,19 @@ public sealed class AuthService : IAuthService
             if (!res.IsSuccessStatusCode) return DescribeError(body, signingUp: false);
 
             var session = JsonSerializer.Deserialize<Session>(body, Json);
-            if (session?.AccessToken is null) return "The server's answer could not be read.";
+            if (session?.AccessToken is null) return Loc.T("Auth.Unreadable");
             SetSession(session);
             return null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return "Could not reach the account server. Check your internet connection.";
+            return Loc.T("Auth.Offline");
         }
     }
 
     public async Task<string?> SignUpAsync(string email, string password, CancellationToken ct = default)
     {
-        if (!SupabaseConfig.IsConfigured) return "Accounts are not set up in this build yet.";
+        if (!SupabaseConfig.IsConfigured) return Loc.T("Auth.NotSetUp");
         try
         {
             using var res = await PostAuthAsync("signup", new { email, password }, bearer: null, ct);
@@ -78,13 +79,13 @@ public sealed class AuthService : IAuthService
             // With e-mail confirmation on, sign-up returns a user but no session.
             var session = JsonSerializer.Deserialize<Session>(body, Json);
             if (session?.AccessToken is null)
-                return "Almost done - check your inbox and confirm your e-mail address, then sign in.";
+                return Loc.T("Auth.ConfirmPending");
             SetSession(session);
             return null;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            return "Could not reach the account server. Check your internet connection.";
+            return Loc.T("Auth.Offline");
         }
     }
 
@@ -172,13 +173,13 @@ public sealed class AuthService : IAuthService
         catch { }
 
         var lower = raw.ToLowerInvariant();
-        if (lower.Contains("invalid login")) return "E-mail or password is wrong.";
-        if (lower.Contains("not confirmed")) return "Confirm your e-mail address first - the link is in your inbox.";
-        if (lower.Contains("already registered")) return "There is already an account with this e-mail. Sign in instead.";
-        if (lower.Contains("password")) return string.IsNullOrEmpty(raw) ? "The password was not accepted." : raw;
-        if (lower.Contains("rate limit")) return "Too many attempts. Wait a minute and try again.";
+        if (lower.Contains("invalid login")) return Loc.T("Auth.WrongCredentials");
+        if (lower.Contains("not confirmed")) return Loc.T("Auth.NotConfirmed");
+        if (lower.Contains("already registered")) return Loc.T("Auth.AlreadyRegistered");
+        if (lower.Contains("password")) return string.IsNullOrEmpty(raw) ? Loc.T("Auth.PasswordRejected") : raw;
+        if (lower.Contains("rate limit")) return Loc.T("Auth.RateLimited");
         return string.IsNullOrEmpty(raw)
-            ? (signingUp ? "Sign-up failed." : "Sign-in failed.")
+            ? (signingUp ? Loc.T("Auth.SignUpFailed") : Loc.T("Auth.SignInFailed"))
             : raw;
     }
 
