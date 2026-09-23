@@ -7,3 +7,9 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# The manager page is for Lukas only: keep it out of search engines.
+[[headers]]
+  for = "/manager/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

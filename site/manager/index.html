@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#050505">
+<title>RFB Manager</title>
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800;900&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Manager on the phone. Same world as the site; built thumb-first. */
+:root {
+  --bg: #050505; --surface: #0c0c0c; --surface-2: #141414; --hover: #1c1c1c; --border: #262626;
+  --text: #fff; --text-2: #a8a8a8; --text-3: #6a6a6a;
+  --accent: #e8121f; --accent-bright: #ff3242; --success: #3dd68c; --warning: #f5a623;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--body); padding-bottom: env(safe-area-inset-bottom); }
+.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
+main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 22px; }
+h1 { margin: 0; font: 900 italic 38px/1 var(--display); text-transform: uppercase; }
+h1 .accent { color: var(--accent); }
+h2 { margin: 0 0 14px; font: 900 italic 22px/1 var(--display); text-transform: uppercase; }
+.who { font: 400 11px var(--mono); color: var(--text-3); word-break: break-all; }
+.card { background: var(--surface); border: 1px solid var(--border); padding: 18px; margin-bottom: 16px; }
+.card.accent { border-left: 3px solid var(--accent); }
+label { display: block; font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 6px; }
+input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font: 500 17px var(--body); padding: 13px 14px; border-radius: 0; }
+input:focus { outline: none; border-color: var(--accent); }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.seg button, .stepper button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 900 italic 17px var(--display); padding: 12px 0; transform: skewX(-12deg); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 6px; align-items: center; }
+.stepper output { text-align: center; font: 900 italic 30px var(--display); }
+.btn { display: block; width: 100%; margin-top: 18px; padding: 16px; border: 0; transform: skewX(-12deg); cursor: pointer;
+       font: 900 italic 19px var(--display); letter-spacing: .05em; text-transform: uppercase; background: var(--accent); color: #fff; }
+.btn:active { background: var(--accent-bright); }
+.btn[disabled] { opacity: .5; }
+.btn.ghost { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font-size: 14px; padding: 10px 16px; width: auto; margin: 0; display: inline-block; }
+.msg { margin-top: 12px; font-size: 14px; color: var(--warning); min-height: 1.2em; }
+.created { display: none; margin-top: 18px; padding: 16px; background: #000; border: 1px dashed var(--accent); text-align: center; }
+.created.show { display: block; animation: pop .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+.created .code { font: 500 22px var(--mono); color: var(--accent-bright); letter-spacing: .04em; word-break: break-all; }
+.created .hint { font: 400 12px var(--mono); color: var(--success); margin-top: 6px; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 14px 0; border-top: 1px solid var(--border); }
+.row:first-of-type { border-top: 0; }
+.row .code { font: 500 15px var(--mono); }
+.row .meta { font: 400 12px var(--mono); color: var(--text-3); margin-top: 2px; }
+.row .note { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.row.off .code { color: var(--text-3); text-decoration: line-through; }
+.actions { display: flex; gap: 6px; }
+.icon { width: 44px; height: 44px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); transform: skewX(-12deg); cursor: pointer; font: 900 italic 13px var(--display); }
+.icon.on { color: var(--success); }
+.empty { color: var(--text-3); font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 250%) skewX(-12deg); opacity: 0; background: var(--success); color: #041; font: 900 italic 16px var(--display); text-transform: uppercase; padding: 10px 20px; transition: transform .25s, opacity .25s; }
+.toast.show { transform: translate(-50%, 0) skewX(-12deg); opacity: 1; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main>
+  <header>
+    <h1>RFB <span class="accent">Manager</span></h1>
+    <button class="btn ghost" id="logout" hidden>Abmelden</button>
+  </header>
+
+  <!-- sign in: the same account as in the app -->
+  <section class="card accent" id="login">
+    <h2>Anmelden</h2>
+    <form id="loginForm" autocomplete="on">
+      <label for="email">E-Mail</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">Passwort</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit">Anmelden</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+  </section>
+
+  <div id="app" hidden>
+    <div class="who" id="who"></div>
+
+    <section class="card accent" style="margin-top:14px">
+      <h2>Neuer Code</h2>
+      <label>Dauer</label>
+      <div class="seg" id="duration">
+        <button type="button" data-days="7">7 T</button>
+        <button type="button" data-days="30" aria-pressed="true">30 T</button>
+        <button type="button" data-days="90">90 T</button>
+        <button type="button" data-days="">∞</button>
+      </div>
+      <label>Einlösungen</label>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="Weniger">−</button>
+        <output id="uses">1</output>
+        <button type="button" id="plus" aria-label="Mehr">+</button>
+      </div>
+      <label for="note">Notiz (für wen?)</label>
+      <input id="note" type="text" placeholder="z. B. Max, Discord">
+      <button class="btn" id="create">Code erstellen</button>
+      <div class="msg" id="createMsg"></div>
+      <div class="created" id="created">
+        <div class="code" id="newCode"></div>
+        <div class="hint" id="copyHint">In die Zwischenablage kopiert</div>
+        <button class="btn" id="share" hidden>Teilen</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0">Codes</h2>
+        <button class="btn ghost" id="refresh">Neu laden</button>
+      </div>
+      <div id="list"><div class="empty">Lädt…</div></div>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast">Kopiert</div>
+
+<script>
+// Same backend and same public key as the app. Every action below is a
+// database function that checks is_manager() for the signed-in user; this
+// page hides nothing that the server would otherwise allow.
+const SUPABASE = "https://sjwparnlbtuiyqmagyfg.supabase.co";
+const ANON = "sb_publishable_EP3WkfFmKLBznsC7kRncfA_bIrELJ8g";
+const KEY = "rfb-manager-session";
+
+const $ = id => document.getElementById(id);
+let session = null;
+try { session = JSON.parse(localStorage.getItem(KEY)); } catch {}
+function saveSession(s) { session = s; try { s ? localStorage.setItem(KEY, JSON.stringify(s)) : localStorage.removeItem(KEY); } catch {} }
+
+async function auth(path, body) {
+  const r = await fetch(SUPABASE + "/auth/v1/" + path, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.msg || "Anmeldung fehlgeschlagen");
+  return { access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (j.expires_in - 60) * 1000, email: j.user?.email };
+}
+async function token() {
+  if (session && Date.now() > session.expires) {
+    try { saveSession({ ...(await auth("token?grant_type=refresh_token", { refresh_token: session.refresh })), email: session.email }); }
+    catch { saveSession(null); showLogin("Sitzung abgelaufen. Bitte neu anmelden."); throw new Error("expired"); }
+  }
+  return session.access;
+}
+async function rpc(fn, args = {}) {
+  const r = await fetch(SUPABASE + "/rest/v1/rpc/" + fn, {
+    method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(args) });
+  const text = await r.text();
+  if (!r.ok) { const e = new Error(text); e.status = r.status; throw e; }
+  return text ? JSON.parse(text) : null;
+}
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 1400); }
+async function copy(t) { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } }
+
+function showLogin(msg) { $("login").hidden = false; $("app").hidden = true; $("logout").hidden = true; $("loginMsg").textContent = msg || ""; }
+async function showApp() {
+  if (!(await rpc("is_manager").catch(() => false))) { saveSession(null); showLogin("Dieser Account ist kein Manager."); return; }
+  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
+  $("who").textContent = "ANGEMELDET: " + (session.email || "");
+  load();
+}
+
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("loginMsg").textContent = "";
+  try { saveSession(await auth("token?grant_type=password", { email: $("email").value.trim(), password: $("password").value })); $("password").value = ""; showApp(); }
+  catch (err) { $("loginMsg").textContent = err.message.includes("Invalid") ? "E-Mail oder Passwort falsch." : err.message; }
+});
+$("logout").addEventListener("click", () => { saveSession(null); showLogin(); });
+
+// ---- create ----
+let days = 30, uses = 1;
+$("duration").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  [...$("duration").children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  days = b.dataset.days ? +b.dataset.days : null;
+});
+$("minus").onclick = () => { uses = Math.max(1, uses - 1); $("uses").textContent = uses; };
+$("plus").onclick = () => { uses = Math.min(999, uses + 1); $("uses").textContent = uses; };
+if (navigator.share) $("share").hidden = false;
+
+$("create").addEventListener("click", async () => {
+  const btn = $("create"); btn.disabled = true; $("createMsg").textContent = "";
+  try {
+    const code = await rpc("create_premium_code", { p_duration_days: days, p_max_uses: uses, p_note: $("note").value.trim() || null });
+    $("newCode").textContent = code;
+    $("copyHint").textContent = (await copy(code)) ? "In die Zwischenablage kopiert" : "Zum Kopieren gedrückt halten";
+    const box = $("created"); box.classList.remove("show"); void box.offsetWidth; box.classList.add("show");
+    $("note").value = "";
+    load();
+  } catch (err) {
+    $("createMsg").textContent = err.status === 403 || /not allowed/.test(err.message) ? "Nicht erlaubt: kein Manager." : "Code konnte nicht erstellt werden.";
+  } finally { btn.disabled = false; }
+});
+$("share").addEventListener("click", () => {
+  const code = $("newCode").textContent;
+  navigator.share({ text: "Dein RESET FrameBoost Code: " + code + "\nEinlösen in der App unter Konto." }).catch(() => {});
+});
+
+// ---- list ----
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+async function load() {
+  const list = $("list");
+  try {
+    const codes = await rpc("list_premium_codes");
+    if (!codes.length) { list.innerHTML = '<div class="empty">Noch keine Codes.</div>'; return; }
+    list.innerHTML = codes.map(c => `
+      <div class="row ${c.active ? "" : "off"}">
+        <div>
+          <div class="code">${esc(c.code)}</div>
+          <div class="meta">${c.duration_days ? c.duration_days + " T" : "∞"} · ${c.uses}/${c.max_uses} eingelöst · ${new Date(c.created_at).toLocaleDateString("de-DE")}${c.active ? "" : " · AUS"}</div>
+          ${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}
+        </div>
+        <div class="actions">
+          <button class="icon" data-copy="${esc(c.code)}" aria-label="Kopieren">KOP</button>
+          <button class="icon ${c.active ? "on" : ""}" data-toggle="${esc(c.code)}" data-active="${c.active}" aria-label="${c.active ? "Deaktivieren" : "Aktivieren"}">${c.active ? "AN" : "AUS"}</button>
+        </div>
+      </div>`).join("");
+  } catch { list.innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+}
+$("list").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.copy) { if (await copy(b.dataset.copy)) toast("Kopiert"); }
+  if (b.dataset.toggle) {
+    b.disabled = true;
+    try { await rpc("set_premium_code_active", { p_code: b.dataset.toggle, p_active: b.dataset.active !== "true" }); load(); }
+    catch { toast("Fehlgeschlagen"); b.disabled = false; }
+  }
+});
+$("refresh").addEventListener("click", load);
+
+session ? showApp() : showLogin();
+</script>
+</body>
+</html>
