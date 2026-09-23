@@ -6,8 +6,76 @@
         Width="1280" Height="820" MinWidth="1040" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Brush.Background}"
-        FontFamily="Segoe UI">
-    <DockPanel>
+        FontFamily="Segoe UI"
+        StateChanged="OnStateChanged">
+    <!-- Our own title bar instead of the Windows one. WindowChrome keeps what
+         the system frame gave: dragging, double-click to maximize, snapping,
+         resizing at the edges. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="34" ResizeBorderThickness="6" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource Brush.SurfaceHover}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Accent}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- A maximized borderless window reaches past the screen edge by the
+         resize border; OnStateChanged pads it back in. -->
+    <DockPanel x:Name="RootPanel">
+        <!-- Title bar -->
+        <Grid DockPanel.Dock="Top" Height="34" Background="{StaticResource Brush.Background}">
+            <TextBlock Text="RESET FPS BOOSTER //" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="11"
+                       Foreground="{StaticResource Brush.TextTertiary}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" ToolTip="Minimize">
+                    <Rectangle Width="10" Height="1.5" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+                <Button Style="{StaticResource CaptionButton}" Click="OnMaximize" ToolTip="Maximize">
+                    <Rectangle Width="10" Height="10" StrokeThickness="1.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+                <Button Style="{StaticResource CloseButton}" Click="OnClose" ToolTip="Close">
+                    <Path Data="M0,0 L10,10 M10,0 L0,10" StrokeThickness="1.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
         <!-- Racing stripe: red band with slanted black hatching -->
         <Border DockPanel.Dock="Top" Height="6" Background="{DynamicResource Brush.Accent}">
             <Rectangle>
