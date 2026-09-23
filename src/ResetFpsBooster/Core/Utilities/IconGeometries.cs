@@ -24,6 +24,7 @@ public static class IconGeometries
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
+        IconKind.Account => Account(),
         IconKind.Settings => Settings(),
         _ => Geometry.Empty
     };
@@ -134,6 +135,15 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(1, 3, 14, 2)));
         group.Children.Add(new RectangleGeometry(new Rect(1, 7, 10, 2)));
         group.Children.Add(new RectangleGeometry(new Rect(1, 11, 12, 2)));
+        return group;
+    }
+
+    // A head and shoulders, in the same 16-unit box as the other icons.
+    private static Geometry Account()
+    {
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(new EllipseGeometry(new Point(8, 5), 3, 3));
+        group.Children.Add(Geometry.Parse("M2,15 C2,10.5 5,9 8,9 C11,9 14,10.5 14,15 Z"));
         return group;
     }
 

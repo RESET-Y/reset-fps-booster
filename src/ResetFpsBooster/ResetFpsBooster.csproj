@@ -45,6 +45,7 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <!-- Wraps NVIDIA's public NVAPI so the "NVIDIA Max Performance" module can read/write the same
          global driver settings the NVIDIA Control Panel itself exposes. LGPL-3.0 — usable in
          closed-source projects since we only consume the compiled package, not modify it. -->

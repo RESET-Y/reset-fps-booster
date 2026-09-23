@@ -1,0 +1,237 @@
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using ResetFpsBooster.Core;
+using ResetFpsBooster.Core.Utilities;
+
+namespace ResetFpsBooster.Services;
+
+/// ACCOUNTS, SPOKEN TO SUPABASE AUTH DIRECTLY OVER HTTPS.
+///
+/// No client library: the four calls this needs - sign up, sign in, refresh,
+/// sign out - plus one database function are plain REST, and owning them means
+/// owning exactly what is sent and what is stored.
+///
+/// The session is kept between runs so nobody signs in every launch. It holds a
+/// refresh token, which can sign in as that user, so it is written ONLY through
+/// DPAPI for the current Windows user: the file is useless on another machine
+/// or under another account, and it is never plain text on disk.
+public sealed class AuthService : IAuthService
+{
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+
+    private Session? _session;
+
+    public string? CurrentEmail => _session?.User?.Email;
+    public bool IsSignedIn => _session is not null;
+    public event EventHandler? SignInStateChanged;
+
+    public async Task RestoreAsync(CancellationToken ct = default)
+    {
+        if (!SupabaseConfig.IsConfigured) return;
+        var stored = LoadSession();
+        if (stored?.RefreshToken is null) return;
+
+        // Always refresh on start: the access token is short-lived and may have
+        // expired while the app was closed. A refresh that fails means the
+        // session was revoked or expired - signed out, and the stale file goes.
+        var refreshed = await RefreshAsync(stored.RefreshToken, ct);
+        if (refreshed is null) { DeleteSession(); return; }
+        SetSession(refreshed);
+    }
+
+    public async Task<string?> SignInAsync(string email, string password, CancellationToken ct = default)
+    {
+        if (!SupabaseConfig.IsConfigured) return "Accounts are not set up in this build yet.";
+        try
+        {
+            using var res = await PostAuthAsync("token?grant_type=password",
+                new { email, password }, bearer: null, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode) return DescribeError(body, signingUp: false);
+
+            var session = JsonSerializer.Deserialize<Session>(body, Json);
+            if (session?.AccessToken is null) return "The server's answer could not be read.";
+            SetSession(session);
+            return null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return "Could not reach the account server. Check your internet connection.";
+        }
+    }
+
+    public async Task<string?> SignUpAsync(string email, string password, CancellationToken ct = default)
+    {
+        if (!SupabaseConfig.IsConfigured) return "Accounts are not set up in this build yet.";
+        try
+        {
+            using var res = await PostAuthAsync("signup", new { email, password }, bearer: null, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode) return DescribeError(body, signingUp: true);
+
+            // With e-mail confirmation on, sign-up returns a user but no session.
+            var session = JsonSerializer.Deserialize<Session>(body, Json);
+            if (session?.AccessToken is null)
+                return "Almost done - check your inbox and confirm your e-mail address, then sign in.";
+            SetSession(session);
+            return null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return "Could not reach the account server. Check your internet connection.";
+        }
+    }
+
+    public async Task SignOutAsync(CancellationToken ct = default)
+    {
+        var token = _session?.AccessToken;
+        _session = null;
+        DeleteSession();
+        SignInStateChanged?.Invoke(this, EventArgs.Empty);
+
+        // Tell the server too, so the refresh token stops working everywhere.
+        // Local sign-out has already happened; a failure here changes nothing.
+        if (token is null || !SupabaseConfig.IsConfigured) return;
+        try { using var _ = await PostAuthAsync("logout", new { }, token, ct); } catch { }
+    }
+
+    public async Task<bool> IsPremiumAsync(CancellationToken ct = default)
+    {
+        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return false;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"{SupabaseConfig.Url.TrimEnd('/')}/rest/v1/rpc/is_premium")
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+
+            using var res = await Http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return false;
+            var body = (await res.Content.ReadAsStringAsync(ct)).Trim();
+            return body == "true";
+        }
+        catch { return false; }
+    }
+
+    // ---- internals -----------------------------------------------------------
+
+    private async Task<Session?> RefreshAsync(string refreshToken, CancellationToken ct)
+    {
+        try
+        {
+            using var res = await PostAuthAsync("token?grant_type=refresh_token",
+                new { refresh_token = refreshToken }, bearer: null, ct);
+            if (!res.IsSuccessStatusCode) return null;
+            var body = await res.Content.ReadAsStringAsync(ct);
+            var session = JsonSerializer.Deserialize<Session>(body, Json);
+            return session?.AccessToken is null ? null : session;
+        }
+        catch { return null; }
+    }
+
+    private static Task<HttpResponseMessage> PostAuthAsync(string path, object payload,
+                                                           string? bearer, CancellationToken ct)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post,
+            $"{SupabaseConfig.Url.TrimEnd('/')}/auth/v1/{path}")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
+        };
+        req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+        if (bearer is not null) req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        return Http.SendAsync(req, ct);
+    }
+
+    private void SetSession(Session session)
+    {
+        _session = session;
+        SaveSession(session);
+        SignInStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// Supabase answers in a few shapes; the user gets a sentence, not a code.
+    private static string DescribeError(string body, bool signingUp)
+    {
+        string raw = "";
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            foreach (var key in new[] { "error_description", "msg", "message", "error" })
+                if (doc.RootElement.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String)
+                { raw = v.GetString() ?? ""; break; }
+        }
+        catch { }
+
+        var lower = raw.ToLowerInvariant();
+        if (lower.Contains("invalid login")) return "E-mail or password is wrong.";
+        if (lower.Contains("not confirmed")) return "Confirm your e-mail address first - the link is in your inbox.";
+        if (lower.Contains("already registered")) return "There is already an account with this e-mail. Sign in instead.";
+        if (lower.Contains("password")) return string.IsNullOrEmpty(raw) ? "The password was not accepted." : raw;
+        if (lower.Contains("rate limit")) return "Too many attempts. Wait a minute and try again.";
+        return string.IsNullOrEmpty(raw)
+            ? (signingUp ? "Sign-up failed." : "Sign-in failed.")
+            : raw;
+    }
+
+    private static Session? LoadSession()
+    {
+        try
+        {
+            if (!File.Exists(AppPaths.SessionFile)) return null;
+            var sealedBytes = File.ReadAllBytes(AppPaths.SessionFile);
+            var plain = ProtectedData.Unprotect(sealedBytes, null, DataProtectionScope.CurrentUser);
+            return JsonSerializer.Deserialize<Session>(plain, Json);
+        }
+        catch
+        {
+            // Unreadable - another Windows user, a copied file, corruption.
+            // Treated as no session, never as an error the user must deal with.
+            DeleteSession();
+            return null;
+        }
+    }
+
+    private static void SaveSession(Session session)
+    {
+        try
+        {
+            AppPaths.EnsureFoldersExist();
+            var plain = JsonSerializer.SerializeToUtf8Bytes(session, Json);
+            var sealedBytes = ProtectedData.Protect(plain, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(AppPaths.SessionFile, sealedBytes);
+        }
+        catch
+        {
+            // Not being remembered costs one sign-in next launch. Not worth
+            // failing the sign-in over.
+        }
+    }
+
+    private static void DeleteSession()
+    {
+        try { if (File.Exists(AppPaths.SessionFile)) File.Delete(AppPaths.SessionFile); } catch { }
+    }
+
+    private sealed class Session
+    {
+        [JsonPropertyName("access_token")]  public string? AccessToken { get; set; }
+        [JsonPropertyName("refresh_token")] public string? RefreshToken { get; set; }
+        [JsonPropertyName("expires_at")]    public long? ExpiresAt { get; set; }
+        [JsonPropertyName("user")]          public SessionUser? User { get; set; }
+    }
+
+    private sealed class SessionUser
+    {
+        [JsonPropertyName("id")]    public string? Id { get; set; }
+        [JsonPropertyName("email")] public string? Email { get; set; }
+    }
+}

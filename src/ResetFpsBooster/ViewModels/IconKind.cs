@@ -13,5 +13,6 @@ public enum IconKind
     System,
     Backups,
     Logs,
+    Account,
     Settings
 }

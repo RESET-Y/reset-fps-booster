@@ -13,5 +13,6 @@ public enum NavigationSection
     System,
     Backups,
     Logs,
+    Account,
     Settings
 }

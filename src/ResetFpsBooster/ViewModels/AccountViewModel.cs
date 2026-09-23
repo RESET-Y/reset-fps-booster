@@ -1,0 +1,92 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using ResetFpsBooster.Core;
+using ResetFpsBooster.Services;
+
+namespace ResetFpsBooster.ViewModels;
+
+public sealed partial class AccountViewModel : ViewModelBase
+{
+    private readonly IAuthService _auth;
+
+    [ObservableProperty] private string _email = "";
+    [ObservableProperty] private string? _message;
+    [ObservableProperty] private bool _messageIsError;
+    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private bool _isPremium;
+
+    /// The password never lives in a bound property. It is handed over from the
+    /// PasswordBox at the moment of the call and dropped straight after, so it
+    /// is not sitting in memory for the lifetime of the page.
+    public Func<string>? ReadPassword { get; set; }
+
+    public bool IsSignedIn => _auth.IsSignedIn;
+    public bool IsSignedOut => !_auth.IsSignedIn;
+    public string? SignedInEmail => _auth.CurrentEmail;
+    public bool IsConfigured => SupabaseConfig.IsConfigured;
+
+    public AccountViewModel(IAuthService auth)
+    {
+        _auth = auth;
+        _auth.SignInStateChanged += (_, _) => OnSignInStateChanged();
+        _ = RefreshPremiumAsync();
+    }
+
+    private void OnSignInStateChanged()
+    {
+        OnPropertyChanged(nameof(IsSignedIn));
+        OnPropertyChanged(nameof(IsSignedOut));
+        OnPropertyChanged(nameof(SignedInEmail));
+        _ = RefreshPremiumAsync();
+    }
+
+    private async Task RefreshPremiumAsync() => IsPremium = await _auth.IsPremiumAsync();
+
+    [RelayCommand]
+    private async Task SignInAsync() => await RunAsync(pw => _auth.SignInAsync(Email.Trim(), pw), success: null);
+
+    [RelayCommand]
+    private async Task SignUpAsync() => await RunAsync(pw => _auth.SignUpAsync(Email.Trim(), pw), success: "Account created.");
+
+    [RelayCommand]
+    private async Task SignOutAsync()
+    {
+        await _auth.SignOutAsync();
+        Message = null;
+    }
+
+    private async Task RunAsync(Func<string, Task<string?>> action, string? success)
+    {
+        var password = ReadPassword?.Invoke() ?? "";
+        if (string.IsNullOrWhiteSpace(Email) || password.Length == 0)
+        {
+            ShowError("Enter your e-mail and a password.");
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var error = await action(password);
+            if (error is null)
+            {
+                MessageIsError = false;
+                Message = success;
+            }
+            else if (error.StartsWith("Almost done"))
+            {
+                // Not a failure: sign-up worked, confirmation is pending.
+                MessageIsError = false;
+                Message = error;
+            }
+            else ShowError(error);
+        }
+        finally { IsBusy = false; }
+    }
+
+    private void ShowError(string text)
+    {
+        MessageIsError = true;
+        Message = text;
+    }
+}

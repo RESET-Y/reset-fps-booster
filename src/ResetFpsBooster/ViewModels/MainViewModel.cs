@@ -34,10 +34,16 @@ public sealed partial class MainViewModel : ObservableObject
             new(NavigationSection.System, "System", IconKind.System),
             new(NavigationSection.Backups, "Backups", IconKind.Backups),
             new(NavigationSection.Logs, "Logs", IconKind.Logs),
+            new(NavigationSection.Account, "Account", IconKind.Account),
             new(NavigationSection.Settings, "Settings", IconKind.Settings),
         };
 
         NavigateTo(NavigationSection.Dashboard);
+
+        // A stored sign-in is restored quietly in the background. Nothing waits
+        // on it: the app works signed out, and premium is only asked for once
+        // the session is back.
+        _ = _services.Auth.RestoreAsync();
 
         if (_services.Settings.Current.AutoCheckForUpdates && !string.IsNullOrWhiteSpace(_services.Settings.Current.UpdateRepository))
             _ = CheckForUpdatesSilentlyAsync();
@@ -99,6 +105,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),
+            NavigationSection.Account => new AccountViewModel(_services.Auth),
             NavigationSection.Settings => new SettingsViewModel(_services.Settings, _services.Update, _services.GameBoost),
             _ => throw new ArgumentOutOfRangeException(nameof(section))
         };
