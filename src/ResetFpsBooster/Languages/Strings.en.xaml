@@ -112,4 +112,37 @@
     <sys:String x:Key="Account.CheckAgain" xml:space="preserve">I have paid - check again</sys:String>
     <sys:String x:Key="Account.StoreSoon" xml:space="preserve">Purchasing is not open yet.</sys:String>
     <sys:String x:Key="Account.StillFree" xml:space="preserve">No Premium yet. If you just paid, wait a few seconds and check again.</sys:String>
+    <sys:String x:Key="Nav.Manager" xml:space="preserve">Manager</sys:String>
+    <sys:String x:Key="Account.RedeemTitle" xml:space="preserve">Have a code?</sys:String>
+    <sys:String x:Key="Account.RedeemHint" xml:space="preserve">Enter a Premium code you were given.</sys:String>
+    <sys:String x:Key="Account.RedeemButton" xml:space="preserve">Redeem</sys:String>
+    <sys:String x:Key="Code.ok" xml:space="preserve">Code redeemed - Premium is now active.</sys:String>
+    <sys:String x:Key="Code.not_found" xml:space="preserve">This code does not exist. Check it for typos.</sys:String>
+    <sys:String x:Key="Code.inactive" xml:space="preserve">This code has been deactivated.</sys:String>
+    <sys:String x:Key="Code.used_up" xml:space="preserve">This code has already been used up.</sys:String>
+    <sys:String x:Key="Code.already_redeemed" xml:space="preserve">You have already redeemed this code.</sys:String>
+    <sys:String x:Key="Code.error" xml:space="preserve">The code could not be checked. Check your internet connection.</sys:String>
+    <sys:String x:Key="Manager.Title" xml:space="preserve">MANAGER</sys:String>
+    <sys:String x:Key="Manager.Intro" xml:space="preserve">Create codes that give Premium for free - for testers, streamers or friends. Only managers see this page, and the server checks it on every action.</sys:String>
+    <sys:String x:Key="Manager.NewCode" xml:space="preserve">New code</sys:String>
+    <sys:String x:Key="Manager.Duration" xml:space="preserve">Premium for</sys:String>
+    <sys:String x:Key="Manager.Days7" xml:space="preserve">7 days</sys:String>
+    <sys:String x:Key="Manager.Days30" xml:space="preserve">30 days</sys:String>
+    <sys:String x:Key="Manager.Days90" xml:space="preserve">90 days</sys:String>
+    <sys:String x:Key="Manager.Forever" xml:space="preserve">Forever</sys:String>
+    <sys:String x:Key="Manager.MaxUses" xml:space="preserve">Can be used</sys:String>
+    <sys:String x:Key="Manager.Times" xml:space="preserve">times</sys:String>
+    <sys:String x:Key="Manager.Note" xml:space="preserve">Note (who is it for?)</sys:String>
+    <sys:String x:Key="Manager.Create" xml:space="preserve">Create code</sys:String>
+    <sys:String x:Key="Manager.Created" xml:space="preserve">Created - copied to the clipboard:</sys:String>
+    <sys:String x:Key="Manager.CreateFailed" xml:space="preserve">The code could not be created.</sys:String>
+    <sys:String x:Key="Manager.Codes" xml:space="preserve">Codes</sys:String>
+    <sys:String x:Key="Manager.Refresh" xml:space="preserve">Refresh</sys:String>
+    <sys:String x:Key="Manager.Copy" xml:space="preserve">Copy</sys:String>
+    <sys:String x:Key="Manager.Deactivate" xml:space="preserve">Deactivate</sys:String>
+    <sys:String x:Key="Manager.Activate" xml:space="preserve">Activate</sys:String>
+    <sys:String x:Key="Manager.NoCodes" xml:space="preserve">No codes yet.</sys:String>
+    <sys:String x:Key="Manager.UsesFmt" xml:space="preserve">used {0} of {1}</sys:String>
+    <sys:String x:Key="Manager.DaysFmt" xml:space="preserve">{0} days</sys:String>
+    <sys:String x:Key="Manager.Inactive" xml:space="preserve">deactivated</sys:String>
 </ResourceDictionary>

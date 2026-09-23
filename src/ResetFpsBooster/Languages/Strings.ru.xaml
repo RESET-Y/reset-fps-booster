@@ -112,4 +112,37 @@
     <sys:String x:Key="Account.CheckAgain" xml:space="preserve">Я оплатил — проверить снова</sys:String>
     <sys:String x:Key="Account.StoreSoon" xml:space="preserve">Покупка пока недоступна.</sys:String>
     <sys:String x:Key="Account.StillFree" xml:space="preserve">Премиума пока нет. Если вы только что оплатили, подождите несколько секунд и проверьте снова.</sys:String>
+    <sys:String x:Key="Nav.Manager" xml:space="preserve">Менеджер</sys:String>
+    <sys:String x:Key="Account.RedeemTitle" xml:space="preserve">Есть код?</sys:String>
+    <sys:String x:Key="Account.RedeemHint" xml:space="preserve">Введите полученный премиум-код.</sys:String>
+    <sys:String x:Key="Account.RedeemButton" xml:space="preserve">Активировать</sys:String>
+    <sys:String x:Key="Code.ok" xml:space="preserve">Код активирован — Премиум включён.</sys:String>
+    <sys:String x:Key="Code.not_found" xml:space="preserve">Такого кода нет. Проверьте, нет ли опечатки.</sys:String>
+    <sys:String x:Key="Code.inactive" xml:space="preserve">Этот код отключён.</sys:String>
+    <sys:String x:Key="Code.used_up" xml:space="preserve">Этот код уже израсходован.</sys:String>
+    <sys:String x:Key="Code.already_redeemed" xml:space="preserve">Вы уже активировали этот код.</sys:String>
+    <sys:String x:Key="Code.error" xml:space="preserve">Не удалось проверить код. Проверьте подключение к интернету.</sys:String>
+    <sys:String x:Key="Manager.Title" xml:space="preserve">МЕНЕДЖЕР</sys:String>
+    <sys:String x:Key="Manager.Intro" xml:space="preserve">Создавайте коды, которые дают Премиум бесплатно — для тестеров, стримеров или друзей. Эту страницу видят только менеджеры, и сервер проверяет это при каждом действии.</sys:String>
+    <sys:String x:Key="Manager.NewCode" xml:space="preserve">Новый код</sys:String>
+    <sys:String x:Key="Manager.Duration" xml:space="preserve">Премиум на</sys:String>
+    <sys:String x:Key="Manager.Days7" xml:space="preserve">7 дней</sys:String>
+    <sys:String x:Key="Manager.Days30" xml:space="preserve">30 дней</sys:String>
+    <sys:String x:Key="Manager.Days90" xml:space="preserve">90 дней</sys:String>
+    <sys:String x:Key="Manager.Forever" xml:space="preserve">Навсегда</sys:String>
+    <sys:String x:Key="Manager.MaxUses" xml:space="preserve">Можно использовать</sys:String>
+    <sys:String x:Key="Manager.Times" xml:space="preserve">раз</sys:String>
+    <sys:String x:Key="Manager.Note" xml:space="preserve">Заметка (для кого?)</sys:String>
+    <sys:String x:Key="Manager.Create" xml:space="preserve">Создать код</sys:String>
+    <sys:String x:Key="Manager.Created" xml:space="preserve">Создано — скопировано в буфер обмена:</sys:String>
+    <sys:String x:Key="Manager.CreateFailed" xml:space="preserve">Не удалось создать код.</sys:String>
+    <sys:String x:Key="Manager.Codes" xml:space="preserve">Коды</sys:String>
+    <sys:String x:Key="Manager.Refresh" xml:space="preserve">Обновить</sys:String>
+    <sys:String x:Key="Manager.Copy" xml:space="preserve">Копировать</sys:String>
+    <sys:String x:Key="Manager.Deactivate" xml:space="preserve">Отключить</sys:String>
+    <sys:String x:Key="Manager.Activate" xml:space="preserve">Включить</sys:String>
+    <sys:String x:Key="Manager.NoCodes" xml:space="preserve">Кодов пока нет.</sys:String>
+    <sys:String x:Key="Manager.UsesFmt" xml:space="preserve">использовано {0} из {1}</sys:String>
+    <sys:String x:Key="Manager.DaysFmt" xml:space="preserve">{0} дн.</sys:String>
+    <sys:String x:Key="Manager.Inactive" xml:space="preserve">отключён</sys:String>
 </ResourceDictionary>

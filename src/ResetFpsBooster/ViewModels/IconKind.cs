@@ -14,5 +14,6 @@ public enum IconKind
     Backups,
     Logs,
     Account,
+    Manager,
     Settings
 }

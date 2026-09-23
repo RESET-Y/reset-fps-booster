@@ -82,6 +82,19 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Redeeming a code: open to every signed-in user. -->
+                        <StackPanel Margin="0,18,0,0">
+                            <TextBlock Text="{DynamicResource Account.RedeemTitle}" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{DynamicResource Account.RedeemHint}" Style="{StaticResource Text.Caption}" Margin="0,2,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox Text="{Binding RedeemCode, UpdateSourceTrigger=PropertyChanged}" Width="220" Padding="8,6"
+                                         FontFamily="Consolas" CharacterCasing="Upper"/>
+                                <Button Content="{DynamicResource Account.RedeemButton}" Style="{StaticResource Button.Secondary}" Margin="10,0,0,0"
+                                        Command="{Binding RedeemCommand}"
+                                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
+                            </StackPanel>
+                        </StackPanel>
+
                         <Button Content="{DynamicResource Account.SignOut}" Style="{StaticResource Button.Secondary}"
                                 HorizontalAlignment="Left" Margin="0,18,0,0"
                                 Command="{Binding SignOutCommand}"/>

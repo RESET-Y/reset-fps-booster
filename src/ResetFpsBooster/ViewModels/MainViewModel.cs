@@ -45,6 +45,12 @@ public sealed partial class MainViewModel : ObservableObject
         // the session is back.
         _ = _services.Auth.RestoreAsync();
 
+        // THE MANAGER ENTRY APPEARS ONLY FOR A MANAGER, decided by the server.
+        // Asked again on every sign-in change, so it comes and goes with the
+        // account. Hiding it is courtesy, not protection - every action on
+        // that page is refused by the database for anyone who is not one.
+        _services.Auth.SignInStateChanged += async (_, _) => await UpdateManagerEntryAsync();
+
         if (_services.Settings.Current.AutoCheckForUpdates && !string.IsNullOrWhiteSpace(_services.Settings.Current.UpdateRepository))
             _ = CheckForUpdatesSilentlyAsync();
 
@@ -67,6 +73,33 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    private async Task UpdateManagerEntryAsync()
+    {
+        var isManager = await _services.Auth.IsManagerAsync();
+        var existing = NavigationItems.FirstOrDefault(i => i.Section == NavigationSection.Manager);
+
+        // Back on the UI thread for the collection change: the sign-in event
+        // can arrive from the background restore at start-up.
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (isManager && existing is null)
+            {
+                var account = NavigationItems.FirstOrDefault(i => i.Section == NavigationSection.Account);
+                var index = account is null ? NavigationItems.Count : NavigationItems.IndexOf(account) + 1;
+                NavigationItems.Insert(index, new NavigationItem(NavigationSection.Manager, "Nav.Manager", IconKind.Manager));
+            }
+            else if (!isManager && existing is not null)
+            {
+                NavigationItems.Remove(existing);
+                if (CurrentSection == NavigationSection.Manager) NavigateTo(NavigationSection.Dashboard);
+            }
+        });
+    }
+
+    // [RelayCommand] generates NavigateToCommand, which every sidebar button
+    // binds to. Keep it directly on this method: once, a method inserted
+    // between the attribute and this line took the attribute over, the command
+    // vanished, and every sidebar click silently did nothing.
     [RelayCommand]
     public void NavigateTo(NavigationSection section)
     {
@@ -107,6 +140,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),
             NavigationSection.Account => new AccountViewModel(_services.Auth),
+            NavigationSection.Manager => new ManagerViewModel(_services.Auth),
             NavigationSection.Settings => new SettingsViewModel(_services.Settings, _services.Update, _services.GameBoost),
             _ => throw new ArgumentOutOfRangeException(nameof(section))
         };

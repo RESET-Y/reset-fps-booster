@@ -549,5 +549,170 @@
     "en": "No Premium yet. If you just paid, wait a few seconds and check again.",
     "de": "Noch kein Premium. Falls du gerade bezahlt hast, warte ein paar Sekunden und prüfe erneut.",
     "ru": "Премиума пока нет. Если вы только что оплатили, подождите несколько секунд и проверьте снова."
+  },
+  "Nav.Manager": {
+    "en": "Manager",
+    "de": "Manager",
+    "ru": "Менеджер"
+  },
+  "Account.RedeemTitle": {
+    "en": "Have a code?",
+    "de": "Du hast einen Code?",
+    "ru": "Есть код?"
+  },
+  "Account.RedeemHint": {
+    "en": "Enter a Premium code you were given.",
+    "de": "Gib einen Premium-Code ein, den du bekommen hast.",
+    "ru": "Введите полученный премиум-код."
+  },
+  "Account.RedeemButton": {
+    "en": "Redeem",
+    "de": "Einlösen",
+    "ru": "Активировать"
+  },
+  "Code.ok": {
+    "en": "Code redeemed - Premium is now active.",
+    "de": "Code eingelöst – Premium ist jetzt aktiv.",
+    "ru": "Код активирован — Премиум включён."
+  },
+  "Code.not_found": {
+    "en": "This code does not exist. Check it for typos.",
+    "de": "Diesen Code gibt es nicht. Prüf ihn auf Tippfehler.",
+    "ru": "Такого кода нет. Проверьте, нет ли опечатки."
+  },
+  "Code.inactive": {
+    "en": "This code has been deactivated.",
+    "de": "Dieser Code wurde deaktiviert.",
+    "ru": "Этот код отключён."
+  },
+  "Code.used_up": {
+    "en": "This code has already been used up.",
+    "de": "Dieser Code ist bereits aufgebraucht.",
+    "ru": "Этот код уже израсходован."
+  },
+  "Code.already_redeemed": {
+    "en": "You have already redeemed this code.",
+    "de": "Diesen Code hast du schon eingelöst.",
+    "ru": "Вы уже активировали этот код."
+  },
+  "Code.error": {
+    "en": "The code could not be checked. Check your internet connection.",
+    "de": "Der Code konnte nicht geprüft werden. Prüf deine Internetverbindung.",
+    "ru": "Не удалось проверить код. Проверьте подключение к интернету."
+  },
+  "Manager.Title": {
+    "en": "MANAGER",
+    "de": "MANAGER",
+    "ru": "МЕНЕДЖЕР"
+  },
+  "Manager.Intro": {
+    "en": "Create codes that give Premium for free - for testers, streamers or friends. Only managers see this page, and the server checks it on every action.",
+    "de": "Erstelle Codes, die Premium kostenlos freischalten – für Tester, Streamer oder Freunde. Nur Manager sehen diese Seite, und der Server prüft das bei jeder Aktion.",
+    "ru": "Создавайте коды, которые дают Премиум бесплатно — для тестеров, стримеров или друзей. Эту страницу видят только менеджеры, и сервер проверяет это при каждом действии."
+  },
+  "Manager.NewCode": {
+    "en": "New code",
+    "de": "Neuer Code",
+    "ru": "Новый код"
+  },
+  "Manager.Duration": {
+    "en": "Premium for",
+    "de": "Premium für",
+    "ru": "Премиум на"
+  },
+  "Manager.Days7": {
+    "en": "7 days",
+    "de": "7 Tage",
+    "ru": "7 дней"
+  },
+  "Manager.Days30": {
+    "en": "30 days",
+    "de": "30 Tage",
+    "ru": "30 дней"
+  },
+  "Manager.Days90": {
+    "en": "90 days",
+    "de": "90 Tage",
+    "ru": "90 дней"
+  },
+  "Manager.Forever": {
+    "en": "Forever",
+    "de": "Dauerhaft",
+    "ru": "Навсегда"
+  },
+  "Manager.MaxUses": {
+    "en": "Can be used",
+    "de": "Einlösbar",
+    "ru": "Можно использовать"
+  },
+  "Manager.Times": {
+    "en": "times",
+    "de": "mal",
+    "ru": "раз"
+  },
+  "Manager.Note": {
+    "en": "Note (who is it for?)",
+    "de": "Notiz (für wen?)",
+    "ru": "Заметка (для кого?)"
+  },
+  "Manager.Create": {
+    "en": "Create code",
+    "de": "Code erstellen",
+    "ru": "Создать код"
+  },
+  "Manager.Created": {
+    "en": "Created - copied to the clipboard:",
+    "de": "Erstellt – in die Zwischenablage kopiert:",
+    "ru": "Создано — скопировано в буфер обмена:"
+  },
+  "Manager.CreateFailed": {
+    "en": "The code could not be created.",
+    "de": "Der Code konnte nicht erstellt werden.",
+    "ru": "Не удалось создать код."
+  },
+  "Manager.Codes": {
+    "en": "Codes",
+    "de": "Codes",
+    "ru": "Коды"
+  },
+  "Manager.Refresh": {
+    "en": "Refresh",
+    "de": "Aktualisieren",
+    "ru": "Обновить"
+  },
+  "Manager.Copy": {
+    "en": "Copy",
+    "de": "Kopieren",
+    "ru": "Копировать"
+  },
+  "Manager.Deactivate": {
+    "en": "Deactivate",
+    "de": "Deaktivieren",
+    "ru": "Отключить"
+  },
+  "Manager.Activate": {
+    "en": "Activate",
+    "de": "Aktivieren",
+    "ru": "Включить"
+  },
+  "Manager.NoCodes": {
+    "en": "No codes yet.",
+    "de": "Noch keine Codes.",
+    "ru": "Кодов пока нет."
+  },
+  "Manager.UsesFmt": {
+    "en": "used {0} of {1}",
+    "de": "{0} von {1} eingelöst",
+    "ru": "использовано {0} из {1}"
+  },
+  "Manager.DaysFmt": {
+    "en": "{0} days",
+    "de": "{0} Tage",
+    "ru": "{0} дн."
+  },
+  "Manager.Inactive": {
+    "en": "deactivated",
+    "de": "deaktiviert",
+    "ru": "отключён"
   }
 }

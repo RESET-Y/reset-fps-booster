@@ -124,6 +124,70 @@ public sealed class AuthService : IAuthService
         catch { return false; }
     }
 
+    // ---- manager role and codes ----------------------------------------------
+
+    public async Task<bool> IsManagerAsync(CancellationToken ct = default)
+    {
+        var (ok, body) = await RpcAsync("is_manager", new { }, ct);
+        return ok && body.Trim() == "true";
+    }
+
+    public async Task<string> RedeemCodeAsync(string code, CancellationToken ct = default)
+    {
+        var (ok, body) = await RpcAsync("redeem_premium_code", new { p_code = code }, ct);
+        if (!ok) return "error";
+        try { return JsonSerializer.Deserialize<string>(body) ?? "error"; }
+        catch { return "error"; }
+    }
+
+    public async Task<string?> CreateCodeAsync(int? durationDays, int maxUses, string? note, CancellationToken ct = default)
+    {
+        var (ok, body) = await RpcAsync("create_premium_code",
+            new { p_duration_days = durationDays, p_max_uses = maxUses, p_note = note }, ct);
+        if (!ok) return null;
+        try { return JsonSerializer.Deserialize<string>(body); }
+        catch { return null; }
+    }
+
+    public async Task<IReadOnlyList<ResetFpsBooster.Core.Models.PremiumCode>> ListCodesAsync(CancellationToken ct = default)
+    {
+        var (ok, body) = await RpcAsync("list_premium_codes", new { }, ct);
+        if (!ok) return Array.Empty<ResetFpsBooster.Core.Models.PremiumCode>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<ResetFpsBooster.Core.Models.PremiumCode>>(body, Json)
+                   ?? new List<ResetFpsBooster.Core.Models.PremiumCode>();
+        }
+        catch { return Array.Empty<ResetFpsBooster.Core.Models.PremiumCode>(); }
+    }
+
+    public async Task<bool> SetCodeActiveAsync(string code, bool active, CancellationToken ct = default)
+    {
+        var (ok, _) = await RpcAsync("set_premium_code_active", new { p_code = code, p_active = active }, ct);
+        return ok;
+    }
+
+    /// One call to a database function as the signed-in user. The token is
+    /// what lets the function know WHO is asking - auth.uid() on the server.
+    private async Task<(bool Ok, string Body)> RpcAsync(string function, object args, CancellationToken ct)
+    {
+        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return (false, "");
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"{SupabaseConfig.Url.TrimEnd('/')}/rest/v1/rpc/{function}")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(args), Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            using var res = await Http.SendAsync(req, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            return (res.IsSuccessStatusCode, body);
+        }
+        catch { return (false, ""); }
+    }
+
     // ---- internals -----------------------------------------------------------
 
     private async Task<Session?> RefreshAsync(string refreshToken, CancellationToken ct)

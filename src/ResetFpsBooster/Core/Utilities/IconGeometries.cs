@@ -25,6 +25,7 @@ public static class IconGeometries
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
         IconKind.Account => Account(),
+        IconKind.Manager => Manager(),
         IconKind.Settings => Settings(),
         _ => Geometry.Empty
     };
@@ -144,6 +145,20 @@ public static class IconGeometries
         var group = new GeometryGroup { FillRule = FillRule.Nonzero };
         group.Children.Add(new EllipseGeometry(new Point(8, 5), 3, 3));
         group.Children.Add(Geometry.Parse("M2,15 C2,10.5 5,9 8,9 C11,9 14,10.5 14,15 Z"));
+        return group;
+    }
+
+    // A key: a ring and a shank with two teeth - the thing that unlocks.
+    private static Geometry Manager()
+    {
+        var ring = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        ring.Children.Add(new EllipseGeometry(new Point(5, 8), 4, 4));
+        ring.Children.Add(new EllipseGeometry(new Point(5, 8), 2, 2));
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(ring);
+        group.Children.Add(new RectangleGeometry(new Rect(8.5, 7, 7, 2)));
+        group.Children.Add(new RectangleGeometry(new Rect(12, 9, 1.6, 2.6)));
+        group.Children.Add(new RectangleGeometry(new Rect(14.2, 9, 1.6, 3.4)));
         return group;
     }
 

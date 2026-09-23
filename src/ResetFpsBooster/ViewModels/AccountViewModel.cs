@@ -24,6 +24,8 @@ public sealed partial class AccountViewModel : ViewModelBase
     public bool CanUpgrade => _auth.IsSignedIn && !IsPremium;
     public bool StoreOpen => StoreConfig.IsConfigured;
 
+    [ObservableProperty] private string _redeemCode = "";
+
     /// The password never lives in a bound property. It is handed over from the
     /// PasswordBox at the moment of the call and dropped straight after, so it
     /// is not sitting in memory for the lifetime of the page.
@@ -87,6 +89,30 @@ public sealed partial class AccountViewModel : ViewModelBase
         await RefreshPremiumAsync();
         if (IsPremium) Message = null;
         else { MessageIsError = false; Message = Loc.T("Account.StillFree"); }
+    }
+
+    /// Redeems a free-premium code. The server decides everything - whether
+    /// the code exists, is active, has uses left, and whether this user already
+    /// used it - and answers with a status word shown here in the user's
+    /// language.
+    [RelayCommand]
+    private async Task RedeemAsync()
+    {
+        var code = RedeemCode.Trim();
+        if (code.Length == 0) return;
+        IsBusy = true;
+        try
+        {
+            var status = await _auth.RedeemCodeAsync(code);
+            MessageIsError = status != "ok";
+            Message = Loc.T("Code." + status);
+            if (status == "ok")
+            {
+                RedeemCode = "";
+                await RefreshPremiumAsync();
+            }
+        }
+        finally { IsBusy = false; }
     }
 
     [RelayCommand]
