@@ -13,7 +13,7 @@
     <Configurations>Debug;Release;Beta</Configurations>
     <Company>Lukas Reschke</Company>
     <Product>RESET FPS BOOSTER</Product>
-    <Version>1.3.0-beta</Version>
+    <Version>1.3.0</Version>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
