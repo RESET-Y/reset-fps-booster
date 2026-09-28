@@ -879,5 +879,1435 @@
     "en": "Download failed: {0}",
     "de": "Download fehlgeschlagen: {0}",
     "ru": "Не удалось загрузить: {0}"
+  },
+  "Dash.YourSystem": {
+    "en": "Your System. ",
+    "de": "Dein System. ",
+    "ru": "Ваша система. "
+  },
+  "Dash.Tagline": {
+    "en": "Better performance. Higher FPS. More wins.",
+    "de": "Mehr Leistung. Mehr FPS. Mehr Siege.",
+    "ru": "Больше производительности. Больше FPS. Больше побед."
+  },
+  "Dash.Detected": {
+    "en": "Detected",
+    "de": "Erkannt",
+    "ru": "Обнаружено"
+  },
+  "Dash.AdminRights": {
+    "en": "Admin Rights",
+    "de": "Adminrechte",
+    "ru": "Права администратора"
+  },
+  "Dash.PerfScore": {
+    "en": "Performance Score",
+    "de": "Performance-Score",
+    "ru": "Оценка производительности"
+  },
+  "Dash.ReadyBoost": {
+    "en": "Ready to boost your FPS?",
+    "de": "Bereit für mehr FPS?",
+    "ru": "Готовы поднять FPS?"
+  },
+  "Dash.WeFound": {
+    "en": "We found ",
+    "de": "Wir haben ",
+    "ru": "Найдено "
+  },
+  "Dash.WeFoundTail": {
+    "en": " optimization(s) that can improve your system's performance and stability.",
+    "de": " Optimierung(en) gefunden, die Leistung und Stabilität deines Systems verbessern können.",
+    "ru": " оптимизаций, которые могут улучшить производительность и стабильность системы."
+  },
+  "Dash.OptimizeNow": {
+    "en": "⚡ OPTIMIZE NOW",
+    "de": "⚡ JETZT OPTIMIEREN",
+    "ru": "⚡ ОПТИМИЗИРОВАТЬ"
+  },
+  "Dash.ViewDetails": {
+    "en": "View Details →",
+    "de": "Details ansehen →",
+    "ru": "Подробнее →"
+  },
+  "Dash.SystemScan": {
+    "en": "System Scan",
+    "de": "Systemscan",
+    "ru": "Сканирование системы"
+  },
+  "Dash.Completed": {
+    "en": "Completed",
+    "de": "Abgeschlossen",
+    "ru": "Завершено"
+  },
+  "Dash.Scanning": {
+    "en": "Scanning...",
+    "de": "Scannt …",
+    "ru": "Сканирование…"
+  },
+  "Dash.Optimizations": {
+    "en": "Optimizations",
+    "de": "Optimierungen",
+    "ru": "Оптимизации"
+  },
+  "Dash.RecentChanges": {
+    "en": "Recent Changes",
+    "de": "Letzte Änderungen",
+    "ru": "Последние изменения"
+  },
+  "Dash.ViewAll": {
+    "en": "View All →",
+    "de": "Alle ansehen →",
+    "ru": "Показать все →"
+  },
+  "Dash.NoChanges": {
+    "en": "No changes yet.",
+    "de": "Noch keine Änderungen.",
+    "ru": "Изменений пока нет."
+  },
+  "Dash.SysInfo": {
+    "en": "System Information",
+    "de": "Systeminformationen",
+    "ru": "Информация о системе"
+  },
+  "Dash.GpuDriver": {
+    "en": "GPU Driver",
+    "de": "GPU-Treiber",
+    "ru": "Драйвер GPU"
+  },
+  "Dash.Version": {
+    "en": "Version ",
+    "de": "Version ",
+    "ru": "Версия "
+  },
+  "Dash.PowerPlan": {
+    "en": "Power Plan",
+    "de": "Energiesparplan",
+    "ru": "План электропитания"
+  },
+  "Dash.GameMode": {
+    "en": "Game Mode",
+    "de": "Spielmodus",
+    "ru": "Игровой режим"
+  },
+  "Dash.NoGames": {
+    "en": "No games detected yet.",
+    "de": "Noch keine Spiele erkannt.",
+    "ru": "Игры пока не найдены."
+  },
+  "Dash.ScanningSystem": {
+    "en": "Scanning your system...",
+    "de": "Dein System wird gescannt …",
+    "ru": "Сканирование системы…"
+  },
+  "Dash.Hero.Analyzing": {
+    "en": "Analyzing.",
+    "de": "Wird analysiert.",
+    "ru": "Анализ."
+  },
+  "Dash.Hero.Good": {
+    "en": "Optimized.",
+    "de": "Optimiert.",
+    "ru": "Оптимизирована."
+  },
+  "Dash.Hero.Mid": {
+    "en": "Improving.",
+    "de": "Wird besser.",
+    "ru": "Улучшается."
+  },
+  "Dash.Hero.Low": {
+    "en": "Needs Attention.",
+    "de": "Braucht Aufmerksamkeit.",
+    "ru": "Требует внимания."
+  },
+  "Dash.Check.Gaming": {
+    "en": "Gaming optimizations active",
+    "de": "Spiel-Optimierungen aktiv",
+    "ru": "Игровые оптимизации активны"
+  },
+  "Dash.Check.Background": {
+    "en": "Background processes optimized",
+    "de": "Hintergrundprozesse optimiert",
+    "ru": "Фоновые процессы оптимизированы"
+  },
+  "Dash.Check.System": {
+    "en": "System settings optimized",
+    "de": "Systemeinstellungen optimiert",
+    "ru": "Системные настройки оптимизированы"
+  },
+  "Dash.Check.NoIssues": {
+    "en": "No critical issues found",
+    "de": "Keine kritischen Probleme",
+    "ru": "Критических проблем нет"
+  },
+  "Dash.NotDetected": {
+    "en": "Not detected",
+    "de": "Nicht erkannt",
+    "ru": "Не обнаружено"
+  },
+  "Dash.NoDrive": {
+    "en": "No drive detected",
+    "de": "Kein Laufwerk erkannt",
+    "ru": "Накопитель не найден"
+  },
+  "Dash.CoresThreads": {
+    "en": "{0} Cores / {1} Threads",
+    "de": "{0} Kerne / {1} Threads",
+    "ru": "{0} ядер / {1} потоков"
+  },
+  "Dash.DriverFmt": {
+    "en": "Driver {0}",
+    "de": "Treiber {0}",
+    "ru": "Драйвер {0}"
+  },
+  "Dash.Unknown": {
+    "en": "Unknown",
+    "de": "Unbekannt",
+    "ru": "Неизвестно"
+  },
+  "Dash.UsedFmt": {
+    "en": "{0} Used",
+    "de": "{0} belegt",
+    "ru": "{0} занято"
+  },
+  "Dash.FreeFmt": {
+    "en": "{0} Free",
+    "de": "{0} frei",
+    "ru": "{0} свободно"
+  },
+  "Dash.TotalFmt": {
+    "en": "{0} Total",
+    "de": "{0} gesamt",
+    "ru": "{0} всего"
+  },
+  "Dash.Storage": {
+    "en": "Storage",
+    "de": "Speicher",
+    "ru": "Накопитель"
+  },
+  "Dash.Cat.Gaming": {
+    "en": "Gaming Optimization",
+    "de": "Gaming-Optimierung",
+    "ru": "Игровая оптимизация"
+  },
+  "Dash.Cat.Windows": {
+    "en": "Windows Optimization",
+    "de": "Windows-Optimierung",
+    "ru": "Оптимизация Windows"
+  },
+  "Dash.Cat.Cpu": {
+    "en": "CPU Optimization",
+    "de": "CPU-Optimierung",
+    "ru": "Оптимизация CPU"
+  },
+  "Dash.Cat.Gpu": {
+    "en": "GPU Optimization",
+    "de": "GPU-Optimierung",
+    "ru": "Оптимизация GPU"
+  },
+  "Dash.Cat.Memory": {
+    "en": "Memory Optimization",
+    "de": "Speicher-Optimierung",
+    "ru": "Оптимизация памяти"
+  },
+  "Dash.Cat.Storage": {
+    "en": "Storage Optimization",
+    "de": "Laufwerks-Optimierung",
+    "ru": "Оптимизация накопителя"
+  },
+  "Dash.Cat.Network": {
+    "en": "Network Optimization",
+    "de": "Netzwerk-Optimierung",
+    "ru": "Оптимизация сети"
+  },
+  "Dash.CatSub.Gaming": {
+    "en": "Game Mode, Game DVR, Background Apps",
+    "de": "Spielmodus, Game DVR, Hintergrund-Apps",
+    "ru": "Игровой режим, Game DVR, фоновые приложения"
+  },
+  "Dash.CatSub.Windows": {
+    "en": "Startup, Temp Files, Power Plan",
+    "de": "Autostart, Temp-Dateien, Energiesparplan",
+    "ru": "Автозагрузка, временные файлы, план питания"
+  },
+  "Dash.CatSub.Cpu": {
+    "en": "Power Throttling",
+    "de": "Energiedrosselung",
+    "ru": "Троттлинг питания"
+  },
+  "Dash.CatSub.Gpu": {
+    "en": "Scheduling, Task Priority",
+    "de": "Planung, Task-Priorität",
+    "ru": "Планирование, приоритет задач"
+  },
+  "Dash.CatSub.Memory": {
+    "en": "Working Set Trim, Standby Cache",
+    "de": "Working Set, Standby-Cache",
+    "ru": "Рабочие наборы, кэш ожидания"
+  },
+  "Dash.CatSub.Storage": {
+    "en": "Temp File Cleanup",
+    "de": "Temp-Dateien bereinigen",
+    "ru": "Очистка временных файлов"
+  },
+  "Dash.CatSub.Network": {
+    "en": "Throttling Settings",
+    "de": "Drosselung",
+    "ru": "Настройки троттлинга"
+  },
+  "Sys.Title": {
+    "en": "System",
+    "de": "System",
+    "ru": "Система"
+  },
+  "Sys.Intro": {
+    "en": "Detailed hardware and OS information, plus a full diagnostic scan.",
+    "de": "Ausführliche Infos zu Hardware und Betriebssystem, dazu ein vollständiger Diagnosescan.",
+    "ru": "Подробная информация об оборудовании и ОС, а также полное диагностическое сканирование."
+  },
+  "Sys.Hardware": {
+    "en": "Hardware",
+    "de": "Hardware",
+    "ru": "Оборудование"
+  },
+  "Sys.Cores": {
+    "en": " cores, ",
+    "de": " Kerne, ",
+    "ru": " ядер, "
+  },
+  "Sys.Threads": {
+    "en": " threads, ",
+    "de": " Threads, ",
+    "ru": " потоков, "
+  },
+  "Sys.Driver": {
+    "en": " — driver ",
+    "de": " – Treiber ",
+    "ru": " — драйвер "
+  },
+  "Sys.Memory": {
+    "en": "Memory",
+    "de": "Arbeitsspeicher",
+    "ru": "Память"
+  },
+  "Sys.Total": {
+    "en": " total, ",
+    "de": " gesamt, ",
+    "ru": " всего, "
+  },
+  "Sys.Modules": {
+    "en": " module(s), ",
+    "de": " Modul(e), ",
+    "ru": " модулей, "
+  },
+  "Sys.Motherboard": {
+    "en": "Motherboard",
+    "de": "Mainboard",
+    "ru": "Материнская плата"
+  },
+  "Sys.Build": {
+    "en": " (build ",
+    "de": " (Build ",
+    "ru": " (сборка "
+  },
+  "Sys.Architecture": {
+    "en": "Architecture",
+    "de": "Architektur",
+    "ru": "Архитектура"
+  },
+  "Sys.DeviceType": {
+    "en": "Device type",
+    "de": "Gerätetyp",
+    "ru": "Тип устройства"
+  },
+  "Sys.Storage": {
+    "en": "Storage",
+    "de": "Laufwerke",
+    "ru": "Накопители"
+  },
+  "Sys.Free": {
+    "en": " free · ",
+    "de": " frei · ",
+    "ru": " свободно · "
+  },
+  "Sys.DeepScan": {
+    "en": "Deep System Scan",
+    "de": "Tiefer Systemscan",
+    "ru": "Глубокое сканирование системы"
+  },
+  "Sys.RunDeepScan": {
+    "en": "Run Deep Scan",
+    "de": "Tiefenscan starten",
+    "ru": "Запустить глубокое сканирование"
+  },
+  "Scan.Cpu": {
+    "en": "Scanning CPU configuration...",
+    "de": "CPU-Konfiguration wird geprüft …",
+    "ru": "Проверка конфигурации CPU…"
+  },
+  "Scan.CpuResult": {
+    "en": "{0} — {1} logical processors",
+    "de": "{0} – {1} logische Prozessoren",
+    "ru": "{0} — логических процессоров: {1}"
+  },
+  "Scan.Startup": {
+    "en": "Checking startup applications...",
+    "de": "Autostart-Programme werden geprüft …",
+    "ru": "Проверка автозагрузки…"
+  },
+  "Scan.StartupResult": {
+    "en": "{0} enabled ({1} non-essential candidates found)",
+    "de": "{0} aktiv ({1} unnötige Kandidaten gefunden)",
+    "ru": "Включено: {0} (необязательных найдено: {1})"
+  },
+  "Scan.Gaming": {
+    "en": "Checking Windows gaming settings...",
+    "de": "Windows-Spieleinstellungen werden geprüft …",
+    "ru": "Проверка игровых настроек Windows…"
+  },
+  "Scan.GamingResult": {
+    "en": "{0}/{1} gaming optimizations already active",
+    "de": "{0}/{1} Spiel-Optimierungen schon aktiv",
+    "ru": "Игровых оптимизаций уже активно: {0}/{1}"
+  },
+  "Scan.Gpu": {
+    "en": "Checking GPU configuration...",
+    "de": "GPU-Konfiguration wird geprüft …",
+    "ru": "Проверка конфигурации GPU…"
+  },
+  "Scan.NoGpu": {
+    "en": "No GPU detected",
+    "de": "Keine GPU erkannt",
+    "ru": "GPU не обнаружена"
+  },
+  "Scan.GpuResult": {
+    "en": "{0} — driver {1}",
+    "de": "{0} – Treiber {1}",
+    "ru": "{0} — драйвер {1}"
+  },
+  "Scan.Processes": {
+    "en": "Checking background processes...",
+    "de": "Hintergrundprozesse werden geprüft …",
+    "ru": "Проверка фоновых процессов…"
+  },
+  "Scan.ProcessesResult": {
+    "en": "{0} processes currently running",
+    "de": "{0} Prozesse laufen gerade",
+    "ru": "Сейчас запущено процессов: {0}"
+  },
+  "Scan.PowerNet": {
+    "en": "Checking power & network configuration...",
+    "de": "Energie- und Netzwerkeinstellungen werden geprüft …",
+    "ru": "Проверка настроек питания и сети…"
+  },
+  "Scan.PowerNetResult": {
+    "en": "{0}/{1} settings already optimized",
+    "de": "{0}/{1} Einstellungen schon optimiert",
+    "ru": "Настроек уже оптимизировано: {0}/{1}"
+  },
+  "Scan.Final": {
+    "en": "Finalizing optimization report...",
+    "de": "Optimierungsbericht wird fertiggestellt …",
+    "ru": "Формирование отчёта об оптимизации…"
+  },
+  "Scan.Done": {
+    "en": "Scan complete",
+    "de": "Scan abgeschlossen",
+    "ru": "Сканирование завершено"
+  },
+  "Scan.Failed": {
+    "en": "Could not complete this check: {0}",
+    "de": "Diese Prüfung konnte nicht abgeschlossen werden: {0}",
+    "ru": "Не удалось выполнить проверку: {0}"
+  },
+  "Score.V90": {
+    "en": "Your PC is highly optimized for gaming.",
+    "de": "Dein PC ist bestens fürs Gaming optimiert.",
+    "ru": "Ваш ПК отлично оптимизирован для игр."
+  },
+  "Score.V70": {
+    "en": "Your PC is well optimized. A few tweaks are still available.",
+    "de": "Dein PC ist gut optimiert. Ein paar Optimierungen sind noch möglich.",
+    "ru": "Ваш ПК хорошо оптимизирован. Доступно ещё несколько улучшений."
+  },
+  "Score.V45": {
+    "en": "There's meaningful room for improvement.",
+    "de": "Hier ist noch deutlich Luft nach oben.",
+    "ru": "Есть заметный потенциал для улучшения."
+  },
+  "Score.V0": {
+    "en": "Your PC is running mostly default settings — run Optimize Now for a quick win.",
+    "de": "Dein PC läuft größtenteils mit Standardeinstellungen – „Jetzt optimieren“ bringt schnell etwas.",
+    "ru": "ПК работает в основном на стандартных настройках — нажмите «Оптимизировать» для быстрого результата."
+  },
+  "Bn.Title": {
+    "en": "Bottleneck Engine",
+    "de": "Engpass-Analyse",
+    "ru": "Анализ узких мест"
+  },
+  "Bn.Why": {
+    "en": "WHY ARE YOU LOSING FPS?",
+    "de": "WARUM VERLIERST DU FPS?",
+    "ru": "ПОЧЕМУ ВЫ ТЕРЯЕТЕ FPS?"
+  },
+  "Bn.Start": {
+    "en": "Start Analysis",
+    "de": "Analyse starten",
+    "ru": "Начать анализ"
+  },
+  "Bn.Stop": {
+    "en": "Stop Analysis",
+    "de": "Analyse stoppen",
+    "ru": "Остановить анализ"
+  },
+  "Bn.Intro": {
+    "en": "Analyzes real CPU, GPU, memory and background-process telemetry while you play and correlates them into a single, explained diagnosis — not a list of tweaks. Multiple signals must agree before anything is reported; if none do, it says so honestly.",
+    "de": "Analysiert echte Messwerte von CPU, GPU, Arbeitsspeicher und Hintergrundprozessen, während du spielst, und fasst sie zu einer einzigen, erklärten Diagnose zusammen – keine Liste von Tweaks. Mehrere Signale müssen übereinstimmen, bevor etwas gemeldet wird; tun sie das nicht, sagt die Analyse das ehrlich.",
+    "ru": "Анализирует реальную телеметрию CPU, GPU, памяти и фоновых процессов во время игры и сводит её в один объяснённый диагноз, а не список твиков. Прежде чем что-то сообщить, должны совпасть несколько сигналов; если этого нет, анализ честно об этом говорит."
+  },
+  "Bn.NotRunning": {
+    "en": "Not running",
+    "de": "Läuft nicht",
+    "ru": "Не запущено"
+  },
+  "Bn.Hint": {
+    "en": "Click \"Start Analysis\" while a game is running to get a live diagnosis. Samples every 2 seconds — no aggressive polling.",
+    "de": "Klick auf „Analyse starten“, während ein Spiel läuft, um eine Live-Diagnose zu bekommen. Misst alle 2 Sekunden – keine aggressive Abfrage.",
+    "ru": "Нажмите «Начать анализ», пока запущена игра, чтобы получить диагноз в реальном времени. Замер каждые 2 секунды — без агрессивного опроса."
+  },
+  "Bn.Game": {
+    "en": "GAME",
+    "de": "SPIEL",
+    "ru": "ИГРА"
+  },
+  "Bn.Balanced": {
+    "en": "SYSTEM BALANCED",
+    "de": "SYSTEM AUSGEGLICHEN",
+    "ru": "СИСТЕМА СБАЛАНСИРОВАНА"
+  },
+  "Bn.NoBottleneck": {
+    "en": "No significant bottleneck detected — no single factor is confidently limiting performance right now.",
+    "de": "Kein nennenswerter Engpass erkannt – gerade begrenzt kein einzelner Faktor die Leistung eindeutig.",
+    "ru": "Существенных узких мест не обнаружено — сейчас ни один фактор явно не ограничивает производительность."
+  },
+  "Bn.Primary": {
+    "en": "PRIMARY BOTTLENECK",
+    "de": "HAUPTENGPASS",
+    "ru": "ОСНОВНОЕ УЗКОЕ МЕСТО"
+  },
+  "Bn.Confidence": {
+    "en": "% CONFIDENCE",
+    "de": "% SICHERHEIT",
+    "ru": "% УВЕРЕННОСТИ"
+  },
+  "Bn.Secondary": {
+    "en": "SECONDARY FACTOR",
+    "de": "ZWEITER FAKTOR",
+    "ru": "ВТОРОЙ ФАКТОР"
+  },
+  "Bn.Tertiary": {
+    "en": "TERTIARY FACTOR",
+    "de": "DRITTER FAKTOR",
+    "ru": "ТРЕТИЙ ФАКТОР"
+  },
+  "Bn.Trend": {
+    "en": "Trend",
+    "de": "Verlauf",
+    "ru": "Тренд"
+  },
+  "Bn.TrendHint": {
+    "en": "How the primary bottleneck has changed over this session.",
+    "de": "Wie sich der Hauptengpass in dieser Sitzung verändert hat.",
+    "ru": "Как менялось основное узкое место за этот сеанс."
+  },
+  "Bn.H.Cpu": {
+    "en": "CPU LIMITED",
+    "de": "CPU-LIMITIERT",
+    "ru": "ОГРАНИЧЕНИЕ CPU"
+  },
+  "Bn.H.Gpu": {
+    "en": "GPU LIMITED",
+    "de": "GPU-LIMITIERT",
+    "ru": "ОГРАНИЧЕНИЕ GPU"
+  },
+  "Bn.H.Thermal": {
+    "en": "THERMAL LIMITED",
+    "de": "TEMPERATUR-LIMITIERT",
+    "ru": "ТЕПЛОВОЕ ОГРАНИЧЕНИЕ"
+  },
+  "Bn.H.Power": {
+    "en": "POWER LIMITED",
+    "de": "LEISTUNGS-LIMITIERT",
+    "ru": "ОГРАНИЧЕНИЕ ПИТАНИЯ"
+  },
+  "Bn.H.Memory": {
+    "en": "MEMORY LIMITED",
+    "de": "RAM-LIMITIERT",
+    "ru": "ОГРАНИЧЕНИЕ ПАМЯТИ"
+  },
+  "Bn.H.Vram": {
+    "en": "VRAM LIMITED",
+    "de": "VRAM-LIMITIERT",
+    "ru": "ОГРАНИЧЕНИЕ VRAM"
+  },
+  "Bn.H.Background": {
+    "en": "BACKGROUND WORKLOAD",
+    "de": "HINTERGRUNDLAST",
+    "ru": "ФОНОВАЯ НАГРУЗКА"
+  },
+  "Bn.H.Unknown": {
+    "en": "UNKNOWN",
+    "de": "UNBEKANNT",
+    "ru": "НЕИЗВЕСТНО"
+  },
+  "Bn.I.Cpu": {
+    "en": "Your CPU is currently limiting GPU utilization in this workload.",
+    "de": "Deine CPU begrenzt in dieser Last gerade die GPU-Auslastung.",
+    "ru": "Сейчас ваш CPU ограничивает загрузку GPU в этой нагрузке."
+  },
+  "Bn.I.Gpu": {
+    "en": "Your GPU is the dominant factor right now — it is working close to its ceiling.",
+    "de": "Deine GPU ist gerade der entscheidende Faktor – sie arbeitet nah an ihrer Grenze.",
+    "ru": "Сейчас решающий фактор — GPU: она работает почти на пределе."
+  },
+  "Bn.I.Thermal": {
+    "en": "Heat is currently capping performance before power or workload demand does.",
+    "de": "Hitze begrenzt die Leistung gerade, noch bevor Strom oder Last es tun.",
+    "ru": "Сейчас производительность ограничивает нагрев — раньше, чем питание или нагрузка."
+  },
+  "Bn.I.Power": {
+    "en": "Your GPU is hitting its configured power limit, which is capping its clock speed.",
+    "de": "Deine GPU erreicht ihr eingestelltes Leistungslimit, das ihren Takt begrenzt.",
+    "ru": "GPU упирается в заданный лимит мощности, и это ограничивает её частоту."
+  },
+  "Bn.I.Memory": {
+    "en": "Available RAM is under real pressure, not just heavily used.",
+    "de": "Der freie Arbeitsspeicher steht unter echtem Druck, er ist nicht nur stark belegt.",
+    "ru": "Свободная ОЗУ под реальным давлением, а не просто сильно занята."
+  },
+  "Bn.I.Vram": {
+    "en": "Video memory is nearly exhausted for the current workload.",
+    "de": "Der Grafikspeicher ist für die aktuelle Last fast voll.",
+    "ru": "Видеопамять почти исчерпана для текущей нагрузки."
+  },
+  "Bn.I.Background": {
+    "en": "Other running processes are consuming resources your game could otherwise use.",
+    "de": "Andere laufende Prozesse belegen Ressourcen, die dein Spiel sonst nutzen könnte.",
+    "ru": "Другие процессы занимают ресурсы, которые могла бы использовать игра."
+  },
+  "Bn.E.CpuThreads": {
+    "en": "CPU Thread Saturation",
+    "de": "CPU-Thread-Auslastung",
+    "ru": "Загрузка потока CPU"
+  },
+  "Bn.E.GpuUtil": {
+    "en": "GPU Utilization",
+    "de": "GPU-Auslastung",
+    "ru": "Загрузка GPU"
+  },
+  "Bn.E.CpuClock": {
+    "en": "CPU Clock",
+    "de": "CPU-Takt",
+    "ru": "Частота CPU"
+  },
+  "Bn.E.GpuClock": {
+    "en": "GPU Clock",
+    "de": "GPU-Takt",
+    "ru": "Частота GPU"
+  },
+  "Bn.E.GpuPower": {
+    "en": "GPU Power",
+    "de": "GPU-Leistungsaufnahme",
+    "ru": "Мощность GPU"
+  },
+  "Bn.E.GpuTemp": {
+    "en": "GPU Temperature",
+    "de": "GPU-Temperatur",
+    "ru": "Температура GPU"
+  },
+  "Bn.E.Ram": {
+    "en": "RAM Usage",
+    "de": "RAM-Auslastung",
+    "ru": "Использование ОЗУ"
+  },
+  "Bn.E.HardFaults": {
+    "en": "Hard Page Faults",
+    "de": "Harte Seitenfehler",
+    "ru": "Жёсткие ошибки страниц"
+  },
+  "Bn.E.Vram": {
+    "en": "VRAM Usage",
+    "de": "VRAM-Auslastung",
+    "ru": "Использование VRAM"
+  },
+  "Bn.E.Frametime": {
+    "en": "Frametime",
+    "de": "Frametime",
+    "ru": "Время кадра"
+  },
+  "Bn.E.BackgroundCpu": {
+    "en": "Background CPU Usage",
+    "de": "CPU-Last im Hintergrund",
+    "ru": "Фоновая загрузка CPU"
+  },
+  "Bn.E.TopProcess": {
+    "en": "Top Process",
+    "de": "Größter Verbraucher",
+    "ru": "Главный процесс"
+  },
+  "Bn.E.SensorNA": {
+    "en": "Sensor unavailable",
+    "de": "Sensor nicht verfügbar",
+    "ru": "Датчик недоступен"
+  },
+  "Bn.E.OfLimit": {
+    "en": "% of limit",
+    "de": " % des Limits",
+    "ru": "% от лимита"
+  },
+  "Bn.R.Cpu": {
+    "en": "CPU thread saturation {0:0}% while GPU utilization is only {1:0}% (headroom {2:0}%).",
+    "de": "CPU-Thread-Auslastung {0:0} %, während die GPU nur zu {1:0} % ausgelastet ist (Reserve {2:0} %).",
+    "ru": "Загрузка потока CPU {0:0}%, при этом GPU загружена лишь на {1:0}% (запас {2:0}%)."
+  },
+  "Bn.R.Gpu": {
+    "en": "GPU utilization sustained at {0:0}% with no other dominant limiting factor observed.",
+    "de": "GPU-Auslastung dauerhaft bei {0:0} %, ohne dass ein anderer Faktor dominiert.",
+    "ru": "Загрузка GPU стабильно {0:0}%, других доминирующих ограничений не замечено."
+  },
+  "Bn.R.MemNoFaults": {
+    "en": "RAM usage at {0:0}%, but hard page fault data was unavailable to confirm active paging.",
+    "de": "RAM-Auslastung {0:0} %, aber ohne Daten zu harten Seitenfehlern lässt sich aktives Auslagern nicht bestätigen.",
+    "ru": "Использование ОЗУ {0:0}%, но нет данных о жёстких ошибках страниц, чтобы подтвердить подкачку."
+  },
+  "Bn.R.MemPaging": {
+    "en": "RAM usage at {0:0}% with {1:0} hard page faults/sec — the system is actively paging memory to disk.",
+    "de": "RAM-Auslastung {0:0} % bei {1:0} harten Seitenfehlern pro Sekunde – das System lagert aktiv auf die Festplatte aus.",
+    "ru": "Использование ОЗУ {0:0}% и {1:0} жёстких ошибок страниц в секунду — система активно сбрасывает память на диск."
+  },
+  "Bn.R.Power": {
+    "en": "GPU power draw at {0:0}% of its configured power limit while at {1:0}% utilization — the power limit itself is capping performance, not raw workload demand.",
+    "de": "GPU-Leistungsaufnahme bei {0:0} % ihres Limits bei {1:0} % Auslastung – das Leistungslimit selbst bremst, nicht die eigentliche Last.",
+    "ru": "Потребление GPU {0:0}% от заданного лимита при загрузке {1:0}% — производительность ограничивает сам лимит мощности, а не нагрузка."
+  },
+  "Bn.R.Background": {
+    "en": "Background processes are consuming {0:0}% combined CPU.",
+    "de": "Hintergrundprozesse belegen zusammen {0:0} % CPU.",
+    "ru": "Фоновые процессы в сумме занимают {0:0}% CPU."
+  },
+  "Bn.R.BackgroundTop": {
+    "en": "\"{0}\" and other background processes are consuming {1:0}% combined CPU.",
+    "de": "„{0}“ und andere Hintergrundprozesse belegen zusammen {1:0} % CPU.",
+    "ru": "«{0}» и другие фоновые процессы в сумме занимают {1:0}% CPU."
+  },
+  "Bn.R.ThermalGpu": {
+    "en": "GPU temperature at {0:0}°C while under heavy load ({1:0}% utilization) — at or above the range where NVIDIA GPUs commonly throttle clocks to protect themselves.",
+    "de": "GPU-Temperatur {0:0} °C unter hoher Last ({1:0} % Auslastung) – im Bereich, in dem NVIDIA-GPUs üblicherweise zum Selbstschutz heruntertakten.",
+    "ru": "Температура GPU {0:0}°C под высокой нагрузкой ({1:0}% загрузки) — в диапазоне, где GPU NVIDIA обычно снижают частоты для самозащиты."
+  },
+  "Bn.R.ThermalCpu": {
+    "en": "CPU is running well below its rated clock speed while under heavy load — consistent with thermal or power throttling, but CPU temperature could not be measured to confirm the cause.",
+    "de": "Die CPU läuft unter hoher Last deutlich unter ihrem Nenntakt – das passt zu Temperatur- oder Leistungsdrosselung, die CPU-Temperatur ließ sich aber nicht messen.",
+    "ru": "CPU под высокой нагрузкой работает заметно ниже номинальной частоты — похоже на тепловой или энергетический троттлинг, но температуру CPU измерить не удалось."
+  },
+  "Bn.R.VramSpikes": {
+    "en": "VRAM usage at {0:0}%, correlating with frame time spikes.",
+    "de": "VRAM-Auslastung {0:0} %, zeitgleich mit Frametime-Spitzen.",
+    "ru": "Использование VRAM {0:0}%, совпадает со скачками времени кадра."
+  },
+  "Bn.R.VramNoData": {
+    "en": "VRAM usage at {0:0}% — near its limit, though frame-time data to confirm actual stutter from it is unavailable.",
+    "de": "VRAM-Auslastung {0:0} % – nahe am Limit, Frametime-Daten zur Bestätigung von Rucklern fehlen aber.",
+    "ru": "Использование VRAM {0:0}% — почти предел, но данных о времени кадра для подтверждения подтормаживаний нет."
+  },
+  "Opt.Intro": {
+    "en": "Review exactly what will change, then apply it. Every change is backed up and can be undone from Backups.",
+    "de": "Sieh dir genau an, was sich ändert, und wende es dann an. Jede Änderung wird gesichert und lässt sich unter Sicherungen rückgängig machen.",
+    "ru": "Проверьте, что именно изменится, и примените. Каждое изменение сохраняется, его можно отменить в разделе резервных копий."
+  },
+  "Opt.Selected": {
+    "en": "  optimization(s) selected",
+    "de": "  Optimierung(en) ausgewählt",
+    "ru": "  оптимизаций выбрано"
+  },
+  "Opt.Irreversible": {
+    "en": "Includes an irreversible step (temp file cleanup) — review before applying.",
+    "de": "Enthält einen nicht umkehrbaren Schritt (Temp-Dateien bereinigen) – vor dem Anwenden prüfen.",
+    "ru": "Включает необратимый шаг (очистка временных файлов) — проверьте перед применением."
+  },
+  "Opt.NeedsAdmin": {
+    "en": "This optimization requires administrator privileges.",
+    "de": "Diese Optimierung braucht Administratorrechte.",
+    "ru": "Для этой оптимизации нужны права администратора."
+  },
+  "Opt.RestartAdmin": {
+    "en": "Restart as Administrator",
+    "de": "Als Administrator neu starten",
+    "ru": "Перезапустить от имени администратора"
+  },
+  "Opt.RebootHint": {
+    "en": "Restart your PC for all applied changes to take full effect.",
+    "de": "Starte den PC neu, damit alle Änderungen vollständig wirken.",
+    "ru": "Перезагрузите ПК, чтобы все изменения вступили в силу."
+  },
+  "Opt.SelectNone": {
+    "en": "Select None",
+    "de": "Keine auswählen",
+    "ru": "Снять выбор"
+  },
+  "Opt.SelectRecommended": {
+    "en": "Select Recommended",
+    "de": "Empfohlene auswählen",
+    "ru": "Выбрать рекомендуемые"
+  },
+  "Opt.OptimizeNow": {
+    "en": "OPTIMIZE NOW",
+    "de": "JETZT OPTIMIEREN",
+    "ru": "ОПТИМИЗИРОВАТЬ"
+  },
+  "Opt.Admin": {
+    "en": "Admin",
+    "de": "Admin",
+    "ru": "Админ"
+  },
+  "Opt.Reboot": {
+    "en": "Reboot",
+    "de": "Neustart",
+    "ru": "Перезагрузка"
+  },
+  "Opt.Applied": {
+    "en": "Applied",
+    "de": "Angewendet",
+    "ru": "Применено"
+  },
+  "Opt.Apply": {
+    "en": "Apply",
+    "de": "Anwenden",
+    "ru": "Применить"
+  },
+  "Opt.NoneSelected": {
+    "en": "No optimizations selected.",
+    "de": "Keine Optimierungen ausgewählt.",
+    "ru": "Оптимизации не выбраны."
+  },
+  "Opt.AppliedAll": {
+    "en": "Applied {0} optimization(s) successfully.",
+    "de": "{0} Optimierung(en) angewendet.",
+    "ru": "Применено оптимизаций: {0}."
+  },
+  "Opt.AppliedSome": {
+    "en": "Applied {0} optimization(s), {1} could not be applied (see details below).",
+    "de": "{0} Optimierung(en) angewendet, {1} ließen sich nicht anwenden (Details unten).",
+    "ru": "Применено оптимизаций: {0}, не удалось применить: {1} (подробности ниже)."
+  },
+  "Risk.Low": {
+    "en": "Low",
+    "de": "Gering",
+    "ru": "Низкий"
+  },
+  "Risk.Medium": {
+    "en": "Medium",
+    "de": "Mittel",
+    "ru": "Средний"
+  },
+  "Risk.Experimental": {
+    "en": "Experimental",
+    "de": "Experimentell",
+    "ru": "Экспериментально"
+  },
+  "Mod.BackgroundApps.Name": {
+    "en": "Background Store Apps",
+    "de": "Store-Apps im Hintergrund",
+    "ru": "Фоновые приложения Store"
+  },
+  "Mod.BackgroundApps.Desc": {
+    "en": "Prevents Microsoft Store (UWP) apps from running and syncing in the background when you're not using them.",
+    "de": "Verhindert, dass Microsoft-Store-Apps (UWP) im Hintergrund laufen und synchronisieren, wenn du sie nicht benutzt.",
+    "ru": "Не даёт приложениям Microsoft Store (UWP) работать и синхронизироваться в фоне, когда вы ими не пользуетесь."
+  },
+  "Mod.GameDvr.Name": {
+    "en": "Background Game Recording (Game DVR)",
+    "de": "Spielaufnahme im Hintergrund (Game DVR)",
+    "ru": "Фоновая запись игр (Game DVR)"
+  },
+  "Mod.GameDvr.Desc": {
+    "en": "Disables the Xbox Game Bar background capture buffer that continuously records gameplay, freeing up CPU, GPU and disk I/O.",
+    "de": "Schaltet den Aufnahmepuffer der Xbox Game Bar ab, der ständig mitschneidet, und entlastet so CPU, GPU und Festplatte.",
+    "ru": "Отключает фоновый буфер записи Xbox Game Bar, который постоянно пишет игру, и освобождает CPU, GPU и диск."
+  },
+  "Mod.GameMode.Name": {
+    "en": "Windows Game Mode",
+    "de": "Windows-Spielmodus",
+    "ru": "Игровой режим Windows"
+  },
+  "Mod.GameMode.Desc": {
+    "en": "Lets Windows prioritize your game's CPU and GPU scheduling over background tasks while it has focus.",
+    "de": "Lässt Windows dein Spiel bei CPU und GPU vor Hintergrundaufgaben bevorzugen, solange es im Vordergrund ist.",
+    "ru": "Позволяет Windows отдавать игре приоритет CPU и GPU перед фоновыми задачами, пока она активна."
+  },
+  "Mod.GpuPriority.Name": {
+    "en": "Gaming Task Scheduler Priority",
+    "de": "Priorität für Spiele im Task-Planer",
+    "ru": "Приоритет игр в планировщике"
+  },
+  "Mod.GpuPriority.Desc": {
+    "en": "Raises the CPU/GPU scheduling priority Windows grants to the built-in \"Games\" multimedia task category used by MMCSS.",
+    "de": "Hebt die CPU/GPU-Priorität an, die Windows der eingebauten Multimedia-Kategorie „Games“ (MMCSS) gibt.",
+    "ru": "Повышает приоритет CPU/GPU, который Windows даёт встроенной мультимедийной категории «Games» (MMCSS)."
+  },
+  "Mod.Hags.Name": {
+    "en": "Hardware-Accelerated GPU Scheduling",
+    "de": "Hardwarebeschleunigte GPU-Planung",
+    "ru": "Аппаратное планирование GPU"
+  },
+  "Mod.Hags.Desc": {
+    "en": "Lets a compatible GPU manage its own video memory queue for lower latency. Requires a restart to take effect.",
+    "de": "Lässt eine kompatible GPU ihre Grafikspeicher-Warteschlange selbst verwalten, für weniger Latenz. Wirkt erst nach einem Neustart.",
+    "ru": "Позволяет совместимой GPU самой управлять очередью видеопамяти для меньшей задержки. Требует перезагрузки."
+  },
+  "Mod.Network.Name": {
+    "en": "Network Throttling Index",
+    "de": "Netzwerkdrosselung",
+    "ru": "Троттлинг сети"
+  },
+  "Mod.Network.Desc": {
+    "en": "Removes the ~10,000 packets/sec cap Windows applies to network traffic while a multimedia/gaming task is active.",
+    "de": "Entfernt die Grenze von rund 10.000 Paketen pro Sekunde, die Windows setzt, solange Multimedia oder ein Spiel läuft.",
+    "ru": "Убирает ограничение ~10 000 пакетов/с, которое Windows ставит на сеть во время мультимедиа или игры."
+  },
+  "Mod.Nvidia.Name": {
+    "en": "NVIDIA Max Performance",
+    "de": "NVIDIA Maximale Leistung",
+    "ru": "NVIDIA: максимальная производительность"
+  },
+  "Mod.Nvidia.Desc": {
+    "en": "Sets NVIDIA's global driver profile to Power Management: Prefer Maximum Performance, Threaded Optimization: On, Texture Filtering: High Performance, and V-Sync: Off — the same settings the NVIDIA Control Panel exposes under \"Manage 3D Settings\".",
+    "de": "Setzt NVIDIAs globales Treiberprofil auf Energieverwaltung: Maximale Leistung bevorzugen, Threaded Optimization: Ein, Texturfilterung: Hohe Leistung und V-Sync: Aus – dieselben Einstellungen wie in der NVIDIA-Systemsteuerung unter „3D-Einstellungen verwalten“.",
+    "ru": "Задаёт в глобальном профиле драйвера NVIDIA: режим питания — максимальная производительность, потоковая оптимизация — вкл., фильтрация текстур — высокая производительность, V-Sync — выкл. Те же настройки, что в панели NVIDIA в разделе «Управление параметрами 3D»."
+  },
+  "Mod.PowerPlan.Name": {
+    "en": "High Performance Power Plan",
+    "de": "Energiesparplan Höchstleistung",
+    "ru": "План питания «Высокая производительность»"
+  },
+  "Mod.PowerPlan.Desc": {
+    "en": "Switches Windows' active power plan from Balanced to High Performance so the CPU doesn't downclock during gaming to save power.",
+    "de": "Stellt den Energiesparplan von Ausbalanciert auf Höchstleistung, damit die CPU beim Spielen nicht zum Stromsparen heruntertaktet.",
+    "ru": "Переключает план питания Windows со «Сбалансированного» на «Высокую производительность», чтобы CPU не снижал частоту во время игры."
+  },
+  "Mod.PowerThrottling.Name": {
+    "en": "CPU Power Throttling",
+    "de": "CPU-Energiedrosselung",
+    "ru": "Троттлинг питания CPU"
+  },
+  "Mod.PowerThrottling.Desc": {
+    "en": "Disables Windows' automatic power throttling of background processes. On laptops this can reduce battery life on battery power.",
+    "de": "Schaltet die automatische Energiedrosselung von Hintergrundprozessen ab. Auf Laptops kann das im Akkubetrieb Laufzeit kosten.",
+    "ru": "Отключает автоматический троттлинг фоновых процессов. На ноутбуках может сократить время работы от батареи."
+  },
+  "Mod.RamCleaner.Name": {
+    "en": "RAM Cleaner",
+    "de": "RAM-Reiniger",
+    "ru": "Очистка ОЗУ"
+  },
+  "Mod.RamCleaner.Desc": {
+    "en": "Trims memory held by idle background processes and clears Windows' reclaimable file cache (Standby List). Nothing is closed and no data is lost — this only asks the OS to give back pages it isn't actively using.",
+    "de": "Verkleinert den Speicher untätiger Hintergrundprozesse und leert den freigebbaren Datei-Cache von Windows (Standby-Liste). Nichts wird geschlossen, keine Daten gehen verloren – Windows gibt nur Speicher zurück, der gerade nicht gebraucht wird.",
+    "ru": "Сокращает память простаивающих фоновых процессов и очищает освобождаемый файловый кэш Windows (список ожидания). Ничего не закрывается и данные не теряются — система лишь возвращает неиспользуемые страницы."
+  },
+  "Mod.Startup.Name": {
+    "en": "Startup Optimization",
+    "de": "Autostart-Optimierung",
+    "ru": "Оптимизация автозагрузки"
+  },
+  "Mod.Startup.Desc": {
+    "en": "Disables common non-essential startup helpers (e.g. OneDrive, Spotify, Adobe updaters). Gaming platforms and drivers are never touched. Fully reversible.",
+    "de": "Deaktiviert typische unnötige Autostart-Helfer (z. B. OneDrive, Spotify, Adobe-Updater). Spieleplattformen und Treiber bleiben immer unberührt. Vollständig umkehrbar.",
+    "ru": "Отключает типичные необязательные программы автозагрузки (например, OneDrive, Spotify, обновления Adobe). Игровые платформы и драйверы не затрагиваются. Полностью обратимо."
+  },
+  "Mod.TempFiles.Name": {
+    "en": "Temporary File Cleanup",
+    "de": "Temp-Dateien bereinigen",
+    "ru": "Очистка временных файлов"
+  },
+  "Mod.TempFiles.Desc": {
+    "en": "Deletes leftover files from your user and system temp folders. This action cannot be undone.",
+    "de": "Löscht übrig gebliebene Dateien aus deinen Benutzer- und System-Temp-Ordnern. Das lässt sich nicht rückgängig machen.",
+    "ru": "Удаляет оставшиеся файлы из пользовательских и системных временных папок. Отменить нельзя."
+  },
+  "Mod.VisualEffects.Name": {
+    "en": "Visual Effects",
+    "de": "Visuelle Effekte",
+    "ru": "Визуальные эффекты"
+  },
+  "Mod.VisualEffects.Desc": {
+    "en": "Turns off window animations, transparency and shadows so the desktop compositor uses less GPU time. Optional — purely cosmetic, does not affect games.",
+    "de": "Schaltet Fensteranimationen, Transparenz und Schatten ab, damit der Desktop weniger GPU-Zeit braucht. Optional – rein optisch, beeinflusst keine Spiele.",
+    "ru": "Отключает анимацию окон, прозрачность и тени, чтобы рабочий стол тратил меньше времени GPU. Необязательно — чисто внешне, на игры не влияет."
+  },
+  "Mod.Currently": {
+    "en": "Currently: ",
+    "de": "Aktuell: ",
+    "ru": "Сейчас: "
+  },
+  "Mod.S.Disabled": {
+    "en": "Disabled",
+    "de": "Deaktiviert",
+    "ru": "Отключено"
+  },
+  "Mod.S.Allowed": {
+    "en": "Allowed",
+    "de": "Erlaubt",
+    "ru": "Разрешено"
+  },
+  "Mod.S.Enabled": {
+    "en": "Enabled",
+    "de": "Aktiviert",
+    "ru": "Включено"
+  },
+  "Mod.S.On": {
+    "en": "On",
+    "de": "An",
+    "ru": "Вкл."
+  },
+  "Mod.S.Off": {
+    "en": "Off",
+    "de": "Aus",
+    "ru": "Выкл."
+  },
+  "Mod.S.HighPriority": {
+    "en": "High priority",
+    "de": "Hohe Priorität",
+    "ru": "Высокий приоритет"
+  },
+  "Mod.S.Default": {
+    "en": "Default",
+    "de": "Standard",
+    "ru": "По умолчанию"
+  },
+  "Mod.S.Unrestricted": {
+    "en": "Unrestricted",
+    "de": "Unbegrenzt",
+    "ru": "Без ограничений"
+  },
+  "Mod.S.DefaultThrottled": {
+    "en": "Default (throttled)",
+    "de": "Standard (gedrosselt)",
+    "ru": "По умолчанию (с ограничением)"
+  },
+  "Mod.S.PreferMax": {
+    "en": "Prefer Maximum Performance",
+    "de": "Maximale Leistung bevorzugen",
+    "ru": "Максимальная производительность"
+  },
+  "Mod.S.DriverDefault": {
+    "en": "Driver default",
+    "de": "Treiberstandard",
+    "ru": "Как в драйвере"
+  },
+  "Mod.S.WindowsDefault": {
+    "en": "Windows default",
+    "de": "Windows-Standard",
+    "ru": "Как в Windows"
+  },
+  "Mod.S.BestPerformance": {
+    "en": "Best performance",
+    "de": "Beste Leistung",
+    "ru": "Наилучшее быстродействие"
+  },
+  "Mod.S.LetWindows": {
+    "en": "Let Windows choose / best appearance",
+    "de": "Windows entscheidet / beste Darstellung",
+    "ru": "Выбор Windows / наилучший вид"
+  },
+  "Mod.S.NoStartupFound": {
+    "en": "No non-essential startup helpers found",
+    "de": "Keine unnötigen Autostart-Helfer gefunden",
+    "ru": "Необязательных программ автозагрузки не найдено"
+  },
+  "Mod.U.TaskProfile": {
+    "en": "Could not read the task scheduler profile.",
+    "de": "Das Profil des Task-Planers ließ sich nicht lesen.",
+    "ru": "Не удалось прочитать профиль планировщика задач."
+  },
+  "Mod.U.NoHags": {
+    "en": "Your GPU driver does not expose the HAGS setting.",
+    "de": "Dein GPU-Treiber bietet die HAGS-Einstellung nicht an.",
+    "ru": "Драйвер GPU не предоставляет настройку HAGS."
+  },
+  "Mod.U.HagsState": {
+    "en": "Could not read GPU scheduling state.",
+    "de": "Der Zustand der GPU-Planung ließ sich nicht lesen.",
+    "ru": "Не удалось прочитать состояние планирования GPU."
+  },
+  "Mod.U.NvidiaProfile": {
+    "en": "Could not access the NVIDIA driver's global profile.",
+    "de": "Auf das globale Profil des NVIDIA-Treibers kann nicht zugegriffen werden.",
+    "ru": "Нет доступа к глобальному профилю драйвера NVIDIA."
+  },
+  "Mod.R.BackgroundApps": {
+    "en": "Background Store apps disabled.",
+    "de": "Store-Apps im Hintergrund deaktiviert.",
+    "ru": "Фоновые приложения Store отключены."
+  },
+  "Mod.R.GameDvr": {
+    "en": "Background game recording disabled.",
+    "de": "Spielaufnahme im Hintergrund deaktiviert.",
+    "ru": "Фоновая запись игр отключена."
+  },
+  "Mod.R.GameMode": {
+    "en": "Game Mode enabled.",
+    "de": "Spielmodus aktiviert.",
+    "ru": "Игровой режим включён."
+  },
+  "Mod.R.GpuPriority": {
+    "en": "Gaming task scheduler priority raised.",
+    "de": "Priorität für Spiele im Task-Planer erhöht.",
+    "ru": "Приоритет игр в планировщике повышен."
+  },
+  "Mod.R.Hags": {
+    "en": "GPU scheduling enabled. Restart your PC for it to take effect.",
+    "de": "GPU-Planung aktiviert. Starte den PC neu, damit sie wirkt.",
+    "ru": "Планирование GPU включено. Перезагрузите ПК, чтобы оно вступило в силу."
+  },
+  "Mod.R.Network": {
+    "en": "Network throttling for multimedia tasks disabled.",
+    "de": "Netzwerkdrosselung für Multimedia deaktiviert.",
+    "ru": "Троттлинг сети для мультимедиа отключён."
+  },
+  "Mod.R.Nvidia": {
+    "en": "NVIDIA global 3D settings set to Max Performance (Power Management, Threaded Optimization, Texture Filtering, V-Sync).",
+    "de": "Globale NVIDIA-3D-Einstellungen auf maximale Leistung gesetzt (Energieverwaltung, Threaded Optimization, Texturfilterung, V-Sync).",
+    "ru": "Глобальные 3D-настройки NVIDIA переведены на максимальную производительность (питание, потоковая оптимизация, фильтрация текстур, V-Sync)."
+  },
+  "Mod.R.PowerPlanFail": {
+    "en": "Could not switch the power plan. No changes were made.",
+    "de": "Der Energiesparplan ließ sich nicht umstellen. Es wurde nichts geändert.",
+    "ru": "Не удалось переключить план питания. Ничего не изменено."
+  },
+  "Mod.R.PowerPlan": {
+    "en": "Switched to the High Performance power plan.",
+    "de": "Auf den Energiesparplan Höchstleistung umgestellt.",
+    "ru": "Включён план питания «Высокая производительность»."
+  },
+  "Mod.R.PowerThrottling": {
+    "en": "CPU power throttling disabled.",
+    "de": "CPU-Energiedrosselung deaktiviert.",
+    "ru": "Троттлинг питания CPU отключён."
+  },
+  "Mod.R.NoStartup": {
+    "en": "No non-essential startup helpers to disable.",
+    "de": "Keine unnötigen Autostart-Helfer zum Deaktivieren.",
+    "ru": "Нет необязательных программ автозагрузки для отключения."
+  },
+  "Mod.R.VisualEffects": {
+    "en": "Visual effects tuned for performance.",
+    "de": "Visuelle Effekte auf Leistung eingestellt.",
+    "ru": "Визуальные эффекты настроены на производительность."
+  },
+  "Mod.F.RamAvailable": {
+    "en": "Available: {0} ({1:0}% free)",
+    "de": "Verfügbar: {0} ({1:0} % frei)",
+    "ru": "Доступно: {0} (свободно {1:0}%)"
+  },
+  "Mod.F.RamTrimmed": {
+    "en": "Trimmed {0} background process(es) ({1}) and cleared the standby cache. Available memory: {2} → {3}.",
+    "de": "{0} Hintergrundprozess(e) verkleinert ({1}) und den Standby-Cache geleert. Verfügbarer Speicher: {2} → {3}.",
+    "ru": "Сокращено фоновых процессов: {0} ({1}), кэш ожидания очищен. Доступная память: {2} → {3}."
+  },
+  "Mod.F.RamTrimmedNoAdmin": {
+    "en": "Trimmed {0} background process(es) ({1}). Standby cache could not be cleared (needs administrator). Available memory: {2} → {3}.",
+    "de": "{0} Hintergrundprozess(e) verkleinert ({1}). Der Standby-Cache ließ sich nicht leeren (braucht Adminrechte). Verfügbarer Speicher: {2} → {3}.",
+    "ru": "Сокращено фоновых процессов: {0} ({1}). Кэш ожидания не очищен (нужны права администратора). Доступная память: {2} → {3}."
+  },
+  "Mod.F.StartupStill": {
+    "en": "{0} of {1} non-essential helper(s) still enabled",
+    "de": "{0} von {1} unnötigen Helfern noch aktiv",
+    "ru": "Ещё включено необязательных программ: {0} из {1}"
+  },
+  "Mod.F.StartupDisabled": {
+    "en": "Disabled {0} startup item(s): {1}.",
+    "de": "{0} Autostart-Eintrag/Einträge deaktiviert: {1}.",
+    "ru": "Отключено элементов автозагрузки: {0}: {1}."
+  },
+  "Mod.F.TempReclaimable": {
+    "en": "Reclaimable: {0}",
+    "de": "Freigebbar: {0}",
+    "ru": "Можно освободить: {0}"
+  },
+  "Mod.F.TempFreed": {
+    "en": "Freed {0} of temporary files.",
+    "de": "{0} an temporären Dateien freigegeben.",
+    "ru": "Освобождено временных файлов: {0}."
+  },
+  "Mod.F.PowerPlanActive": {
+    "en": "{0} is already active — that's at least as fast as High Performance.",
+    "de": "{0} ist bereits aktiv – mindestens so schnell wie Höchstleistung.",
+    "ru": "Уже активен план «{0}» — он не медленнее «Высокой производительности»."
+  },
+  "Mod.F.NoNvidia": {
+    "en": "No NVIDIA GPU/driver detected, or NVAPI is unavailable: {0}",
+    "de": "Keine NVIDIA-GPU bzw. kein Treiber erkannt, oder NVAPI ist nicht verfügbar: {0}",
+    "ru": "GPU/драйвер NVIDIA не найден или NVAPI недоступен: {0}"
+  },
+  "Mod.F.NvidiaFailed": {
+    "en": "Could not change NVIDIA driver settings: {0}",
+    "de": "NVIDIA-Treibereinstellungen ließen sich nicht ändern: {0}",
+    "ru": "Не удалось изменить настройки драйвера NVIDIA: {0}"
+  },
+  "Perf.Title": {
+    "en": "Performance Monitor",
+    "de": "Leistungsmonitor",
+    "ru": "Монитор производительности"
+  },
+  "Perf.Intro": {
+    "en": "Live system metrics from Windows performance counters.",
+    "de": "Live-Systemwerte aus den Windows-Leistungsindikatoren.",
+    "ru": "Показатели системы в реальном времени из счётчиков производительности Windows."
+  },
+  "Perf.Start": {
+    "en": "Start Monitoring",
+    "de": "Messung starten",
+    "ru": "Начать мониторинг"
+  },
+  "Perf.Stop": {
+    "en": "Stop Monitoring",
+    "de": "Messung stoppen",
+    "ru": "Остановить мониторинг"
+  },
+  "Perf.Cpu": {
+    "en": "CPU USAGE",
+    "de": "CPU-AUSLASTUNG",
+    "ru": "ЗАГРУЗКА CPU"
+  },
+  "Perf.Ram": {
+    "en": "RAM USAGE",
+    "de": "RAM-AUSLASTUNG",
+    "ru": "ИСПОЛЬЗОВАНИЕ ОЗУ"
+  },
+  "Perf.Gpu": {
+    "en": "GPU USAGE",
+    "de": "GPU-AUSLASTUNG",
+    "ru": "ЗАГРУЗКА GPU"
+  },
+  "Perf.NA": {
+    "en": "Not available on this system",
+    "de": "Auf diesem System nicht verfügbar",
+    "ru": "Недоступно в этой системе"
+  },
+  "Perf.GpuTemp": {
+    "en": "GPU TEMPERATURE",
+    "de": "GPU-TEMPERATUR",
+    "ru": "ТЕМПЕРАТУРА GPU"
+  },
+  "Perf.TempNA": {
+    "en": "Not available (NVIDIA-only via nvidia-smi)",
+    "de": "Nicht verfügbar (nur NVIDIA über nvidia-smi)",
+    "ru": "Недоступно (только NVIDIA через nvidia-smi)"
+  },
+  "Perf.InGameFps": {
+    "en": "In-Game FPS",
+    "de": "FPS im Spiel",
+    "ru": "FPS в игре"
+  },
+  "Perf.FpsNote": {
+    "en": "In-game FPS requires an external overlay (e.g. RTSS/MSI Afterburner) — RESET FPS BOOSTER does not hook into game render loops and will not show a fabricated number.",
+    "de": "FPS im Spiel brauchen ein externes Overlay (z. B. RTSS/MSI Afterburner) – RESET FPS BOOSTER greift nicht ins Rendering von Spielen ein und zeigt keine erfundene Zahl.",
+    "ru": "Для FPS в игре нужен внешний оверлей (например, RTSS/MSI Afterburner) — RESET FPS BOOSTER не вмешивается в рендеринг игр и не показывает выдуманных чисел."
+  },
+  "Gp.Intro": {
+    "en": "Automatically detected from Steam and Epic Games. Not limited to any fixed list of titles.",
+    "de": "Automatisch aus Steam und Epic Games erkannt. Nicht auf eine feste Liste von Spielen beschränkt.",
+    "ru": "Автоматически находятся в Steam и Epic Games. Без фиксированного списка игр."
+  },
+  "Gp.Rescan": {
+    "en": "Rescan for Games",
+    "de": "Spiele neu suchen",
+    "ru": "Искать игры заново"
+  },
+  "Gp.None": {
+    "en": "No games found yet. Click \"Rescan for Games\" to detect titles installed via Steam or Epic Games.",
+    "de": "Noch keine Spiele gefunden. Klick auf „Spiele neu suchen“, um über Steam oder Epic Games installierte Spiele zu finden.",
+    "ru": "Игры пока не найдены. Нажмите «Искать игры заново», чтобы найти игры из Steam или Epic Games."
+  },
+  "Gp.Optimize": {
+    "en": "Optimize Game",
+    "de": "Spiel optimieren",
+    "ru": "Оптимизировать игру"
+  },
+  "Gp.Restore": {
+    "en": "Restore Game Settings",
+    "de": "Spieleinstellungen wiederherstellen",
+    "ru": "Восстановить настройки игры"
+  },
+  "Gp.Browse": {
+    "en": "Browse for .exe",
+    "de": ".exe suchen",
+    "ru": "Выбрать .exe"
+  },
+  "Gp.AutoexecInfo": {
+    "en": "Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load.",
+    "de": "Installiert eine abgestimmte autoexec.cfg (unbegrenzte FPS, weniger Renderlast, dazu etwas Audio-Balance und Netcode-Tuning). Damit sie geladen wird, muss eine Steam-Startoption gesetzt werden.",
+    "ru": "Устанавливает подобранный autoexec.cfg (без ограничения FPS, меньше нагрузка на рендер, плюс настройка звука и сетевого кода). Чтобы он загружался, нужно добавить параметр запуска в Steam."
+  },
+  "Gp.InstallAutoexec": {
+    "en": "Install Autoexec",
+    "de": "Autoexec installieren",
+    "ru": "Установить autoexec"
+  },
+  "Gp.RemoveAutoexec": {
+    "en": "Remove Autoexec",
+    "de": "Autoexec entfernen",
+    "ru": "Удалить autoexec"
+  },
+  "Gp.CopyLaunch": {
+    "en": "Copy Steam Launch Option",
+    "de": "Steam-Startoption kopieren",
+    "ru": "Копировать параметр запуска Steam"
+  },
+  "Gp.ExeNotFound": {
+    "en": "Not found — browse manually",
+    "de": "Nicht gefunden – bitte manuell suchen",
+    "ru": "Не найден — укажите вручную"
+  },
+  "Gp.OptimizedAt": {
+    "en": "Optimized {0:g}",
+    "de": "Optimiert {0:g}",
+    "ru": "Оптимизировано {0:g}"
+  },
+  "Gp.NotOptimized": {
+    "en": "Not optimized",
+    "de": "Nicht optimiert",
+    "ru": "Не оптимизировано"
+  },
+  "Gp.AutoexecAt": {
+    "en": "Autoexec installed {0:g}",
+    "de": "Autoexec installiert {0:g}",
+    "ru": "Autoexec установлен {0:g}"
+  },
+  "Gp.AutoexecNone": {
+    "en": "Autoexec not installed",
+    "de": "Autoexec nicht installiert",
+    "ru": "Autoexec не установлен"
+  },
+  "Gp.Copied": {
+    "en": "Launch option copied — paste it into {0}'s Steam launch options.",
+    "de": "Startoption kopiert – füge sie in die Steam-Startoptionen von {0} ein.",
+    "ru": "Параметр запуска скопирован — вставьте его в параметры запуска {0} в Steam."
+  },
+  "Gp.CopyFailed": {
+    "en": "Could not copy to clipboard: {0}",
+    "de": "Kopieren in die Zwischenablage fehlgeschlagen: {0}",
+    "ru": "Не удалось скопировать в буфер обмена: {0}"
+  },
+  "Gp.Locate": {
+    "en": "Locate the executable for {0}",
+    "de": "Exe-Datei für {0} auswählen",
+    "ru": "Укажите исполняемый файл {0}"
+  },
+  "Bk.Title": {
+    "en": "Backups & Restore",
+    "de": "Backups & Wiederherstellung",
+    "ru": "Резервные копии и восстановление"
+  },
+  "Bk.Intro": {
+    "en": "Every optimization creates a snapshot of the values it changed before touching them. Restore any of them at any time.",
+    "de": "Jede Optimierung sichert die Werte, die sie ändert, bevor sie sie anfasst. Stell jede davon jederzeit wieder her.",
+    "ru": "Каждая оптимизация сохраняет изменяемые значения до того, как их трогать. Любую из них можно восстановить в любой момент."
+  },
+  "Bk.CreateRestore": {
+    "en": "Create System Restore Point",
+    "de": "Wiederherstellungspunkt erstellen",
+    "ru": "Создать точку восстановления"
+  },
+  "Bk.RestoreTip": {
+    "en": "Creates a full Windows System Restore point — covers the whole system, not just RESET FPS BOOSTER's own changes. Requires Administrator.",
+    "de": "Erstellt einen vollständigen Windows-Wiederherstellungspunkt – deckt das ganze System ab, nicht nur die Änderungen von RESET FPS BOOSTER. Braucht Administratorrechte.",
+    "ru": "Создаёт полную точку восстановления Windows — для всей системы, а не только изменений RESET FPS BOOSTER. Нужны права администратора."
+  },
+  "Bk.None": {
+    "en": "No backups yet. They appear automatically after you apply an optimization.",
+    "de": "Noch keine Backups. Sie entstehen automatisch, sobald du eine Optimierung anwendest.",
+    "ru": "Резервных копий пока нет. Они появятся автоматически после применения оптимизации."
+  },
+  "Bk.Restored": {
+    "en": "Restored",
+    "de": "Wiederhergestellt",
+    "ru": "Восстановлено"
+  },
+  "Bk.RestorePrev": {
+    "en": "Restore Previous Configuration",
+    "de": "Vorherigen Zustand wiederherstellen",
+    "ru": "Восстановить прежние настройки"
+  },
+  "Log.Title": {
+    "en": "Change Log",
+    "de": "Änderungsprotokoll",
+    "ru": "Журнал изменений"
+  },
+  "Log.Intro": {
+    "en": "Every setting RESET FPS BOOSTER has changed, in order.",
+    "de": "Jede Einstellung, die RESET FPS BOOSTER geändert hat, in Reihenfolge.",
+    "ru": "Все настройки, которые изменил RESET FPS BOOSTER, по порядку."
+  },
+  "Log.Clear": {
+    "en": "Clear Log",
+    "de": "Protokoll leeren",
+    "ru": "Очистить журнал"
+  },
+  "Log.None": {
+    "en": "No changes recorded yet.",
+    "de": "Noch keine Änderungen aufgezeichnet.",
+    "ru": "Изменения пока не записаны."
+  },
+  "FB.Notice.NoGpu": {
+    "en": "This game is using all of your graphics card, so generating frames would slow it down instead of helping. FrameBoost is passing it through untouched and starts again by itself when there is room.",
+    "de": "Dieses Spiel lastet deine Grafikkarte voll aus, Frames zu erzeugen würde es also bremsen statt helfen. FrameBoost reicht das Bild unverändert durch und legt von selbst wieder los, sobald Luft da ist.",
+    "ru": "Игра полностью загружает видеокарту, поэтому генерация кадров замедлила бы её вместо помощи. FrameBoost передаёт картинку без изменений и сам продолжит, когда появится запас."
+  },
+  "FB.Notice.Still": {
+    "en": "The picture is not changing right now, so there is nothing to double. The game keeps running at its own frame rate; generation resumes by itself as soon as something moves.",
+    "de": "Das Bild ändert sich gerade nicht, es gibt also nichts zu verdoppeln. Das Spiel läuft mit seiner eigenen Bildrate weiter; die Erzeugung setzt von selbst wieder ein, sobald sich etwas bewegt.",
+    "ru": "Картинка сейчас не меняется, удваивать нечего. Игра работает со своей частотой кадров; генерация возобновится сама, как только что-то начнёт двигаться."
+  },
+  "FB.Notice.NoFrames": {
+    "en": "No frames are arriving from the display. If this stays, turn FrameBoost off and on again.",
+    "de": "Vom Bildschirm kommen keine Frames an. Wenn das so bleibt, schalte FrameBoost aus und wieder ein.",
+    "ru": "Кадры с экрана не поступают. Если так и останется, выключите и снова включите FrameBoost."
+  },
+  "FB.Stopped": {
+    "en": "FrameBoost stopped on its own (it hit a failsafe exit). Nothing was left running.",
+    "de": "FrameBoost hat sich selbst beendet (Sicherheitsabschaltung). Es läuft nichts mehr im Hintergrund.",
+    "ru": "FrameBoost остановился сам (сработала защитная остановка). Ничего не осталось запущенным."
+  },
+  "Set.UpdNoInstaller": {
+    "en": "Version {0} is available (you have {1}), but this release has no installer (.exe) attached.",
+    "de": "Version {0} ist verfügbar (du hast {1}), aber diesem Release hängt kein Installer (.exe) an.",
+    "ru": "Доступна версия {0} (у вас {1}), но к релизу не приложен установщик (.exe)."
+  },
+  "Set.UpdAvailable": {
+    "en": "Version {0} is available (you have {1}).",
+    "de": "Version {0} ist verfügbar (du hast {1}).",
+    "ru": "Доступна версия {0} (у вас {1})."
+  },
+  "Set.UpdUpToDate": {
+    "en": "You're up to date (version {0}).",
+    "de": "Du bist auf dem neuesten Stand (Version {0}).",
+    "ru": "У вас последняя версия ({0})."
+  },
+  "Set.UpdNoAsset": {
+    "en": "This release has no downloadable installer attached.",
+    "de": "Diesem Release hängt kein Installer an.",
+    "ru": "К этому релизу не приложен установщик."
+  },
+  "Set.UpdDownloaded": {
+    "en": "Download complete. Click \"Install & Restart\" to finish.",
+    "de": "Download fertig. Klick auf „Installieren & neu starten“, um abzuschließen.",
+    "ru": "Загрузка завершена. Нажмите «Установить и перезапустить», чтобы закончить."
+  },
+  "Set.UpdMissing": {
+    "en": "The downloaded installer could not be found. Try downloading again.",
+    "de": "Der heruntergeladene Installer wurde nicht gefunden. Lade ihn erneut herunter.",
+    "ru": "Загруженный установщик не найден. Попробуйте загрузить снова."
   }
 }

@@ -95,9 +95,9 @@
                             <TextBlock Text="RESET FPS BOOSTER" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="{StaticResource Brush.TextTertiary}"/>
                         </StackPanel>
                         <TextBlock FontFamily="Segoe UI Semibold" FontSize="32" Foreground="{StaticResource Brush.TextPrimary}">
-                            <Run Text="Your System. "/><Run Text="{Binding HeroSuffix, Mode=OneWay}" Foreground="{StaticResource Brush.AccentBright}"/>
+                            <Run Text="{DynamicResource Dash.YourSystem}"/><Run Text="{Binding HeroSuffix, Mode=OneWay}" Foreground="{StaticResource Brush.AccentBright}"/>
                         </TextBlock>
-                        <TextBlock Text="Better performance. Higher FPS. More wins." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+                        <TextBlock Text="{DynamicResource Dash.Tagline}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
@@ -106,7 +106,7 @@
                                 <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <StackPanel>
                                     <TextBlock Text="{Binding WindowsLabel}" FontSize="11.5" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
-                                    <TextBlock Text="Detected" Style="{StaticResource Text.Caption}"/>
+                                    <TextBlock Text="{DynamicResource Dash.Detected}" Style="{StaticResource Text.Caption}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -125,7 +125,7 @@
                                     </Ellipse.Style>
                                 </Ellipse>
                                 <StackPanel>
-                                    <TextBlock Text="Admin Rights" FontSize="11.5" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
+                                    <TextBlock Text="{DynamicResource Dash.AdminRights}" FontSize="11.5" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
                                     <TextBlock Text="{Binding IsAdministrator, Converter={StaticResource BoolToEnabledDisabled}}" Style="{StaticResource Text.Caption}"/>
                                 </StackPanel>
                             </StackPanel>
@@ -218,7 +218,7 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <StackPanel Grid.Row="1" Margin="0,14,0,0">
-                                    <TextBlock Text="Performance Score" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Text="{DynamicResource Dash.PerfScore}" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Text="{Binding ScoreVerdict}" Style="{StaticResource Text.Body}" Margin="0,2,0,10"/>
                                     <ItemsControl ItemsSource="{Binding ScoreChecklist}">
                                         <ItemsControl.ItemTemplate>
@@ -254,13 +254,13 @@
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="M9,1 L3,9 L7,9 L6,15 L13,6 L9,6 Z" Fill="{StaticResource Brush.Accent}" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="Ready to boost your FPS?" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Dash.ReadyBoost}" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Style="{StaticResource Text.Body}" Margin="0,10,0,16">
-                                    <Run Text="We found "/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/><Run Text=" optimization(s) that can improve your system's performance and stability."/>
+                                    <Run Text="{DynamicResource Dash.WeFound}"/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/><Run Text="{DynamicResource Dash.WeFoundTail}"/>
                                 </TextBlock>
-                                <Button Content="⚡ OPTIMIZE NOW" Style="{StaticResource Button.Primary}" FontSize="15" Command="{Binding GoToOptimizerCommand}"/>
-                                <TextBlock Text="View Details →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand" HorizontalAlignment="Center" Margin="0,12,0,0">
+                                <Button Content="{DynamicResource Dash.OptimizeNow}" Style="{StaticResource Button.Primary}" FontSize="15" Command="{Binding GoToOptimizerCommand}"/>
+                                <TextBlock Text="{DynamicResource Dash.ViewDetails}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand" HorizontalAlignment="Center" Margin="0,12,0,0">
                                     <TextBlock.InputBindings>
                                         <MouseBinding MouseAction="LeftClick" Command="{Binding GoToOptimizerCommand}"/>
                                     </TextBlock.InputBindings>
@@ -284,10 +284,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="System Scan" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                    <TextBlock Grid.Column="1" Text="Completed" FontSize="10.5" Foreground="{StaticResource Brush.Success}"
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.SystemScan}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="1" Text="{DynamicResource Dash.Completed}" FontSize="10.5" Foreground="{StaticResource Brush.Success}"
                                                Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVis}}"/>
-                                    <TextBlock Grid.Column="1" Text="Scanning..." FontSize="10.5" Foreground="{StaticResource Brush.AccentBright}"
+                                    <TextBlock Grid.Column="1" Text="{DynamicResource Dash.Scanning}" FontSize="10.5" Foreground="{StaticResource Brush.AccentBright}"
                                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
                                 </Grid>
                                 <ItemsControl ItemsSource="{Binding ScanSteps}" Margin="0,12,0,10">
@@ -321,7 +321,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Optimizations" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.Optimizations}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding CategorySummaries.Count, StringFormat='{}{0} categories'}" Style="{StaticResource Text.Caption}"/>
                                 </Grid>
                                 <ItemsControl ItemsSource="{Binding CategorySummaries}" Margin="0,10,0,0">
@@ -358,14 +358,14 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Recent Changes" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                    <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.RecentChanges}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="1" Text="{DynamicResource Dash.ViewAll}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
                                         <TextBlock.InputBindings>
                                             <MouseBinding MouseAction="LeftClick" Command="{Binding GoToLogsCommand}"/>
                                         </TextBlock.InputBindings>
                                     </TextBlock>
                                 </Grid>
-                                <TextBlock Text="No changes yet." Style="{StaticResource Text.Caption}" Margin="0,12,0,0"
+                                <TextBlock Text="{DynamicResource Dash.NoChanges}" Style="{StaticResource Text.Caption}" Margin="0,12,0,0"
                                            Visibility="{Binding RecentChanges.Count, Converter={StaticResource CountToVisWhenZero}}"/>
                                 <ItemsControl ItemsSource="{Binding RecentChanges}" Margin="0,10,0,0">
                                     <ItemsControl.ItemTemplate>
@@ -396,7 +396,7 @@
                 <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[sysinfo].IsVisible, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource SidebarCard}">
                         <StackPanel>
-                            <TextBlock Text="System Information" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
+                            <TextBlock Text="{DynamicResource Dash.SysInfo}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
                             <ItemsControl ItemsSource="{Binding SystemInfoRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -420,10 +420,10 @@
                 <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[driver].IsVisible, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource SidebarCard}">
                         <StackPanel>
-                            <TextBlock Text="GPU Driver" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{DynamicResource Dash.GpuDriver}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
                             <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
                             <TextBlock Margin="0,4,0,0">
-                                <Run Text="Version " Foreground="{StaticResource Brush.TextTertiary}" FontSize="11"/><Run Text="{Binding GpuDriverVersion, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
+                                <Run Text="{DynamicResource Dash.Version}" Foreground="{StaticResource Brush.TextTertiary}" FontSize="11"/><Run Text="{Binding GpuDriverVersion, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
                             </TextBlock>
                         </StackPanel>
                     </Border>
@@ -439,7 +439,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Power Plan" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Dash.PowerPlan}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding PowerPlanLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
                             </StackPanel>
                             <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
@@ -472,7 +472,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Game Mode" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Dash.GameMode}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Margin="0,6,0,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
@@ -516,14 +516,14 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Game Profiles" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
-                                <TextBlock Grid.Column="1" Text="View All →" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
+                                <TextBlock Grid.Column="0" Text="{DynamicResource Nav.GameProfiles}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Grid.Column="1" Text="{DynamicResource Dash.ViewAll}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
                                     <TextBlock.InputBindings>
                                         <MouseBinding MouseAction="LeftClick" Command="{Binding GoToGamesCommand}"/>
                                     </TextBlock.InputBindings>
                                 </TextBlock>
                             </Grid>
-                            <TextBlock Text="No games detected yet." Style="{StaticResource Text.Caption}" Margin="0,10,0,0"
+                            <TextBlock Text="{DynamicResource Dash.NoGames}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0"
                                        Visibility="{Binding QuickGames.Count, Converter={StaticResource CountToVisWhenZero}}"/>
                             <ItemsControl ItemsSource="{Binding QuickGames}" Margin="0,8,0,0">
                                 <ItemsControl.ItemTemplate>

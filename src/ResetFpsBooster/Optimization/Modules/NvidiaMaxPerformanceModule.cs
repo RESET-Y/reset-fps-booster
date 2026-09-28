@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 using NvAPIWrapper.DRS;
@@ -47,7 +48,7 @@ public sealed class NvidiaMaxPerformanceModule : IOptimizationModule
             }
             catch (Exception ex)
             {
-                return new OptimizationStatus { IsAvailable = false, UnavailableReason = $"No NVIDIA GPU/driver detected, or NVAPI is unavailable: {ex.Message}" };
+                return new OptimizationStatus { IsAvailable = false, UnavailableReason = Loc.F("Mod.F.NoNvidia", ex.Message) };
             }
         }, ct);
     }
@@ -83,7 +84,7 @@ public sealed class NvidiaMaxPerformanceModule : IOptimizationModule
             }
             catch (Exception ex)
             {
-                return OptimizationApplyResult.Fail($"Could not change NVIDIA driver settings: {ex.Message}");
+                return OptimizationApplyResult.Fail(Loc.F("Mod.F.NvidiaFailed", ex.Message));
             }
         }, ct);
     }

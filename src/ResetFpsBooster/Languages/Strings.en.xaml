@@ -178,4 +178,290 @@
     <sys:String x:Key="Update.Downloading" xml:space="preserve">Downloading… {0} %</sys:String>
     <sys:String x:Key="Update.Starting" xml:space="preserve">Starting the installer…</sys:String>
     <sys:String x:Key="Update.Failed" xml:space="preserve">Download failed: {0}</sys:String>
+    <sys:String x:Key="Dash.YourSystem" xml:space="preserve">Your System. </sys:String>
+    <sys:String x:Key="Dash.Tagline" xml:space="preserve">Better performance. Higher FPS. More wins.</sys:String>
+    <sys:String x:Key="Dash.Detected" xml:space="preserve">Detected</sys:String>
+    <sys:String x:Key="Dash.AdminRights" xml:space="preserve">Admin Rights</sys:String>
+    <sys:String x:Key="Dash.PerfScore" xml:space="preserve">Performance Score</sys:String>
+    <sys:String x:Key="Dash.ReadyBoost" xml:space="preserve">Ready to boost your FPS?</sys:String>
+    <sys:String x:Key="Dash.WeFound" xml:space="preserve">We found </sys:String>
+    <sys:String x:Key="Dash.WeFoundTail" xml:space="preserve"> optimization(s) that can improve your system's performance and stability.</sys:String>
+    <sys:String x:Key="Dash.OptimizeNow" xml:space="preserve">⚡ OPTIMIZE NOW</sys:String>
+    <sys:String x:Key="Dash.ViewDetails" xml:space="preserve">View Details →</sys:String>
+    <sys:String x:Key="Dash.SystemScan" xml:space="preserve">System Scan</sys:String>
+    <sys:String x:Key="Dash.Completed" xml:space="preserve">Completed</sys:String>
+    <sys:String x:Key="Dash.Scanning" xml:space="preserve">Scanning...</sys:String>
+    <sys:String x:Key="Dash.Optimizations" xml:space="preserve">Optimizations</sys:String>
+    <sys:String x:Key="Dash.RecentChanges" xml:space="preserve">Recent Changes</sys:String>
+    <sys:String x:Key="Dash.ViewAll" xml:space="preserve">View All →</sys:String>
+    <sys:String x:Key="Dash.NoChanges" xml:space="preserve">No changes yet.</sys:String>
+    <sys:String x:Key="Dash.SysInfo" xml:space="preserve">System Information</sys:String>
+    <sys:String x:Key="Dash.GpuDriver" xml:space="preserve">GPU Driver</sys:String>
+    <sys:String x:Key="Dash.Version" xml:space="preserve">Version </sys:String>
+    <sys:String x:Key="Dash.PowerPlan" xml:space="preserve">Power Plan</sys:String>
+    <sys:String x:Key="Dash.GameMode" xml:space="preserve">Game Mode</sys:String>
+    <sys:String x:Key="Dash.NoGames" xml:space="preserve">No games detected yet.</sys:String>
+    <sys:String x:Key="Dash.ScanningSystem" xml:space="preserve">Scanning your system...</sys:String>
+    <sys:String x:Key="Dash.Hero.Analyzing" xml:space="preserve">Analyzing.</sys:String>
+    <sys:String x:Key="Dash.Hero.Good" xml:space="preserve">Optimized.</sys:String>
+    <sys:String x:Key="Dash.Hero.Mid" xml:space="preserve">Improving.</sys:String>
+    <sys:String x:Key="Dash.Hero.Low" xml:space="preserve">Needs Attention.</sys:String>
+    <sys:String x:Key="Dash.Check.Gaming" xml:space="preserve">Gaming optimizations active</sys:String>
+    <sys:String x:Key="Dash.Check.Background" xml:space="preserve">Background processes optimized</sys:String>
+    <sys:String x:Key="Dash.Check.System" xml:space="preserve">System settings optimized</sys:String>
+    <sys:String x:Key="Dash.Check.NoIssues" xml:space="preserve">No critical issues found</sys:String>
+    <sys:String x:Key="Dash.NotDetected" xml:space="preserve">Not detected</sys:String>
+    <sys:String x:Key="Dash.NoDrive" xml:space="preserve">No drive detected</sys:String>
+    <sys:String x:Key="Dash.CoresThreads" xml:space="preserve">{0} Cores / {1} Threads</sys:String>
+    <sys:String x:Key="Dash.DriverFmt" xml:space="preserve">Driver {0}</sys:String>
+    <sys:String x:Key="Dash.Unknown" xml:space="preserve">Unknown</sys:String>
+    <sys:String x:Key="Dash.UsedFmt" xml:space="preserve">{0} Used</sys:String>
+    <sys:String x:Key="Dash.FreeFmt" xml:space="preserve">{0} Free</sys:String>
+    <sys:String x:Key="Dash.TotalFmt" xml:space="preserve">{0} Total</sys:String>
+    <sys:String x:Key="Dash.Storage" xml:space="preserve">Storage</sys:String>
+    <sys:String x:Key="Dash.Cat.Gaming" xml:space="preserve">Gaming Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Windows" xml:space="preserve">Windows Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Cpu" xml:space="preserve">CPU Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Gpu" xml:space="preserve">GPU Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Memory" xml:space="preserve">Memory Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Storage" xml:space="preserve">Storage Optimization</sys:String>
+    <sys:String x:Key="Dash.Cat.Network" xml:space="preserve">Network Optimization</sys:String>
+    <sys:String x:Key="Dash.CatSub.Gaming" xml:space="preserve">Game Mode, Game DVR, Background Apps</sys:String>
+    <sys:String x:Key="Dash.CatSub.Windows" xml:space="preserve">Startup, Temp Files, Power Plan</sys:String>
+    <sys:String x:Key="Dash.CatSub.Cpu" xml:space="preserve">Power Throttling</sys:String>
+    <sys:String x:Key="Dash.CatSub.Gpu" xml:space="preserve">Scheduling, Task Priority</sys:String>
+    <sys:String x:Key="Dash.CatSub.Memory" xml:space="preserve">Working Set Trim, Standby Cache</sys:String>
+    <sys:String x:Key="Dash.CatSub.Storage" xml:space="preserve">Temp File Cleanup</sys:String>
+    <sys:String x:Key="Dash.CatSub.Network" xml:space="preserve">Throttling Settings</sys:String>
+    <sys:String x:Key="Sys.Title" xml:space="preserve">System</sys:String>
+    <sys:String x:Key="Sys.Intro" xml:space="preserve">Detailed hardware and OS information, plus a full diagnostic scan.</sys:String>
+    <sys:String x:Key="Sys.Hardware" xml:space="preserve">Hardware</sys:String>
+    <sys:String x:Key="Sys.Cores" xml:space="preserve"> cores, </sys:String>
+    <sys:String x:Key="Sys.Threads" xml:space="preserve"> threads, </sys:String>
+    <sys:String x:Key="Sys.Driver" xml:space="preserve"> — driver </sys:String>
+    <sys:String x:Key="Sys.Memory" xml:space="preserve">Memory</sys:String>
+    <sys:String x:Key="Sys.Total" xml:space="preserve"> total, </sys:String>
+    <sys:String x:Key="Sys.Modules" xml:space="preserve"> module(s), </sys:String>
+    <sys:String x:Key="Sys.Motherboard" xml:space="preserve">Motherboard</sys:String>
+    <sys:String x:Key="Sys.Build" xml:space="preserve"> (build </sys:String>
+    <sys:String x:Key="Sys.Architecture" xml:space="preserve">Architecture</sys:String>
+    <sys:String x:Key="Sys.DeviceType" xml:space="preserve">Device type</sys:String>
+    <sys:String x:Key="Sys.Storage" xml:space="preserve">Storage</sys:String>
+    <sys:String x:Key="Sys.Free" xml:space="preserve"> free · </sys:String>
+    <sys:String x:Key="Sys.DeepScan" xml:space="preserve">Deep System Scan</sys:String>
+    <sys:String x:Key="Sys.RunDeepScan" xml:space="preserve">Run Deep Scan</sys:String>
+    <sys:String x:Key="Scan.Cpu" xml:space="preserve">Scanning CPU configuration...</sys:String>
+    <sys:String x:Key="Scan.CpuResult" xml:space="preserve">{0} — {1} logical processors</sys:String>
+    <sys:String x:Key="Scan.Startup" xml:space="preserve">Checking startup applications...</sys:String>
+    <sys:String x:Key="Scan.StartupResult" xml:space="preserve">{0} enabled ({1} non-essential candidates found)</sys:String>
+    <sys:String x:Key="Scan.Gaming" xml:space="preserve">Checking Windows gaming settings...</sys:String>
+    <sys:String x:Key="Scan.GamingResult" xml:space="preserve">{0}/{1} gaming optimizations already active</sys:String>
+    <sys:String x:Key="Scan.Gpu" xml:space="preserve">Checking GPU configuration...</sys:String>
+    <sys:String x:Key="Scan.NoGpu" xml:space="preserve">No GPU detected</sys:String>
+    <sys:String x:Key="Scan.GpuResult" xml:space="preserve">{0} — driver {1}</sys:String>
+    <sys:String x:Key="Scan.Processes" xml:space="preserve">Checking background processes...</sys:String>
+    <sys:String x:Key="Scan.ProcessesResult" xml:space="preserve">{0} processes currently running</sys:String>
+    <sys:String x:Key="Scan.PowerNet" xml:space="preserve">Checking power &amp; network configuration...</sys:String>
+    <sys:String x:Key="Scan.PowerNetResult" xml:space="preserve">{0}/{1} settings already optimized</sys:String>
+    <sys:String x:Key="Scan.Final" xml:space="preserve">Finalizing optimization report...</sys:String>
+    <sys:String x:Key="Scan.Done" xml:space="preserve">Scan complete</sys:String>
+    <sys:String x:Key="Scan.Failed" xml:space="preserve">Could not complete this check: {0}</sys:String>
+    <sys:String x:Key="Score.V90" xml:space="preserve">Your PC is highly optimized for gaming.</sys:String>
+    <sys:String x:Key="Score.V70" xml:space="preserve">Your PC is well optimized. A few tweaks are still available.</sys:String>
+    <sys:String x:Key="Score.V45" xml:space="preserve">There's meaningful room for improvement.</sys:String>
+    <sys:String x:Key="Score.V0" xml:space="preserve">Your PC is running mostly default settings — run Optimize Now for a quick win.</sys:String>
+    <sys:String x:Key="Bn.Title" xml:space="preserve">Bottleneck Engine</sys:String>
+    <sys:String x:Key="Bn.Why" xml:space="preserve">WHY ARE YOU LOSING FPS?</sys:String>
+    <sys:String x:Key="Bn.Start" xml:space="preserve">Start Analysis</sys:String>
+    <sys:String x:Key="Bn.Stop" xml:space="preserve">Stop Analysis</sys:String>
+    <sys:String x:Key="Bn.Intro" xml:space="preserve">Analyzes real CPU, GPU, memory and background-process telemetry while you play and correlates them into a single, explained diagnosis — not a list of tweaks. Multiple signals must agree before anything is reported; if none do, it says so honestly.</sys:String>
+    <sys:String x:Key="Bn.NotRunning" xml:space="preserve">Not running</sys:String>
+    <sys:String x:Key="Bn.Hint" xml:space="preserve">Click &quot;Start Analysis&quot; while a game is running to get a live diagnosis. Samples every 2 seconds — no aggressive polling.</sys:String>
+    <sys:String x:Key="Bn.Game" xml:space="preserve">GAME</sys:String>
+    <sys:String x:Key="Bn.Balanced" xml:space="preserve">SYSTEM BALANCED</sys:String>
+    <sys:String x:Key="Bn.NoBottleneck" xml:space="preserve">No significant bottleneck detected — no single factor is confidently limiting performance right now.</sys:String>
+    <sys:String x:Key="Bn.Primary" xml:space="preserve">PRIMARY BOTTLENECK</sys:String>
+    <sys:String x:Key="Bn.Confidence" xml:space="preserve">% CONFIDENCE</sys:String>
+    <sys:String x:Key="Bn.Secondary" xml:space="preserve">SECONDARY FACTOR</sys:String>
+    <sys:String x:Key="Bn.Tertiary" xml:space="preserve">TERTIARY FACTOR</sys:String>
+    <sys:String x:Key="Bn.Trend" xml:space="preserve">Trend</sys:String>
+    <sys:String x:Key="Bn.TrendHint" xml:space="preserve">How the primary bottleneck has changed over this session.</sys:String>
+    <sys:String x:Key="Bn.H.Cpu" xml:space="preserve">CPU LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Gpu" xml:space="preserve">GPU LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Thermal" xml:space="preserve">THERMAL LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Power" xml:space="preserve">POWER LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Memory" xml:space="preserve">MEMORY LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Vram" xml:space="preserve">VRAM LIMITED</sys:String>
+    <sys:String x:Key="Bn.H.Background" xml:space="preserve">BACKGROUND WORKLOAD</sys:String>
+    <sys:String x:Key="Bn.H.Unknown" xml:space="preserve">UNKNOWN</sys:String>
+    <sys:String x:Key="Bn.I.Cpu" xml:space="preserve">Your CPU is currently limiting GPU utilization in this workload.</sys:String>
+    <sys:String x:Key="Bn.I.Gpu" xml:space="preserve">Your GPU is the dominant factor right now — it is working close to its ceiling.</sys:String>
+    <sys:String x:Key="Bn.I.Thermal" xml:space="preserve">Heat is currently capping performance before power or workload demand does.</sys:String>
+    <sys:String x:Key="Bn.I.Power" xml:space="preserve">Your GPU is hitting its configured power limit, which is capping its clock speed.</sys:String>
+    <sys:String x:Key="Bn.I.Memory" xml:space="preserve">Available RAM is under real pressure, not just heavily used.</sys:String>
+    <sys:String x:Key="Bn.I.Vram" xml:space="preserve">Video memory is nearly exhausted for the current workload.</sys:String>
+    <sys:String x:Key="Bn.I.Background" xml:space="preserve">Other running processes are consuming resources your game could otherwise use.</sys:String>
+    <sys:String x:Key="Bn.E.CpuThreads" xml:space="preserve">CPU Thread Saturation</sys:String>
+    <sys:String x:Key="Bn.E.GpuUtil" xml:space="preserve">GPU Utilization</sys:String>
+    <sys:String x:Key="Bn.E.CpuClock" xml:space="preserve">CPU Clock</sys:String>
+    <sys:String x:Key="Bn.E.GpuClock" xml:space="preserve">GPU Clock</sys:String>
+    <sys:String x:Key="Bn.E.GpuPower" xml:space="preserve">GPU Power</sys:String>
+    <sys:String x:Key="Bn.E.GpuTemp" xml:space="preserve">GPU Temperature</sys:String>
+    <sys:String x:Key="Bn.E.Ram" xml:space="preserve">RAM Usage</sys:String>
+    <sys:String x:Key="Bn.E.HardFaults" xml:space="preserve">Hard Page Faults</sys:String>
+    <sys:String x:Key="Bn.E.Vram" xml:space="preserve">VRAM Usage</sys:String>
+    <sys:String x:Key="Bn.E.Frametime" xml:space="preserve">Frametime</sys:String>
+    <sys:String x:Key="Bn.E.BackgroundCpu" xml:space="preserve">Background CPU Usage</sys:String>
+    <sys:String x:Key="Bn.E.TopProcess" xml:space="preserve">Top Process</sys:String>
+    <sys:String x:Key="Bn.E.SensorNA" xml:space="preserve">Sensor unavailable</sys:String>
+    <sys:String x:Key="Bn.E.OfLimit" xml:space="preserve">% of limit</sys:String>
+    <sys:String x:Key="Bn.R.Cpu" xml:space="preserve">CPU thread saturation {0:0}% while GPU utilization is only {1:0}% (headroom {2:0}%).</sys:String>
+    <sys:String x:Key="Bn.R.Gpu" xml:space="preserve">GPU utilization sustained at {0:0}% with no other dominant limiting factor observed.</sys:String>
+    <sys:String x:Key="Bn.R.MemNoFaults" xml:space="preserve">RAM usage at {0:0}%, but hard page fault data was unavailable to confirm active paging.</sys:String>
+    <sys:String x:Key="Bn.R.MemPaging" xml:space="preserve">RAM usage at {0:0}% with {1:0} hard page faults/sec — the system is actively paging memory to disk.</sys:String>
+    <sys:String x:Key="Bn.R.Power" xml:space="preserve">GPU power draw at {0:0}% of its configured power limit while at {1:0}% utilization — the power limit itself is capping performance, not raw workload demand.</sys:String>
+    <sys:String x:Key="Bn.R.Background" xml:space="preserve">Background processes are consuming {0:0}% combined CPU.</sys:String>
+    <sys:String x:Key="Bn.R.BackgroundTop" xml:space="preserve">&quot;{0}&quot; and other background processes are consuming {1:0}% combined CPU.</sys:String>
+    <sys:String x:Key="Bn.R.ThermalGpu" xml:space="preserve">GPU temperature at {0:0}°C while under heavy load ({1:0}% utilization) — at or above the range where NVIDIA GPUs commonly throttle clocks to protect themselves.</sys:String>
+    <sys:String x:Key="Bn.R.ThermalCpu" xml:space="preserve">CPU is running well below its rated clock speed while under heavy load — consistent with thermal or power throttling, but CPU temperature could not be measured to confirm the cause.</sys:String>
+    <sys:String x:Key="Bn.R.VramSpikes" xml:space="preserve">VRAM usage at {0:0}%, correlating with frame time spikes.</sys:String>
+    <sys:String x:Key="Bn.R.VramNoData" xml:space="preserve">VRAM usage at {0:0}% — near its limit, though frame-time data to confirm actual stutter from it is unavailable.</sys:String>
+    <sys:String x:Key="Opt.Intro" xml:space="preserve">Review exactly what will change, then apply it. Every change is backed up and can be undone from Backups.</sys:String>
+    <sys:String x:Key="Opt.Selected" xml:space="preserve">  optimization(s) selected</sys:String>
+    <sys:String x:Key="Opt.Irreversible" xml:space="preserve">Includes an irreversible step (temp file cleanup) — review before applying.</sys:String>
+    <sys:String x:Key="Opt.NeedsAdmin" xml:space="preserve">This optimization requires administrator privileges.</sys:String>
+    <sys:String x:Key="Opt.RestartAdmin" xml:space="preserve">Restart as Administrator</sys:String>
+    <sys:String x:Key="Opt.RebootHint" xml:space="preserve">Restart your PC for all applied changes to take full effect.</sys:String>
+    <sys:String x:Key="Opt.SelectNone" xml:space="preserve">Select None</sys:String>
+    <sys:String x:Key="Opt.SelectRecommended" xml:space="preserve">Select Recommended</sys:String>
+    <sys:String x:Key="Opt.OptimizeNow" xml:space="preserve">OPTIMIZE NOW</sys:String>
+    <sys:String x:Key="Opt.Admin" xml:space="preserve">Admin</sys:String>
+    <sys:String x:Key="Opt.Reboot" xml:space="preserve">Reboot</sys:String>
+    <sys:String x:Key="Opt.Applied" xml:space="preserve">Applied</sys:String>
+    <sys:String x:Key="Opt.Apply" xml:space="preserve">Apply</sys:String>
+    <sys:String x:Key="Opt.NoneSelected" xml:space="preserve">No optimizations selected.</sys:String>
+    <sys:String x:Key="Opt.AppliedAll" xml:space="preserve">Applied {0} optimization(s) successfully.</sys:String>
+    <sys:String x:Key="Opt.AppliedSome" xml:space="preserve">Applied {0} optimization(s), {1} could not be applied (see details below).</sys:String>
+    <sys:String x:Key="Risk.Low" xml:space="preserve">Low</sys:String>
+    <sys:String x:Key="Risk.Medium" xml:space="preserve">Medium</sys:String>
+    <sys:String x:Key="Risk.Experimental" xml:space="preserve">Experimental</sys:String>
+    <sys:String x:Key="Mod.BackgroundApps.Name" xml:space="preserve">Background Store Apps</sys:String>
+    <sys:String x:Key="Mod.BackgroundApps.Desc" xml:space="preserve">Prevents Microsoft Store (UWP) apps from running and syncing in the background when you're not using them.</sys:String>
+    <sys:String x:Key="Mod.GameDvr.Name" xml:space="preserve">Background Game Recording (Game DVR)</sys:String>
+    <sys:String x:Key="Mod.GameDvr.Desc" xml:space="preserve">Disables the Xbox Game Bar background capture buffer that continuously records gameplay, freeing up CPU, GPU and disk I/O.</sys:String>
+    <sys:String x:Key="Mod.GameMode.Name" xml:space="preserve">Windows Game Mode</sys:String>
+    <sys:String x:Key="Mod.GameMode.Desc" xml:space="preserve">Lets Windows prioritize your game's CPU and GPU scheduling over background tasks while it has focus.</sys:String>
+    <sys:String x:Key="Mod.GpuPriority.Name" xml:space="preserve">Gaming Task Scheduler Priority</sys:String>
+    <sys:String x:Key="Mod.GpuPriority.Desc" xml:space="preserve">Raises the CPU/GPU scheduling priority Windows grants to the built-in &quot;Games&quot; multimedia task category used by MMCSS.</sys:String>
+    <sys:String x:Key="Mod.Hags.Name" xml:space="preserve">Hardware-Accelerated GPU Scheduling</sys:String>
+    <sys:String x:Key="Mod.Hags.Desc" xml:space="preserve">Lets a compatible GPU manage its own video memory queue for lower latency. Requires a restart to take effect.</sys:String>
+    <sys:String x:Key="Mod.Network.Name" xml:space="preserve">Network Throttling Index</sys:String>
+    <sys:String x:Key="Mod.Network.Desc" xml:space="preserve">Removes the ~10,000 packets/sec cap Windows applies to network traffic while a multimedia/gaming task is active.</sys:String>
+    <sys:String x:Key="Mod.Nvidia.Name" xml:space="preserve">NVIDIA Max Performance</sys:String>
+    <sys:String x:Key="Mod.Nvidia.Desc" xml:space="preserve">Sets NVIDIA's global driver profile to Power Management: Prefer Maximum Performance, Threaded Optimization: On, Texture Filtering: High Performance, and V-Sync: Off — the same settings the NVIDIA Control Panel exposes under &quot;Manage 3D Settings&quot;.</sys:String>
+    <sys:String x:Key="Mod.PowerPlan.Name" xml:space="preserve">High Performance Power Plan</sys:String>
+    <sys:String x:Key="Mod.PowerPlan.Desc" xml:space="preserve">Switches Windows' active power plan from Balanced to High Performance so the CPU doesn't downclock during gaming to save power.</sys:String>
+    <sys:String x:Key="Mod.PowerThrottling.Name" xml:space="preserve">CPU Power Throttling</sys:String>
+    <sys:String x:Key="Mod.PowerThrottling.Desc" xml:space="preserve">Disables Windows' automatic power throttling of background processes. On laptops this can reduce battery life on battery power.</sys:String>
+    <sys:String x:Key="Mod.RamCleaner.Name" xml:space="preserve">RAM Cleaner</sys:String>
+    <sys:String x:Key="Mod.RamCleaner.Desc" xml:space="preserve">Trims memory held by idle background processes and clears Windows' reclaimable file cache (Standby List). Nothing is closed and no data is lost — this only asks the OS to give back pages it isn't actively using.</sys:String>
+    <sys:String x:Key="Mod.Startup.Name" xml:space="preserve">Startup Optimization</sys:String>
+    <sys:String x:Key="Mod.Startup.Desc" xml:space="preserve">Disables common non-essential startup helpers (e.g. OneDrive, Spotify, Adobe updaters). Gaming platforms and drivers are never touched. Fully reversible.</sys:String>
+    <sys:String x:Key="Mod.TempFiles.Name" xml:space="preserve">Temporary File Cleanup</sys:String>
+    <sys:String x:Key="Mod.TempFiles.Desc" xml:space="preserve">Deletes leftover files from your user and system temp folders. This action cannot be undone.</sys:String>
+    <sys:String x:Key="Mod.VisualEffects.Name" xml:space="preserve">Visual Effects</sys:String>
+    <sys:String x:Key="Mod.VisualEffects.Desc" xml:space="preserve">Turns off window animations, transparency and shadows so the desktop compositor uses less GPU time. Optional — purely cosmetic, does not affect games.</sys:String>
+    <sys:String x:Key="Mod.Currently" xml:space="preserve">Currently: </sys:String>
+    <sys:String x:Key="Mod.S.Disabled" xml:space="preserve">Disabled</sys:String>
+    <sys:String x:Key="Mod.S.Allowed" xml:space="preserve">Allowed</sys:String>
+    <sys:String x:Key="Mod.S.Enabled" xml:space="preserve">Enabled</sys:String>
+    <sys:String x:Key="Mod.S.On" xml:space="preserve">On</sys:String>
+    <sys:String x:Key="Mod.S.Off" xml:space="preserve">Off</sys:String>
+    <sys:String x:Key="Mod.S.HighPriority" xml:space="preserve">High priority</sys:String>
+    <sys:String x:Key="Mod.S.Default" xml:space="preserve">Default</sys:String>
+    <sys:String x:Key="Mod.S.Unrestricted" xml:space="preserve">Unrestricted</sys:String>
+    <sys:String x:Key="Mod.S.DefaultThrottled" xml:space="preserve">Default (throttled)</sys:String>
+    <sys:String x:Key="Mod.S.PreferMax" xml:space="preserve">Prefer Maximum Performance</sys:String>
+    <sys:String x:Key="Mod.S.DriverDefault" xml:space="preserve">Driver default</sys:String>
+    <sys:String x:Key="Mod.S.WindowsDefault" xml:space="preserve">Windows default</sys:String>
+    <sys:String x:Key="Mod.S.BestPerformance" xml:space="preserve">Best performance</sys:String>
+    <sys:String x:Key="Mod.S.LetWindows" xml:space="preserve">Let Windows choose / best appearance</sys:String>
+    <sys:String x:Key="Mod.S.NoStartupFound" xml:space="preserve">No non-essential startup helpers found</sys:String>
+    <sys:String x:Key="Mod.U.TaskProfile" xml:space="preserve">Could not read the task scheduler profile.</sys:String>
+    <sys:String x:Key="Mod.U.NoHags" xml:space="preserve">Your GPU driver does not expose the HAGS setting.</sys:String>
+    <sys:String x:Key="Mod.U.HagsState" xml:space="preserve">Could not read GPU scheduling state.</sys:String>
+    <sys:String x:Key="Mod.U.NvidiaProfile" xml:space="preserve">Could not access the NVIDIA driver's global profile.</sys:String>
+    <sys:String x:Key="Mod.R.BackgroundApps" xml:space="preserve">Background Store apps disabled.</sys:String>
+    <sys:String x:Key="Mod.R.GameDvr" xml:space="preserve">Background game recording disabled.</sys:String>
+    <sys:String x:Key="Mod.R.GameMode" xml:space="preserve">Game Mode enabled.</sys:String>
+    <sys:String x:Key="Mod.R.GpuPriority" xml:space="preserve">Gaming task scheduler priority raised.</sys:String>
+    <sys:String x:Key="Mod.R.Hags" xml:space="preserve">GPU scheduling enabled. Restart your PC for it to take effect.</sys:String>
+    <sys:String x:Key="Mod.R.Network" xml:space="preserve">Network throttling for multimedia tasks disabled.</sys:String>
+    <sys:String x:Key="Mod.R.Nvidia" xml:space="preserve">NVIDIA global 3D settings set to Max Performance (Power Management, Threaded Optimization, Texture Filtering, V-Sync).</sys:String>
+    <sys:String x:Key="Mod.R.PowerPlanFail" xml:space="preserve">Could not switch the power plan. No changes were made.</sys:String>
+    <sys:String x:Key="Mod.R.PowerPlan" xml:space="preserve">Switched to the High Performance power plan.</sys:String>
+    <sys:String x:Key="Mod.R.PowerThrottling" xml:space="preserve">CPU power throttling disabled.</sys:String>
+    <sys:String x:Key="Mod.R.NoStartup" xml:space="preserve">No non-essential startup helpers to disable.</sys:String>
+    <sys:String x:Key="Mod.R.VisualEffects" xml:space="preserve">Visual effects tuned for performance.</sys:String>
+    <sys:String x:Key="Mod.F.RamAvailable" xml:space="preserve">Available: {0} ({1:0}% free)</sys:String>
+    <sys:String x:Key="Mod.F.RamTrimmed" xml:space="preserve">Trimmed {0} background process(es) ({1}) and cleared the standby cache. Available memory: {2} → {3}.</sys:String>
+    <sys:String x:Key="Mod.F.RamTrimmedNoAdmin" xml:space="preserve">Trimmed {0} background process(es) ({1}). Standby cache could not be cleared (needs administrator). Available memory: {2} → {3}.</sys:String>
+    <sys:String x:Key="Mod.F.StartupStill" xml:space="preserve">{0} of {1} non-essential helper(s) still enabled</sys:String>
+    <sys:String x:Key="Mod.F.StartupDisabled" xml:space="preserve">Disabled {0} startup item(s): {1}.</sys:String>
+    <sys:String x:Key="Mod.F.TempReclaimable" xml:space="preserve">Reclaimable: {0}</sys:String>
+    <sys:String x:Key="Mod.F.TempFreed" xml:space="preserve">Freed {0} of temporary files.</sys:String>
+    <sys:String x:Key="Mod.F.PowerPlanActive" xml:space="preserve">{0} is already active — that's at least as fast as High Performance.</sys:String>
+    <sys:String x:Key="Mod.F.NoNvidia" xml:space="preserve">No NVIDIA GPU/driver detected, or NVAPI is unavailable: {0}</sys:String>
+    <sys:String x:Key="Mod.F.NvidiaFailed" xml:space="preserve">Could not change NVIDIA driver settings: {0}</sys:String>
+    <sys:String x:Key="Perf.Title" xml:space="preserve">Performance Monitor</sys:String>
+    <sys:String x:Key="Perf.Intro" xml:space="preserve">Live system metrics from Windows performance counters.</sys:String>
+    <sys:String x:Key="Perf.Start" xml:space="preserve">Start Monitoring</sys:String>
+    <sys:String x:Key="Perf.Stop" xml:space="preserve">Stop Monitoring</sys:String>
+    <sys:String x:Key="Perf.Cpu" xml:space="preserve">CPU USAGE</sys:String>
+    <sys:String x:Key="Perf.Ram" xml:space="preserve">RAM USAGE</sys:String>
+    <sys:String x:Key="Perf.Gpu" xml:space="preserve">GPU USAGE</sys:String>
+    <sys:String x:Key="Perf.NA" xml:space="preserve">Not available on this system</sys:String>
+    <sys:String x:Key="Perf.GpuTemp" xml:space="preserve">GPU TEMPERATURE</sys:String>
+    <sys:String x:Key="Perf.TempNA" xml:space="preserve">Not available (NVIDIA-only via nvidia-smi)</sys:String>
+    <sys:String x:Key="Perf.InGameFps" xml:space="preserve">In-Game FPS</sys:String>
+    <sys:String x:Key="Perf.FpsNote" xml:space="preserve">In-game FPS requires an external overlay (e.g. RTSS/MSI Afterburner) — RESET FPS BOOSTER does not hook into game render loops and will not show a fabricated number.</sys:String>
+    <sys:String x:Key="Gp.Intro" xml:space="preserve">Automatically detected from Steam and Epic Games. Not limited to any fixed list of titles.</sys:String>
+    <sys:String x:Key="Gp.Rescan" xml:space="preserve">Rescan for Games</sys:String>
+    <sys:String x:Key="Gp.None" xml:space="preserve">No games found yet. Click &quot;Rescan for Games&quot; to detect titles installed via Steam or Epic Games.</sys:String>
+    <sys:String x:Key="Gp.Optimize" xml:space="preserve">Optimize Game</sys:String>
+    <sys:String x:Key="Gp.Restore" xml:space="preserve">Restore Game Settings</sys:String>
+    <sys:String x:Key="Gp.Browse" xml:space="preserve">Browse for .exe</sys:String>
+    <sys:String x:Key="Gp.AutoexecInfo" xml:space="preserve">Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load.</sys:String>
+    <sys:String x:Key="Gp.InstallAutoexec" xml:space="preserve">Install Autoexec</sys:String>
+    <sys:String x:Key="Gp.RemoveAutoexec" xml:space="preserve">Remove Autoexec</sys:String>
+    <sys:String x:Key="Gp.CopyLaunch" xml:space="preserve">Copy Steam Launch Option</sys:String>
+    <sys:String x:Key="Gp.ExeNotFound" xml:space="preserve">Not found — browse manually</sys:String>
+    <sys:String x:Key="Gp.OptimizedAt" xml:space="preserve">Optimized {0:g}</sys:String>
+    <sys:String x:Key="Gp.NotOptimized" xml:space="preserve">Not optimized</sys:String>
+    <sys:String x:Key="Gp.AutoexecAt" xml:space="preserve">Autoexec installed {0:g}</sys:String>
+    <sys:String x:Key="Gp.AutoexecNone" xml:space="preserve">Autoexec not installed</sys:String>
+    <sys:String x:Key="Gp.Copied" xml:space="preserve">Launch option copied — paste it into {0}'s Steam launch options.</sys:String>
+    <sys:String x:Key="Gp.CopyFailed" xml:space="preserve">Could not copy to clipboard: {0}</sys:String>
+    <sys:String x:Key="Gp.Locate" xml:space="preserve">Locate the executable for {0}</sys:String>
+    <sys:String x:Key="Bk.Title" xml:space="preserve">Backups &amp; Restore</sys:String>
+    <sys:String x:Key="Bk.Intro" xml:space="preserve">Every optimization creates a snapshot of the values it changed before touching them. Restore any of them at any time.</sys:String>
+    <sys:String x:Key="Bk.CreateRestore" xml:space="preserve">Create System Restore Point</sys:String>
+    <sys:String x:Key="Bk.RestoreTip" xml:space="preserve">Creates a full Windows System Restore point — covers the whole system, not just RESET FPS BOOSTER's own changes. Requires Administrator.</sys:String>
+    <sys:String x:Key="Bk.None" xml:space="preserve">No backups yet. They appear automatically after you apply an optimization.</sys:String>
+    <sys:String x:Key="Bk.Restored" xml:space="preserve">Restored</sys:String>
+    <sys:String x:Key="Bk.RestorePrev" xml:space="preserve">Restore Previous Configuration</sys:String>
+    <sys:String x:Key="Log.Title" xml:space="preserve">Change Log</sys:String>
+    <sys:String x:Key="Log.Intro" xml:space="preserve">Every setting RESET FPS BOOSTER has changed, in order.</sys:String>
+    <sys:String x:Key="Log.Clear" xml:space="preserve">Clear Log</sys:String>
+    <sys:String x:Key="Log.None" xml:space="preserve">No changes recorded yet.</sys:String>
+    <sys:String x:Key="FB.Notice.NoGpu" xml:space="preserve">This game is using all of your graphics card, so generating frames would slow it down instead of helping. FrameBoost is passing it through untouched and starts again by itself when there is room.</sys:String>
+    <sys:String x:Key="FB.Notice.Still" xml:space="preserve">The picture is not changing right now, so there is nothing to double. The game keeps running at its own frame rate; generation resumes by itself as soon as something moves.</sys:String>
+    <sys:String x:Key="FB.Notice.NoFrames" xml:space="preserve">No frames are arriving from the display. If this stays, turn FrameBoost off and on again.</sys:String>
+    <sys:String x:Key="FB.Stopped" xml:space="preserve">FrameBoost stopped on its own (it hit a failsafe exit). Nothing was left running.</sys:String>
+    <sys:String x:Key="Set.UpdNoInstaller" xml:space="preserve">Version {0} is available (you have {1}), but this release has no installer (.exe) attached.</sys:String>
+    <sys:String x:Key="Set.UpdAvailable" xml:space="preserve">Version {0} is available (you have {1}).</sys:String>
+    <sys:String x:Key="Set.UpdUpToDate" xml:space="preserve">You're up to date (version {0}).</sys:String>
+    <sys:String x:Key="Set.UpdNoAsset" xml:space="preserve">This release has no downloadable installer attached.</sys:String>
+    <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Download complete. Click &quot;Install &amp; Restart&quot; to finish.</sys:String>
+    <sys:String x:Key="Set.UpdMissing" xml:space="preserve">The downloaded installer could not be found. Try downloading again.</sys:String>
 </ResourceDictionary>

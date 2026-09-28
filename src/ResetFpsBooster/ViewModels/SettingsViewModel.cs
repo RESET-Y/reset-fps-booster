@@ -192,12 +192,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
             ReleaseNotes = string.IsNullOrWhiteSpace(result.ReleaseNotes) ? null : result.ReleaseNotes;
             PendingDownloadUrl = result.DownloadUrl;
             UpdateStatusMessage = string.IsNullOrEmpty(result.DownloadUrl)
-                ? $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}), but this release has no installer (.exe) attached."
-                : $"Version {result.LatestVersion} is available (you have {result.CurrentVersion}).";
+                ? Loc.F("Set.UpdNoInstaller", result.LatestVersion!, result.CurrentVersion)
+                : Loc.F("Set.UpdAvailable", result.LatestVersion!, result.CurrentVersion);
         }
         else
         {
-            UpdateStatusMessage = $"You're up to date (version {result.CurrentVersion}).";
+            UpdateStatusMessage = Loc.F("Set.UpdUpToDate", result.CurrentVersion);
         }
     }
 
@@ -206,7 +206,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(PendingDownloadUrl))
         {
-            UpdateStatusMessage = "This release has no downloadable installer attached.";
+            UpdateStatusMessage = Loc.T("Set.UpdNoAsset");
             return;
         }
 
@@ -222,11 +222,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
             var installerPath = await _updateService.DownloadUpdateAsync(PendingDownloadUrl, progress);
             PendingInstallerPath = installerPath;
-            UpdateStatusMessage = "Download complete. Click \"Install & Restart\" to finish.";
+            UpdateStatusMessage = Loc.T("Set.UpdDownloaded");
         }
         catch (Exception ex)
         {
-            UpdateStatusMessage = $"Download failed: {ex.Message}";
+            UpdateStatusMessage = Loc.F("Update.Failed", ex.Message);
         }
         finally
         {
@@ -239,7 +239,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(PendingInstallerPath) || !File.Exists(PendingInstallerPath))
         {
-            UpdateStatusMessage = "The downloaded installer could not be found. Try downloading again.";
+            UpdateStatusMessage = Loc.T("Set.UpdMissing");
             return;
         }
 

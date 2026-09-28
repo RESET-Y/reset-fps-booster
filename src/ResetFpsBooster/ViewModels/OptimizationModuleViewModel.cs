@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Optimization;
@@ -16,9 +17,10 @@ public sealed partial class OptimizationModuleViewModel : ObservableObject
     [ObservableProperty] private string? _lastResultMessage;
     [ObservableProperty] private bool? _lastResultSuccess;
 
-    public string Name => Module.Name;
-    public string Description => Module.Description;
+    public string Name => Loc.Tr(Module.Name);
+    public string Description => Loc.Tr(Module.Description);
     public RiskLevel Risk => Module.Risk;
+    public string RiskLabel => Loc.T("Risk." + Module.Risk);
     public OptimizationCategory Category => Module.Category;
     public bool RequiresAdmin => Module.RequiresAdmin;
     public bool RequiresReboot => Module.RequiresReboot;
@@ -32,8 +34,8 @@ public sealed partial class OptimizationModuleViewModel : ObservableObject
     {
         IsAvailable = status.IsAvailable;
         IsApplied = status.IsApplied;
-        DetailText = status.DetailText;
-        UnavailableReason = status.UnavailableReason;
+        DetailText = Loc.Tr(status.DetailText);
+        UnavailableReason = status.UnavailableReason is null ? null : Loc.Tr(status.UnavailableReason);
 
         // Only pre-check Low-risk modules. Medium/Experimental modules (e.g. HAGS, which has
         // documented freeze/crash reports on some GPU-driver + anti-cheat combinations) require

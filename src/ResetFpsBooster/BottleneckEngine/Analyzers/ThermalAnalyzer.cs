@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 
 namespace ResetFpsBooster.BottleneckEngine.Analyzers;
@@ -23,7 +24,7 @@ public sealed class ThermalAnalyzer : IBottleneckAnalyzer
             {
                 Kind = BottleneckKind.ThermalLimited,
                 Weight = Math.Min(1.0, 0.55 + overshoot * 0.4),
-                Reason = $"GPU temperature at {temp:0}°C while under heavy load ({current.GpuUsagePercent:0}% utilization) — at or above the range where NVIDIA GPUs commonly throttle clocks to protect themselves."
+                Reason = Loc.F("Bn.R.ThermalGpu", temp, current.GpuUsagePercent!)
             };
         }
 
@@ -33,7 +34,7 @@ public sealed class ThermalAnalyzer : IBottleneckAnalyzer
             {
                 Kind = BottleneckKind.ThermalLimited,
                 Weight = 0.25, // Deliberately low — this is a soft signal without a real temperature reading behind it.
-                Reason = "CPU is running well below its rated clock speed while under heavy load — consistent with thermal or power throttling, but CPU temperature could not be measured to confirm the cause."
+                Reason = Loc.T("Bn.R.ThermalCpu")
             };
         }
     }

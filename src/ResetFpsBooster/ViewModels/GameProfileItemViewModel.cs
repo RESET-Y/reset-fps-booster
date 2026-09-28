@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Services;
@@ -16,19 +17,19 @@ public sealed partial class GameProfileItemViewModel : ObservableObject
     public string Name => Profile.Name;
     public string SourceLabel => Profile.Source.ToString();
     public string InstallPath => Profile.InstallPath;
-    public string ExecutableLabel => string.IsNullOrEmpty(Profile.ExecutablePath) ? "Not found — browse manually" : Profile.ExecutablePath;
+    public string ExecutableLabel => string.IsNullOrEmpty(Profile.ExecutablePath) ? Loc.T("Gp.ExeNotFound") : Profile.ExecutablePath;
     public bool IsOptimized => Profile.IsOptimized;
     public string StatusLabel => Profile.IsOptimized
-        ? $"Optimized {Profile.LastOptimizedAt:g}"
-        : "Not optimized";
+        ? Loc.F("Gp.OptimizedAt", Profile.LastOptimizedAt!)
+        : Loc.T("Gp.NotOptimized");
 
     public bool SupportsAutoexec => _gameAutoexecService.SupportsAutoexec(Profile);
     public bool IsAutoexecApplied => Profile.IsAutoexecApplied;
     public string? SteamLaunchOption => _gameAutoexecService.GetSteamLaunchOption(Profile);
     public string AutoexecHeaderLabel => $"{_gameAutoexecService.GetSupportedGameName(Profile)} FPS Autoexec";
     public string AutoexecStatusLabel => Profile.IsAutoexecApplied
-        ? $"Autoexec installed {Profile.AutoexecAppliedAt:g}"
-        : "Autoexec not installed";
+        ? Loc.F("Gp.AutoexecAt", Profile.AutoexecAppliedAt!)
+        : Loc.T("Gp.AutoexecNone");
 
     public GameProfileItemViewModel(GameProfile profile, IGameAutoexecService gameAutoexecService)
     {

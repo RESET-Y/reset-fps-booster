@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Linq;
 using ResetFpsBooster.Core.Models;
 
@@ -36,7 +37,7 @@ public sealed class GpuAnalyzer : IBottleneckAnalyzer
         {
             Kind = BottleneckKind.GpuLimited,
             Weight = weight,
-            Reason = $"GPU utilization sustained at {gpuUsage:0}% with no other dominant limiting factor observed."
+            Reason = Loc.F("Bn.R.Gpu", gpuUsage)
         };
     }
 }

@@ -17,16 +17,16 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Game Profiles" Style="{StaticResource Text.Title}"/>
-                <TextBlock Text="Automatically detected from Steam and Epic Games. Not limited to any fixed list of titles." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+                <TextBlock Text="{DynamicResource Nav.GameProfiles}" Style="{StaticResource Text.Title}"/>
+                <TextBlock Text="{DynamicResource Gp.Intro}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
             </StackPanel>
-            <Button Grid.Column="1" Content="Rescan for Games" Style="{StaticResource Button.Primary}" Command="{Binding RescanCommand}" VerticalAlignment="Center"
+            <Button Grid.Column="1" Content="{DynamicResource Gp.Rescan}" Style="{StaticResource Button.Primary}" Command="{Binding RescanCommand}" VerticalAlignment="Center"
                     IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"/>
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <TextBlock Text="No games found yet. Click &quot;Rescan for Games&quot; to detect titles installed via Steam or Epic Games." Style="{StaticResource Text.Body}"
+                <TextBlock Text="{DynamicResource Gp.None}" Style="{StaticResource Text.Body}"
                            Visibility="{Binding Games.Count, Converter={StaticResource CountToVisWhenZero}}"/>
 
                 <ItemsControl ItemsSource="{Binding Games}">
@@ -88,19 +88,19 @@
                                     <!-- Actions -->
                                     <Grid Margin="0,16,0,0">
                                         <StackPanel Orientation="Horizontal">
-                                            <Button Content="Optimize Game" Style="{StaticResource Button.Primary}" Margin="0,0,10,0"
+                                            <Button Content="{DynamicResource Gp.Optimize}" Style="{StaticResource Button.Primary}" Margin="0,0,10,0"
                                                     Command="{Binding DataContext.OptimizeGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     Visibility="{Binding IsOptimized, Converter={StaticResource InverseBoolToVis}}"/>
-                                            <Button Content="Restore Game Settings" Style="{StaticResource Button.Secondary}" Margin="0,0,10,0"
+                                            <Button Content="{DynamicResource Gp.Restore}" Style="{StaticResource Button.Secondary}" Margin="0,0,10,0"
                                                     Command="{Binding DataContext.RestoreGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     Visibility="{Binding IsOptimized, Converter={StaticResource BoolToVis}}"/>
-                                            <Button Content="Browse for .exe" Style="{StaticResource Button.Ghost}"
+                                            <Button Content="{DynamicResource Gp.Browse}" Style="{StaticResource Button.Ghost}"
                                                     Command="{Binding DataContext.BrowseForExecutableCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"/>
                                         </StackPanel>
-                                        <Button Content="Remove" Style="{StaticResource Button.Ghost}" HorizontalAlignment="Right"
+                                        <Button Content="{DynamicResource Common.Remove}" Style="{StaticResource Button.Ghost}" HorizontalAlignment="Right"
                                                 Command="{Binding DataContext.RemoveGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}" Foreground="{StaticResource Brush.TextTertiary}"/>
                                     </Grid>
@@ -114,19 +114,19 @@
                                                            Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
                                                 <TextBlock Text="{Binding AutoexecStatusLabel}" Style="{StaticResource Text.Telemetry}" Margin="12,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <TextBlock Text="Installs a curated autoexec.cfg (uncapped FPS, reduced rendering cost, plus some audio-balance and netcode tuning). Requires adding a Steam launch option to actually load." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"/>
+                                            <TextBlock Text="{DynamicResource Gp.AutoexecInfo}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"/>
                                             <TextBlock Text="{Binding AutoexecActionMessage}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Success}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                        Visibility="{Binding AutoexecActionMessage, Converter={StaticResource NullToVis}}"/>
                                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                                <Button Content="Install Autoexec" Style="{StaticResource Button.Secondary}"
+                                                <Button Content="{DynamicResource Gp.InstallAutoexec}" Style="{StaticResource Button.Secondary}"
                                                         Command="{Binding DataContext.InstallAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}" Margin="0,0,10,0"
                                                         Visibility="{Binding IsAutoexecApplied, Converter={StaticResource InverseBoolToVis}}"/>
-                                                <Button Content="Remove Autoexec" Style="{StaticResource Button.Secondary}"
+                                                <Button Content="{DynamicResource Gp.RemoveAutoexec}" Style="{StaticResource Button.Secondary}"
                                                         Command="{Binding DataContext.RestoreAutoexecCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}" Margin="0,0,10,0"
                                                         Visibility="{Binding IsAutoexecApplied, Converter={StaticResource BoolToVis}}"/>
-                                                <Button Content="Copy Steam Launch Option" Style="{StaticResource Button.Ghost}"
+                                                <Button Content="{DynamicResource Gp.CopyLaunch}" Style="{StaticResource Button.Ghost}"
                                                         Command="{Binding DataContext.CopySteamLaunchOptionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
                                             </StackPanel>

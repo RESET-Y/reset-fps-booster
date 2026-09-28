@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 
 namespace ResetFpsBooster.BottleneckEngine.Analyzers;
@@ -24,7 +25,7 @@ public sealed class MemoryAnalyzer : IBottleneckAnalyzer
             {
                 Kind = BottleneckKind.MemoryLimited,
                 Weight = 0.2,
-                Reason = $"RAM usage at {usedPercent:0}%, but hard page fault data was unavailable to confirm active paging."
+                Reason = Loc.F("Bn.R.MemNoFaults", usedPercent)
             };
             yield break;
         }
@@ -35,7 +36,7 @@ public sealed class MemoryAnalyzer : IBottleneckAnalyzer
         {
             Kind = BottleneckKind.MemoryLimited,
             Weight = Math.Min(1.0, 0.5 + (hardFaults.Value - SignificantHardFaultsPerSec) / 200.0),
-            Reason = $"RAM usage at {usedPercent:0}% with {hardFaults:0} hard page faults/sec — the system is actively paging memory to disk."
+            Reason = Loc.F("Bn.R.MemPaging", usedPercent, hardFaults)
         };
     }
 }

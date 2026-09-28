@@ -13,8 +13,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="Optimizer" Style="{StaticResource Text.Title}"/>
-            <TextBlock Text="Review exactly what will change, then apply it. Every change is backed up and can be undone from Backups." Style="{StaticResource Text.Body}" Margin="0,4,0,20"/>
+            <TextBlock Text="{DynamicResource Nav.Optimizer}" Style="{StaticResource Text.Title}"/>
+            <TextBlock Text="{DynamicResource Opt.Intro}" Style="{StaticResource Text.Body}" Margin="0,4,0,20"/>
         </StackPanel>
 
         <Border Grid.Row="1" Style="{StaticResource Card.Accented}" Margin="0,0,0,20">
@@ -26,9 +26,9 @@
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                     <TextBlock Foreground="{StaticResource Brush.TextPrimary}">
-                        <Run Text="{Binding SelectedCount, Mode=OneWay}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="40" Foreground="{DynamicResource Brush.AccentBright}"/><Run Text="  optimization(s) selected" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="16"/>
+                        <Run Text="{Binding SelectedCount, Mode=OneWay}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="40" Foreground="{DynamicResource Brush.AccentBright}"/><Run Text="{DynamicResource Opt.Selected}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="16"/>
                     </TextBlock>
-                    <TextBlock Text="Includes an irreversible step (temp file cleanup) — review before applying." Style="{StaticResource Text.Caption}" Margin="0,4,0,0"
+                    <TextBlock Text="{DynamicResource Opt.Irreversible}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0"
                                Visibility="{Binding HasIrreversibleSelection, Converter={StaticResource BoolToVis}}"/>
                     <TextBlock Text="{Binding SummaryMessage}" Style="{StaticResource Text.Body}" Margin="0,8,0,0"
                                Visibility="{Binding SummaryMessage, Converter={StaticResource NullToVis}}"/>
@@ -41,21 +41,21 @@
                     <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="2" Padding="12,8" Margin="0,10,0,0"
                             Visibility="{Binding NeedsAdminPrompt, Converter={StaticResource BoolToVis}}">
                         <StackPanel>
-                            <TextBlock Text="This optimization requires administrator privileges." FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.Warning}" FontSize="12.5"/>
-                            <Button Content="Restart as Administrator" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                            <TextBlock Text="{DynamicResource Opt.NeedsAdmin}" FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.Warning}" FontSize="12.5"/>
+                            <Button Content="{DynamicResource Opt.RestartAdmin}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,8,0,0"
                                     Command="{Binding RelaunchElevatedCommand}"/>
                         </StackPanel>
                     </Border>
                     <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="2" Padding="12,8" Margin="0,10,0,0"
                             Visibility="{Binding AnyResultRequiresReboot, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Restart your PC for all applied changes to take full effect." FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.Cyan}" FontSize="12.5"/>
+                        <TextBlock Text="{DynamicResource Opt.RebootHint}" FontFamily="Segoe UI Semibold" Foreground="{StaticResource Brush.Cyan}" FontSize="12.5"/>
                     </Border>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Select None" Style="{StaticResource Button.Ghost}" Command="{Binding SelectNoneCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Select Recommended" Style="{StaticResource Button.Secondary}" Command="{Binding SelectRecommendedCommand}" Margin="0,0,8,0"/>
-                    <Button Content="OPTIMIZE NOW" Style="{StaticResource Button.Primary}" Command="{Binding ApplySelectedCommand}" FontSize="15" Padding="28,14"
+                    <Button Content="{DynamicResource Opt.SelectNone}" Style="{StaticResource Button.Ghost}" Command="{Binding SelectNoneCommand}" Margin="0,0,8,0"/>
+                    <Button Content="{DynamicResource Opt.SelectRecommended}" Style="{StaticResource Button.Secondary}" Command="{Binding SelectRecommendedCommand}" Margin="0,0,8,0"/>
+                    <Button Content="{DynamicResource Opt.OptimizeNow}" Style="{StaticResource Button.Primary}" Command="{Binding ApplySelectedCommand}" FontSize="15" Padding="28,14"
                             IsEnabled="{Binding IsApplying, Converter={StaticResource InverseBool}}"/>
                 </StackPanel>
             </Grid>
@@ -80,15 +80,15 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Name}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="14.5" Foreground="{StaticResource Brush.TextPrimary}"/>
                                         <Border Background="{Binding Risk, Converter={StaticResource RiskToBrush}}" CornerRadius="2" Padding="8,2" Margin="10,0,0,0">
-                                            <TextBlock Text="{Binding Risk}" FontSize="10.5" Foreground="#0B0B10" FontFamily="Segoe UI Semibold"/>
+                                            <TextBlock Text="{Binding RiskLabel}" FontSize="10.5" Foreground="#0B0B10" FontFamily="Segoe UI Semibold"/>
                                         </Border>
                                         <Border Background="{StaticResource Brush.SurfaceHover}" CornerRadius="2" Padding="8,2" Margin="6,0,0,0"
                                                 Visibility="{Binding RequiresAdmin, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="Admin" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
+                                            <TextBlock Text="{DynamicResource Opt.Admin}" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
                                         </Border>
                                         <Border Background="{StaticResource Brush.SurfaceHover}" CornerRadius="2" Padding="8,2" Margin="6,0,0,0"
                                                 Visibility="{Binding RequiresReboot, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="Reboot" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
+                                            <TextBlock Text="{DynamicResource Opt.Reboot}" FontSize="10.5" Foreground="{StaticResource Brush.TextSecondary}"/>
                                         </Border>
                                     </StackPanel>
                                     <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Body}" Margin="0,6,0,0" MaxWidth="640"/>
@@ -104,9 +104,9 @@
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                     <Border CornerRadius="2" Padding="10,4" Background="{StaticResource Brush.SurfaceHover}"
                                             Visibility="{Binding IsApplied, Converter={StaticResource BoolToVis}}" HorizontalAlignment="Right">
-                                        <TextBlock Text="Applied" Foreground="{StaticResource Brush.Success}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
+                                        <TextBlock Text="{DynamicResource Opt.Applied}" Foreground="{StaticResource Brush.Success}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
                                     </Border>
-                                    <Button Content="Apply" Style="{StaticResource Button.Secondary}" Margin="0,10,0,0"
+                                    <Button Content="{DynamicResource Opt.Apply}" Style="{StaticResource Button.Secondary}" Margin="0,10,0,0"
                                             Command="{Binding DataContext.ApplySingleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
                                             Visibility="{Binding IsApplied, Converter={StaticResource InverseBoolToVis}}"

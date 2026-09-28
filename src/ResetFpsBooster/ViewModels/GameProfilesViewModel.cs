@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -93,11 +94,11 @@ public sealed partial class GameProfilesViewModel : ViewModelBase
         try
         {
             System.Windows.Clipboard.SetText(item.SteamLaunchOption);
-            item.AutoexecActionMessage = $"Launch option copied — paste it into {item.Name}'s Steam launch options.";
+            item.AutoexecActionMessage = Loc.F("Gp.Copied", item.Name);
         }
         catch (Exception ex)
         {
-            item.AutoexecActionMessage = $"Could not copy to clipboard: {ex.Message}";
+            item.AutoexecActionMessage = Loc.F("Gp.CopyFailed", ex.Message);
         }
     }
 
@@ -113,7 +114,7 @@ public sealed partial class GameProfilesViewModel : ViewModelBase
     {
         var dialog = new OpenFileDialog
         {
-            Title = $"Locate the executable for {item.Name}",
+            Title = Loc.F("Gp.Locate", item.Name),
             Filter = "Executable (*.exe)|*.exe",
             InitialDirectory = Directory.Exists(item.InstallPath) ? item.InstallPath : string.Empty
         };

@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.IO;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
@@ -46,7 +47,7 @@ public sealed class TempFileCleanupModule : IOptimizationModule
         {
             IsAvailable = true,
             IsApplied = size < CleanThresholdBytes,
-            DetailText = $"Reclaimable: {FormatBytes(size)}"
+            DetailText = Loc.F("Mod.F.TempReclaimable", FormatBytes(size))
         });
     }
 
@@ -70,7 +71,7 @@ public sealed class TempFileCleanupModule : IOptimizationModule
 
         _cachedSize = null;
 
-        return Task.FromResult(OptimizationApplyResult.Ok($"Freed {FormatBytes(freed)} of temporary files.", recorder.ChangeLog));
+        return Task.FromResult(OptimizationApplyResult.Ok(Loc.F("Mod.F.TempFreed", FormatBytes(freed)), recorder.ChangeLog));
     }
 
     private static long DeleteContents(string folder, CancellationToken ct)

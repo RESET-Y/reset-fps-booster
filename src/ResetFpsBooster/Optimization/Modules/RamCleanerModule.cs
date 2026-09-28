@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Diagnostics;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
@@ -42,7 +43,7 @@ public sealed class RamCleanerModule : IOptimizationModule
         {
             IsAvailable = true,
             IsApplied = freePercent > 25,
-            DetailText = $"Available: {FormatBytes((long)status.ullAvailPhys)} ({freePercent:0}% free)"
+            DetailText = Loc.F("Mod.F.RamAvailable", FormatBytes((long)status.ullAvailPhys), freePercent)
         });
     }
 
@@ -109,8 +110,8 @@ public sealed class RamCleanerModule : IOptimizationModule
         });
 
         var message = standbyListPurged
-            ? $"Trimmed {trimmedCount} background process(es) ({FormatBytes(workingSetFreed)}) and cleared the standby cache. Available memory: {FormatBytes((long)before.ullAvailPhys)} → {FormatBytes((long)after.ullAvailPhys)}."
-            : $"Trimmed {trimmedCount} background process(es) ({FormatBytes(workingSetFreed)}). Standby cache could not be cleared (needs administrator). Available memory: {FormatBytes((long)before.ullAvailPhys)} → {FormatBytes((long)after.ullAvailPhys)}.";
+            ? Loc.F("Mod.F.RamTrimmed", trimmedCount, FormatBytes(workingSetFreed), FormatBytes((long)before.ullAvailPhys), FormatBytes((long)after.ullAvailPhys))
+            : Loc.F("Mod.F.RamTrimmedNoAdmin", trimmedCount, FormatBytes(workingSetFreed), FormatBytes((long)before.ullAvailPhys), FormatBytes((long)after.ullAvailPhys));
 
         return Task.FromResult(OptimizationApplyResult.Ok(message, recorder.ChangeLog));
     }

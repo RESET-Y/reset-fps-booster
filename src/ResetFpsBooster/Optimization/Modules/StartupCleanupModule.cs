@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 using ResetFpsBooster.Core.Utilities;
 using ResetFpsBooster.Services;
@@ -37,7 +38,7 @@ public sealed class StartupCleanupModule : IOptimizationModule
             IsApplied = candidates.Count > 0 && stillEnabled == 0,
             DetailText = candidates.Count == 0
                 ? "No non-essential startup helpers found"
-                : $"{stillEnabled} of {candidates.Count} non-essential helper(s) still enabled"
+                : Loc.F("Mod.F.StartupStill", stillEnabled, candidates.Count)
         });
     }
 
@@ -52,7 +53,7 @@ public sealed class StartupCleanupModule : IOptimizationModule
             _startupApps.SetEnabled(recorder, item, enabled: false);
 
         return Task.FromResult(OptimizationApplyResult.Ok(
-            $"Disabled {candidates.Count} startup item(s): {string.Join(", ", candidates.Select(c => c.Name))}.",
+            Loc.F("Mod.F.StartupDisabled", candidates.Count, string.Join(", ", candidates.Select(c => c.Name))),
             recorder.ChangeLog));
     }
 }

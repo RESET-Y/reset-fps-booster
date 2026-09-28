@@ -65,6 +65,36 @@ public static class Loc
     public static string T(string key) =>
         Application.Current?.TryFindResource(key) as string ?? key;
 
+    /// THE ENGLISH TEXT, TRANSLATED IF WE HAVE IT.
+    ///
+    /// For texts that are built in English by code we keep in English on
+    /// purpose - the optimization modules, whose names and results also land
+    /// in the change log and backups, where one language keeps the history
+    /// readable. They are translated only where they are shown: the English
+    /// sentence is looked up among the English strings, and its key gives the
+    /// current language. Anything not found is shown as it came.
+    public static string Tr(string? english)
+    {
+        if (string.IsNullOrEmpty(english) || Current == "en") return english ?? string.Empty;
+        const string currently = "Currently: ";
+        if (english.StartsWith(currently, StringComparison.Ordinal))
+            return T("Mod.Currently") + Tr(english[currently.Length..]);
+        return EnglishKeys().TryGetValue(english, out var key) ? T(key) : english;
+    }
+
+    private static Dictionary<string, string>? _englishKeys;
+
+    private static Dictionary<string, string> EnglishKeys()
+    {
+        if (_englishKeys is not null) return _englishKeys;
+        var en = new ResourceDictionary { Source = new Uri("pack://application:,,,/Languages/Strings.en.xaml", UriKind.Absolute) };
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var key in en.Keys)
+            if (key is string k && en[k] is string text && k.StartsWith("Mod.", StringComparison.Ordinal))
+                map.TryAdd(text, k);
+        return _englishKeys = map;
+    }
+
     /// T with string.Format arguments, for texts that carry numbers.
     public static string F(string key, params object[] args) =>
         string.Format(CultureInfo.CurrentCulture, T(key), args);

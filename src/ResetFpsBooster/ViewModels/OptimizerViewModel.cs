@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -87,7 +88,7 @@ public sealed partial class OptimizerViewModel : ViewModelBase
         var selected = Modules.Where(m => m.IsSelected && m.IsAvailable).ToList();
         if (selected.Count == 0)
         {
-            SummaryMessage = "No optimizations selected.";
+            SummaryMessage = Loc.T("Opt.NoneSelected");
             return;
         }
 
@@ -109,7 +110,7 @@ public sealed partial class OptimizerViewModel : ViewModelBase
         foreach (var moduleVm in selected)
         {
             var result = await _optimizationService.ApplyModuleAsync(moduleVm.Module);
-            moduleVm.LastResultMessage = result.Message;
+            moduleVm.LastResultMessage = Loc.Tr(result.Message);
             moduleVm.LastResultSuccess = result.Success;
 
             if (result.Success) succeeded++; else failed++;
@@ -121,8 +122,8 @@ public sealed partial class OptimizerViewModel : ViewModelBase
         await LoadAsync();
 
         SummaryMessage = failed == 0
-            ? $"Applied {succeeded} optimization(s) successfully."
-            : $"Applied {succeeded} optimization(s), {failed} could not be applied (see details below).";
+            ? Loc.F("Opt.AppliedAll", succeeded)
+            : Loc.F("Opt.AppliedSome", succeeded, failed);
 
         IsApplying = false;
     }
@@ -144,7 +145,7 @@ public sealed partial class OptimizerViewModel : ViewModelBase
 
         IsApplying = true;
         var result = await _optimizationService.ApplyModuleAsync(moduleVm.Module);
-        moduleVm.LastResultMessage = result.Message;
+        moduleVm.LastResultMessage = Loc.Tr(result.Message);
         moduleVm.LastResultSuccess = result.Success;
         if (result.RequiresReboot) AnyResultRequiresReboot = true;
 

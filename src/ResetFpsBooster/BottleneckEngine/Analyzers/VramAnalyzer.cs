@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using ResetFpsBooster.Core.Models;
 
 namespace ResetFpsBooster.BottleneckEngine.Analyzers;
@@ -19,8 +20,8 @@ public sealed class VramAnalyzer : IBottleneckAnalyzer
             Kind = BottleneckKind.VramLimited,
             Weight = confirmed ? 0.65 : 0.35,
             Reason = confirmed
-                ? $"VRAM usage at {usedPercent:0}%, correlating with frame time spikes."
-                : $"VRAM usage at {usedPercent:0}% — near its limit, though frame-time data to confirm actual stutter from it is unavailable."
+                ? Loc.F("Bn.R.VramSpikes", usedPercent)
+                : Loc.F("Bn.R.VramNoData", usedPercent)
         };
     }
 }

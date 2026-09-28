@@ -26,15 +26,15 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
     private List<ModuleState> _moduleStates = new();
 
     [ObservableProperty] private int _score;
-    [ObservableProperty] private string _scoreVerdict = "Scanning your system...";
-    [ObservableProperty] private string _heroSuffix = "Analyzing.";
+    [ObservableProperty] private string _scoreVerdict = Loc.T("Dash.ScanningSystem");
+    [ObservableProperty] private string _heroSuffix = Loc.T("Dash.Hero.Analyzing");
     [ObservableProperty] private bool _isAdministrator;
     [ObservableProperty] private string _windowsLabel = string.Empty;
 
     [ObservableProperty] private HardwareCardViewModel _cpuCard = new() { Title = "CPU" };
     [ObservableProperty] private HardwareCardViewModel _gpuCard = new() { Title = "GPU" };
     [ObservableProperty] private HardwareCardViewModel _ramCard = new() { Title = "RAM" };
-    [ObservableProperty] private HardwareCardViewModel _storageCard = new() { Title = "Storage" };
+    [ObservableProperty] private HardwareCardViewModel _storageCard = new() { Title = Loc.T("Dash.Storage") };
 
     [ObservableProperty] private ObservableCollection<ChecklistItemViewModel> _scoreChecklist = new();
     [ObservableProperty] private int _availableOptimizationsCount;
@@ -143,9 +143,9 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
             ScoreVerdict = result.Verdict;
             HeroSuffix = Score switch
             {
-                >= 85 => "Optimized.",
-                >= 60 => "Improving.",
-                _ => "Needs Attention."
+                >= 85 => Loc.T("Dash.Hero.Good"),
+                >= 60 => Loc.T("Dash.Hero.Mid"),
+                _ => Loc.T("Dash.Hero.Low")
             };
 
             BuildChecklist();
@@ -212,17 +212,17 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
             Subtitle = snapshot.Cpu.Name,
             UsagePercent = Math.Clamp(cpuUsage, 0, 100),
             StatLineOne = $"{snapshot.Cpu.MaxClockSpeedGhz:0.0} GHz",
-            StatLineTwo = $"{snapshot.Cpu.Cores} Cores / {snapshot.Cpu.LogicalProcessors} Threads"
+            StatLineTwo = Loc.F("Dash.CoresThreads", snapshot.Cpu.Cores, snapshot.Cpu.LogicalProcessors)
         };
 
         var gpu = snapshot.PrimaryGpu;
         GpuCard = new HardwareCardViewModel
         {
             Title = "GPU",
-            Subtitle = gpu?.Name ?? "Not detected",
+            Subtitle = gpu?.Name ?? Loc.T("Dash.NotDetected"),
             UsagePercent = Math.Clamp(sample?.GpuUsagePercent ?? 0, 0, 100),
             StatLineOne = sample?.GpuMemoryUsedBytes is { } vram ? FormatBytes(vram) + " VRAM" : FormatBytes(gpu?.AdapterRamBytes ?? 0) + " VRAM",
-            StatLineTwo = $"Driver {gpu?.DriverVersion ?? "Unknown"}",
+            StatLineTwo = Loc.F("Dash.DriverFmt", gpu?.DriverVersion ?? Loc.T("Dash.Unknown")),
             TemperatureLabel = sample?.GpuTemperatureCelsius is { } gt ? $"{gt:0}°C" : null
         };
 
@@ -232,19 +232,19 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
             Title = "RAM",
             Subtitle = $"{FormatBytes(snapshot.Memory.TotalBytes)} {(snapshot.Memory.SpeedMhz > 0 ? $"@ {snapshot.Memory.SpeedMhz:0} MHz" : string.Empty)}".Trim(),
             UsagePercent = Math.Clamp(memUsage, 0, 100),
-            StatLineOne = $"{FormatBytes(snapshot.Memory.UsedBytes)} Used",
-            StatLineTwo = $"{FormatBytes(snapshot.Memory.AvailableBytes)} Free"
+            StatLineOne = Loc.F("Dash.UsedFmt", FormatBytes(snapshot.Memory.UsedBytes)),
+            StatLineTwo = Loc.F("Dash.FreeFmt", FormatBytes(snapshot.Memory.AvailableBytes))
         };
 
         var systemDrive = snapshot.Drives.FirstOrDefault(d => d.DriveLetter.StartsWith(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:", StringComparison.OrdinalIgnoreCase))
             ?? snapshot.Drives.FirstOrDefault();
         StorageCard = new HardwareCardViewModel
         {
-            Title = "Storage",
-            Subtitle = systemDrive is null ? "No drive detected" : $"{systemDrive.MediaType} ({systemDrive.DriveLetter})",
+            Title = Loc.T("Dash.Storage"),
+            Subtitle = systemDrive is null ? Loc.T("Dash.NoDrive") : $"{systemDrive.MediaType} ({systemDrive.DriveLetter})",
             UsagePercent = systemDrive?.UsedPercent ?? 0,
-            StatLineOne = $"{FormatBytes(systemDrive?.UsedBytes ?? 0)} Used",
-            StatLineTwo = $"{FormatBytes(systemDrive?.TotalBytes ?? 0)} Total"
+            StatLineOne = Loc.F("Dash.UsedFmt", FormatBytes(systemDrive?.UsedBytes ?? 0)),
+            StatLineTwo = Loc.F("Dash.TotalFmt", FormatBytes(systemDrive?.TotalBytes ?? 0))
         };
     }
 
@@ -265,10 +265,10 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
 
         ScoreChecklist = new ObservableCollection<ChecklistItemViewModel>
         {
-            new() { Text = "Gaming optimizations active", IsGood = gamingGood },
-            new() { Text = "Background processes optimized", IsGood = backgroundGood },
-            new() { Text = "System settings optimized", IsGood = windowsGood },
-            new() { Text = "No critical issues found", IsGood = noCriticalIssues },
+            new() { Text = Loc.T("Dash.Check.Gaming"), IsGood = gamingGood },
+            new() { Text = Loc.T("Dash.Check.Background"), IsGood = backgroundGood },
+            new() { Text = Loc.T("Dash.Check.System"), IsGood = windowsGood },
+            new() { Text = Loc.T("Dash.Check.NoIssues"), IsGood = noCriticalIssues },
         };
     }
 
@@ -287,13 +287,13 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
 
         var subtitles = new Dictionary<OptimizationCategory, string>
         {
-            [OptimizationCategory.Gaming] = "Game Mode, Game DVR, Background Apps",
-            [OptimizationCategory.Windows] = "Startup, Temp Files, Power Plan",
-            [OptimizationCategory.Cpu] = "Power Throttling",
-            [OptimizationCategory.Gpu] = "Scheduling, Task Priority",
-            [OptimizationCategory.Memory] = "Working Set Trim, Standby Cache",
-            [OptimizationCategory.Storage] = "Temp File Cleanup",
-            [OptimizationCategory.Network] = "Throttling Settings",
+            [OptimizationCategory.Gaming] = Loc.T("Dash.CatSub.Gaming"),
+            [OptimizationCategory.Windows] = Loc.T("Dash.CatSub.Windows"),
+            [OptimizationCategory.Cpu] = Loc.T("Dash.CatSub.Cpu"),
+            [OptimizationCategory.Gpu] = Loc.T("Dash.CatSub.Gpu"),
+            [OptimizationCategory.Memory] = Loc.T("Dash.CatSub.Memory"),
+            [OptimizationCategory.Storage] = Loc.T("Dash.CatSub.Storage"),
+            [OptimizationCategory.Network] = Loc.T("Dash.CatSub.Network"),
         };
 
         var grouped = _moduleStates
@@ -301,7 +301,7 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
             .Where(g => g.Any())
             .Select(g => new OptimizationCategorySummary
             {
-                Name = $"{g.Key} Optimization",
+                Name = Loc.T("Dash.Cat." + g.Key),
                 Subtitle = subtitles.TryGetValue(g.Key, out var sub) ? sub : string.Empty,
                 Count = g.Count(),
                 Glyph = glyphs.TryGetValue(g.Key, out var glyph) ? glyph : ""
@@ -316,13 +316,13 @@ public sealed partial class DashboardViewModel : ViewModelBase, IDisposable
         SystemInfoRows = new ObservableCollection<SystemInfoRow>
         {
             new() { Label = "CPU", Value = snapshot.Cpu.Name },
-            new() { Label = "GPU", Value = snapshot.PrimaryGpu?.Name ?? "Not detected" },
+            new() { Label = "GPU", Value = snapshot.PrimaryGpu?.Name ?? Loc.T("Dash.NotDetected") },
             new() { Label = "RAM", Value = FormatBytes(snapshot.Memory.TotalBytes) },
-            new() { Label = "Motherboard", Value = $"{snapshot.Motherboard.Manufacturer} {snapshot.Motherboard.Product}".Trim() },
-            new() { Label = "Storage", Value = string.Join(", ", snapshot.Drives.Select(d => $"{d.MediaType} {FormatBytes(d.TotalBytes)}")) },
+            new() { Label = Loc.T("Sys.Motherboard"), Value = $"{snapshot.Motherboard.Manufacturer} {snapshot.Motherboard.Product}".Trim() },
+            new() { Label = Loc.T("Sys.Storage"), Value = string.Join(", ", snapshot.Drives.Select(d => $"{d.MediaType} {FormatBytes(d.TotalBytes)}")) },
             new() { Label = "OS", Value = snapshot.OperatingSystem.ProductName },
             new() { Label = "Build", Value = snapshot.OperatingSystem.Build },
-            new() { Label = "Architecture", Value = snapshot.OperatingSystem.Architecture },
+            new() { Label = Loc.T("Sys.Architecture"), Value = snapshot.OperatingSystem.Architecture },
         };
     }
 

@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,7 +18,7 @@ public sealed partial class PerformanceViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool _isGpuUsageAvailable;
     [ObservableProperty] private bool _isGpuTemperatureAvailable;
 
-    public string FpsNote => "In-game FPS requires an external overlay (e.g. RTSS/MSI Afterburner) — RESET FPS BOOSTER does not hook into game render loops and will not show a fabricated number.";
+    public string FpsNote => Loc.T("Perf.FpsNote");
 
     [RelayCommand]
     public void StartMonitoring()

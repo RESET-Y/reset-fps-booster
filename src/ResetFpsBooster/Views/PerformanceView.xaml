@@ -13,25 +13,25 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Performance Monitor" Style="{StaticResource Text.Title}"/>
-                <TextBlock Text="Live system metrics from Windows performance counters." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+                <TextBlock Text="{DynamicResource Perf.Title}" Style="{StaticResource Text.Title}"/>
+                <TextBlock Text="{DynamicResource Perf.Intro}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
             </StackPanel>
-            <Button Grid.Column="1" Content="Start Monitoring" Style="{StaticResource Button.Primary}" Command="{Binding StartMonitoringCommand}" VerticalAlignment="Center"
+            <Button Grid.Column="1" Content="{DynamicResource Perf.Start}" Style="{StaticResource Button.Primary}" Command="{Binding StartMonitoringCommand}" VerticalAlignment="Center"
                     Visibility="{Binding IsMonitoring, Converter={StaticResource InverseBoolToVis}}"/>
-            <Button Grid.Column="1" Content="Stop Monitoring" Style="{StaticResource Button.Secondary}" Command="{Binding StopMonitoringCommand}" VerticalAlignment="Center"
+            <Button Grid.Column="1" Content="{DynamicResource Perf.Stop}" Style="{StaticResource Button.Secondary}" Command="{Binding StopMonitoringCommand}" VerticalAlignment="Center"
                     Visibility="{Binding IsMonitoring, Converter={StaticResource BoolToVis}}"/>
         </Grid>
 
         <UniformGrid Columns="2" Rows="2" Visibility="{Binding IsMonitoring, Converter={StaticResource BoolToVis}}">
             <Border Style="{StaticResource Card}" Margin="0,0,10,10">
                 <StackPanel>
-                    <TextBlock Text="CPU USAGE" Style="{StaticResource Text.Telemetry}"/>
+                    <TextBlock Text="{DynamicResource Perf.Cpu}" Style="{StaticResource Text.Telemetry}"/>
                     <controls:RadialGauge Value="{Binding CurrentSample.CpuUsagePercent, Mode=OneWay, TargetNullValue=0}" Decimals="1" Diameter="200" Thickness="10" CenterFontSize="30" Margin="0,10,0,0"/>
                 </StackPanel>
             </Border>
             <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                 <StackPanel>
-                    <TextBlock Text="RAM USAGE" Style="{StaticResource Text.Telemetry}"/>
+                    <TextBlock Text="{DynamicResource Perf.Ram}" Style="{StaticResource Text.Telemetry}"/>
                     <controls:RadialGauge Value="{Binding CurrentSample.RamUsedPercent, Mode=OneWay, TargetNullValue=0}" Decimals="1" Diameter="200" Thickness="10" CenterFontSize="30" Margin="0,10,0,0"/>
                     <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0">
                         <Run Text="{Binding CurrentSample.RamUsedBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/><Run Text=" / "/><Run Text="{Binding CurrentSample.RamTotalBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/>
@@ -40,9 +40,9 @@
             </Border>
             <Border Style="{StaticResource Card}" Margin="0,0,10,0">
                 <StackPanel>
-                    <TextBlock Text="GPU USAGE" Style="{StaticResource Text.Telemetry}"/>
+                    <TextBlock Text="{DynamicResource Perf.Gpu}" Style="{StaticResource Text.Telemetry}"/>
                     <controls:RadialGauge Value="{Binding CurrentSample.GpuUsagePercent, Mode=OneWay, TargetNullValue=0}" Decimals="1" Diameter="200" Thickness="10" CenterFontSize="30" Margin="0,10,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource BoolToVis}}"/>
-                    <TextBlock Text="Not available on this system" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource InverseBoolToVis}}"/>
+                    <TextBlock Text="{DynamicResource Perf.NA}" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource InverseBoolToVis}}"/>
                     <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" Visibility="{Binding IsGpuUsageAvailable, Converter={StaticResource BoolToVis}}">
                         <Run Text="VRAM: "/><Run Text="{Binding CurrentSample.GpuMemoryUsedBytes, Mode=OneWay, Converter={StaticResource BytesToReadable}}"/>
                     </TextBlock>
@@ -50,17 +50,17 @@
             </Border>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock Text="GPU TEMPERATURE" Style="{StaticResource Text.Telemetry}"/>
+                    <TextBlock Text="{DynamicResource Perf.GpuTemp}" Style="{StaticResource Text.Telemetry}"/>
                     <controls:RadialGauge Value="{Binding CurrentSample.GpuTemperatureCelsius, Mode=OneWay, TargetNullValue=0}" Decimals="0" Unit="°C" Diameter="200" Thickness="10" CenterFontSize="30" Margin="0,10,0,0" Visibility="{Binding IsGpuTemperatureAvailable, Converter={StaticResource BoolToVis}}"/>
-                    <TextBlock Text="Not available (NVIDIA-only via nvidia-smi)" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuTemperatureAvailable, Converter={StaticResource InverseBoolToVis}}"/>
+                    <TextBlock Text="{DynamicResource Perf.TempNA}" Style="{StaticResource Text.Body}" Margin="0,8,0,0" Visibility="{Binding IsGpuTemperatureAvailable, Converter={StaticResource InverseBoolToVis}}"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
 
         <Border Style="{StaticResource Card}" Margin="0,20,0,0">
             <StackPanel>
-                <TextBlock Text="In-Game FPS" Style="{StaticResource Text.SectionTitle}"/>
-                <TextBlock Text="{Binding FpsNote}" Style="{StaticResource Text.Body}" Margin="0,10,0,0"/>
+                <TextBlock Text="{DynamicResource Perf.InGameFps}" Style="{StaticResource Text.SectionTitle}"/>
+                <TextBlock Text="{DynamicResource Perf.FpsNote}" Style="{StaticResource Text.Body}" Margin="0,10,0,0"/>
             </StackPanel>
         </Border>
     </StackPanel>

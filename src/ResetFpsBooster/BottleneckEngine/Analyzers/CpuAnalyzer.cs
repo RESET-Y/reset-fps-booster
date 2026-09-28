@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Linq;
 using ResetFpsBooster.Core.Models;
 
@@ -34,7 +35,7 @@ public sealed class CpuAnalyzer : IBottleneckAnalyzer
         {
             Kind = BottleneckKind.CpuLimited,
             Weight = weight,
-            Reason = $"CPU thread saturation {busiestCore:0}% while GPU utilization is only {current.GpuUsagePercent:0}% (headroom {gpuHeadroom:0}%)."
+            Reason = Loc.F("Bn.R.Cpu", busiestCore, current.GpuUsagePercent!, gpuHeadroom)
         };
     }
 }

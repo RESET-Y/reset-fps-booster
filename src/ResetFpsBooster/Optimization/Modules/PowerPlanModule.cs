@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ResetFpsBooster.Core.Models;
@@ -37,7 +38,7 @@ public sealed partial class PowerPlanModule : IOptimizationModule
         var (currentGuid, currentName) = await GetActiveSchemeAsync(ct);
 
         if (currentGuid == HighPerformanceGuid || IsUltimateOrHigherByName(currentName))
-            return OptimizationApplyResult.Skipped($"{currentName} is already active — that's at least as fast as High Performance.");
+            return OptimizationApplyResult.Skipped(Loc.F("Mod.F.PowerPlanActive", currentName));
 
         var success = await RunPowerCfgAsync($"/setactive {HighPerformanceGuid:D}", ct);
         if (!success)

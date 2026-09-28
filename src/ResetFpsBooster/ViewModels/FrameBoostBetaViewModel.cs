@@ -122,9 +122,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             // and no longer switched on and off, because a source hovering near
             // that threshold produced a notice that came and went constantly.
             if (Telemetry.NoGpuRoom is 1 && Telemetry.SourceFps is > 1)
-                return "This game is using all of your graphics card, so generating frames would slow it"
-                     + " down instead of helping. FrameBoost is passing it through untouched and starts"
-                     + " again by itself when there is room.";
+                return Loc.T("FB.Notice.NoGpu");
 
             bool noNewContent = (Telemetry.SourceFps ?? Telemetry.NativeFps) is null or < 1;
             if (!noNewContent) return null;
@@ -133,11 +131,9 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             // running, the picture is standing still. Nothing to double, and
             // nothing wrong.
             if (Telemetry.DuplicateFps is > 5)
-                return "The picture is not changing right now, so there is nothing to double."
-                     + " The game keeps running at its own frame rate; generation resumes by itself"
-                     + " as soon as something moves.";
+                return Loc.T("FB.Notice.Still");
 
-            return "No frames are arriving from the display. If this stays, turn FrameBoost off and on again.";
+            return Loc.T("FB.Notice.NoFrames");
         }
     }
 
@@ -250,7 +246,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
                 // genuine failure) - reflect that honestly instead of
                 // pretending it's still running.
                 StopCapture();
-                StatusMessage = "FrameBoost stopped on its own (it hit a failsafe exit). Nothing was left running.";
+                StatusMessage = Loc.T("FB.Stopped");
             }
         };
         _telemetryTimer.Start();

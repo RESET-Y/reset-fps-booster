@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Linq;
 using ResetFpsBooster.Core.Models;
 
@@ -23,8 +24,8 @@ public sealed class ProcessAnalyzer : IBottleneckAnalyzer
             Kind = BottleneckKind.BackgroundWorkload,
             Weight = Math.Min(1.0, 0.4 + (backgroundCpu - SignificantBackgroundCpuPercent) / 40.0 + diskBoost),
             Reason = topProcess is null
-                ? $"Background processes are consuming {backgroundCpu:0}% combined CPU."
-                : $"\"{topProcess.ProcessName}\" and other background processes are consuming {backgroundCpu:0}% combined CPU."
+                ? Loc.F("Bn.R.Background", backgroundCpu)
+                : Loc.F("Bn.R.BackgroundTop", topProcess.ProcessName, backgroundCpu)
         };
     }
 }

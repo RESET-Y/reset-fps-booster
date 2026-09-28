@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.IO;
 using ResetFpsBooster.Core.Models;
 
@@ -60,10 +61,10 @@ public sealed class ScoreService : IScoreService
 
         var verdict = score switch
         {
-            >= 90 => "Your PC is highly optimized for gaming.",
-            >= 70 => "Your PC is well optimized. A few tweaks are still available.",
-            >= 45 => "There's meaningful room for improvement.",
-            _ => "Your PC is running mostly default settings — run Optimize Now for a quick win."
+            >= 90 => Loc.T("Score.V90"),
+            >= 70 => Loc.T("Score.V70"),
+            >= 45 => Loc.T("Score.V45"),
+            _ => Loc.T("Score.V0")
         };
 
         return Task.FromResult(new ScoreResult { Score = score, Verdict = verdict, Breakdown = breakdown });

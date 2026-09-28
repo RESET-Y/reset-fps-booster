@@ -17,15 +17,15 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Change Log" Style="{StaticResource Text.Title}"/>
-                <TextBlock Text="Every setting RESET FPS BOOSTER has changed, in order." Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
+                <TextBlock Text="{DynamicResource Log.Title}" Style="{StaticResource Text.Title}"/>
+                <TextBlock Text="{DynamicResource Log.Intro}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
             </StackPanel>
-            <Button Grid.Column="1" Content="Clear Log" Style="{StaticResource Button.Ghost}" Command="{Binding ClearCommand}" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="{DynamicResource Log.Clear}" Style="{StaticResource Button.Ghost}" Command="{Binding ClearCommand}" VerticalAlignment="Center"/>
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <TextBlock Text="No changes recorded yet." Style="{StaticResource Text.Body}"
+                <TextBlock Text="{DynamicResource Log.None}" Style="{StaticResource Text.Body}"
                            Visibility="{Binding Entries.Count, Converter={StaticResource CountToVisWhenZero}}"/>
 
                 <ItemsControl ItemsSource="{Binding Entries}">

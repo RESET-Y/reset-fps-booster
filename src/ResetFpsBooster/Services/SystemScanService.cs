@@ -1,3 +1,4 @@
+using ResetFpsBooster.Core.Localization;
 using System.Diagnostics;
 using ResetFpsBooster.Core.Models;
 
@@ -41,57 +42,57 @@ public sealed class SystemScanService : ISystemScanService
             {
                 step.Completed = true;
                 step.HasFindings = true;
-                step.Summary = $"Could not complete this check: {ex.Message}";
+                step.Summary = Loc.F("Scan.Failed", ex.Message);
             }
 
             results.Add(step);
             progress?.Report(step);
         }
 
-        await RunStep("Scanning CPU configuration...", async () =>
+        await RunStep(Loc.T("Scan.Cpu"), async () =>
         {
             var snapshot = await _hardwareService.GetSnapshotAsync(ct);
-            return (false, $"{snapshot.Cpu.Name} — {snapshot.Cpu.LogicalProcessors} logical processors");
+            return (false, Loc.F("Scan.CpuResult", snapshot.Cpu.Name, snapshot.Cpu.LogicalProcessors));
         });
 
-        await RunStep("Checking startup applications...", () =>
+        await RunStep(Loc.T("Scan.Startup"), () =>
         {
             var items = _startupApps.GetStartupItems();
             var enabled = items.Count(i => i.IsEnabled);
             var nonEssential = items.Count(i => i.IsRecommendedToDisable && i.IsEnabled);
-            return Task.FromResult((nonEssential > 0, $"{enabled} enabled ({nonEssential} non-essential candidates found)"));
+            return Task.FromResult((nonEssential > 0, Loc.F("Scan.StartupResult", enabled, nonEssential)));
         });
 
-        await RunStep("Checking Windows gaming settings...", async () =>
+        await RunStep(Loc.T("Scan.Gaming"), async () =>
         {
             var states = await _optimizationService.RefreshStatusesAsync(ct);
             var gaming = states.Where(s => s.Module.Category == OptimizationCategory.Gaming).ToList();
             var notApplied = gaming.Count(s => s.Status.IsAvailable && !s.Status.IsApplied);
-            return (notApplied > 0, $"{gaming.Count(s => s.Status.IsApplied)}/{gaming.Count} gaming optimizations already active");
+            return (notApplied > 0, Loc.F("Scan.GamingResult", gaming.Count(s => s.Status.IsApplied), gaming.Count));
         });
 
-        await RunStep("Checking GPU configuration...", async () =>
+        await RunStep(Loc.T("Scan.Gpu"), async () =>
         {
             var snapshot = await _hardwareService.GetSnapshotAsync(ct);
             var gpu = snapshot.PrimaryGpu;
-            return (false, gpu is null ? "No GPU detected" : $"{gpu.Name} — driver {gpu.DriverVersion}");
+            return (false, gpu is null ? Loc.T("Scan.NoGpu") : Loc.F("Scan.GpuResult", gpu.Name, gpu.DriverVersion));
         });
 
-        await RunStep("Checking background processes...", () =>
+        await RunStep(Loc.T("Scan.Processes"), () =>
         {
             var count = Process.GetProcesses().Length;
-            return Task.FromResult((false, $"{count} processes currently running"));
+            return Task.FromResult((false, Loc.F("Scan.ProcessesResult", count)));
         });
 
-        await RunStep("Checking power & network configuration...", async () =>
+        await RunStep(Loc.T("Scan.PowerNet"), async () =>
         {
             var states = await _optimizationService.RefreshStatusesAsync(ct);
             var relevant = states.Where(s => s.Module.Category is OptimizationCategory.Windows or OptimizationCategory.Network).ToList();
             var notApplied = relevant.Count(s => s.Status.IsAvailable && !s.Status.IsApplied);
-            return (notApplied > 0, $"{relevant.Count(s => s.Status.IsApplied)}/{relevant.Count} settings already optimized");
+            return (notApplied > 0, Loc.F("Scan.PowerNetResult", relevant.Count(s => s.Status.IsApplied), relevant.Count));
         });
 
-        await RunStep("Finalizing optimization report...", () => Task.FromResult((false, "Scan complete")));
+        await RunStep(Loc.T("Scan.Final"), () => Task.FromResult((false, Loc.T("Scan.Done"))));
 
         return results;
     }
