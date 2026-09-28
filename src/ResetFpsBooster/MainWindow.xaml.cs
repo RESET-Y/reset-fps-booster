@@ -45,6 +45,14 @@ public partial class MainWindow : Window
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
 
+    public const string DiscordInvite = "https://discord.gg/a2Uz4vdCh9";
+
+    private void OnJoinDiscord(object sender, RoutedEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(DiscordInvite) { UseShellExecute = true }); }
+        catch { /* no browser registered - the link is in the tooltip */ }
+    }
+
     private void OnStateChanged(object? sender, EventArgs e) =>
         RootPanel.Margin = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
 

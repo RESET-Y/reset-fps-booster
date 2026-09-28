@@ -464,4 +464,5 @@
     <sys:String x:Key="Set.UpdNoAsset" xml:space="preserve">К этому релизу не приложен установщик.</sys:String>
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Загрузка завершена. Нажмите «Установить и перезапустить», чтобы закончить.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">Загруженный установщик не найден. Попробуйте загрузить снова.</sys:String>
+    <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Вступить в Discord</sys:String>
 </ResourceDictionary>

@@ -464,4 +464,5 @@
     <sys:String x:Key="Set.UpdNoAsset" xml:space="preserve">Diesem Release hängt kein Installer an.</sys:String>
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Download fertig. Klick auf „Installieren &amp; neu starten“, um abzuschließen.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">Der heruntergeladene Installer wurde nicht gefunden. Lade ihn erneut herunter.</sys:String>
+    <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Discord beitreten</sys:String>
 </ResourceDictionary>

@@ -2309,5 +2309,10 @@
     "en": "The downloaded installer could not be found. Try downloading again.",
     "de": "Der heruntergeladene Installer wurde nicht gefunden. Lade ihn erneut herunter.",
     "ru": "Загруженный установщик не найден. Попробуйте загрузить снова."
+  },
+  "Shell.JoinDiscord": {
+    "en": "Join the Discord",
+    "de": "Discord beitreten",
+    "ru": "Вступить в Discord"
   }
 }

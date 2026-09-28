@@ -464,4 +464,5 @@
     <sys:String x:Key="Set.UpdNoAsset" xml:space="preserve">This release has no downloadable installer attached.</sys:String>
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Download complete. Click &quot;Install &amp; Restart&quot; to finish.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">The downloaded installer could not be found. Try downloading again.</sys:String>
+    <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Join the Discord</sys:String>
 </ResourceDictionary>
