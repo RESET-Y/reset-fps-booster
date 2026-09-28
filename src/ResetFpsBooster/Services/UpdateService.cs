@@ -143,7 +143,11 @@ public sealed class UpdateService : IUpdateService
     public void LaunchInstallerAndExit(string installerPath)
     {
         Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
-        Environment.Exit(0);
+
+        // A normal shutdown, not Environment.Exit: that skipped App.OnExit, so a
+        // running FrameBoost engine kept its overlay up with no app left to close
+        // it, and Game Boost never gave background processes their priority back.
+        System.Windows.Application.Current.Dispatcher.Invoke(() => System.Windows.Application.Current.Shutdown());
     }
 
     private static bool TryCompareVersions(string a, string b, out int comparison)
