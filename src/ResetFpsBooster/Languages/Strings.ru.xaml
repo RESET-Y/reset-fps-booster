@@ -77,9 +77,9 @@
     <sys:String x:Key="Auth.SignUpFailed" xml:space="preserve">Не удалось зарегистрироваться.</sys:String>
     <sys:String x:Key="Auth.SignInFailed" xml:space="preserve">Не удалось войти.</sys:String>
     <sys:String x:Key="FB.Beta" xml:space="preserve">ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА</sys:String>
-    <sys:String x:Key="FB.Intro" xml:space="preserve">Генерация кадров на уровне системы для всего экрана через официальные API захвата экрана Windows — без изменения игры, без инъекций, без доступа к памяти. Включите и играйте: ускоряется всё на основном дисплее. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки.</sys:String>
+    <sys:String x:Key="FB.Intro" xml:space="preserve">Генерация кадров для выбранного окна игры через официальные API захвата Windows. Без изменения игры, без инъекций, без доступа к памяти. FrameBoost захватывает только это окно и показывает поверх него удвоенное изображение. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки.</sys:String>
     <sys:String x:Key="FB.FrameGeneration" xml:space="preserve">Генерация кадров</sys:String>
-    <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Ускоряет основной дисплей — окно выбирать не нужно.</sys:String>
+    <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Выберите окно игры, затем включите FrameBoost.</sys:String>
     <sys:String x:Key="FB.BestResult" xml:space="preserve">Для лучшего результата</sys:String>
     <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Ваш монитор:</sys:String>
     <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Ограничьте игру до {0} FPS. FrameBoost удвоит это до {1} — ровно столько, сколько может показать монитор {1} Гц.</sys:String>
@@ -165,4 +165,17 @@
     <sys:String x:Key="Widget.PowerPlan" xml:space="preserve">План электропитания</sys:String>
     <sys:String x:Key="Widget.GameMode" xml:space="preserve">Игровой режим</sys:String>
     <sys:String x:Key="Widget.Games" xml:space="preserve">Игровые профили</sys:String>
+    <sys:String x:Key="FB.GameWindow" xml:space="preserve">Окно игры:</sys:String>
+    <sys:String x:Key="FB.WindowAuto" xml:space="preserve">Автоматически — переключитесь в игру за 5 секунд</sys:String>
+    <sys:String x:Key="FB.RefreshWindows" xml:space="preserve">Обновить</sys:String>
+    <sys:String x:Key="FB.WindowGone" xml:space="preserve">Выбранное окно игры закрыто. Запустите игру и выберите её окно снова.</sys:String>
+    <sys:String x:Key="FB.FullscreenHint" xml:space="preserve">Включите в игре оконный полноэкранный режим (без рамки). Эксклюзивный полноэкранный режим работает с FrameBoost не всегда.</sys:String>
+    <sys:String x:Key="Update.Title" xml:space="preserve">Доступно обновление</sys:String>
+    <sys:String x:Key="Update.YouHave" xml:space="preserve">У вас {0}</sys:String>
+    <sys:String x:Key="Update.WhatsNew" xml:space="preserve">Что нового</sys:String>
+    <sys:String x:Key="Update.Install" xml:space="preserve">Установить сейчас</sys:String>
+    <sys:String x:Key="Update.Later" xml:space="preserve">Позже</sys:String>
+    <sys:String x:Key="Update.Downloading" xml:space="preserve">Загрузка… {0} %</sys:String>
+    <sys:String x:Key="Update.Starting" xml:space="preserve">Запуск установщика…</sys:String>
+    <sys:String x:Key="Update.Failed" xml:space="preserve">Не удалось загрузить: {0}</sys:String>
 </ResourceDictionary>

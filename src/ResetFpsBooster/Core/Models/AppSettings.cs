@@ -37,6 +37,11 @@ public sealed class AppSettings
     /// wrong display often enough to be asked to go.</summary>
     public int FrameBoostDisplayHz { get; set; } = 144;
 
+    /// <summary>The program (e.g. "r5apex_dx12.exe") whose window was last picked
+    /// for FrameBoost, so the list preselects the same game next time. The
+    /// window handle itself changes on every game start and is not kept.</summary>
+    public string? FrameBoostLastProcess { get; set; }
+
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>
     public string? Language { get; set; }

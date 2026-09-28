@@ -58,14 +58,27 @@ public sealed partial class MainViewModel : ObservableObject
             _services.GameBoost.Start();
     }
 
-    // Runs once at startup so an update is already known by the time the user opens Settings —
-    // no manual "Check for Updates" click needed. Never surfaces errors (offline, rate-limited,
-    // etc.) since this is a background, best-effort check, not a user-initiated action.
+    // Runs once at startup. Errors (offline, rate-limited, etc.) stay silent - this is a
+    // background, best-effort check. A newer release with an installer attached pops up
+    // once; "Later" leaves it waiting in Settings.
     private async Task CheckForUpdatesSilentlyAsync()
     {
         try
         {
-            await _services.Update.CheckForUpdateAsync();
+            var result = await _services.Update.CheckForUpdateAsync();
+            if (!result.Success || !result.IsUpdateAvailable || string.IsNullOrEmpty(result.DownloadUrl)) return;
+
+            // The check usually beats the main window's fade-in; give the window a moment
+            // so the pop-up has an owner to centre on.
+            await Task.Delay(1200);
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                var owner = System.Windows.Application.Current.MainWindow;
+                var popup = new UpdateWindow(_services.Update, result);
+                if (owner is { IsLoaded: true }) popup.Owner = owner;
+                else popup.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen;
+                popup.ShowDialog();
+            });
         }
         catch
         {

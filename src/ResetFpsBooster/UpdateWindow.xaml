@@ -1,0 +1,62 @@
+<Window x:Class="ResetFpsBooster.UpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RESET FPS BOOSTER"
+        Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{StaticResource Brush.Background}" FontFamily="Segoe UI">
+    <!-- Same frame as the main window: our own chrome, no Windows caption. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="30" ResizeBorderThickness="0" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Border BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="1">
+        <StackPanel>
+            <!-- hatched racing stripe -->
+            <Border Height="6" Background="{DynamicResource Brush.Accent}">
+                <Rectangle>
+                    <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="8,6" MappingMode="Absolute" SpreadMethod="Repeat">
+                            <GradientStop Color="#00000000" Offset="0"/><GradientStop Color="#00000000" Offset="0.5"/>
+                            <GradientStop Color="#FF000000" Offset="0.5"/><GradientStop Color="#FF000000" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Rectangle.Fill>
+                </Rectangle>
+            </Border>
+
+            <StackPanel Margin="28,22,28,26">
+                <TextBlock Text="{DynamicResource Update.Title}" Style="{StaticResource Text.Title}"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock x:Name="NewVersion" Style="{StaticResource Text.Display}" Foreground="{DynamicResource Brush.AccentBright}"/>
+                </StackPanel>
+                <TextBlock x:Name="CurrentVersion" Style="{StaticResource Text.Telemetry}" Margin="0,2,0,0"/>
+
+                <StackPanel x:Name="NotesPanel" Margin="0,18,0,0">
+                    <TextBlock Text="{DynamicResource Update.WhatsNew}" Style="{StaticResource Text.SectionTitle}"/>
+                    <Border Background="{StaticResource Brush.Surface}" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"
+                            Padding="14,10" Margin="0,8,0,0">
+                        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="Notes" Style="{StaticResource Text.Body}" TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel x:Name="ProgressPanel" Margin="0,18,0,0" Visibility="Collapsed">
+                    <ProgressBar x:Name="Progress" Style="{StaticResource ProgressBar.Accent}" Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="ProgressText" Style="{StaticResource Text.Telemetry}" Margin="0,6,0,0"/>
+                </StackPanel>
+
+                <TextBlock x:Name="ErrorText" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.Warning}"
+                           TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
+                    <Button x:Name="InstallButton" Content="{DynamicResource Update.Install}" Style="{StaticResource Button.Primary}"
+                            Padding="26,12" Click="OnInstall"/>
+                    <Button x:Name="LaterButton" Content="{DynamicResource Update.Later}" Style="{StaticResource Button.Secondary}"
+                            Padding="22,12" Margin="14,0,0,0" Click="OnLater"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

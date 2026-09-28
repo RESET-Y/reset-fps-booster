@@ -7,9 +7,7 @@ public interface IFrameBoostBetaService
 {
     bool IsRunning { get; }
 
-    /// Boosts the whole main display. There is no target to choose: the
-    /// engine captures the monitor, which is also the only source that keeps
-    /// delivering frames while our own output is displayed on top of it.
+    /// Captures one game window and shows the doubled output over it.
     /// <returns>Null on success, or a human-readable reason it could not start
     /// (missing engine binary, launch failure, etc.) — never throws.</returns>
     /// <param name="lowLatency">Trades picture quality on the GENERATED
@@ -20,7 +18,9 @@ public interface IFrameBoostBetaService
     /// which peaks to 9.59 ms exactly when the picture moves fastest. Low
     /// latency generates at half resolution with a cheaper filter, so it cuts
     /// into that part and into those peaks. It cannot halve the number.</param>
-    string? Start(bool lowLatency = false);
+    /// <param name="gameWindow">The window handle picked in the list, or 0 for
+    /// the engine's own five-second countdown.</param>
+    string? Start(bool lowLatency = false, long gameWindow = 0);
 
     void Stop();
 

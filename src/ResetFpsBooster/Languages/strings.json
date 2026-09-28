@@ -376,9 +376,9 @@
     "ru": "ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА"
   },
   "FB.Intro": {
-    "en": "System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.",
-    "de": "Bildgenerierung auf Systemebene für den ganzen Bildschirm, über die offiziellen Windows-Bildschirmaufnahme-Schnittstellen – kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. Einschalten und spielen; alles auf dem Hauptbildschirm wird beschleunigt. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.",
-    "ru": "Генерация кадров на уровне системы для всего экрана через официальные API захвата экрана Windows — без изменения игры, без инъекций, без доступа к памяти. Включите и играйте: ускоряется всё на основном дисплее. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки."
+    "en": "Frame generation for the game window you pick, through the public Windows capture APIs. No game modification, no injection, no memory access. FrameBoost captures only that window and shows the doubled output over it. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.",
+    "de": "Bildgenerierung für das Spielfenster, das du auswählst, über die offiziellen Windows-Aufnahme-Schnittstellen. Kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. FrameBoost nimmt nur dieses Fenster auf und zeigt das verdoppelte Bild darüber an. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.",
+    "ru": "Генерация кадров для выбранного окна игры через официальные API захвата Windows. Без изменения игры, без инъекций, без доступа к памяти. FrameBoost захватывает только это окно и показывает поверх него удвоенное изображение. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки."
   },
   "FB.FrameGeneration": {
     "en": "Frame generation",
@@ -386,9 +386,9 @@
     "ru": "Генерация кадров"
   },
   "FB.MainDisplay": {
-    "en": "Boosts the main display — no window to pick.",
-    "de": "Beschleunigt den Hauptbildschirm – kein Fenster auszuwählen.",
-    "ru": "Ускоряет основной дисплей — окно выбирать не нужно."
+    "en": "Pick the game window, then turn FrameBoost on.",
+    "de": "Wähle das Spielfenster und schalte dann FrameBoost ein.",
+    "ru": "Выберите окно игры, затем включите FrameBoost."
   },
   "FB.BestResult": {
     "en": "For the best result",
@@ -814,5 +814,70 @@
     "en": "Game profiles",
     "de": "Spielprofile",
     "ru": "Игровые профили"
+  },
+  "FB.GameWindow": {
+    "en": "Game window:",
+    "de": "Spielfenster:",
+    "ru": "Окно игры:"
+  },
+  "FB.WindowAuto": {
+    "en": "Automatic – switch to the game within 5 seconds",
+    "de": "Automatisch – innerhalb von 5 Sekunden ins Spiel wechseln",
+    "ru": "Автоматически — переключитесь в игру за 5 секунд"
+  },
+  "FB.RefreshWindows": {
+    "en": "Refresh",
+    "de": "Aktualisieren",
+    "ru": "Обновить"
+  },
+  "FB.WindowGone": {
+    "en": "The picked game window is closed. Start the game, then pick its window again.",
+    "de": "Das gewählte Spielfenster ist geschlossen. Starte das Spiel und wähle sein Fenster erneut aus.",
+    "ru": "Выбранное окно игры закрыто. Запустите игру и выберите её окно снова."
+  },
+  "FB.FullscreenHint": {
+    "en": "Set the game to borderless (windowed fullscreen). Exclusive fullscreen does not always work with FrameBoost.",
+    "de": "Stell das Spiel auf Vollbild-Fenster (randlos). Echtes Vollbild funktioniert mit FrameBoost nicht immer.",
+    "ru": "Включите в игре оконный полноэкранный режим (без рамки). Эксклюзивный полноэкранный режим работает с FrameBoost не всегда."
+  },
+  "Update.Title": {
+    "en": "Update available",
+    "de": "Update verfügbar",
+    "ru": "Доступно обновление"
+  },
+  "Update.YouHave": {
+    "en": "You have {0}",
+    "de": "Du hast {0}",
+    "ru": "У вас {0}"
+  },
+  "Update.WhatsNew": {
+    "en": "What's new",
+    "de": "Neu in dieser Version",
+    "ru": "Что нового"
+  },
+  "Update.Install": {
+    "en": "Install now",
+    "de": "Jetzt installieren",
+    "ru": "Установить сейчас"
+  },
+  "Update.Later": {
+    "en": "Later",
+    "de": "Später",
+    "ru": "Позже"
+  },
+  "Update.Downloading": {
+    "en": "Downloading… {0} %",
+    "de": "Wird geladen … {0} %",
+    "ru": "Загрузка… {0} %"
+  },
+  "Update.Starting": {
+    "en": "Starting the installer…",
+    "de": "Installer wird gestartet …",
+    "ru": "Запуск установщика…"
+  },
+  "Update.Failed": {
+    "en": "Download failed: {0}",
+    "de": "Download fehlgeschlagen: {0}",
+    "ru": "Не удалось загрузить: {0}"
   }
 }

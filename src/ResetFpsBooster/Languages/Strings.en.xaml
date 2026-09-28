@@ -77,9 +77,9 @@
     <sys:String x:Key="Auth.SignUpFailed" xml:space="preserve">Sign-up failed.</sys:String>
     <sys:String x:Key="Auth.SignInFailed" xml:space="preserve">Sign-in failed.</sys:String>
     <sys:String x:Key="FB.Beta" xml:space="preserve">EXPERIMENTAL BETA</sys:String>
-    <sys:String x:Key="FB.Intro" xml:space="preserve">System-level frame generation for your whole screen, via the public Windows screen-capture APIs — no game modification, no injection, no memory access. Turn it on and play; everything on the main display is boosted. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.</sys:String>
+    <sys:String x:Key="FB.Intro" xml:space="preserve">Frame generation for the game window you pick, through the public Windows capture APIs. No game modification, no injection, no memory access. FrameBoost captures only that window and shows the doubled output over it. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.</sys:String>
     <sys:String x:Key="FB.FrameGeneration" xml:space="preserve">Frame generation</sys:String>
-    <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Boosts the main display — no window to pick.</sys:String>
+    <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Pick the game window, then turn FrameBoost on.</sys:String>
     <sys:String x:Key="FB.BestResult" xml:space="preserve">For the best result</sys:String>
     <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Your monitor:</sys:String>
     <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Cap the game at {0} FPS. FrameBoost doubles it to {1}, which is what a {1} Hz monitor can show.</sys:String>
@@ -165,4 +165,17 @@
     <sys:String x:Key="Widget.PowerPlan" xml:space="preserve">Power plan</sys:String>
     <sys:String x:Key="Widget.GameMode" xml:space="preserve">Game Mode</sys:String>
     <sys:String x:Key="Widget.Games" xml:space="preserve">Game profiles</sys:String>
+    <sys:String x:Key="FB.GameWindow" xml:space="preserve">Game window:</sys:String>
+    <sys:String x:Key="FB.WindowAuto" xml:space="preserve">Automatic – switch to the game within 5 seconds</sys:String>
+    <sys:String x:Key="FB.RefreshWindows" xml:space="preserve">Refresh</sys:String>
+    <sys:String x:Key="FB.WindowGone" xml:space="preserve">The picked game window is closed. Start the game, then pick its window again.</sys:String>
+    <sys:String x:Key="FB.FullscreenHint" xml:space="preserve">Set the game to borderless (windowed fullscreen). Exclusive fullscreen does not always work with FrameBoost.</sys:String>
+    <sys:String x:Key="Update.Title" xml:space="preserve">Update available</sys:String>
+    <sys:String x:Key="Update.YouHave" xml:space="preserve">You have {0}</sys:String>
+    <sys:String x:Key="Update.WhatsNew" xml:space="preserve">What's new</sys:String>
+    <sys:String x:Key="Update.Install" xml:space="preserve">Install now</sys:String>
+    <sys:String x:Key="Update.Later" xml:space="preserve">Later</sys:String>
+    <sys:String x:Key="Update.Downloading" xml:space="preserve">Downloading… {0} %</sys:String>
+    <sys:String x:Key="Update.Starting" xml:space="preserve">Starting the installer…</sys:String>
+    <sys:String x:Key="Update.Failed" xml:space="preserve">Download failed: {0}</sys:String>
 </ResourceDictionary>

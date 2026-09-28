@@ -21,7 +21,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public bool IsRunning => _process is { HasExited: false };
 
-    public string? Start(bool lowLatency = false)
+    public string? Start(bool lowLatency = false, long gameWindow = 0)
     {
         Stop();
 
@@ -63,8 +63,13 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 // the larger single lever: it costs about half a source
                 // interval, 8.8 ms at 57 fps, against the 2-3 ms the quality
                 // reduction buys.
-                Arguments = lowLatency ? "window slotwait lowlatency"
-                                       : "window slotwait",
+                //
+                // `hwnd` names the game window the user picked from the list,
+                // so the engine captures exactly that one. Without it (the
+                // "automatic" choice) the engine falls back to its five-second
+                // countdown and takes whatever is in front.
+                Arguments = (lowLatency ? "window slotwait lowlatency" : "window slotwait")
+                          + (gameWindow != 0 ? $" hwnd {gameWindow}" : ""),
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };

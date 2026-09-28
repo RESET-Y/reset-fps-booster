@@ -122,6 +122,24 @@
                     <TextBlock Text="{DynamicResource FB.FrameGeneration}" Style="{StaticResource Text.SectionTitle}"/>
                     <TextBlock Text="{DynamicResource FB.MainDisplay}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0"/>
 
+                    <!-- Which window to capture. Locked while running: the engine
+                         reads it once at launch. -->
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{DynamicResource FB.GameWindow}" FontFamily="Segoe UI Black" FontStyle="Italic"
+                                   Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding GameWindows}" SelectedItem="{Binding SelectedGameWindow}"
+                                  DisplayMemberPath="Label" MaxWidth="460" HorizontalAlignment="Left" MinWidth="260" Margin="12,0,0,0"
+                                  MaxDropDownHeight="360" IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+                        <Button Grid.Column="2" Content="{DynamicResource FB.RefreshWindows}" Style="{StaticResource Button.Secondary}"
+                                Padding="14,7" Margin="10,0,0,0" Command="{Binding RefreshGameWindowsCommand}"
+                                IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+                    </Grid>
+
                     <!-- Before the buttons on purpose: this is set up in the game
                          BEFORE FrameBoost starts, and it decides more of the result
                          than anything on this page. -->
@@ -129,6 +147,8 @@
                             Padding="14,12" Margin="0,14,0,0">
                         <StackPanel>
                             <TextBlock Text="{DynamicResource FB.BestResult}" FontFamily="Segoe UI Black" FontStyle="Italic" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                       Foreground="{StaticResource Brush.Warning}" Text="{DynamicResource FB.FullscreenHint}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <TextBlock Text="{DynamicResource FB.YourMonitor}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"/>
                                 <ComboBox ItemsSource="{Binding RefreshRates}" SelectedItem="{Binding DisplayHz}"

@@ -51,6 +51,40 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
 
     public string CapAdvice => Loc.F("FB.CapAdvice", DisplayHz / 2, DisplayHz);
 
+    /// THE GAME WINDOW, picked from a list like the refresh rate.
+    ///
+    /// The first entry is "automatic": the engine's five-second countdown,
+    /// for anyone who would rather switch to the game than find it here.
+    /// Everything else is a real window, passed to the engine by handle, so
+    /// the one that is captured is the one that was chosen.
+    public System.Collections.ObjectModel.ObservableCollection<GameWindowChoice> GameWindows { get; } = new();
+
+    [ObservableProperty] private GameWindowChoice? _selectedGameWindow;
+
+    partial void OnSelectedGameWindowChanged(GameWindowChoice? value)
+    {
+        if (value is null || value.Handle == 0) return;
+        _settings.Current.FrameBoostLastProcess = value.ProcessName;
+        _settings.Save();
+    }
+
+    [RelayCommand]
+    private void RefreshGameWindows()
+    {
+        var keep = SelectedGameWindow;
+        GameWindows.Clear();
+        GameWindows.Add(new GameWindowChoice(0, Loc.T("FB.WindowAuto"), ""));
+        foreach (var w in FrameBoostBetaWindowList.Read()) GameWindows.Add(w);
+
+        // Same window if it is still open, else the same game as last time,
+        // else automatic.
+        SelectedGameWindow =
+            GameWindows.FirstOrDefault(w => keep is not null && w.Handle == keep.Handle && w.Handle != 0)
+            ?? GameWindows.FirstOrDefault(w => w.Handle != 0 && string.Equals(w.ProcessName,
+                   _settings.Current.FrameBoostLastProcess, StringComparison.OrdinalIgnoreCase))
+            ?? GameWindows[0];
+    }
+
     /// What the engine is doing right now, in the user.s terms. Three states
     /// read as "Native FPS: 0" on their own and mean completely different
     /// things: a still picture, a source that is too fast to double, and a
@@ -153,7 +187,12 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
 
         // Built in code from a format string, so it has to be re-announced
         // when the language changes; the XAML texts follow on their own.
-        Loc.LanguageChanged += (_, _) => OnPropertyChanged(nameof(CapAdvice));
+        Loc.LanguageChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(CapAdvice));
+            RefreshGameWindows();   // relabels the "automatic" entry
+        };
+        RefreshGameWindows();
     }
 
     private async Task CheckPremiumAsync()
@@ -177,7 +216,19 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var error = _service.Start(LowLatency);
+        // A game restarted since the list was read has a new window; the old
+        // handle would make the engine exit. Read the list again first.
+        if (SelectedGameWindow is { Handle: not 0 } picked && !FrameBoostBetaWindowList.StillExists(picked.Handle))
+        {
+            RefreshGameWindows();
+            if (SelectedGameWindow is null || SelectedGameWindow.Handle == 0)
+            {
+                StatusMessage = Loc.T("FB.WindowGone");
+                return;
+            }
+        }
+
+        var error = _service.Start(LowLatency, SelectedGameWindow?.Handle ?? 0);
         if (error is not null)
         {
             StatusMessage = error;
