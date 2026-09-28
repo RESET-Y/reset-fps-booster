@@ -38,7 +38,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     public bool IsAdministrator => AdminHelper.IsRunningAsAdministrator();
 
-    public const string AppVersion = Core.Utilities.AppVersionInfo.Current;
+    public static string AppVersion => Core.Utilities.AppVersionInfo.Current;
     public const string AuthorName = "Lukas Reschke";
 
     [ObservableProperty] private bool _startWithWindows;
