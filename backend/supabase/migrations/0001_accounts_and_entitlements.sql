@@ -42,7 +42,7 @@ create table if not exists public.entitlements (
     id           bigint generated always as identity primary key,
     user_id      uuid not null references auth.users (id) on delete cascade,
     product      text not null,                 -- e.g. 'premium'
-    source       text not null,                 -- e.g. 'lemonsqueezy', 'manual'
+    source       text not null,                 -- e.g. 'stripe', 'manual'
     external_ref text,                          -- the payment provider's order/subscription id
     valid_until  timestamptz,                   -- null = does not expire
     created_at   timestamptz not null default now(),
