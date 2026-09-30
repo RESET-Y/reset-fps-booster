@@ -28,6 +28,8 @@
 // thank-you page and redeemed in the app. The code carries the same pi_/sub_
 // reference, so renewals, cancellations and refunds keep it in step with the
 // payment - before it is redeemed on the code, afterwards on the entitlement.
+// The buyer's e-mail is kept with it (migration 0005), so a lost code shows
+// up again on the website's account page once they sign in with that e-mail.
 //
 // Environment (Supabase -> Edge Functions -> Secrets):
 //   STRIPE_WEBHOOK_SECRET        whsec_... from the webhook endpoint in Stripe
@@ -178,6 +180,7 @@ Deno.serve(async (req) => {
           p_stripe_ref: ref,
           p_valid_until: validUntil,
           p_note: `Website ${plan} · ${email}`,
+          p_email: obj.customer_details?.email ?? null,
         });
         if (error) return fail(error);
         console.log(`${plan} code issued: code=${code} ref=${ref} session=${obj.id}`);

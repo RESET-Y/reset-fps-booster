@@ -54,6 +54,7 @@ ol li + li { margin-top: 6px; }
 </footer>
 <div class="stripe"></div>
 <script src="assets/legal.js"></script>
+<script src="assets/account.js"></script>
 <script>
 // Stripe sends the buyer here with ?session_id=cs_... ; the purchase-code
 // function says what that checkout bought. The webhook usually lands within
@@ -71,9 +72,9 @@ ol li + li { margin-top: 6px; }
       loading: "Einen Moment, dein Kauf wird bestätigt …",
       codeIntro: plan => `Dein Code für RESET FrameBoost ${plan === "monthly" ? "Monthly" : "Lifetime"}:`,
       copy: "Kopieren", copied: "Kopiert",
-      keep: "Speicher dir den Code jetzt, zum Beispiel als Screenshot. Er gilt für genau einen Account.",
+      keep: 'Dieser Browser merkt sich den Code, du findest ihn unter <a href="konto.html">Konto</a>. Sicherer ist trotzdem ein Screenshot. Der Code gilt für genau einen Account. Hast du einen RESET-Account mit derselben E-Mail wie beim Kauf, erscheint er dort auch nach dem Anmelden.',
       howTitle: "So löst du ihn ein",
-      how: ['Lade die App herunter und starte sie (<a href="/#download">Download</a>).', "Öffne die Seite <strong>Konto</strong> und melde dich an oder leg einen Account an.", "Gib den Code unter <strong>Du hast einen Code?</strong> ein und klick auf <strong>Einlösen</strong>. FrameBoost ist sofort freigeschaltet."],
+      how: ['Lade die App herunter und starte sie (<a href="/#download">Download</a>).', "Öffne die Seite <strong>Konto</strong> und melde dich an oder leg einen Account an.", "Gib den Code unter <strong>Du hast einen Code?</strong> ein und klick auf <strong>Einlösen</strong>. FrameBoost ist sofort freigeschaltet. Einlösen kannst du ihn auch hier auf der Website unter <a href=\"konto.html\">Konto</a>."],
       monthly: "Das Monats-Abo läuft, bis du es kündigst. Solange es läuft, bleibt der Code gültig.",
       account: "Premium ist auf deinem RESET-Account aktiv. Geh zurück in die App, die Freischaltung erscheint dort in wenigen Sekunden.",
       slow: `Dein Kauf ist noch nicht angekommen. Das dauert manchmal etwas länger. Lade die Seite in einer Minute neu. Kommt dann immer noch nichts, schreib mir an <a href="mailto:${MAIL}">${MAIL}</a> und leite die Stripe-Quittung weiter.`,
@@ -86,9 +87,9 @@ ol li + li { margin-top: 6px; }
       loading: "One moment, confirming your purchase …",
       codeIntro: plan => `Your code for RESET FrameBoost ${plan === "monthly" ? "Monthly" : "Lifetime"}:`,
       copy: "Copy", copied: "Copied",
-      keep: "Save the code now, for example as a screenshot. It works for exactly one account.",
+      keep: 'This browser remembers the code, you find it under <a href="konto.html">Account</a>. A screenshot is still safer. The code works for exactly one account. If your RESET account uses the same e-mail as the purchase, it also shows up there after you sign in.',
       howTitle: "How to redeem it",
-      how: ['Download and start the app (<a href="/#download">download</a>).', "Open the <strong>Account</strong> page and sign in or create an account.", "Enter the code under <strong>Have a code?</strong> and click <strong>Redeem</strong>. FrameBoost unlocks right away."],
+      how: ['Download and start the app (<a href="/#download">download</a>).', "Open the <strong>Account</strong> page and sign in or create an account.", "Enter the code under <strong>Have a code?</strong> and click <strong>Redeem</strong>. FrameBoost unlocks right away. You can also redeem it here on the website under <a href=\"konto.html\">Account</a>."],
       monthly: "The monthly plan runs until you cancel it. The code stays valid as long as it runs.",
       account: "Premium is active on your RESET account. Head back to the app, the unlock shows up there within seconds.",
       slow: `Your purchase hasn't arrived yet. Sometimes it takes a little longer. Reload this page in a minute. If there's still nothing, e-mail me at <a href="mailto:${MAIL}">${MAIL}</a> and forward your Stripe receipt.`,
@@ -135,7 +136,7 @@ ol li + li { margin-top: 6px; }
       const r = await fetch(API + "?session_id=" + encodeURIComponent(session), { cache: "no-store" });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || r.status);
-      if (d.status === "code") state = { kind: "code", plan: d.plan, code: d.code };
+      if (d.status === "code") { state = { kind: "code", plan: d.plan, code: d.code }; RFB.rememberCode(d.code, d.plan); }
       else if (d.status === "account") state = { kind: "account", plan: d.plan };
       else if (Date.now() - started < 45000) { setTimeout(ask, 2000); return; }
       else state = { kind: "slow" };

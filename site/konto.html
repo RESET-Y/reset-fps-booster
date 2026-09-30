@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Konto · RESET FPS BOOSTER</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/legal.css">
+<style>
+.panel { margin-top: 24px; padding: 20px; border: 1px solid var(--border); background: var(--surface); }
+.panel h2 { margin-top: 0; }
+label { display: block; margin-top: 14px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+input { width: 100%; margin-top: 6px; padding: 12px 14px; background: #000; border: 1px solid var(--border); color: var(--text); font: 400 16px var(--body); }
+input:focus { outline: none; border-color: var(--accent); }
+input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.btn { display: inline-block; margin-top: 18px; padding: 12px 22px; background: var(--accent); color: #fff; border: 0; cursor: pointer; transform: skewX(var(--skew)); text-decoration: none;
+       font: 900 italic 16px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.btn > span { display: inline-block; transform: skewX(12deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: none; border: 1px solid var(--border); color: var(--text-2); }
+.btn.ghost:hover { color: var(--text); border-color: var(--text-3); }
+.btn.small { margin-top: 0; padding: 8px 14px; font-size: 14px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.msg { margin-top: 12px; min-height: 1.5em; font-size: 15px; }
+.msg.bad { color: var(--accent-bright); }
+.msg.good { color: #3dd68c; }
+.status { font: 900 italic 30px/1.1 var(--display); text-transform: uppercase; color: var(--text); }
+.status.on { color: #3dd68c; }
+.codes { list-style: none; padding: 0; margin: 12px 0 0; }
+.codes li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 0; border-top: 1px solid var(--border); }
+.codes .c { font: 500 17px var(--mono); letter-spacing: .05em; color: var(--text); user-select: all; overflow-wrap: anywhere; }
+.codes small { display: block; font: 400 12px var(--mono); color: var(--text-3); letter-spacing: .04em; }
+.tag { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--border); color: var(--text-3); }
+.tag.open { border-color: #3dd68c; color: #3dd68c; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.plans a { margin-top: 0; text-align: center; }
+@media (max-width: 480px) { .plans { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="RESET FPS BOOSTER"><img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="113" height="26"></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="true"><span>DE</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="eyebrow">RESET</div>
+  <div id="out"><h1>Konto</h1><p>Diese Seite braucht JavaScript.</p></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/" data-t="Back to start">Zur Startseite</a>
+    <a href="impressum.html" data-t="Legal notice">Impressum</a>
+    <a href="datenschutz.html" data-t="Privacy">Datenschutz</a>
+    <a href="agb.html" data-t="Terms">AGB</a>
+  </div>
+</footer>
+<div class="stripe"></div>
+<script src="assets/legal.js"></script>
+<script src="assets/account.js"></script>
+<script>
+(function () {
+  const out = document.getElementById("out");
+  const T = {
+    de: {
+      title: "Konto",
+      intro: "Melde dich mit deinem RESET-Account aus der App an. Dann landet ein Kauf direkt auf deinem Account, und hier findest du alle Codes, die du mit deiner E-Mail gekauft hast.",
+      email: "E-Mail", password: "Passwort", signIn: "Anmelden", signOut: "Abmelden",
+      noAccount: "Noch keinen Account? Leg ihn in der App auf der Seite <strong>Konto</strong> an.",
+      invalid: "E-Mail oder Passwort falsch.", unconfirmed: "Bestätige zuerst deine E-Mail-Adresse über den Link in der Mail.", failed: "Anmeldung fehlgeschlagen. Versuch es gleich noch mal.",
+      signedInAs: "Angemeldet als",
+      premium: "Premium", active: "Aktiv", forever: "ohne Ablauf", until: d => "bis " + d, none: "Nicht aktiv",
+      buyTitle: "Premium kaufen", buyHint: "Du bist angemeldet, also geht der Kauf direkt auf diesen Account. Du brauchst keinen Code.",
+      monthly: "Monthly · 2,99 € / Monat", lifetime: "Lifetime · 19,99 € einmalig",
+      codesTitle: "Deine gekauften Codes", codesNone: "Mit deiner E-Mail wurden noch keine Codes gekauft.",
+      localTitle: "Auf diesem Gerät gekaufte Codes", localHint: "Diese Codes hat sich dein Browser nach dem Kauf gemerkt.",
+      state: { open: "Offen", redeemed: "Eingelöst", ended: "Beendet" },
+      plan: { monthly: "Monthly", lifetime: "Lifetime" },
+      bought: "gekauft",
+      redeemHere: "Einlösen", redeemTitle: "Code einlösen", redeemHint: "Löse einen Premium-Code direkt für diesen Account ein.", code: "Code",
+      signInToRedeem: "Melde dich oben an, um einen Code hier einzulösen, oder löse ihn in der App ein.",
+      remove: "Entfernen",
+      r: { ok: "Eingelöst. Premium ist jetzt auf deinem Account aktiv.", not_found: "Diesen Code gibt es nicht.", inactive: "Dieser Code ist nicht mehr gültig.", used_up: "Dieser Code wurde schon eingelöst.", already_redeemed: "Du hast diesen Code schon eingelöst.", error: "Das hat nicht geklappt. Versuch es noch mal." },
+      loadFail: "Konnte deine Daten nicht laden. Lade die Seite neu."
+    },
+    en: {
+      title: "Account",
+      intro: "Sign in with the RESET account from the app. A purchase then goes straight to your account, and you find every code bought with your e-mail here.",
+      email: "E-mail", password: "Password", signIn: "Sign in", signOut: "Sign out",
+      noAccount: "No account yet? Create one in the app on the <strong>Account</strong> page.",
+      invalid: "Wrong e-mail or password.", unconfirmed: "Confirm your e-mail address first, using the link in the e-mail.", failed: "Sign-in failed. Try again in a moment.",
+      signedInAs: "Signed in as",
+      premium: "Premium", active: "Active", forever: "no end date", until: d => "until " + d, none: "Not active",
+      buyTitle: "Buy Premium", buyHint: "You're signed in, so the purchase goes straight to this account. No code needed.",
+      monthly: "Monthly · €2.99 / month", lifetime: "Lifetime · €19.99 once",
+      codesTitle: "Your bought codes", codesNone: "No codes have been bought with your e-mail yet.",
+      localTitle: "Codes bought on this device", localHint: "Your browser remembered these codes after buying.",
+      state: { open: "Open", redeemed: "Redeemed", ended: "Ended" },
+      plan: { monthly: "Monthly", lifetime: "Lifetime" },
+      bought: "bought",
+      redeemHere: "Redeem", redeemTitle: "Redeem a code", redeemHint: "Redeem a Premium code for this account right here.", code: "Code",
+      signInToRedeem: "Sign in above to redeem a code here, or redeem it in the app.",
+      remove: "Remove",
+      r: { ok: "Redeemed. Premium is now active on your account.", not_found: "This code doesn't exist.", inactive: "This code is no longer valid.", used_up: "This code has already been redeemed.", already_redeemed: "You've already redeemed this code.", error: "That didn't work. Please try again." },
+      loadFail: "Couldn't load your data. Reload the page."
+    }
+  };
+  const lang = () => document.documentElement.lang === "en" ? "en" : "de";
+  const t = () => T[lang()];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const date = iso => { try { return new Date(iso).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return ""; } };
+
+  // what the page shows; render() is pure, so a language switch just redraws
+  let st = { signInMsg: "", signInBad: true, status: null, codes: null, loadFail: false, redeemMsg: "", redeemGood: false, busy: false };
+
+  function codeList(list, local) {
+    const x = t();
+    return `<ul class="codes">${list.map(c => {
+      const state = local ? null : c.state;
+      const canRedeem = RFB.user && (local || state === "open");
+      return `<li><div><span class="c">${esc(c.code)}</span><small>${esc(x.plan[c.plan] || c.plan || "")} · ${x.bought} ${esc(date(c.bought_at || c.at))}</small></div>
+        <div class="row">${state ? `<span class="tag ${state}">${esc(x.state[state])}</span>` : ""}
+        ${canRedeem ? `<button class="btn small" type="button" data-redeem="${esc(c.code)}"><span>${x.redeemHere}</span></button>` : ""}
+        ${local ? `<button class="btn ghost small" type="button" data-forget="${esc(c.code)}"><span>${x.remove}</span></button>` : ""}</div></li>`;
+    }).join("")}</ul>`;
+  }
+
+  function render() {
+    const x = t(), u = RFB.user, local = RFB.localCodes();
+    let h = `<h1>${x.title}</h1>`;
+    if (!u) {
+      h += `<p>${x.intro}</p>
+        <form class="panel" id="signin" novalidate>
+          <label for="em">${x.email}</label><input id="em" type="email" autocomplete="email" required>
+          <label for="pw">${x.password}</label><input id="pw" type="password" autocomplete="current-password" required>
+          <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.signIn}</span></button>
+          <p class="msg ${st.signInBad ? "bad" : ""}" role="status">${esc(st.signInMsg)}</p>
+          <p style="font-size:15px">${x.noAccount}</p>
+        </form>`;
+    } else {
+      const s = st.status;
+      h += `<div class="row" style="justify-content:space-between"><p style="margin:0">${x.signedInAs} <strong>${esc(u.email)}</strong></p>
+              <button class="btn ghost small" type="button" id="signout"><span>${x.signOut}</span></button></div>`;
+      if (st.loadFail) h += `<p class="msg bad">${x.loadFail}</p>`;
+      h += `<section class="panel"><h2>${x.premium}</h2>` + (s == null ? `<p>…</p>` :
+             s.active ? `<div class="status on">${x.active}</div><p>${s.until ? x.until(esc(date(s.until))) : x.forever}</p>`
+                      : `<div class="status">${x.none}</div>`) + `</section>`;
+      h += `<section class="panel"><h2>${x.buyTitle}</h2><p>${x.buyHint}</p>
+              <div class="plans"><a class="btn" href="${esc(RFB.buyUrl("lifetime"))}"><span>${x.lifetime}</span></a>
+              <a class="btn ghost" href="${esc(RFB.buyUrl("monthly"))}"><span>${x.monthly}</span></a></div></section>`;
+      h += `<section class="panel"><h2>${x.codesTitle}</h2>` +
+             (st.codes == null ? `<p>…</p>` : st.codes.length ? codeList(st.codes, false) : `<p>${x.codesNone}</p>`) + `</section>`;
+      h += `<form class="panel" id="redeem" novalidate><h2>${x.redeemTitle}</h2><p>${x.redeemHint}</p>
+              <label for="rc">${x.code}</label><input id="rc" class="mono" autocomplete="off" spellcheck="false" placeholder="RFB-XXXX-XXXX-XXXX">
+              <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.redeemHere}</span></button>
+              <p class="msg ${st.redeemGood ? "good" : "bad"}" role="status">${esc(st.redeemMsg)}</p></form>`;
+    }
+    if (local.length) {
+      h += `<section class="panel"><h2>${x.localTitle}</h2><p>${x.localHint}</p>${codeList(local, true)}
+            ${u ? "" : `<p style="font-size:15px">${x.signInToRedeem}</p>`}</section>`;
+    }
+    out.innerHTML = h;
+    wire();
+  }
+
+  async function load() {
+    if (!RFB.user) return render();
+    st.loadFail = false;
+    try {
+      const [status, codes] = await Promise.all([RFB.rpc("premium_status"), RFB.rpc("my_purchase_codes")]);
+      st.status = status; st.codes = codes || [];
+    } catch (e) {
+      if (e.kind !== "signedout") st.loadFail = true;
+    }
+    render();
+  }
+
+  async function redeem(code) {
+    st.busy = true; st.redeemMsg = ""; render();
+    let word = "error";
+    try { word = await RFB.rpc("redeem_premium_code", { p_code: code }); } catch (e) { if (e.kind === "signedout") { st.busy = false; return render(); } }
+    st.busy = false;
+    st.redeemGood = word === "ok";
+    st.redeemMsg = (t().r[word] || t().r.error);
+    if (word === "ok") RFB.forgetCode(code.toUpperCase().replace(/\s/g, ""));
+    await load();
+    const f = document.getElementById("redeem"); if (f) f.scrollIntoView({ block: "nearest" });
+  }
+
+  function wire() {
+    const si = document.getElementById("signin");
+    if (si) si.addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = document.getElementById("em").value.trim(), pw = document.getElementById("pw").value;
+      if (!email || !pw) return;
+      st.busy = true; st.signInMsg = ""; render();
+      document.getElementById("em").value = email;
+      try { await RFB.signIn(email, pw); st = { ...st, signInMsg: "", status: null, codes: null, busy: false }; load(); }
+      catch (err) { st.busy = false; st.signInMsg = t()[err.kind] || t().failed; render(); document.getElementById("em").value = email; }
+    });
+    const so = document.getElementById("signout");
+    if (so) so.addEventListener("click", () => { RFB.signOut(); st = { ...st, status: null, codes: null, redeemMsg: "" }; render(); });
+    const rf = document.getElementById("redeem");
+    if (rf) rf.addEventListener("submit", e => { e.preventDefault(); const v = document.getElementById("rc").value.trim(); if (v) redeem(v); });
+    out.querySelectorAll("[data-redeem]").forEach(b => b.addEventListener("click", () => redeem(b.dataset.redeem)));
+    out.querySelectorAll("[data-forget]").forEach(b => b.addEventListener("click", () => { RFB.forgetCode(b.dataset.forget); render(); }));
+  }
+
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  load();
+})();
+</script>
+</body>
+</html>

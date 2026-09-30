@@ -340,6 +340,9 @@ ul.ticks li::before { content: ""; position: absolute; left: 0; top: 11px; width
 .plan ul { list-style: none; padding: 0; margin: 18px 0 26px; display: grid; gap: 8px; flex: 1; }
 .plan li { color: var(--text-2); font-size: 15px; padding-left: 22px; position: relative; }
 .plan li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
+.acct { margin: 0 0 18px; font-size: 15px; color: var(--text-2); }
+.acct a { color: var(--accent-bright); }
+.acct b { color: var(--text); font-weight: 600; }
 .plans-note { margin-top: 22px; font-size: 14px; color: var(--text-3); }
 .plans-note a { color: var(--accent-bright); }
 
@@ -501,6 +504,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
       <a href="#premium">Premium</a>
       <a href="#faq">FAQ</a>
       <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a>
+      <a href="konto.html">Account</a>
     </nav>
     <div class="lang" role="group" aria-label="Language">
       <button type="button" data-lang="en" aria-pressed="true"><span>EN</span></button>
@@ -517,6 +521,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
     <a href="#faq">FAQ</a>
     <a href="#download">Download</a>
     <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a>
+    <a href="konto.html">Account</a>
   </nav>
   <div class="progress" id="progress"></div>
 </header>
@@ -797,8 +802,9 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
       <div class="head rv">
         <div class="eyebrow">Premium</div>
         <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
-        <p>Premium unlocks RESET FrameBoost on your RESET account. Buy it here and you get a code right after paying, which you redeem in the app. Or buy it in the app on the Account page, and it lands on your account straight away. Payment runs through Stripe.</p>
+        <p>Premium unlocks RESET FrameBoost on your RESET account. Signed in on this site or in the app, a purchase lands straight on your account. Without signing in you get a code right after paying, which you redeem in the app. Payment runs through Stripe.</p>
       </div>
+      <p class="acct dyn" id="acctBar"></p>
       <div class="plans">
         <article class="card plan rv">
           <span class="tag"><span>Free</span></span>
@@ -821,7 +827,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
             <li>Quality and low-latency modes</li>
             <li>Future FrameBoost updates</li>
           </ul>
-          <a class="btn btn-primary" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
+          <a class="btn btn-primary" data-plan="lifetime" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
         </article>
         <article class="card plan rv">
           <span class="tag"><span>Monthly</span></span>
@@ -831,7 +837,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
             <li>RESET FrameBoost</li>
             <li>Cancel anytime</li>
           </ul>
-          <a class="btn btn-secondary" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
+          <a class="btn btn-secondary" data-plan="monthly" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
         </article>
       </div>
       <p class="plans-note">After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
@@ -952,6 +958,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
 <div class="stripe"></div>
 <button class="top-btn" id="topBtn" type="button" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 15l7-7 7 7"/></svg></button>
 
+<script src="assets/account.js"></script>
 <script>
 document.documentElement.classList.add("js");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1083,7 +1090,7 @@ const DE = {
  "Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.": "Module, die Adminrechte brauchen, sagen es vorher, und die App bietet einen Neustart mit Adminrechten an, statt still zu scheitern.",
  "The optimizer is free.": "Der Optimierer ist kostenlos.",
  "FrameBoost is Premium.": "FrameBoost ist Premium.",
- "Premium unlocks RESET FrameBoost on your RESET account. Buy it here and you get a code right after paying, which you redeem in the app. Or buy it in the app on the Account page, and it lands on your account straight away. Payment runs through Stripe.": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Kaufst du hier, bekommst du direkt nach dem Bezahlen einen Code, den du in der App einlöst. Oder du kaufst in der App auf der Seite Konto, dann landet Premium sofort auf deinem Account. Bezahlt wird über Stripe.",
+ "Premium unlocks RESET FrameBoost on your RESET account. Signed in on this site or in the app, a purchase lands straight on your account. Without signing in you get a code right after paying, which you redeem in the app. Payment runs through Stripe.": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Bist du hier oder in der App angemeldet, landet der Kauf direkt auf deinem Account. Ohne Anmeldung bekommst du nach dem Bezahlen einen Code, den du in der App einlöst. Bezahlt wird über Stripe.",
  "Free": "Kostenlos",
  "All optimization modules": "Alle Optimierungsmodule",
  "Game Boost and game profiles": "Game Boost und Spielprofile",
@@ -1146,6 +1153,7 @@ const DE = {
  "Report a problem": "Problem melden",
  "E-mail": "E-Mail",
  "Legal": "Rechtliches",
+ "Account": "Konto",
  "Legal notice": "Impressum",
  "Privacy": "Datenschutz",
  "Terms": "AGB",
@@ -1498,7 +1506,20 @@ fetch("https://api.github.com/repos/RESET-Y/reset-fps-booster/releases?per_page=
   .then(list => { if (Array.isArray(list)) { releases = list.filter(x => !x.draft); renderReleases(); } })
   .catch(() => {});
 
+// ---------- account: signed in, a purchase goes straight to the account ----------
+function renderAcct() {
+  const u = window.RFB && RFB.user;
+  document.querySelectorAll("[data-plan]").forEach(a => { a.href = RFB.buyUrl(a.dataset.plan); });
+  const bar = document.getElementById("acctBar");
+  bar.innerHTML = u
+    ? (LANG === "de" ? `Angemeldet als <b>${esc(u.email)}</b>. Der Kauf geht direkt auf deinen Account. <a href="konto.html">Konto</a>`
+                     : `Signed in as <b>${esc(u.email)}</b>. Your purchase goes straight to your account. <a href="konto.html">Account</a>`)
+    : (LANG === "de" ? `<a href="konto.html">Melde dich an</a>, damit der Kauf direkt auf deinem Account landet. Ohne Anmeldung bekommst du einen Code.`
+                     : `<a href="konto.html">Sign in</a> so the purchase lands straight on your account. Without signing in you get a code.`);
+}
+
 function renderAll() {
+  renderAcct();
   renderFilters(); renderMods(); renderLog();
   renderBnTabs(); renderBn(false);
   renderFilm(); renderCap();
