@@ -12,9 +12,10 @@ namespace ResetFpsBooster.Core;
 /// account. These URLs are public by nature - anyone can open a Payment Link.
 public static class StoreConfig
 {
-    // TEST MODE links (buy.stripe.com/test_...). Replace with the live links
-    // before release - test links only accept Stripe's test cards.
-    public const string MonthlyPaymentLink = "https://buy.stripe.com/test_aFafZh0Cg5992rObCc73G00";
+    // Monthly is the live link. Lifetime is still a TEST MODE link
+    // (buy.stripe.com/test_...), which only accepts Stripe's test cards -
+    // replace it with the live link before StoreLive goes true.
+    public const string MonthlyPaymentLink = "https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00";
     public const string LifetimePaymentLink = "https://buy.stripe.com/test_00w6oH5WAdFFfeAfSs73G01";
 
     /// OFF UNTIL STRIPE IS LIVE. The links above are test-mode links: they only
