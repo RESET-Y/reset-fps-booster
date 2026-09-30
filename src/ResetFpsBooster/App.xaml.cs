@@ -69,6 +69,7 @@ public partial class App : Application
         // Restores any deprioritized background processes if the app is closed mid-boost —
         // otherwise they'd stay at BelowNormal priority until their own next restart.
         _services?.GameBoost.Stop();
+        _services?.Crosshair.Hide();
 #if RFB_BETA
         // The FrameBoost engine is a separate process holding a full-screen
         // overlay. Closing this window used to leave it running, and it has no
@@ -87,6 +88,9 @@ public partial class App : Application
         var window = new MainWindow { DataContext = mainViewModel, Opacity = 0 };
         WindowBackdrop.ApplyDarkModeAndBackdrop(window);
         MainWindow = window;
+        // The crosshair is a window of its own; left open it would keep the
+        // app alive after the main window is closed.
+        window.Closed += (_, _) => _services?.Crosshair.Hide();
         window.Show();
 
         var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250));

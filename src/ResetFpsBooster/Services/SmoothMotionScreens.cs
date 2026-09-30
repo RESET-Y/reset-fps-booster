@@ -1,7 +1,6 @@
 #if RFB_BETA
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace ResetFpsBooster.Services;
 
@@ -10,32 +9,20 @@ namespace ResetFpsBooster.Services;
 /// follow in Windows' order - the engine sorts them the same way
 /// (MonitorByIndex in main.cpp). Window is 0 for a monitor, otherwise the
 /// game window's handle, captured on its own like FrameBoost does.
-public sealed record SmoothScreen(int Index, string Label, long Window = 0)
+public sealed record SmoothScreen(int Index, string Label, long Window = 0, string? Process = null)
 {
     public bool IsWindow => Window != 0;
 }
 
 public static class SmoothMotionScreens
 {
-    public static List<SmoothScreen> Read(Func<int, bool, int, int, string> label)
-    {
-        var monitors = new List<(bool Primary, int W, int H)>();
-        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (h, _, _, _) =>
-        {
-            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (GetMonitorInfo(h, ref mi))
-                monitors.Add(((mi.dwFlags & 1) != 0, mi.rcMonitor.Right - mi.rcMonitor.Left, mi.rcMonitor.Bottom - mi.rcMonitor.Top));
-            return true;
-        }, IntPtr.Zero);
-
-        // Primary first, others in enumeration order - a stable sort, like the engine's.
-        var ordered = monitors.Where(m => m.Primary).Concat(monitors.Where(m => !m.Primary)).ToList();
-        return ordered.Select((m, i) => new SmoothScreen(i, label(i + 1, m.Primary, m.W, m.H))).ToList();
-    }
+    public static List<SmoothScreen> Read(Func<int, bool, int, int, string> label) =>
+        MonitorList.Read().Select((m, i) => new SmoothScreen(i, label(i + 1, m.Primary, m.Width, m.Height))).ToList();
 
     /// The slider's value for the running engine: a multiplier on the
     /// automatic strength, written where the engine reads it twice a second.
-    /// 0..100 maps to 0.75x..6x with 50 = 3x.
+    /// 0..100 maps to 0.75..6 with 50 = 3, which the engine reads as one full
+    /// frame of motion (it divides by 3).
     public static void WriteStrength(int slider)
     {
         var multiplier = Multiplier(slider);
@@ -57,16 +44,5 @@ public static class SmoothMotionScreens
         var s = Math.Clamp(slider, 0, 100) - 50;
         return 3.0 * Math.Pow(2.0, s < 0 ? s / 25.0 : s / 50.0);
     }
-
-    private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int Left, Top, Right, Bottom; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO { public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags; }
-
-    [DllImport("user32.dll")] private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc proc, IntPtr data);
-    [DllImport("user32.dll")] private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 }
 #endif

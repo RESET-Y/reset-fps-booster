@@ -11,6 +11,7 @@ public enum NavigationSection
     FrameBoostBeta,
     SmoothMotion,
 #endif
+    Crosshair,
     System,
     Backups,
     Logs,

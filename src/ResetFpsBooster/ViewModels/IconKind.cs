@@ -11,6 +11,7 @@ public enum IconKind
     FrameBoostBeta,
     SmoothMotion,
 #endif
+    Crosshair,
     System,
     Backups,
     Logs,

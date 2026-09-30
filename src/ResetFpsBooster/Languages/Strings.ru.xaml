@@ -482,19 +482,19 @@
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Не получилось</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Можно закрыть эту вкладку и вернуться в RESET FPS BOOSTER.</sys:String>
     <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
-    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Делает всё на экране визуально плавнее: изображение получает размытие вдоль реального движения, как в роликах «240 FPS». Оно действует равномерно на весь экран, включая HUD и прицел. Кнопка ВКЛ/ВЫКЛ и ползунок силы — остальное подстраивается само.</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Делает игру визуально плавной: каждый кадр размывается вдоль реального движения на всё время до следующего кадра, как в роликах «240 FPS». Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы.</sys:String>
     <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Включить Smooth Motion</sys:String>
     <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Выключить Smooth Motion</sys:String>
     <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION АКТИВЕН</sys:String>
     <sys:String x:Key="Smooth.Alone" xml:space="preserve">ВЕСЬ ЭКРАН · только реальные кадры, без генерации</sys:String>
     <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">С FRAMEBOOST · размытие на реальных и сгенерированных кадрах</sys:String>
-    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Сила определяется в каждом кадре по вашему движению, частоте кадров и герцовке монитора.</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Каждый кадр размывается ровно настолько, насколько изображение сдвинулось с прошлого кадра.</sys:String>
     <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost запущен — Smooth Motion использует то же окно игры.</sys:String>
     <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion — премиум-функция</sys:String>
     <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion — премиум-функция.</sys:String>
     <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion остановился сам (движок завершился). Ничего не осталось запущенным.</sys:String>
     <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">Как это работает</sys:String>
-    <sys:String x:Key="Smooth.How1" xml:space="preserve">Адаптивно: чем быстрее движется изображение, тем длиннее размытие. При низкой частоте кадров сильнее, при высокой герцовке слабее.</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Без разрывов: шлейф одного кадра заканчивается там, где начинается следующий, при любой частоте кадров, поэтому движение выглядит непрерывным.</sys:String>
     <sys:String x:Key="Smooth.How2" xml:space="preserve">Следует реальному движению каждой части изображения и обрабатывает весь экран одинаково — без чётких островков рядом с размытыми участками.</sys:String>
     <sys:String x:Key="Smooth.How3" xml:space="preserve">Это визуальный эффект, а не дополнительные FPS. Размытое не считается кадром.</sys:String>
     <sys:String x:Key="Smooth.How4" xml:space="preserve">Без вмешательства в игру это возможно только так же, как у FrameBoost: экран захватывается и показывается поверх. Это добавляет задержку захвата, но без сгенерированных кадров и ожидания. Записи и скриншоты показывают экран без эффекта.</sys:String>
@@ -504,10 +504,45 @@
     <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Сила</sys:String>
     <sys:String x:Key="Smooth.Subtle" xml:space="preserve">СЛАБО</sys:String>
     <sys:String x:Key="Smooth.Strong" xml:space="preserve">СИЛЬНО</sys:String>
-    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Работает сразу — двигайте, пока Smooth Motion включён. 50 % — сила, подобранная автоматически под движение, частоту кадров и герцовку; ползунок ослабляет или усиливает её.</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Работает сразу — двигайте, пока Smooth Motion включён. 50 % размывает каждый кадр ровно на одно движение кадра; меньше — мягче, больше — сильнее.</sys:String>
     <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Окно: {0}  –  {1}</sys:String>
     <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Эффект получает только это окно. Рекомендуется режим без рамки / полноэкранное окно — эксклюзивный полноэкранный режим работает не всегда.</sys:String>
-    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Эффект получает весь монитор — работает с любой игрой и в любом режиме.</sys:String>
+    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Эффект получает весь монитор. Плавнее с окном игры: при захвате всего экрана кадры повторяются, если игра работает медленнее монитора, и это выглядит как рывки.</sys:String>
     <sys:String x:Key="Smooth.AloneWindow" xml:space="preserve">ОКНО ИГРЫ · только реальные кадры, без генерации</sys:String>
     <sys:String x:Key="Smooth.WindowGone" xml:space="preserve">Это окно закрыто. Список обновлён — выберите его ещё раз.</sys:String>
+    <sys:String x:Key="Nav.Crosshair" xml:space="preserve">Прицел</sys:String>
+    <sys:String x:Key="Cross.Intro" xml:space="preserve">Собственный прицел поверх любой игры — фигура по вашему вкусу или своё изображение. Он лишь рисуется поверх картинки и никогда не вмешивается в игру.</sys:String>
+    <sys:String x:Key="Cross.ShapeLabel" xml:space="preserve">Форма</sys:String>
+    <sys:String x:Key="Cross.ScreenLabel" xml:space="preserve">Экран</sys:String>
+    <sys:String x:Key="Cross.ColorLabel" xml:space="preserve">Цвет</sys:String>
+    <sys:String x:Key="Cross.LengthLabel" xml:space="preserve">Размер</sys:String>
+    <sys:String x:Key="Cross.ThicknessLabel" xml:space="preserve">Толщина</sys:String>
+    <sys:String x:Key="Cross.GapLabel" xml:space="preserve">Зазор</sys:String>
+    <sys:String x:Key="Cross.OutlineLabel" xml:space="preserve">Обводка</sys:String>
+    <sys:String x:Key="Cross.OpacityLabel" xml:space="preserve">Непрозрачность</sys:String>
+    <sys:String x:Key="Cross.ImageLabel" xml:space="preserve">Изображение</sys:String>
+    <sys:String x:Key="Cross.ScaleLabel" xml:space="preserve">Масштаб</sys:String>
+    <sys:String x:Key="Cross.PickImageButton" xml:space="preserve">Загрузить PNG…</sys:String>
+    <sys:String x:Key="Cross.PickImageTitle" xml:space="preserve">Выберите изображение прицела</sys:String>
+    <sys:String x:Key="Cross.PickImage" xml:space="preserve">Сначала загрузите PNG-изображение.</sys:String>
+    <sys:String x:Key="Cross.ImageUnreadable" xml:space="preserve">Не удалось прочитать изображение. Выберите другой PNG.</sys:String>
+    <sys:String x:Key="Cross.ShapeCross" xml:space="preserve">Крест</sys:String>
+    <sys:String x:Key="Cross.ShapeCrossDot" xml:space="preserve">Крест с точкой</sys:String>
+    <sys:String x:Key="Cross.ShapeDot" xml:space="preserve">Точка</sys:String>
+    <sys:String x:Key="Cross.ShapeCircle" xml:space="preserve">Круг</sys:String>
+    <sys:String x:Key="Cross.ShapeCircleDot" xml:space="preserve">Круг с точкой</sys:String>
+    <sys:String x:Key="Cross.ShapeT" xml:space="preserve">Т-образный</sys:String>
+    <sys:String x:Key="Cross.ShapeImage" xml:space="preserve">Своё изображение</sys:String>
+    <sys:String x:Key="Cross.PreviewLabel" xml:space="preserve">Предпросмотр</sys:String>
+    <sys:String x:Key="Cross.PreviewHint" xml:space="preserve">Увеличено в три раза, чтобы был виден каждый пиксель. В игре он рисуется точно по пикселям в центре экрана.</sys:String>
+    <sys:String x:Key="Cross.Active" xml:space="preserve">ПРИЦЕЛ АКТИВЕН</sys:String>
+    <sys:String x:Key="Cross.TurnOn" xml:space="preserve">ВКЛЮЧИТЬ</sys:String>
+    <sys:String x:Key="Cross.TurnOff" xml:space="preserve">ВЫКЛЮЧИТЬ</sys:String>
+    <sys:String x:Key="Cross.PremiumFeature" xml:space="preserve">Прицел — премиум-функция</sys:String>
+    <sys:String x:Key="Cross.PremiumDot" xml:space="preserve">Для прицела нужен премиум.</sys:String>
+    <sys:String x:Key="Cross.HowTitle" xml:space="preserve">Как это работает</sys:String>
+    <sys:String x:Key="Cross.How1" xml:space="preserve">Маленькое окно этого приложения, всегда поверх остальных и точно в центре экрана. Все клики проходят сквозь него.</sys:String>
+    <sys:String x:Key="Cross.How2" xml:space="preserve">В игре ничего не считывается и не изменяется. Изменения внешнего вида применяются сразу, даже когда прицел включён.</sys:String>
+    <sys:String x:Key="Cross.How3" xml:space="preserve">Он не попадает в записи и скриншоты — и в Smooth Motion тоже, поэтому никогда не размывается.</sys:String>
+    <sys:String x:Key="Cross.How4" xml:space="preserve">Нужен режим без рамки или оконный — поверх эксклюзивного полноэкранного режима Windows не показывает другие окна. Некоторые турниры не разрешают оверлеи прицела.</sys:String>
 </ResourceDictionary>

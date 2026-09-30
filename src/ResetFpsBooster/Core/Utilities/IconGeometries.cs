@@ -22,6 +22,7 @@ public static class IconGeometries
         IconKind.FrameBoostBeta => FrameBoostBetaIcon(),
         IconKind.SmoothMotion => SmoothMotionIcon(),
 #endif
+        IconKind.Crosshair => CrosshairIcon(),
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
@@ -114,6 +115,23 @@ public static class IconGeometries
         return group;
     }
 #endif
+
+    // A ring with four ticks and a centre dot.
+    private static Geometry CrosshairIcon()
+    {
+        var ring = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        ring.Children.Add(new EllipseGeometry(new Point(8, 8), 5.6, 5.6));
+        ring.Children.Add(new EllipseGeometry(new Point(8, 8), 4.2, 4.2));
+
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(ring);
+        group.Children.Add(new RectangleGeometry(new Rect(7.3, 0, 1.4, 4.5)));
+        group.Children.Add(new RectangleGeometry(new Rect(7.3, 11.5, 1.4, 4.5)));
+        group.Children.Add(new RectangleGeometry(new Rect(0, 7.3, 4.5, 1.4)));
+        group.Children.Add(new RectangleGeometry(new Rect(11.5, 7.3, 4.5, 1.4)));
+        group.Children.Add(new EllipseGeometry(new Point(8, 8), 1.1, 1.1));
+        return group;
+    }
 
     private static Geometry SystemIcon()
     {

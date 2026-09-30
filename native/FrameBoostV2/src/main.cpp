@@ -52,6 +52,7 @@
 #include <dxgi1_6.h>
 
 #include <algorithm>
+#include <fstream>
 #include <sstream>
 #include <cmath>
 #include <cwctype>
@@ -406,13 +407,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         return 1;
     }
 
-    // GPU PRIORITY FOR SMOOTH MOTION ON ITS OWN. An uncapped game keeps the
-    // GPU at 100%, and our few milliseconds of work queued behind it: motion
-    // estimation measured 2.5 ms normally and 27 ms under an uncapped game.
-    // This raises the priority of THIS process's GPU work only - the game is
-    // not touched. It is the documented DXGI call; the log says whether
-    // Windows accepted it.
-    if (HasArg(args, L"nogen")) {
+    // GPU PRIORITY. A game keeps the GPU busy, and our few milliseconds of
+    // work queue behind it: motion estimation measured 2.5 ms normally and
+    // 27 ms under an uncapped game. This raises the priority of THIS
+    // process's GPU work only - the game is not touched. It is the documented
+    // DXGI call; the log says whether Windows accepted it.
+    //
+    // First for Smooth Motion alone, then FrameBoost too (2026-09-30): its
+    // baseline in Apex had motion estimation swinging 0.8-7.7 ms from one
+    // second to the next - the same waiting behind the game, since the work
+    // itself is under 1 ms. "nogpuprio" turns it off for A/B comparisons.
+    if (!HasArg(args, L"nogpuprio")) {
         if (auto dxgiDevice = device.try_as<IDXGIDevice>()) {
             const HRESULT hr = dxgiDevice->SetGPUThreadPriority(7);
             Logger::Log(SUCCEEDED(hr) ? "[FrameBoostV2] GPU thread priority raised to 7."
@@ -428,14 +433,37 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // under a full GPU. Our own process only; exported by gdi32, loaded
         // by name because the declaration lives in the driver kit. REALTIME
         // needs admin rights (RFB has them); HIGH is the fallback.
+        //
+        // Which class is on trial. FrameBoost in Apex with REALTIME: pipeline
+        // latency 14.4 -> 10.5 ms, but capture delivered 90.8 frames a second
+        // against 98.7 while Apex itself rendered as many as before. Suspected:
+        // REALTIME sits above the compositor that hands us those frames.
+        // %LOCALAPPDATA%\ResetFpsBooster\gpuclass.txt picks "realtime", "high"
+        // or "normal" for the A/B without a rebuild; missing means REALTIME.
         using SetClassFn = LONG(APIENTRY*)(HANDLE, int);
-        constexpr int kClassHigh = 4, kClassRealtime = 5;
+        constexpr int kClassNormal = 2, kClassHigh = 4, kClassRealtime = 5;
+        int wanted = kClassRealtime;
+        {
+            wchar_t base[MAX_PATH] = {};
+            if (GetEnvironmentVariableW(L"LOCALAPPDATA", base, MAX_PATH)) {
+                std::ifstream f(std::wstring(base) + L"\\ResetFpsBooster\\gpuclass.txt");
+                std::string word;
+                if (f >> word) {
+                    for (auto& ch : word) ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+                    if (word == "high") wanted = kClassHigh;
+                    else if (word == "normal") wanted = kClassNormal;
+                }
+            }
+        }
         if (auto gdi = GetModuleHandleW(L"gdi32.dll") ? GetModuleHandleW(L"gdi32.dll") : LoadLibraryW(L"gdi32.dll")) {
             if (auto setClass = reinterpret_cast<SetClassFn>(GetProcAddress(gdi, "D3DKMTSetProcessSchedulingPriorityClass"))) {
-                if (setClass(GetCurrentProcess(), kClassRealtime) == 0)
+                if (wanted == kClassNormal)
+                    Logger::Log("[FrameBoostV2] GPU scheduling class left at NORMAL (gpuclass.txt).");
+                else if (wanted == kClassRealtime && setClass(GetCurrentProcess(), kClassRealtime) == 0)
                     Logger::Log("[FrameBoostV2] GPU scheduling class raised to REALTIME.");
                 else if (setClass(GetCurrentProcess(), kClassHigh) == 0)
-                    Logger::Log("[FrameBoostV2] GPU scheduling class raised to HIGH (REALTIME refused).");
+                    Logger::Log(wanted == kClassHigh ? "[FrameBoostV2] GPU scheduling class raised to HIGH (gpuclass.txt)."
+                                                     : "[FrameBoostV2] GPU scheduling class raised to HIGH (REALTIME refused).");
                 else
                     Logger::Log("[FrameBoostV2] GPU scheduling class could not be raised; staying at NORMAL.");
             }
@@ -636,17 +664,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // interval, 0.5 by default. `blurdebug` paints the streak length instead:
     // green = short, red = long, untouched = still.
     //
-    // SMOOTH MOTION (`smooth`) is the same pass with the strength chosen
-    // automatically, every frame, from what is actually happening:
-    //   - the OUTPUT rate: 2x the measured source rate, capped by the display.
-    //     The shutter is set as a share of one output frame - 180 degrees at
-    //     60 fps, the film look, longer below that where the gaps between
-    //     frames are bigger, shorter above it where the frames already fill
-    //     them in and sharpness matters more. 0.5 * sqrt(60 / fps): 45 fps ->
-    //     0.58, 60 -> 0.50, 120 -> 0.35, 144 -> 0.32, 240 -> 0.25.
-    //   - the movement: nothing below a few pixels of streak, fading in above
-    //     it (in the shader), and the threshold rises with the refresh rate -
-    //     a 144 Hz picture needs faster motion before blur helps it.
+    // SMOOTH MOTION (`smooth`) is the same pass with a FULL SHUTTER: every
+    // shown frame is smeared over the whole time until the next one, so the
+    // streak of one frame ends where the next begins and motion reads as
+    // continuous. It used to shorten the shutter at higher frame rates "so the
+    // picture stays sharp" and to leave slow movement untouched; both were
+    // taken out on 2026-09-30 - Lukas: "es soll flüssig aussehen und nicht
+    // Bilder scharf halten". The slider scales it (50 % = full shutter).
     // `hz <n>` is the refresh rate the user picked in the app; without it the
     // game window's monitor is read.
     MotionBlur motionBlur;
@@ -701,11 +725,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         readSmoothFile();
         const double sourceFps = 1000.0 / sourceIntervalMs;
         const double outputFps = std::min(sourceFps * (generating ? 2.0 : 1.0), outputHz);
-        // Back to the first curve after the stronger one was tried and judged
-        // "viel zu stark, es sieht alles komisch aus": 0.5 * sqrt(60 / fps).
-        const double angle = std::clamp(0.5 * std::sqrt(60.0 / std::max(outputFps, 1.0)), 0.2, 0.75);
-        // The vectors span one SOURCE interval; one output frame is a share of it.
-        motionBlur.SetStrength(static_cast<float>(smoothUser * angle * sourceFps / std::max(outputFps, 1.0)));
+        // Full shutter, the same at every frame rate. The app sends 3 for the
+        // slider's middle, so 3 -> 1.0 = one whole frame of motion. The
+        // vectors span one SOURCE interval; one output frame is a share of it.
+        const double shutter = smoothUser / 3.0;
+        motionBlur.SetStrength(static_cast<float>(shutter * sourceFps / std::max(outputFps, 1.0)));
     };
     double blurReportAt = 0.0;
 

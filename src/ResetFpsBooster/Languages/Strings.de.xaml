@@ -482,19 +482,19 @@
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Das hat nicht geklappt</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.</sys:String>
     <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
-    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Lässt alles auf dem Bildschirm flüssiger aussehen: Das Bild bekommt Bewegungsunschärfe entlang der echten Bewegung, wie in den „240 FPS“-Clips. Sie wirkt gleichmäßig auf den ganzen Bildschirm, HUD und Fadenkreuz eingeschlossen. Ein Ein/Aus-Knopf und ein Stärke-Regler – der Rest passt sich selbst an.</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Lässt das Spiel flüssig aussehen: Jedes Bild wird entlang der echten Bewegung über die ganze Zeit bis zum nächsten Bild verwischt, wie in den „240 FPS“-Clips. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.</sys:String>
     <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Smooth Motion einschalten</sys:String>
     <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Smooth Motion ausschalten</sys:String>
     <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION AKTIV</sys:String>
     <sys:String x:Key="Smooth.Alone" xml:space="preserve">GANZER BILDSCHIRM · nur echte Bilder, keine Frame-Generierung</sys:String>
     <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">MIT FRAMEBOOST · Unschärfe auf echten und erzeugten Bildern</sys:String>
-    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Die Stärke wird in jedem Bild aus deiner Bewegung, der Bildrate und der Hz-Zahl deines Monitors bestimmt.</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Jedes Bild wird genau so weit verwischt, wie sich das Bild seit dem letzten bewegt hat.</sys:String>
     <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost läuft – Smooth Motion nutzt dasselbe Spielfenster.</sys:String>
     <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion ist eine Premium-Funktion</sys:String>
     <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion ist eine Premium-Funktion.</sys:String>
     <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion hat sich selbst beendet (die Engine wurde beendet). Es läuft nichts mehr im Hintergrund.</sys:String>
     <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">So funktioniert es</sys:String>
-    <sys:String x:Key="Smooth.How1" xml:space="preserve">Adaptiv: Je schneller sich das Bild bewegt, desto länger die Unschärfe. Niedrige Bildraten bekommen mehr, hohe Hz-Zahlen weniger.</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Lückenlos: Die Schliere eines Bildes endet dort, wo das nächste beginnt, bei jeder Bildrate. So wirkt Bewegung wie ein durchgehender Fluss.</sys:String>
     <sys:String x:Key="Smooth.How2" xml:space="preserve">Folgt der echten Bewegung jedes Bildbereichs und behandelt den ganzen Bildschirm gleich – keine scharfen Inseln neben verwischten Stellen.</sys:String>
     <sys:String x:Key="Smooth.How3" xml:space="preserve">Ein Look, keine zusätzlichen FPS. Nichts Verwischtes wird als Bild gezählt.</sys:String>
     <sys:String x:Key="Smooth.How4" xml:space="preserve">Ohne Eingriff in ein Spiel geht es nur auf dem Weg, den auch FrameBoost nutzt: Der Bildschirm wird aufgenommen und darüber erneut angezeigt. Dadurch kommt die Aufnahme-Verzögerung dazu, aber keine erzeugten Bilder und kein Warten. Aufnahmen und Screenshots zeigen den Bildschirm ohne den Effekt.</sys:String>
@@ -504,10 +504,45 @@
     <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Stärke</sys:String>
     <sys:String x:Key="Smooth.Subtle" xml:space="preserve">DEZENT</sys:String>
     <sys:String x:Key="Smooth.Strong" xml:space="preserve">STARK</sys:String>
-    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist die Stärke, die automatisch zu deiner Bewegung, Bildrate und Hz-Zahl passt; der Regler schwächt sie ab oder verstärkt sie.</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % verwischt jedes Bild über genau eine Bildbewegung; weniger ist dezenter, mehr verwischt weiter.</sys:String>
     <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Fenster: {0}  –  {1}</sys:String>
     <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Nur dieses Fenster bekommt den Effekt. Randlos / Vollbild-Fenster wird empfohlen – exklusives Vollbild klappt nicht immer.</sys:String>
-    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Der ganze Bildschirm bekommt den Effekt – klappt mit jedem Spiel und jedem Modus.</sys:String>
+    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Der ganze Bildschirm bekommt den Effekt. Flüssiger ist das Spielfenster: Beim ganzen Bildschirm werden Bilder doppelt gezeigt, wenn das Spiel langsamer läuft als der Monitor, und das wirkt wie Ruckeln.</sys:String>
     <sys:String x:Key="Smooth.AloneWindow" xml:space="preserve">SPIELFENSTER · nur echte Bilder, keine Frame-Generierung</sys:String>
     <sys:String x:Key="Smooth.WindowGone" xml:space="preserve">Das Fenster ist geschlossen. Die Liste wurde neu eingelesen – wähl es noch einmal aus.</sys:String>
+    <sys:String x:Key="Nav.Crosshair" xml:space="preserve">Crosshair</sys:String>
+    <sys:String x:Key="Cross.Intro" xml:space="preserve">Dein eigenes Fadenkreuz über jedem Spiel – als Form nach deinen Wünschen oder als eigenes Bild. Es wird nur über das Bild gelegt und greift nie ins Spiel ein.</sys:String>
+    <sys:String x:Key="Cross.ShapeLabel" xml:space="preserve">Form</sys:String>
+    <sys:String x:Key="Cross.ScreenLabel" xml:space="preserve">Bildschirm</sys:String>
+    <sys:String x:Key="Cross.ColorLabel" xml:space="preserve">Farbe</sys:String>
+    <sys:String x:Key="Cross.LengthLabel" xml:space="preserve">Größe</sys:String>
+    <sys:String x:Key="Cross.ThicknessLabel" xml:space="preserve">Dicke</sys:String>
+    <sys:String x:Key="Cross.GapLabel" xml:space="preserve">Lücke</sys:String>
+    <sys:String x:Key="Cross.OutlineLabel" xml:space="preserve">Umrandung</sys:String>
+    <sys:String x:Key="Cross.OpacityLabel" xml:space="preserve">Deckkraft</sys:String>
+    <sys:String x:Key="Cross.ImageLabel" xml:space="preserve">Bild</sys:String>
+    <sys:String x:Key="Cross.ScaleLabel" xml:space="preserve">Skalierung</sys:String>
+    <sys:String x:Key="Cross.PickImageButton" xml:space="preserve">PNG laden…</sys:String>
+    <sys:String x:Key="Cross.PickImageTitle" xml:space="preserve">Crosshair-Bild auswählen</sys:String>
+    <sys:String x:Key="Cross.PickImage" xml:space="preserve">Lade zuerst ein PNG-Bild.</sys:String>
+    <sys:String x:Key="Cross.ImageUnreadable" xml:space="preserve">Das Bild konnte nicht gelesen werden. Wähl ein anderes PNG.</sys:String>
+    <sys:String x:Key="Cross.ShapeCross" xml:space="preserve">Kreuz</sys:String>
+    <sys:String x:Key="Cross.ShapeCrossDot" xml:space="preserve">Kreuz mit Punkt</sys:String>
+    <sys:String x:Key="Cross.ShapeDot" xml:space="preserve">Punkt</sys:String>
+    <sys:String x:Key="Cross.ShapeCircle" xml:space="preserve">Kreis</sys:String>
+    <sys:String x:Key="Cross.ShapeCircleDot" xml:space="preserve">Kreis mit Punkt</sys:String>
+    <sys:String x:Key="Cross.ShapeT" xml:space="preserve">T-Form</sys:String>
+    <sys:String x:Key="Cross.ShapeImage" xml:space="preserve">Eigenes Bild</sys:String>
+    <sys:String x:Key="Cross.PreviewLabel" xml:space="preserve">Vorschau</sys:String>
+    <sys:String x:Key="Cross.PreviewHint" xml:space="preserve">Dreifach vergrößert, damit jeder Pixel zu sehen ist. Im Spiel wird es pixelgenau in die Bildschirmmitte gezeichnet.</sys:String>
+    <sys:String x:Key="Cross.Active" xml:space="preserve">CROSSHAIR AKTIV</sys:String>
+    <sys:String x:Key="Cross.TurnOn" xml:space="preserve">EINSCHALTEN</sys:String>
+    <sys:String x:Key="Cross.TurnOff" xml:space="preserve">AUSSCHALTEN</sys:String>
+    <sys:String x:Key="Cross.PremiumFeature" xml:space="preserve">Crosshair ist eine Premium-Funktion</sys:String>
+    <sys:String x:Key="Cross.PremiumDot" xml:space="preserve">Crosshair braucht Premium.</sys:String>
+    <sys:String x:Key="Cross.HowTitle" xml:space="preserve">So funktioniert es</sys:String>
+    <sys:String x:Key="Cross.How1" xml:space="preserve">Ein kleines Fenster dieser App, immer im Vordergrund und genau in der Bildschirmmitte. Jeder Klick geht direkt hindurch.</sys:String>
+    <sys:String x:Key="Cross.How2" xml:space="preserve">Im Spiel wird nichts gelesen oder verändert. Änderungen am Aussehen wirken sofort, auch während es läuft.</sys:String>
+    <sys:String x:Key="Cross.How3" xml:space="preserve">Es erscheint nicht in Aufnahmen und Screenshots – und auch nicht in Smooth Motion, dadurch wird es nie verwischt.</sys:String>
+    <sys:String x:Key="Cross.How4" xml:space="preserve">Braucht Randlos- oder Fenstermodus – über exklusivem Vollbild zeigt Windows kein anderes Fenster. Manche Turniere erlauben keine Crosshair-Overlays.</sys:String>
 </ResourceDictionary>

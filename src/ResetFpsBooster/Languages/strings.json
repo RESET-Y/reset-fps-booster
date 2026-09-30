@@ -2401,9 +2401,9 @@
     "ru": "Smooth Motion"
   },
   "Smooth.Intro": {
-    "en": "Makes everything on screen look more fluid: the picture gets motion blur along the real motion, like the \"240 FPS\" clips. It covers the whole screen evenly, HUD and crosshair included. An ON/OFF button and a strength slider - the rest adjusts itself.",
-    "de": "Lässt alles auf dem Bildschirm flüssiger aussehen: Das Bild bekommt Bewegungsunschärfe entlang der echten Bewegung, wie in den „240 FPS“-Clips. Sie wirkt gleichmäßig auf den ganzen Bildschirm, HUD und Fadenkreuz eingeschlossen. Ein Ein/Aus-Knopf und ein Stärke-Regler – der Rest passt sich selbst an.",
-    "ru": "Делает всё на экране визуально плавнее: изображение получает размытие вдоль реального движения, как в роликах «240 FPS». Оно действует равномерно на весь экран, включая HUD и прицел. Кнопка ВКЛ/ВЫКЛ и ползунок силы — остальное подстраивается само."
+    "en": "Makes the game look fluid: every frame is smeared along the real motion over the whole time until the next frame, like the \"240 FPS\" clips. Nothing is kept sharp on purpose. An ON/OFF button and a strength slider.",
+    "de": "Lässt das Spiel flüssig aussehen: Jedes Bild wird entlang der echten Bewegung über die ganze Zeit bis zum nächsten Bild verwischt, wie in den „240 FPS“-Clips. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.",
+    "ru": "Делает игру визуально плавной: каждый кадр размывается вдоль реального движения на всё время до следующего кадра, как в роликах «240 FPS». Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы."
   },
   "Smooth.TurnOn": {
     "en": "Turn Smooth Motion on",
@@ -2431,9 +2431,9 @@
     "ru": "С FRAMEBOOST · размытие на реальных и сгенерированных кадрах"
   },
   "Smooth.AutoNote": {
-    "en": "Strength is set every frame from your movement, the frame rate and your monitor's refresh rate.",
-    "de": "Die Stärke wird in jedem Bild aus deiner Bewegung, der Bildrate und der Hz-Zahl deines Monitors bestimmt.",
-    "ru": "Сила определяется в каждом кадре по вашему движению, частоте кадров и герцовке монитора."
+    "en": "Each frame is smeared by exactly as much as the picture moved since the last one.",
+    "de": "Jedes Bild wird genau so weit verwischt, wie sich das Bild seit dem letzten bewegt hat.",
+    "ru": "Каждый кадр размывается ровно настолько, насколько изображение сдвинулось с прошлого кадра."
   },
   "Smooth.FollowsFrameBoost": {
     "en": "FrameBoost is running - Smooth Motion uses the same game window.",
@@ -2461,9 +2461,9 @@
     "ru": "Как это работает"
   },
   "Smooth.How1": {
-    "en": "Adaptive: the faster the picture moves, the longer the blur. Lower frame rates get more, high refresh rates less.",
-    "de": "Adaptiv: Je schneller sich das Bild bewegt, desto länger die Unschärfe. Niedrige Bildraten bekommen mehr, hohe Hz-Zahlen weniger.",
-    "ru": "Адаптивно: чем быстрее движется изображение, тем длиннее размытие. При низкой частоте кадров сильнее, при высокой герцовке слабее."
+    "en": "Seamless: the streak of one frame ends where the next frame begins, at every frame rate, so movement reads as one continuous motion.",
+    "de": "Lückenlos: Die Schliere eines Bildes endet dort, wo das nächste beginnt, bei jeder Bildrate. So wirkt Bewegung wie ein durchgehender Fluss.",
+    "ru": "Без разрывов: шлейф одного кадра заканчивается там, где начинается следующий, при любой частоте кадров, поэтому движение выглядит непрерывным."
   },
   "Smooth.How2": {
     "en": "Follows the real motion of each part of the picture and treats the whole screen the same - no sharp islands next to blurred areas.",
@@ -2511,9 +2511,9 @@
     "ru": "СИЛЬНО"
   },
   "Smooth.StrengthHint": {
-    "en": "Works live - move it while Smooth Motion is on. 50 % is the strength picked automatically for your movement, frame rate and refresh rate; the slider scales it down or up.",
-    "de": "Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist die Stärke, die automatisch zu deiner Bewegung, Bildrate und Hz-Zahl passt; der Regler schwächt sie ab oder verstärkt sie.",
-    "ru": "Работает сразу — двигайте, пока Smooth Motion включён. 50 % — сила, подобранная автоматически под движение, частоту кадров и герцовку; ползунок ослабляет или усиливает её."
+    "en": "Works live - move it while Smooth Motion is on. 50 % smears each frame over exactly one frame of motion; lower is subtler, higher smears further.",
+    "de": "Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % verwischt jedes Bild über genau eine Bildbewegung; weniger ist dezenter, mehr verwischt weiter.",
+    "ru": "Работает сразу — двигайте, пока Smooth Motion включён. 50 % размывает каждый кадр ровно на одно движение кадра; меньше — мягче, больше — сильнее."
   },
   "Smooth.WindowItem": {
     "en": "Window: {0}  –  {1}",
@@ -2526,9 +2526,9 @@
     "ru": "Эффект получает только это окно. Рекомендуется режим без рамки / полноэкранное окно — эксклюзивный полноэкранный режим работает не всегда."
   },
   "Smooth.ScreenHint": {
-    "en": "The whole monitor gets the effect - works with every game and every mode.",
-    "de": "Der ganze Bildschirm bekommt den Effekt – klappt mit jedem Spiel und jedem Modus.",
-    "ru": "Эффект получает весь монитор — работает с любой игрой и в любом режиме."
+    "en": "The whole monitor gets the effect. Smoother is the game window: the whole screen repeats frames when the game runs slower than the monitor, and that shows as stutter.",
+    "de": "Der ganze Bildschirm bekommt den Effekt. Flüssiger ist das Spielfenster: Beim ganzen Bildschirm werden Bilder doppelt gezeigt, wenn das Spiel langsamer läuft als der Monitor, und das wirkt wie Ruckeln.",
+    "ru": "Эффект получает весь монитор. Плавнее с окном игры: при захвате всего экрана кадры повторяются, если игра работает медленнее монитора, и это выглядит как рывки."
   },
   "Smooth.AloneWindow": {
     "en": "GAME WINDOW · real frames only, no frame generation",
@@ -2539,5 +2539,180 @@
     "en": "That window is closed. The list has been read again - pick it once more.",
     "de": "Das Fenster ist geschlossen. Die Liste wurde neu eingelesen – wähl es noch einmal aus.",
     "ru": "Это окно закрыто. Список обновлён — выберите его ещё раз."
+  },
+  "Nav.Crosshair": {
+    "en": "Crosshair",
+    "de": "Crosshair",
+    "ru": "Прицел"
+  },
+  "Cross.Intro": {
+    "en": "Your own crosshair on top of every game - a shape of your own design or your own image. It is only drawn over the picture and never touches the game.",
+    "de": "Dein eigenes Fadenkreuz über jedem Spiel – als Form nach deinen Wünschen oder als eigenes Bild. Es wird nur über das Bild gelegt und greift nie ins Spiel ein.",
+    "ru": "Собственный прицел поверх любой игры — фигура по вашему вкусу или своё изображение. Он лишь рисуется поверх картинки и никогда не вмешивается в игру."
+  },
+  "Cross.ShapeLabel": {
+    "en": "Shape",
+    "de": "Form",
+    "ru": "Форма"
+  },
+  "Cross.ScreenLabel": {
+    "en": "Screen",
+    "de": "Bildschirm",
+    "ru": "Экран"
+  },
+  "Cross.ColorLabel": {
+    "en": "Colour",
+    "de": "Farbe",
+    "ru": "Цвет"
+  },
+  "Cross.LengthLabel": {
+    "en": "Size",
+    "de": "Größe",
+    "ru": "Размер"
+  },
+  "Cross.ThicknessLabel": {
+    "en": "Thickness",
+    "de": "Dicke",
+    "ru": "Толщина"
+  },
+  "Cross.GapLabel": {
+    "en": "Gap",
+    "de": "Lücke",
+    "ru": "Зазор"
+  },
+  "Cross.OutlineLabel": {
+    "en": "Outline",
+    "de": "Umrandung",
+    "ru": "Обводка"
+  },
+  "Cross.OpacityLabel": {
+    "en": "Opacity",
+    "de": "Deckkraft",
+    "ru": "Непрозрачность"
+  },
+  "Cross.ImageLabel": {
+    "en": "Image",
+    "de": "Bild",
+    "ru": "Изображение"
+  },
+  "Cross.ScaleLabel": {
+    "en": "Scale",
+    "de": "Skalierung",
+    "ru": "Масштаб"
+  },
+  "Cross.PickImageButton": {
+    "en": "Load PNG…",
+    "de": "PNG laden…",
+    "ru": "Загрузить PNG…"
+  },
+  "Cross.PickImageTitle": {
+    "en": "Pick a crosshair image",
+    "de": "Crosshair-Bild auswählen",
+    "ru": "Выберите изображение прицела"
+  },
+  "Cross.PickImage": {
+    "en": "Load a PNG image first.",
+    "de": "Lade zuerst ein PNG-Bild.",
+    "ru": "Сначала загрузите PNG-изображение."
+  },
+  "Cross.ImageUnreadable": {
+    "en": "That image could not be read. Pick another PNG.",
+    "de": "Das Bild konnte nicht gelesen werden. Wähl ein anderes PNG.",
+    "ru": "Не удалось прочитать изображение. Выберите другой PNG."
+  },
+  "Cross.ShapeCross": {
+    "en": "Cross",
+    "de": "Kreuz",
+    "ru": "Крест"
+  },
+  "Cross.ShapeCrossDot": {
+    "en": "Cross with dot",
+    "de": "Kreuz mit Punkt",
+    "ru": "Крест с точкой"
+  },
+  "Cross.ShapeDot": {
+    "en": "Dot",
+    "de": "Punkt",
+    "ru": "Точка"
+  },
+  "Cross.ShapeCircle": {
+    "en": "Circle",
+    "de": "Kreis",
+    "ru": "Круг"
+  },
+  "Cross.ShapeCircleDot": {
+    "en": "Circle with dot",
+    "de": "Kreis mit Punkt",
+    "ru": "Круг с точкой"
+  },
+  "Cross.ShapeT": {
+    "en": "T shape",
+    "de": "T-Form",
+    "ru": "Т-образный"
+  },
+  "Cross.ShapeImage": {
+    "en": "Own image",
+    "de": "Eigenes Bild",
+    "ru": "Своё изображение"
+  },
+  "Cross.PreviewLabel": {
+    "en": "Preview",
+    "de": "Vorschau",
+    "ru": "Предпросмотр"
+  },
+  "Cross.PreviewHint": {
+    "en": "Three times enlarged, so every pixel can be seen. In the game it is drawn pixel-exact in the centre of the screen.",
+    "de": "Dreifach vergrößert, damit jeder Pixel zu sehen ist. Im Spiel wird es pixelgenau in die Bildschirmmitte gezeichnet.",
+    "ru": "Увеличено в три раза, чтобы был виден каждый пиксель. В игре он рисуется точно по пикселям в центре экрана."
+  },
+  "Cross.Active": {
+    "en": "CROSSHAIR ACTIVE",
+    "de": "CROSSHAIR AKTIV",
+    "ru": "ПРИЦЕЛ АКТИВЕН"
+  },
+  "Cross.TurnOn": {
+    "en": "TURN ON",
+    "de": "EINSCHALTEN",
+    "ru": "ВКЛЮЧИТЬ"
+  },
+  "Cross.TurnOff": {
+    "en": "TURN OFF",
+    "de": "AUSSCHALTEN",
+    "ru": "ВЫКЛЮЧИТЬ"
+  },
+  "Cross.PremiumFeature": {
+    "en": "Crosshair is a premium feature",
+    "de": "Crosshair ist eine Premium-Funktion",
+    "ru": "Прицел — премиум-функция"
+  },
+  "Cross.PremiumDot": {
+    "en": "Crosshair needs premium.",
+    "de": "Crosshair braucht Premium.",
+    "ru": "Для прицела нужен премиум."
+  },
+  "Cross.HowTitle": {
+    "en": "How it works",
+    "de": "So funktioniert es",
+    "ru": "Как это работает"
+  },
+  "Cross.How1": {
+    "en": "A small window of this app, always on top and exactly in the centre of the screen. Every click goes straight through it.",
+    "de": "Ein kleines Fenster dieser App, immer im Vordergrund und genau in der Bildschirmmitte. Jeder Klick geht direkt hindurch.",
+    "ru": "Маленькое окно этого приложения, всегда поверх остальных и точно в центре экрана. Все клики проходят сквозь него."
+  },
+  "Cross.How2": {
+    "en": "Nothing in the game is read or changed. Changes to the look apply immediately, even while it is on.",
+    "de": "Im Spiel wird nichts gelesen oder verändert. Änderungen am Aussehen wirken sofort, auch während es läuft.",
+    "ru": "В игре ничего не считывается и не изменяется. Изменения внешнего вида применяются сразу, даже когда прицел включён."
+  },
+  "Cross.How3": {
+    "en": "It stays out of recordings and screenshots - and out of Smooth Motion, so it is never blurred.",
+    "de": "Es erscheint nicht in Aufnahmen und Screenshots – und auch nicht in Smooth Motion, dadurch wird es nie verwischt.",
+    "ru": "Он не попадает в записи и скриншоты — и в Smooth Motion тоже, поэтому никогда не размывается."
+  },
+  "Cross.How4": {
+    "en": "Needs borderless or windowed mode - over exclusive fullscreen Windows shows no other window. Some tournaments do not allow crosshair overlays.",
+    "de": "Braucht Randlos- oder Fenstermodus – über exklusivem Vollbild zeigt Windows kein anderes Fenster. Manche Turniere erlauben keine Crosshair-Overlays.",
+    "ru": "Нужен режим без рамки или оконный — поверх эксклюзивного полноэкранного режима Windows не показывает другие окна. Некоторые турниры не разрешают оверлеи прицела."
   }
 }

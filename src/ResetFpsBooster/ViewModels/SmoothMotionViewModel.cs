@@ -72,8 +72,11 @@ public sealed partial class SmoothMotionViewModel : ViewModelBase
     partial void OnSelectedScreenChanged(SmoothScreen? value)
     {
         OnPropertyChanged(nameof(ModeText));
-        if (value is null || value.IsWindow) return;   // window handles do not survive a restart
-        _settings.Current.SmoothMotionScreen = value.Index;
+        if (value is null || _reading) return;
+        // A window handle does not survive a restart; the game's program name
+        // does, and picks its window again next time.
+        if (value.IsWindow) _settings.Current.SmoothMotionLastProcess = value.Process;
+        else { _settings.Current.SmoothMotionScreen = value.Index; _settings.Current.SmoothMotionLastProcess = ""; }
         _settings.Save();
     }
 
@@ -108,19 +111,35 @@ public sealed partial class SmoothMotionViewModel : ViewModelBase
         SyncFromService();
     }
 
+    private bool _reading;
+
+    // GAME WINDOW FIRST. Measured in Apex on 2026-09-30: the whole screen
+    // repeated ~49 frames a second (the desktop runs at 144, the game at ~98)
+    // and the blur switched off on every repeat - it read as stutter. The game
+    // window had none. So windows head the list and the last game is picked
+    // by itself; a whole screen stays available for games that cannot be
+    // captured as a window.
     public void ReadScreens()
     {
         var keep = SelectedScreen;
-        var keepIndex = keep?.Index ?? _settings.Current.SmoothMotionScreen;
-        var list = SmoothMotionScreens.Read((n, primary, w, h) =>
-            primary ? Loc.F("Smooth.ScreenPrimary", n, w, h) : Loc.F("Smooth.Screen", n, w, h));
-        foreach (var w in FrameBoostBetaWindowList.Read())
-            list.Add(new SmoothScreen(0, Loc.F("Smooth.WindowItem", w.Title, w.ProcessName), w.Handle));
+        var list = FrameBoostBetaWindowList.Read()
+            .Select(w => new SmoothScreen(0, Loc.F("Smooth.WindowItem", w.Title, w.ProcessName), w.Handle, w.ProcessName))
+            .ToList();
+        list.AddRange(SmoothMotionScreens.Read((n, primary, w, h) =>
+            primary ? Loc.F("Smooth.ScreenPrimary", n, w, h) : Loc.F("Smooth.Screen", n, w, h)));
         Screens = list;
         OnPropertyChanged(nameof(Screens));
+
+        var last = _settings.Current.SmoothMotionLastProcess ?? _settings.Current.FrameBoostLastProcess;
+        SmoothScreen? byGame = string.IsNullOrEmpty(last) ? null
+            : Screens.FirstOrDefault(s => s.IsWindow && string.Equals(s.Process, last, StringComparison.OrdinalIgnoreCase));
+        _reading = true;
         SelectedScreen = (keep is { IsWindow: true } ? Screens.FirstOrDefault(s => s.Window == keep.Window) : null)
-                         ?? Screens.FirstOrDefault(s => !s.IsWindow && s.Index == keepIndex)
-                         ?? Screens.FirstOrDefault();
+                         ?? (keep is { IsWindow: false } ? Screens.FirstOrDefault(s => !s.IsWindow && s.Index == keep.Index) : null)
+                         ?? byGame
+                         ?? Screens.FirstOrDefault(s => !s.IsWindow && s.Index == _settings.Current.SmoothMotionScreen)
+                         ?? Screens.FirstOrDefault(s => !s.IsWindow);
+        _reading = false;
     }
 
     private void SyncFromService()

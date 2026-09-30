@@ -140,10 +140,10 @@ ID3D11Texture2D* MotionBlur::Apply(ID3D11Device* device, ID3D11DeviceContext* co
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(context->Map(m_params, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) return nullptr;
-    // 12 samples along at most 96 pixels, as in the first version; the cap
-    // keeps a wrong giant vector from smearing half the screen. A static
-    // threshold of 0 switches the still-pixel test off entirely.
-    BlurParams p{ width, height, blockSize, 12u, m_shutter, 96.0f, m_stillProtection ? 0.03f : 0.0f, m_debug, m_minLength, {} };
+    // Up to 24 samples (one per ~5 px) along at most 128 pixels - 96 cut fast
+    // flicks short. The cap keeps a wrong giant vector from smearing half the
+    // screen. The shader no longer reads the still threshold.
+    BlurParams p{ width, height, blockSize, 24u, m_shutter, 128.0f, m_stillProtection ? 0.03f : 0.0f, m_debug, m_minLength, {} };
     memcpy(mapped.pData, &p, sizeof(p));
     context->Unmap(m_params, 0);
 

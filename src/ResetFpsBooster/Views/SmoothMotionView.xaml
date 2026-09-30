@@ -22,58 +22,6 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,6,0,0"/>
         </Style>
-        <!-- Racing slider: a thin track, the filled part in the accent, a slanted thumb -->
-        <Style x:Key="RacingSlider" TargetType="Slider">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Slider">
-                        <Grid VerticalAlignment="Center">
-                            <Border Height="6" Background="{StaticResource Brush.SurfaceHover}" RenderTransformOrigin="0.5,0.5">
-                                <Border.RenderTransform><SkewTransform AngleX="-20"/></Border.RenderTransform>
-                            </Border>
-                            <Track x:Name="PART_Track">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate TargetType="RepeatButton">
-                                                <Border Height="6" Background="{DynamicResource Brush.Accent}" RenderTransformOrigin="0.5,0.5">
-                                                    <Border.RenderTransform><SkewTransform AngleX="-20"/></Border.RenderTransform>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.DecreaseRepeatButton>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
-                                        <RepeatButton.Template>
-                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
-                                        </RepeatButton.Template>
-                                    </RepeatButton>
-                                </Track.IncreaseRepeatButton>
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border x:Name="knob" Width="14" Height="24" Background="White" RenderTransformOrigin="0.5,0.5">
-                                                    <Border.RenderTransform><SkewTransform AngleX="-12"/></Border.RenderTransform>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="knob" Property="Background" Value="{DynamicResource Brush.AccentBright}"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                            </Track>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">

@@ -42,13 +42,27 @@ public sealed class AppSettings
     /// window handle itself changes on every game start and is not kept.</summary>
     public string? FrameBoostLastProcess { get; set; }
 
-    /// <summary>Smooth Motion slider, 0..100. 50 = the strength the engine picks
-    /// on its own; the slider scales it from a quarter to three times.</summary>
+    /// <summary>Smooth Motion slider, 0..100. 50 = every frame smeared over one
+    /// full frame of motion; the slider scales it from a quarter to twice that.</summary>
     public int SmoothMotionStrength { get; set; } = 50;
 
     /// <summary>Which monitor Smooth Motion covers when it runs on its own:
     /// 0 = the primary, then the others in Windows' order.</summary>
     public int SmoothMotionScreen { get; set; }
+
+    /// <summary>The game (e.g. "r5apex_dx12.exe") whose window Smooth Motion
+    /// last covered, so it is picked again: capturing the game window was
+    /// measured smoother than the whole screen (no repeated frames). Null =
+    /// never chosen, follow FrameBoost's last game; empty = the user chose a
+    /// whole screen on purpose.</summary>
+    public string? SmoothMotionLastProcess { get; set; }
+
+    /// <summary>The crosshair overlay's look, kept between sessions.</summary>
+    public CrosshairStyle Crosshair { get; set; } = new();
+
+    /// <summary>Whether the crosshair was on when the app last closed. It comes
+    /// back on at the next start once premium is confirmed.</summary>
+    public bool CrosshairEnabled { get; set; }
 
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>

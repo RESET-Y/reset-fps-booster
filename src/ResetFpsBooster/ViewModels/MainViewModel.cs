@@ -32,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject
             new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta),
             new(NavigationSection.SmoothMotion, "Nav.SmoothMotion", IconKind.SmoothMotion),
 #endif
+            new(NavigationSection.Crosshair, "Nav.Crosshair", IconKind.Crosshair),
             new(NavigationSection.System, "Nav.System", IconKind.System),
             new(NavigationSection.Backups, "Nav.Backups", IconKind.Backups),
             new(NavigationSection.Logs, "Nav.Logs", IconKind.Logs),
@@ -44,7 +45,9 @@ public sealed partial class MainViewModel : ObservableObject
         // A stored sign-in is restored quietly in the background. Nothing waits
         // on it: the app works signed out, and premium is only asked for once
         // the session is back.
-        _ = _services.Auth.RestoreAsync();
+        // The crosshair comes back on by itself if it was on last time - but
+        // only once the restored session confirms premium.
+        _ = RestoreSessionAsync();
 
         // THE MANAGER ENTRY APPEARS ONLY FOR A MANAGER, decided by the server.
         // Asked again on every sign-in change, so it comes and goes with the
@@ -57,6 +60,12 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (_services.Settings.Current.EnableGameBoost)
             _services.GameBoost.Start();
+    }
+
+    private async Task RestoreSessionAsync()
+    {
+        try { await _services.Auth.RestoreAsync(); } catch { /* signed out is fine */ }
+        await _services.Crosshair.RestoreAsync(_services.Settings, _services.Auth);
     }
 
     // Runs once at startup. Errors (offline, rate-limited, etc.) stay silent - this is a
@@ -152,6 +161,8 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
 #endif
+            NavigationSection.Crosshair => new CrosshairViewModel(_services.Crosshair, _services.Settings, _services.Auth,
+                () => NavigateTo(NavigationSection.Account)),
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),

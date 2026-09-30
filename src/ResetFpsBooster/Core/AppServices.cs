@@ -28,6 +28,7 @@ public sealed class AppServices
     public ISystemRestoreService SystemRestore { get; }
     public IUpdateService Update { get; }
     public IAuthService Auth { get; }
+    public ICrosshairService Crosshair { get; }
 #if RFB_BETA
     public IFrameBoostBetaService FrameBoostBeta { get; }
 #endif
@@ -68,6 +69,7 @@ public sealed class AppServices
         SystemRestore = new SystemRestoreService();
         Update = new UpdateService(Settings);
         Auth = new AuthService();
+        Crosshair = new CrosshairService();
 #if RFB_BETA
         FrameBoostBeta = new FrameBoostBetaService();
 #endif

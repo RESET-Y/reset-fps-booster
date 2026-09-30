@@ -10,13 +10,11 @@
 // makes a new moment in time - the frame being blurred is exactly the one that
 // would have been shown anyway.
 //
-// Two things must NOT smear:
-//   - still pixels: the HUD, the crosshair, a menu. A pixel that is the same
-//     in the previous and the current real frame is left untouched, whatever
-//     its block's vector says - a block that straddles the HUD edge carries
-//     the scene's motion.
-//   - still pixels INTO moving ones: a sample that lands on a still pixel is
-//     skipped, so a streak behind the scene does not drag the HUD along.
+// NOTHING IS KEPT SHARP ON PURPOSE. Earlier versions left still pixels (HUD,
+// crosshair) and slow movement untouched; that made sharp islands next to
+// smeared ones and read as "it is trying to stay sharp" - Lukas wanted it
+// gone (2026-09-30). Every pixel is smeared by exactly as much as it moved.
+// What does not move has no streak because it has no motion, not by a rule.
 //
 // Averaging happens in linear light. Blending gamma-encoded values darkens
 // bright streaks, which reads as dirt, not motion.
@@ -34,14 +32,14 @@ cbuffer BlurParams : register(b0)
     uint  FrameWidth;
     uint  FrameHeight;
     uint  BlockSize;
-    uint  Samples;          // along the streak, >= 2
+    uint  Samples;          // most samples along a streak; fewer on short ones
 
     float Shutter;          // streak length as a fraction of one SOURCE interval's motion
     float MaxLength;        // pixels; a wrong huge vector must not smear the whole screen
-    float StaticThreshold;  // summed |prev - curr| per pixel below which it counts as still
+    float StaticThreshold;  // unused; kept so the constant buffer layout stays the same
     uint  DebugMode;        // 1 = show streak length as colour
 
-    float MinLength;        // pixels; below this no blur at all, fading in up to 3x it
+    float MinLength;        // unused; see above
     float3 _pad;
 };
 
@@ -80,14 +78,6 @@ float2 SampleMotionBilinear(float2 pixelCenter, uint2 blockCount)
     return lerp(lerp(m00, m10, frac.x), lerp(m01, m11, frac.x), frac.y);
 }
 
-bool IsStill(int2 texel)
-{
-    if (StaticThreshold <= 0.0) return false;   // protection switched off
-    const float3 p = PrevFrame.Load(int3(texel, 0)).rgb;
-    const float3 c = CurrFrame.Load(int3(texel, 0)).rgb;
-    return dot(abs(p - c), float3(1.0, 1.0, 1.0)) < StaticThreshold;
-}
-
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
@@ -95,8 +85,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
     const int2 texel = int2(id.xy);
     const float4 center = Source.Load(int3(texel, 0));
-
-    if (IsStill(texel)) { Output[texel] = center; return; }
 
     const float2 dims = float2(FrameWidth, FrameHeight);
     const uint2 blockCount = (uint2(FrameWidth, FrameHeight) + BlockSize - 1) / BlockSize;
@@ -107,11 +95,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float2 v = SampleMotionBilinear(p, blockCount) * Shutter;
     float len = length(v);
 
-    // FADE IN WITH SPEED. Slow motion stays sharp - aiming, strafing a few
-    // pixels, a scene at rest - and the streak only takes over once the
-    // movement is fast enough that the eye would see the gaps between frames.
-    const float fade = smoothstep(MinLength, MinLength * 2.0, len);
-    if (fade <= 0.0) { Output[texel] = center; return; }
+    // Under half a pixel there is nothing to smear; skipping it only saves work.
+    if (len < 0.5) { Output[texel] = center; return; }
     if (len > MaxLength) { v *= MaxLength / len; len = MaxLength; }
 
     if (DebugMode == 1u) {
@@ -120,20 +105,18 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         return;
     }
 
-    const uint n = max(Samples, 2u);
+    // One sample every ~5 pixels of streak, at most Samples: a long streak
+    // with too few samples shows separate copies instead of a smear.
+    const uint n = clamp((uint)ceil(len / 5.0), 3u, max(Samples, 3u));
     float3 sum = float3(0.0, 0.0, 0.0);
     float weight = 0.0;
     [loop]
     for (uint i = 0; i < n; ++i) {
         const float s = (i + 0.5) / n - 0.5;             // -0.5 .. +0.5 along the streak
         const float2 q = clamp(p + v * s, float2(0.5, 0.5), dims - 0.5);
-        if (IsStill(int2(q))) continue;                   // do not drag still pixels along
         sum += SrgbToLinear(Source.SampleLevel(LinearClamp, q / dims, 0).rgb);
         weight += 1.0;
     }
 
-    if (weight <= 0.0) { Output[texel] = center; return; }
-    const float3 blurredLin = sum / weight;
-    const float3 centerLin = SrgbToLinear(center.rgb);
-    Output[texel] = float4(LinearToSrgb(lerp(centerLin, blurredLin, fade)), center.a);
+    Output[texel] = float4(LinearToSrgb(sum / weight), center.a);
 }

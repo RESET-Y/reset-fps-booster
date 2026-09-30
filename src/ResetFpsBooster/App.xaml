@@ -57,6 +57,9 @@
             <DataTemplate DataType="{x:Type vm:AccountViewModel}">
                 <views:AccountView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:CrosshairViewModel}">
+                <views:CrosshairView/>
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsView/>
             </DataTemplate>
