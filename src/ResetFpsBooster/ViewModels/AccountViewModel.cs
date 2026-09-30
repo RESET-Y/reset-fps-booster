@@ -60,7 +60,53 @@ public sealed partial class AccountViewModel : ViewModelBase
         _auth = auth;
         _auth.SignInStateChanged += (_, _) => OnSignInStateChanged();
         _ = RefreshPremiumAsync();
-        Loc.LanguageChanged += (_, _) => OnPropertyChanged(nameof(PremiumUntilText));
+        _ = RefreshDiscordAsync();
+        Loc.LanguageChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(PremiumUntilText));
+            OnPropertyChanged(nameof(DiscordLinkedText));
+        };
+    }
+
+    // ---- Discord: the premium role on the RESET server follows the account ----
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDiscordLinked))]
+    [NotifyPropertyChangedFor(nameof(IsDiscordUnlinked))]
+    [NotifyPropertyChangedFor(nameof(DiscordLinkedText))]
+    private string? _discordName;
+
+    public bool IsDiscordLinked => DiscordName is not null;
+    public bool IsDiscordUnlinked => IsSignedIn && DiscordName is null;
+    public string DiscordLinkedText => Loc.F("Discord.LinkedAs", DiscordName ?? "");
+
+    private async Task RefreshDiscordAsync() => DiscordName = await _auth.LinkedDiscordNameAsync();
+
+    [RelayCommand]
+    private async Task SignInWithDiscordAsync() => await RunDiscordAsync(() => _auth.SignInWithDiscordAsync(), null);
+
+    [RelayCommand]
+    private async Task LinkDiscordAsync() => await RunDiscordAsync(() => _auth.LinkDiscordAsync(), Loc.T("Discord.Linked"));
+
+    [RelayCommand]
+    private void JoinDiscord()
+    {
+        try { Process.Start(new ProcessStartInfo(MainWindow.DiscordInvite) { UseShellExecute = true }); }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+
+    private async Task RunDiscordAsync(Func<Task<string?>> action, string? success)
+    {
+        IsBusy = true;
+        MessageIsError = false;
+        Message = Loc.T("Discord.WaitingForBrowser");
+        try
+        {
+            var error = await action();
+            if (error is null) { Message = success; await RefreshDiscordAsync(); }
+            else ShowError(error);
+        }
+        finally { IsBusy = false; }
     }
 
     private void OnSignInStateChanged()
@@ -69,7 +115,9 @@ public sealed partial class AccountViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsSignedOut));
         OnPropertyChanged(nameof(SignedInEmail));
         OnPropertyChanged(nameof(CanUpgrade));
+        OnPropertyChanged(nameof(IsDiscordUnlinked));
         _ = RefreshPremiumAsync();
+        _ = RefreshDiscordAsync();
     }
 
     private async Task RefreshPremiumAsync()

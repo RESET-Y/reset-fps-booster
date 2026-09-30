@@ -465,4 +465,20 @@
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Download complete. Click &quot;Install &amp; Restart&quot; to finish.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">The downloaded installer could not be found. Try downloading again.</sys:String>
     <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Join the Discord</sys:String>
+    <sys:String x:Key="Discord.SignIn" xml:space="preserve">Sign in with Discord</sys:String>
+    <sys:String x:Key="Discord.Link" xml:space="preserve">Link Discord</sys:String>
+    <sys:String x:Key="Discord.Join" xml:space="preserve">Join the server</sys:String>
+    <sys:String x:Key="Discord.Hint" xml:space="preserve">Link your Discord and join the RESET server: with Premium you get the Premium role there automatically, and lose it when Premium ends.</sys:String>
+    <sys:String x:Key="Discord.LinkedAs" xml:space="preserve">Linked as {0}</sys:String>
+    <sys:String x:Key="Discord.Linked" xml:space="preserve">Discord linked. With Premium, your role on the server follows within seconds.</sys:String>
+    <sys:String x:Key="Discord.WaitingForBrowser" xml:space="preserve">Finish in your browser, then come back here.</sys:String>
+    <sys:String x:Key="Discord.SignInFirst" xml:space="preserve">Sign in first, then link Discord.</sys:String>
+    <sys:String x:Key="Discord.LinkingOff" xml:space="preserve">Linking accounts is not switched on on the server yet.</sys:String>
+    <sys:String x:Key="Discord.Failed" xml:space="preserve">Discord could not be connected. Try again.</sys:String>
+    <sys:String x:Key="Discord.PortBusy" xml:space="preserve">Another sign-in is still waiting. Close it or wait a moment.</sys:String>
+    <sys:String x:Key="Discord.NoBrowser" xml:space="preserve">No browser could be opened.</sys:String>
+    <sys:String x:Key="Discord.TimedOut" xml:space="preserve">Nothing came back from the browser in five minutes. Try again.</sys:String>
+    <sys:String x:Key="Discord.BrowserDone" xml:space="preserve">Done</sys:String>
+    <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">That did not work</sys:String>
+    <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">You can close this tab and go back to RESET FPS BOOSTER.</sys:String>
 </ResourceDictionary>

@@ -2314,5 +2314,85 @@
     "en": "Join the Discord",
     "de": "Discord beitreten",
     "ru": "Вступить в Discord"
+  },
+  "Discord.SignIn": {
+    "en": "Sign in with Discord",
+    "de": "Mit Discord anmelden",
+    "ru": "Войти через Discord"
+  },
+  "Discord.Link": {
+    "en": "Link Discord",
+    "de": "Discord verbinden",
+    "ru": "Привязать Discord"
+  },
+  "Discord.Join": {
+    "en": "Join the server",
+    "de": "Server beitreten",
+    "ru": "Вступить на сервер"
+  },
+  "Discord.Hint": {
+    "en": "Link your Discord and join the RESET server: with Premium you get the Premium role there automatically, and lose it when Premium ends.",
+    "de": "Verbinde deinen Discord und tritt dem RESET-Server bei: Mit Premium bekommst du dort automatisch die Premium-Rolle, und sie verschwindet, wenn Premium endet.",
+    "ru": "Привяжите Discord и вступите на сервер RESET: с Премиумом вы автоматически получите там роль Premium, а когда Премиум закончится, она исчезнет."
+  },
+  "Discord.LinkedAs": {
+    "en": "Linked as {0}",
+    "de": "Verbunden als {0}",
+    "ru": "Привязан как {0}"
+  },
+  "Discord.Linked": {
+    "en": "Discord linked. With Premium, your role on the server follows within seconds.",
+    "de": "Discord verbunden. Mit Premium folgt deine Rolle auf dem Server in wenigen Sekunden.",
+    "ru": "Discord привязан. С Премиумом роль на сервере появится через несколько секунд."
+  },
+  "Discord.WaitingForBrowser": {
+    "en": "Finish in your browser, then come back here.",
+    "de": "Schließ den Vorgang im Browser ab und komm dann hierher zurück.",
+    "ru": "Завершите действие в браузере и вернитесь сюда."
+  },
+  "Discord.SignInFirst": {
+    "en": "Sign in first, then link Discord.",
+    "de": "Melde dich zuerst an und verbinde dann Discord.",
+    "ru": "Сначала войдите, затем привяжите Discord."
+  },
+  "Discord.LinkingOff": {
+    "en": "Linking accounts is not switched on on the server yet.",
+    "de": "Das Verknüpfen von Accounts ist auf dem Server noch nicht eingeschaltet.",
+    "ru": "Привязка аккаунтов на сервере ещё не включена."
+  },
+  "Discord.Failed": {
+    "en": "Discord could not be connected. Try again.",
+    "de": "Discord ließ sich nicht verbinden. Versuch es noch einmal.",
+    "ru": "Не удалось подключить Discord. Попробуйте ещё раз."
+  },
+  "Discord.PortBusy": {
+    "en": "Another sign-in is still waiting. Close it or wait a moment.",
+    "de": "Eine andere Anmeldung wartet noch. Schließ sie oder warte kurz.",
+    "ru": "Другой вход ещё ожидает. Закройте его или подождите."
+  },
+  "Discord.NoBrowser": {
+    "en": "No browser could be opened.",
+    "de": "Es ließ sich kein Browser öffnen.",
+    "ru": "Не удалось открыть браузер."
+  },
+  "Discord.TimedOut": {
+    "en": "Nothing came back from the browser in five minutes. Try again.",
+    "de": "Innerhalb von fünf Minuten kam nichts aus dem Browser zurück. Versuch es noch einmal.",
+    "ru": "За пять минут из браузера ничего не пришло. Попробуйте ещё раз."
+  },
+  "Discord.BrowserDone": {
+    "en": "Done",
+    "de": "Erledigt",
+    "ru": "Готово"
+  },
+  "Discord.BrowserFailed": {
+    "en": "That did not work",
+    "de": "Das hat nicht geklappt",
+    "ru": "Не получилось"
+  },
+  "Discord.BrowserClose": {
+    "en": "You can close this tab and go back to RESET FPS BOOSTER.",
+    "de": "Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.",
+    "ru": "Можно закрыть эту вкладку и вернуться в RESET FPS BOOSTER."
   }
 }

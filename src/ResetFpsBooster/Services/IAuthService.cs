@@ -27,6 +27,23 @@ public interface IAuthService
 
     Task SignOutAsync(CancellationToken ct = default);
 
+    // ---- Discord ------------------------------------------------------------
+
+    /// Signs in through Discord in the browser. Returns null on success, or a
+    /// message fit to show the user.
+    Task<string?> SignInWithDiscordAsync(CancellationToken ct = default);
+
+    /// Links Discord to the account that is signed in now, so the premium role
+    /// on the RESET server can follow it. Null on success, or a message.
+    Task<string?> LinkDiscordAsync(CancellationToken ct = default);
+
+    /// The linked Discord name, or null when none is linked or on any error.
+    Task<string?> LinkedDiscordNameAsync(CancellationToken ct = default);
+
+    /// Asks the server to set this user's Discord premium role to match their
+    /// premium. Quiet on failure; the hourly sync catches up.
+    Task SyncDiscordRoleAsync(CancellationToken ct = default);
+
     /// Asks the server - not a local flag - whether this user holds premium.
     /// False when signed out, offline, or on any error: premium is never
     /// assumed.

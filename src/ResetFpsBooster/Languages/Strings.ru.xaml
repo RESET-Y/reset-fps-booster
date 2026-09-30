@@ -465,4 +465,20 @@
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Загрузка завершена. Нажмите «Установить и перезапустить», чтобы закончить.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">Загруженный установщик не найден. Попробуйте загрузить снова.</sys:String>
     <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Вступить в Discord</sys:String>
+    <sys:String x:Key="Discord.SignIn" xml:space="preserve">Войти через Discord</sys:String>
+    <sys:String x:Key="Discord.Link" xml:space="preserve">Привязать Discord</sys:String>
+    <sys:String x:Key="Discord.Join" xml:space="preserve">Вступить на сервер</sys:String>
+    <sys:String x:Key="Discord.Hint" xml:space="preserve">Привяжите Discord и вступите на сервер RESET: с Премиумом вы автоматически получите там роль Premium, а когда Премиум закончится, она исчезнет.</sys:String>
+    <sys:String x:Key="Discord.LinkedAs" xml:space="preserve">Привязан как {0}</sys:String>
+    <sys:String x:Key="Discord.Linked" xml:space="preserve">Discord привязан. С Премиумом роль на сервере появится через несколько секунд.</sys:String>
+    <sys:String x:Key="Discord.WaitingForBrowser" xml:space="preserve">Завершите действие в браузере и вернитесь сюда.</sys:String>
+    <sys:String x:Key="Discord.SignInFirst" xml:space="preserve">Сначала войдите, затем привяжите Discord.</sys:String>
+    <sys:String x:Key="Discord.LinkingOff" xml:space="preserve">Привязка аккаунтов на сервере ещё не включена.</sys:String>
+    <sys:String x:Key="Discord.Failed" xml:space="preserve">Не удалось подключить Discord. Попробуйте ещё раз.</sys:String>
+    <sys:String x:Key="Discord.PortBusy" xml:space="preserve">Другой вход ещё ожидает. Закройте его или подождите.</sys:String>
+    <sys:String x:Key="Discord.NoBrowser" xml:space="preserve">Не удалось открыть браузер.</sys:String>
+    <sys:String x:Key="Discord.TimedOut" xml:space="preserve">За пять минут из браузера ничего не пришло. Попробуйте ещё раз.</sys:String>
+    <sys:String x:Key="Discord.BrowserDone" xml:space="preserve">Готово</sys:String>
+    <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Не получилось</sys:String>
+    <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Можно закрыть эту вкладку и вернуться в RESET FPS BOOSTER.</sys:String>
 </ResourceDictionary>

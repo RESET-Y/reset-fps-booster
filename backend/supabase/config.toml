@@ -3,3 +3,9 @@
 # instead - see functions/stripe-webhook/index.ts.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# Called by the app with a user token and by the hourly cron job with none.
+# It only ever sets roles to what the database says, so it checks the token
+# itself instead of requiring one - see functions/discord-sync/index.ts.
+[functions.discord-sync]
+verify_jwt = false

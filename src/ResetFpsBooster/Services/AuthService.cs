@@ -45,6 +45,9 @@ public sealed class AuthService : IAuthService
         var refreshed = await RefreshAsync(stored.RefreshToken, ct);
         if (refreshed is null) { DeleteSession(); return; }
         SetSession(refreshed);
+
+        // Premium may have started or ended while the app was closed.
+        _ = SyncDiscordRoleAsync(ct);
     }
 
     public async Task<string?> SignInAsync(string email, string password, CancellationToken ct = default)
@@ -103,6 +106,185 @@ public sealed class AuthService : IAuthService
         try { using var _ = await PostAuthAsync("logout", new { }, token, ct); } catch { }
     }
 
+    // ---- Discord ------------------------------------------------------------
+    //
+    // OAuth in the user's own browser, with PKCE: the app makes a secret
+    // (verifier), sends only its hash (challenge) along, and later trades the
+    // code Supabase hands back for a session by showing the secret. The code
+    // alone is worthless to anyone who sees it.
+    //
+    // The browser returns to a local address this app listens on for as long
+    // as the sign-in takes. It must be listed in Supabase under
+    // Authentication > URL Configuration > Redirect URLs.
+
+    private const string LoopbackRedirect = "http://127.0.0.1:53682/callback";
+
+    public async Task<string?> SignInWithDiscordAsync(CancellationToken ct = default)
+    {
+        if (!SupabaseConfig.IsConfigured) return Loc.T("Auth.NotSetUp");
+        var (verifier, challenge) = NewPkce();
+        var authorizeUrl = $"{SupabaseConfig.Url.TrimEnd('/')}/auth/v1/authorize?provider=discord"
+                         + $"&redirect_to={Uri.EscapeDataString(LoopbackRedirect)}"
+                         + $"&code_challenge={challenge}&code_challenge_method=s256"
+                         + "&scopes=identify%20email";
+        var error = await CompleteBrowserFlowAsync(authorizeUrl, verifier, ct);
+        if (error is null) await SyncDiscordRoleAsync(ct);
+        return error;
+    }
+
+    public async Task<string?> LinkDiscordAsync(CancellationToken ct = default)
+    {
+        if (!SupabaseConfig.IsConfigured) return Loc.T("Auth.NotSetUp");
+        if (_session?.RefreshToken is null) return Loc.T("Discord.SignInFirst");
+
+        // Linking needs a live access token; the stored one may be hours old.
+        var fresh = await RefreshAsync(_session.RefreshToken, ct);
+        if (fresh is null) return Loc.T("Discord.SignInFirst");
+        SetSession(fresh);
+
+        var (verifier, challenge) = NewPkce();
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                $"{SupabaseConfig.Url.TrimEnd('/')}/auth/v1/user/identities/authorize?provider=discord"
+                + $"&redirect_to={Uri.EscapeDataString(LoopbackRedirect)}"
+                + $"&code_challenge={challenge}&code_challenge_method=s256"
+                + "&scopes=identify%20email&skip_http_redirect=true");
+            req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", fresh.AccessToken);
+            using var res = await Http.SendAsync(req, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return body.Contains("manual_linking_disabled") || body.Contains("Manual linking")
+                    ? Loc.T("Discord.LinkingOff") : Loc.T("Discord.Failed");
+
+            using var doc = JsonDocument.Parse(body);
+            var url = doc.RootElement.TryGetProperty("url", out var u) ? u.GetString() : null;
+            if (url is null) return Loc.T("Discord.Failed");
+            var error = await CompleteBrowserFlowAsync(url, verifier, ct);
+            if (error is null) await SyncDiscordRoleAsync(ct);
+            return error;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return Loc.T("Auth.Offline");
+        }
+    }
+
+    public async Task<string?> LinkedDiscordNameAsync(CancellationToken ct = default)
+    {
+        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return null;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, $"{SupabaseConfig.Url.TrimEnd('/')}/auth/v1/user");
+            req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            using var res = await Http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
+            if (!doc.RootElement.TryGetProperty("identities", out var ids) || ids.ValueKind != JsonValueKind.Array) return null;
+            foreach (var id in ids.EnumerateArray())
+            {
+                if (!id.TryGetProperty("provider", out var p) || p.GetString() != "discord") continue;
+                if (id.TryGetProperty("identity_data", out var data))
+                    foreach (var key in new[] { "custom_claims.global_name", "full_name", "name", "user_name" })
+                    {
+                        var node = data;
+                        var found = true;
+                        foreach (var part in key.Split('.'))
+                            if (!node.TryGetProperty(part, out node)) { found = false; break; }
+                        if (found && node.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(node.GetString()))
+                            return node.GetString();
+                    }
+                return "Discord";
+            }
+            return null;
+        }
+        catch { return null; }
+    }
+
+    public async Task SyncDiscordRoleAsync(CancellationToken ct = default)
+    {
+        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"{SupabaseConfig.Url.TrimEnd('/')}/functions/v1/discord-sync")
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json"),
+            };
+            req.Headers.Add("apikey", SupabaseConfig.AnonKey);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            using var _ = await Http.SendAsync(req, ct);
+        }
+        catch { /* the hourly sync catches up */ }
+    }
+
+    /// Opens the browser, waits for Supabase to send it back to the local
+    /// address with a code, and trades that code for a session.
+    private async Task<string?> CompleteBrowserFlowAsync(string url, string verifier, CancellationToken ct)
+    {
+        using var listener = new System.Net.HttpListener();
+        listener.Prefixes.Add("http://127.0.0.1:53682/callback/");
+        try { listener.Start(); }
+        catch { return Loc.T("Discord.PortBusy"); }
+
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch { return Loc.T("Discord.NoBrowser"); }
+
+        // Five minutes to finish in the browser, then give up quietly.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromMinutes(5));
+        System.Net.HttpListenerContext ctx;
+        try { ctx = await listener.GetContextAsync().WaitAsync(timeout.Token); }
+        catch (OperationCanceledException) { return Loc.T("Discord.TimedOut"); }
+
+        var query = System.Web.HttpUtility.ParseQueryString(ctx.Request.Url?.Query ?? "");
+        var code = query["code"];
+        var error = query["error_description"] ?? query["error"];
+
+        // Something the user can read in the tab they are looking at.
+        var ok = code is not null && error is null;
+        var page = "<!doctype html><meta charset=utf-8><title>RESET FPS BOOSTER</title>"
+                 + "<body style=\"background:#050505;color:#fff;font-family:Segoe UI,sans-serif;display:grid;place-items:center;height:100vh;margin:0\">"
+                 + "<div style=\"text-align:center\"><div style=\"height:6px;width:320px;margin:0 auto 24px;background:repeating-linear-gradient(-56deg,#e8121f 0 5px,#000 5px 10px)\"></div>"
+                 + $"<h1 style=\"font-style:italic;font-weight:900;text-transform:uppercase\">{(ok ? System.Net.WebUtility.HtmlEncode(Loc.T("Discord.BrowserDone")) : System.Net.WebUtility.HtmlEncode(Loc.T("Discord.BrowserFailed")))}</h1>"
+                 + $"<p style=\"color:#a8a8a8\">{System.Net.WebUtility.HtmlEncode(Loc.T("Discord.BrowserClose"))}</p></div>";
+        var bytes = Encoding.UTF8.GetBytes(page);
+        ctx.Response.ContentType = "text/html; charset=utf-8";
+        ctx.Response.ContentLength64 = bytes.Length;
+        await ctx.Response.OutputStream.WriteAsync(bytes, ct);
+        ctx.Response.Close();
+
+        if (!ok) return error ?? Loc.T("Discord.Failed");
+
+        try
+        {
+            using var res = await PostAuthAsync("token?grant_type=pkce",
+                new { auth_code = code, code_verifier = verifier }, bearer: null, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode) return DescribeError(body, signingUp: false);
+            var session = JsonSerializer.Deserialize<Session>(body, Json);
+            if (session?.AccessToken is null) return Loc.T("Auth.Unreadable");
+            SetSession(session);
+            return null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return Loc.T("Auth.Offline");
+        }
+    }
+
+    private static (string Verifier, string Challenge) NewPkce()
+    {
+        var verifier = Base64Url(RandomNumberGenerator.GetBytes(48));
+        var challenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(verifier)));
+        return (verifier, challenge);
+    }
+
+    private static string Base64Url(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
     public async Task<bool> IsPremiumAsync(CancellationToken ct = default)
     {
         if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return false;
@@ -152,6 +334,7 @@ public sealed class AuthService : IAuthService
     {
         var (ok, body) = await RpcAsync("redeem_premium_code", new { p_code = code }, ct);
         if (!ok) return "error";
+        _ = SyncDiscordRoleAsync(ct);   // a new premium shows on Discord at once
         try { return JsonSerializer.Deserialize<string>(body) ?? "error"; }
         catch { return "error"; }
     }

@@ -465,4 +465,20 @@
     <sys:String x:Key="Set.UpdDownloaded" xml:space="preserve">Download fertig. Klick auf „Installieren &amp; neu starten“, um abzuschließen.</sys:String>
     <sys:String x:Key="Set.UpdMissing" xml:space="preserve">Der heruntergeladene Installer wurde nicht gefunden. Lade ihn erneut herunter.</sys:String>
     <sys:String x:Key="Shell.JoinDiscord" xml:space="preserve">Discord beitreten</sys:String>
+    <sys:String x:Key="Discord.SignIn" xml:space="preserve">Mit Discord anmelden</sys:String>
+    <sys:String x:Key="Discord.Link" xml:space="preserve">Discord verbinden</sys:String>
+    <sys:String x:Key="Discord.Join" xml:space="preserve">Server beitreten</sys:String>
+    <sys:String x:Key="Discord.Hint" xml:space="preserve">Verbinde deinen Discord und tritt dem RESET-Server bei: Mit Premium bekommst du dort automatisch die Premium-Rolle, und sie verschwindet, wenn Premium endet.</sys:String>
+    <sys:String x:Key="Discord.LinkedAs" xml:space="preserve">Verbunden als {0}</sys:String>
+    <sys:String x:Key="Discord.Linked" xml:space="preserve">Discord verbunden. Mit Premium folgt deine Rolle auf dem Server in wenigen Sekunden.</sys:String>
+    <sys:String x:Key="Discord.WaitingForBrowser" xml:space="preserve">Schließ den Vorgang im Browser ab und komm dann hierher zurück.</sys:String>
+    <sys:String x:Key="Discord.SignInFirst" xml:space="preserve">Melde dich zuerst an und verbinde dann Discord.</sys:String>
+    <sys:String x:Key="Discord.LinkingOff" xml:space="preserve">Das Verknüpfen von Accounts ist auf dem Server noch nicht eingeschaltet.</sys:String>
+    <sys:String x:Key="Discord.Failed" xml:space="preserve">Discord ließ sich nicht verbinden. Versuch es noch einmal.</sys:String>
+    <sys:String x:Key="Discord.PortBusy" xml:space="preserve">Eine andere Anmeldung wartet noch. Schließ sie oder warte kurz.</sys:String>
+    <sys:String x:Key="Discord.NoBrowser" xml:space="preserve">Es ließ sich kein Browser öffnen.</sys:String>
+    <sys:String x:Key="Discord.TimedOut" xml:space="preserve">Innerhalb von fünf Minuten kam nichts aus dem Browser zurück. Versuch es noch einmal.</sys:String>
+    <sys:String x:Key="Discord.BrowserDone" xml:space="preserve">Erledigt</sys:String>
+    <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Das hat nicht geklappt</sys:String>
+    <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.</sys:String>
 </ResourceDictionary>

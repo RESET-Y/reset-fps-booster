@@ -41,6 +41,17 @@
                                     Command="{Binding SignUpCommand}"
                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
                         </StackPanel>
+
+                        <!-- or no password at all -->
+                        <Border BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,16,0,0">
+                            <Button Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Command="{Binding SignInWithDiscordCommand}"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.3 18.3 0 0 0-5.5 0L8.7 3a19.7 19.7 0 0 0-4.9 1.5C.7 9.1-.2 13.7.3 18.2a19.9 19.9 0 0 0 6 3l1.3-2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a12.8 12.8 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.8-3.8-13.8ZM8.5 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z" Fill="#5865F2" Width="18" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock Text="{DynamicResource Discord.SignIn}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -96,6 +107,25 @@
                                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
                             </StackPanel>
                         </StackPanel>
+
+                        <!-- Discord: linking puts the premium role on the RESET server -->
+                        <Border BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0" Margin="0,18,0,0" Padding="0,16,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.3 18.3 0 0 0-5.5 0L8.7 3a19.7 19.7 0 0 0-4.9 1.5C.7 9.1-.2 13.7.3 18.2a19.9 19.9 0 0 0 6 3l1.3-2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a12.8 12.8 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.8-3.8-13.8ZM8.5 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z" Fill="#5865F2" Width="18" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <TextBlock Text="Discord" FontFamily="Segoe UI Black" FontStyle="Italic" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="{DynamicResource Discord.Hint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <TextBlock Text="{Binding DiscordLinkedText}" Foreground="{StaticResource Brush.Success}" FontFamily="Segoe UI Semibold" Margin="0,10,0,0"
+                                           Visibility="{Binding IsDiscordLinked, Converter={StaticResource BoolToVis}}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button Content="{DynamicResource Discord.Link}" Style="{StaticResource Button.Secondary}" Margin="0,0,10,0"
+                                            Command="{Binding LinkDiscordCommand}" Visibility="{Binding IsDiscordUnlinked, Converter={StaticResource BoolToVis}}"
+                                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"/>
+                                    <Button Content="{DynamicResource Discord.Join}" Style="{StaticResource Button.Ghost}" Command="{Binding JoinDiscordCommand}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
 
                         <Button Content="{DynamicResource Account.SignOut}" Style="{StaticResource Button.Secondary}"
                                 HorizontalAlignment="Left" Margin="0,18,0,0"
