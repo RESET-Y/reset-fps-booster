@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /manager/
+Sitemap: https://reset-booster.netlify.app/sitemap.xml

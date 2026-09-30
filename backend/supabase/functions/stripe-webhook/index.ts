@@ -22,6 +22,21 @@
 // so the subscription id is stored as external_ref on that first event and
 // every later event finds its user through it.
 //
+// BOUGHT ON THE WEBSITE: no client_reference_id, because nobody is signed in
+// there. Such a checkout becomes a premium code (issue_purchase_code, see
+// migration 0004), shown to the buyer by the purchase-code function on the
+// thank-you page and redeemed in the app. The code carries the same pi_/sub_
+// reference, so renewals, cancellations and refunds keep it in step with the
+// payment - before it is redeemed on the code, afterwards on the entitlement.
+// The buyer's e-mail is kept with it (migration 0005), so a lost code shows
+// up again on the website's account page once they sign in with that e-mail.
+//
+// AFFILIATES: a checkout paid with an affiliate's promotion code is counted
+// for them (affiliate_sales, migration 0006), with the commission fixed from
+// the net amount at that moment. Renewals of such a subscription count too
+// when the affiliate gets recurring commission (invoice.paid). A full refund
+// of a one-time payment takes its sale back out.
+//
 // Environment (Supabase -> Edge Functions -> Secrets):
 //   STRIPE_WEBHOOK_SECRET        whsec_... from the webhook endpoint in Stripe
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   provided by Supabase itself
@@ -130,32 +145,99 @@ Deno.serve(async (req) => {
 
   const fail = (what: unknown) => { console.error(what); return new Response("db error", { status: 500 }); };
 
+  // Counted once per payment: the id is the checkout session or invoice, so a
+  // retried delivery hits the primary key and changes nothing.
+  const countSale = async (affiliate: any, id: string, plan: string, kind: string, ref: string, netCents: number) => {
+    const commission = Math.round(netCents * Number(affiliate.commission_percent) / 100);
+    const { error } = await db.from("affiliate_sales").upsert({
+      id, affiliate_id: affiliate.id, plan, kind, stripe_ref: ref,
+      net_cents: netCents, commission_cents: commission, currency: obj.currency ?? "eur",
+    }, { onConflict: "id", ignoreDuplicates: true });
+    if (!error) console.log(`affiliate sale: ${affiliate.code} ${kind} ${plan} net=${netCents} commission=${commission}`);
+    return error;
+  };
+
   switch (event?.type) {
     // ---- A COMPLETED CHECKOUT: lifetime payment or a new subscription -------
     case "checkout.session.completed": {
-      const userId: string | undefined = obj.client_reference_id;
-      if (!userId || !UUID.test(userId)) {
-        // Acknowledged, so Stripe does not retry forever - retrying cannot add
-        // the missing id. Logged with what is needed to assign it by hand.
-        console.error(`UNMATCHED PURCHASE: session=${obj.id} email=${obj.customer_details?.email ?? "?"} - no client_reference_id`);
-        break;
-      }
       if (obj.payment_status !== "paid" && obj.payment_status !== "no_payment_required") break;
 
+      let plan: "monthly" | "lifetime";
+      let ref: string;
+      let validUntil: string | null;
       if (obj.mode === "subscription" && obj.subscription) {
         // Valid for a first period until the subscription event brings the
         // exact end; a generous placeholder is fine because
         // customer.subscription.created/updated overwrites it within seconds.
-        const provisional = iso(Date.now() / 1000 + 35 * 24 * 60 * 60);
-        const { error } = await upsert(userId, `sub_${obj.subscription}`, provisional);
-        if (error) return fail(error);
-        console.log(`subscription started: user=${userId} sub=${obj.subscription}`);
+        plan = "monthly";
+        ref = `sub_${obj.subscription}`;
+        validUntil = iso(Date.now() / 1000 + 35 * 24 * 60 * 60);
       } else if (obj.mode === "payment") {
-        const ref = `pi_${obj.payment_intent ?? obj.id}`;
-        const { error } = await upsert(userId, ref, null);
-        if (error) return fail(error);
-        console.log(`lifetime granted: user=${userId} ref=${ref}`);
+        plan = "lifetime";
+        ref = `pi_${obj.payment_intent ?? obj.id}`;
+        validUntil = null;
+      } else {
+        break;
       }
+
+      const userId: string | undefined = obj.client_reference_id;
+      if (userId && UUID.test(userId)) {
+        // Bought in the app: straight onto the account.
+        const { error } = await upsert(userId, ref, validUntil);
+        if (error) return fail(error);
+        const { error: logError } = await db.from("purchases")
+          .upsert({ session_id: obj.id, plan, user_id: userId }, { onConflict: "session_id", ignoreDuplicates: true });
+        if (logError) return fail(logError);
+        console.log(`${plan} granted: user=${userId} ref=${ref}`);
+      } else {
+        // Bought on the website: a code for the buyer to redeem in the app.
+        const email = obj.customer_details?.email ?? "?";
+        const { data: code, error } = await db.rpc("issue_purchase_code", {
+          p_session: obj.id,
+          p_plan: plan,
+          p_stripe_ref: ref,
+          p_valid_until: validUntil,
+          p_note: `Website ${plan} · ${email}`,
+          p_email: obj.customer_details?.email ?? null,
+        });
+        if (error) return fail(error);
+        console.log(`${plan} code issued: code=${code} ref=${ref} session=${obj.id}`);
+      }
+
+      // Paid with an affiliate's code? discounts[].promotion_code is the id
+      // (or, if ever expanded, the object).
+      const promoIds = (obj.discounts ?? [])
+        .map((d: any) => typeof d.promotion_code === "string" ? d.promotion_code : d.promotion_code?.id)
+        .filter(Boolean);
+      if (promoIds.length) {
+        const { data: affiliate, error: affError } = await db.from("affiliates")
+          .select("id, code, commission_percent").in("stripe_promo_id", promoIds).limit(1).maybeSingle();
+        if (affError) return fail(affError);
+        if (affiliate) {
+          const net = (obj.amount_total ?? 0) - (obj.total_details?.amount_tax ?? 0);
+          const saleError = await countSale(affiliate, obj.id, plan, "first", ref, net);
+          if (saleError) return fail(saleError);
+        }
+      }
+      break;
+    }
+
+    // ---- A SUBSCRIPTION RENEWAL: recurring affiliate commission --------------
+    case "invoice.paid": {
+      // The first invoice is already counted with its checkout.
+      if (obj.billing_reason !== "subscription_cycle") break;
+      const subId: string | undefined = obj.subscription ?? obj.parent?.subscription_details?.subscription;
+      if (!subId) break;
+      const { data: first, error: firstError } = await db.from("affiliate_sales")
+        .select("affiliates(id, code, commission_percent, commission_recurring)")
+        .eq("stripe_ref", `sub_${subId}`).eq("kind", "first").limit(1).maybeSingle();
+      if (firstError) return fail(firstError);
+      const affiliate: any = (first as any)?.affiliates;
+      if (!affiliate?.commission_recurring) break;
+      const tax = typeof obj.tax === "number" ? obj.tax
+        : (obj.total_taxes ?? []).reduce((sum: number, t: any) => sum + (t.amount ?? 0), 0);
+      const saleError = await countSale(affiliate, obj.id, "monthly", "renewal", `sub_${subId}`, (obj.amount_paid ?? 0) - tax);
+      if (saleError) return fail(saleError);
       break;
     }
 
@@ -164,13 +246,6 @@ Deno.serve(async (req) => {
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const subId: string = obj.id;
-      const userId = await userForSubscription(subId);
-      if (!userId) {
-        // Can arrive before checkout.session.completed; that event will create
-        // the row, and the next update will set the exact date.
-        console.log(`subscription ${event.type} for unknown sub=${subId} - waiting for checkout`);
-        break;
-      }
 
       let validUntil: string;
       const status: string = obj.status ?? "";
@@ -182,6 +257,21 @@ Deno.serve(async (req) => {
         const end = obj.current_period_end ?? obj.items?.data?.[0]?.current_period_end;
         if (!end) break;
         validUntil = iso(end + RENEWAL_GRACE_S);
+      }
+
+      // A code bought on the website follows its subscription too, so an
+      // unredeemed code for a cancelled subscription stops working.
+      const { data: codes, error: codeError } = await db.from("premium_codes")
+        .update({ valid_until: validUntil }).eq("stripe_ref", `sub_${subId}`).select("code");
+      if (codeError) return fail(codeError);
+
+      const userId = await userForSubscription(subId);
+      if (!userId) {
+        // Either a website code not redeemed yet (updated above), or this
+        // arrived before checkout.session.completed - that event creates the
+        // row, and the next update sets the exact date.
+        console.log(`subscription ${event.type}: sub=${subId} no account yet, codes updated=${codes?.length ?? 0}`);
+        break;
       }
 
       const { error } = await upsert(userId, `sub_${subId}`, validUntil);
@@ -199,7 +289,14 @@ Deno.serve(async (req) => {
         .update({ valid_until: new Date().toISOString() })
         .eq("source", SOURCE).eq("external_ref", ref).select("user_id");
       if (error) return fail(error);
-      console.log(`refund: ref=${ref} rows=${data?.length ?? 0}`);
+      // A website code for this payment stops working, redeemed or not.
+      const { data: codes, error: codeError } = await db.from("premium_codes")
+        .update({ active: false }).eq("stripe_ref", ref).select("code");
+      if (codeError) return fail(codeError);
+      // No commission on money that went back.
+      const { error: saleError } = await db.from("affiliate_sales").update({ reversed: true }).eq("stripe_ref", ref);
+      if (saleError) return fail(saleError);
+      console.log(`refund: ref=${ref} rows=${data?.length ?? 0} codes=${codes?.length ?? 0}`);
       break;
     }
 

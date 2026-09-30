@@ -4,11 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RESET FPS BOOSTER</title>
-<meta name="description" content="Real Windows and NVIDIA optimization you can see and undo, plus RESET FRAMEBOOST frame generation. No placebo, no fake FPS.">
+<meta name="description" content="Real Windows and NVIDIA optimization you can see and undo, a bottleneck engine that tells you why you lose FPS, and RESET FrameBoost frame generation. No placebo, no fake FPS.">
+<meta name="theme-color" content="#050505">
+<link rel="canonical" href="https://reset-booster.netlify.app/">
 <link rel="icon" href="assets/favicon.ico">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800;900&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RESET FPS BOOSTER">
+<meta property="og:title" content="RESET FPS BOOSTER · Real optimization. No placebo.">
+<meta property="og:description" content="Every change shown, logged and reversible. Bottleneck Engine and RESET FrameBoost for Windows 10/11.">
+<meta property="og:url" content="https://reset-booster.netlify.app/">
+<meta property="og:image" content="https://reset-booster.netlify.app/assets/logo_wide.png">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"RESET FPS BOOSTER","operatingSystem":"Windows 10, Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"1.3.3","url":"https://reset-booster.netlify.app/","downloadUrl":"https://github.com/RESET-Y/reset-fps-booster/releases/latest","author":{"@type":"Person","name":"Lukas Reschke"},"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
+</script>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
 /* One visual world, like the app: near-black, livery red, slanted type. */
 :root {
@@ -17,11 +27,13 @@
   --surface-2: #141414;
   --hover: #1c1c1c;
   --border: #262626;
+  --border-2: #3a3a3a;
   --text: #ffffff;
   --text-2: #a8a8a8;
   --text-3: #6a6a6a;
   --accent: #e8121f;
   --accent-bright: #ff3242;
+  --accent-glow: rgba(232,18,31,.35);
   --success: #3dd68c;
   --warning: #f5a623;
   --display: "Saira Condensed", "Arial Narrow", sans-serif;
@@ -29,73 +41,111 @@
   --mono: "JetBrains Mono", Consolas, monospace;
   --skew: -12deg;
   --max: 1180px;
+  --hatch: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px);
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 a { color: inherit; }
 img { display: block; max-width: 100%; }
+button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
+::selection { background: var(--accent); color: #fff; }
 
 /* hatched racing stripe, same as the app's top edge */
-.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
+.stripe { height: 6px; background: var(--hatch); }
 
 .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+.skip-link { position: absolute; left: 12px; top: -60px; z-index: 200; background: var(--accent); color: #fff; padding: 10px 16px; font: 800 italic 15px var(--display); text-transform: uppercase; }
+.skip-link:focus { top: 12px; }
 
 /* ---------- nav ---------- */
-header { position: sticky; top: 0; z-index: 10; background: rgba(5,5,5,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-.nav { display: flex; align-items: center; gap: 28px; height: 64px; }
-.nav img { height: 28px; width: auto; }
-.nav .links { display: flex; gap: 24px; margin-left: auto; }
-.nav .lang { margin-left: auto; }
-.nav .links + .lang { margin-left: 0; }
-.nav .links a { font: 800 italic 15px var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--text-2); transition: color .15s; }
-.nav .links a:hover { color: var(--text); }
+header { position: sticky; top: 0; z-index: 50; background: rgba(5,5,5,.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 10px var(--accent-glow); }
+.nav { display: flex; align-items: center; gap: 24px; height: 64px; }
+.nav > a img { height: 28px; width: auto; }
+.nav .links { display: flex; gap: 22px; margin-left: auto; }
+.nav .links a { font: 800 italic 15px var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--text-2); transition: color .15s; position: relative; padding: 4px 0; }
+.nav .links a:hover, .nav .links a.here { color: var(--text); }
+.nav .links a.here::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: var(--accent); transform: skewX(var(--skew)); }
+.burger { display: none; margin-left: 4px; width: 42px; height: 38px; background: var(--surface-2); border: 1px solid var(--border); transform: skewX(var(--skew)); cursor: pointer; position: relative; }
+.burger i { position: absolute; left: 11px; right: 11px; height: 2px; background: var(--text); transition: transform .2s, opacity .2s; }
+.burger i:nth-child(1) { top: 12px; } .burger i:nth-child(2) { top: 18px; } .burger i:nth-child(3) { top: 24px; }
+header.open .burger i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+header.open .burger i:nth-child(2) { opacity: 0; }
+header.open .burger i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.mnav { display: none; border-top: 1px solid var(--border); padding: 10px 0 22px; }
+.mnav a { display: block; padding: 12px 0; font: 900 italic 28px var(--display); text-transform: uppercase; text-decoration: none; border-bottom: 1px solid var(--border); }
+.mnav a:hover { color: var(--accent-bright); }
+header.open .mnav { display: block; }
 
 /* ---------- slanted buttons ---------- */
-.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; transform: skewX(var(--skew)); text-decoration: none;
-       font: 900 italic 17px var(--display); letter-spacing: .05em; text-transform: uppercase; transition: transform .15s, background .15s; border: 1px solid transparent; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; transform: skewX(var(--skew)); text-decoration: none; cursor: pointer;
+       font: 900 italic 17px var(--display); letter-spacing: .05em; text-transform: uppercase; transition: transform .15s, background .15s, border-color .15s, box-shadow .2s; border: 1px solid transparent; }
 .btn > span { transform: skewX(12deg); display: inline-block; }
 .btn:hover { transform: skewX(var(--skew)) scale(1.05); }
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent-bright); }
+.btn-primary:hover { background: var(--accent-bright); box-shadow: 0 0 28px var(--accent-glow); }
 .btn-secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 .btn-secondary:hover { border-color: var(--accent); }
 .btn-small { padding: 9px 18px; font-size: 14px; }
+
+/* segmented / chip buttons */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--surface-2); border: 1px solid var(--border); padding: 7px 14px; transform: skewX(var(--skew)); cursor: pointer;
+        font: 800 italic 14px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); transition: color .15s, border-color .15s, background .15s; }
+.chip > span { display: inline-block; transform: skewX(12deg); }
+.chip:hover { color: var(--text); border-color: var(--border-2); }
+.chip.ghost { background: transparent; border-style: dashed; }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* ---------- type ---------- */
 .eyebrow { font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); display: flex; align-items: center; gap: 10px; }
 .eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); }
 h1, h2, h3 { font-family: var(--display); font-style: italic; font-weight: 900; text-transform: uppercase; line-height: .95; margin: 0; text-wrap: balance; }
-h1 { font-size: clamp(52px, 8vw, 104px); letter-spacing: -.01em; }
+h1 { font-size: clamp(52px, 8vw, 108px); letter-spacing: -.01em; }
 h2 { font-size: clamp(38px, 5vw, 64px); }
 h3 { font-size: 24px; line-height: 1.05; }
 .accent { color: var(--accent); }
 .lead { color: var(--text-2); font-size: 19px; max-width: 58ch; margin: 22px 0 0; }
 .mono { font-family: var(--mono); }
 
-section { padding: 110px 0; border-bottom: 1px solid var(--border); }
-.head { display: grid; gap: 16px; margin-bottom: 52px; max-width: 760px; }
-.head p { color: var(--text-2); margin: 0; max-width: 60ch; }
+section { padding: 110px 0; border-bottom: 1px solid var(--border); position: relative; }
+.head { display: grid; gap: 16px; margin-bottom: 52px; max-width: 780px; }
+.head p { color: var(--text-2); margin: 0; max-width: 62ch; }
+.head p a { color: var(--accent-bright); }
 
 /* ---------- hero ---------- */
-.hero { padding: 90px 0 100px; }
+.hero { padding: 90px 0 110px; position: relative; overflow: hidden; isolation: isolate; }
+.hero > .wrap { position: relative; z-index: 1; }
+/* a racing track floor rolling toward the viewer */
+.track { position: absolute; left: -40%; right: -40%; bottom: 0; height: 75%; z-index: -1; pointer-events: none;
+         background-image: linear-gradient(rgba(255,50,66,.9) 2px, transparent 2px), linear-gradient(90deg, rgba(255,50,66,.6) 2px, transparent 2px);
+         background-size: 90px 90px; transform: perspective(700px) rotateX(56deg); transform-origin: center bottom;
+         -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.6) 40%, transparent 85%); mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.6) 40%, transparent 85%);
+         opacity: .45; animation: drive 1.1s linear infinite; }
+@keyframes drive { to { background-position: 0 90px, 0 0; } }
+.hero::after { content: ""; position: absolute; left: 50%; bottom: 20%; width: 120%; height: 260px; transform: translateX(-50%); z-index: -1;
+               background: radial-gradient(ellipse at center, rgba(232,18,31,.2), transparent 65%); pointer-events: none; }
 .hero-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 56px; align-items: center; }
 .status { font: 500 12px var(--mono); letter-spacing: .12em; color: var(--success); margin-bottom: 26px; display: inline-flex; align-items: center; gap: 10px; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); position: relative; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); position: relative; flex: none; }
 .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--success); animation: pulse 1.2s ease-out infinite; }
+.dot.red, .dot.red::after { background: var(--accent-bright); }
 @keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(2.6); opacity: 0; } }
 .ctas { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 36px; }
 .fine { margin-top: 18px; font: 400 12px var(--mono); color: var(--text-3); }
+.fine b { color: var(--text-2); font-weight: 500; }
 
 /* telemetry panel: the FrameBoost readout from the app */
-.panel { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 26px 28px; }
-.panel-top { display: flex; justify-content: space-between; align-items: center; font: 900 italic 18px var(--display); text-transform: uppercase; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 26px 28px; position: relative; }
+.panel::before { content: ""; position: absolute; right: 0; top: 0; width: 64px; height: 6px; background: var(--hatch); }
+.panel-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 900 italic 18px var(--display); text-transform: uppercase; }
 .panel-top .live { display: inline-flex; align-items: center; gap: 10px; }
 .readout { display: flex; align-items: flex-end; gap: 18px; margin-top: 22px; flex-wrap: wrap; }
-.readout .label { font: 400 11px var(--mono); color: var(--text-3); letter-spacing: .08em; }
+.readout .label, .lbl { font: 400 11px var(--mono); color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
 .num { font: 900 italic 64px/0.9 var(--display); font-variant-numeric: tabular-nums; }
-.num.big { font-size: 104px; color: var(--accent-bright); }
+.num.big { font-size: 104px; color: var(--accent-bright); text-shadow: 0 0 40px var(--accent-glow); }
 .num .unit { font-size: 20px; color: var(--accent); margin-left: 4px; }
 .slash { font: 900 italic 64px/0.9 var(--display); color: var(--accent); padding-bottom: 4px; }
 .segs { display: flex; gap: 3px; margin-top: 20px; }
@@ -105,27 +155,103 @@ section { padding: 110px 0; border-bottom: 1px solid var(--border); }
 .tele b { color: var(--text); font-weight: 500; }
 .panel-note { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-3); }
 
+/* ---------- ticker ---------- */
+.ticker { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surface); overflow: hidden; white-space: nowrap; }
+.ticker-row { display: inline-flex; animation: roll 38s linear infinite; }
+.ticker span { font: 900 italic 22px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; padding: 16px 0; color: var(--text-2); }
+.ticker span b { color: var(--accent); margin: 0 22px; font-weight: 900; }
+@keyframes roll { to { transform: translateX(-50%); } }
+
 /* ---------- stat strip ---------- */
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.stat { padding: 28px 24px; border-right: 1px solid var(--border); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-bottom: 1px solid var(--border); }
+.stat { padding: 30px 24px; border-right: 1px solid var(--border); }
 .stat:last-child { border-right: 0; }
-.stat .num { font-size: 56px; }
-.stat p { margin: 6px 0 0; font: 400 12px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
+.stat .num { font-size: 60px; }
+.stat .num small { font-size: 26px; color: var(--accent); }
+.stat p { margin: 8px 0 0; font: 400 12px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
 
 /* ---------- cards ---------- */
 .grid { display: grid; gap: 16px; }
 .grid-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
 .card { background: var(--surface); border: 1px solid var(--border); padding: 24px; transition: border-color .2s, transform .2s; }
-.card:hover { border-color: #3a3a3a; transform: translateY(-3px); }
+.card:hover { border-color: var(--border-2); transform: translateY(-3px); }
 .card p { color: var(--text-2); margin: 10px 0 0; font-size: 15px; }
-.tags { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.tag { display: inline-block; padding: 3px 10px; transform: skewX(var(--skew)); background: var(--hover); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.tags { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 18px; }
+.tag { display: inline-block; padding: 3px 10px; transform: skewX(var(--skew)); background: var(--hover); font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
 .tag > span { display: inline-block; transform: skewX(12deg); }
 .tag.red { background: var(--accent); color: #fff; }
-.risk { font: 400 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.risk { font: 400 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .risk.low { color: var(--success); }
 .risk.med { color: var(--warning); }
+.card .ic { width: 38px; height: 38px; display: grid; place-items: center; background: var(--hover); transform: skewX(var(--skew)); margin-bottom: 18px; color: var(--accent-bright); }
+.card .ic svg { transform: skewX(12deg); }
+
+/* ---------- module builder ---------- */
+.builder { display: grid; grid-template-columns: minmax(0,1fr) 390px; gap: 24px; align-items: start; }
+.bar-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+.mods { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.mod { text-align: left; background: var(--surface); border: 1px solid var(--border); padding: 20px 20px 18px; cursor: pointer; position: relative;
+       transition: border-color .2s, background .2s, transform .15s; display: flex; flex-direction: column; }
+.mod:hover { border-color: var(--border-2); }
+.mod:active { transform: scale(.99); }
+.mod[aria-pressed="true"] { border-color: var(--accent); background: linear-gradient(180deg, rgba(232,18,31,.08), var(--surface) 60%); }
+.mod h3 { font-size: 21px; padding-right: 30px; }
+.mod p { color: var(--text-2); margin: 8px 0 0; font-size: 14px; line-height: 1.5; flex: 1; }
+.mod .tags { margin-bottom: 14px; }
+.mod .box { position: absolute; right: 18px; top: 50px; width: 20px; height: 20px; border: 1px solid var(--border-2); transform: skewX(var(--skew)); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.mod[aria-pressed="true"] .box { background: var(--accent); border-color: var(--accent); }
+.mod .box svg { opacity: 0; transform: skewX(12deg); }
+.mod[aria-pressed="true"] .box svg { opacity: 1; }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.flag { font: 500 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border: 1px solid var(--border-2); color: var(--text-2); }
+.flag.warn { border-color: rgba(245,166,35,.5); color: var(--warning); }
+.mod.hide { display: none; }
+
+.pit { position: sticky; top: 84px; background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--accent); }
+.pit-head { padding: 18px 20px 14px; display: flex; justify-content: space-between; align-items: center; font: 900 italic 18px var(--display); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.pit-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border-bottom: 1px solid var(--border); }
+.pit-stats div { padding: 14px 16px; border-right: 1px solid var(--border); }
+.pit-stats div:last-child { border-right: 0; }
+.pit-stats .num { font-size: 40px; }
+.pit-log { background: #000; font: 400 12px/1.75 var(--mono); color: var(--text-2); padding: 16px 18px; height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word; scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+.pit-log .h { color: var(--accent-bright); }
+.pit-log .k { color: var(--text-3); }
+.pit-log .v { color: var(--text); }
+.pit-log .ok { color: var(--success); }
+.pit-log .w { color: var(--warning); }
+.pit-log .new { animation: flash .6s ease; }
+@keyframes flash { from { background: rgba(232,18,31,.25); } to { background: transparent; } }
+.pit-foot { padding: 14px 20px 18px; font-size: 13px; color: var(--text-3); border-top: 1px solid var(--border); }
+
+/* ---------- bottleneck engine ---------- */
+.bn { background: radial-gradient(ellipse 70% 50% at 85% 30%, rgba(232,18,31,.07), transparent 70%); }
+.bn-grid { display: grid; grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: 56px; align-items: start; }
+.flow { list-style: none; padding: 0; margin: 30px 0 0; display: grid; gap: 0; counter-reset: f; }
+.flow li { display: grid; grid-template-columns: 54px 1fr; gap: 16px; padding: 16px 0; border-top: 1px solid var(--border); }
+.flow li::before { counter-increment: f; content: counter(f, decimal-leading-zero); font: 900 italic 30px/1 var(--display); color: var(--accent); }
+.flow b { display: block; font: 900 italic 18px var(--display); text-transform: uppercase; }
+.flow span { color: var(--text-2); font-size: 15px; }
+.diag { padding: 0; }
+.diag .panel-top { padding: 22px 26px 0; }
+.diag-body { padding: 18px 26px 24px; }
+.diag-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 18px 26px; border-top: 1px solid var(--border); background: #080808; }
+.diag-tabs .chip { font-size: 12px; padding: 5px 11px; }
+.diag h3.verdict { font-size: clamp(40px, 5vw, 58px); color: var(--accent-bright); margin-top: 6px; transition: opacity .25s; }
+.diag .expl { color: var(--text-2); margin: 12px 0 0; min-height: 3.2em; }
+.conf { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
+.conf .segs { flex: 1; margin: 0; }
+.conf .num { font-size: 34px; min-width: 88px; text-align: right; }
+.evid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 22px; }
+.evid div { background: var(--surface); padding: 12px 14px; }
+.evid .num { font-size: 30px; display: block; margin-top: 4px; }
+.factors { margin-top: 20px; display: grid; gap: 10px; }
+.factor { display: grid; grid-template-columns: 1fr 120px 44px; gap: 12px; align-items: center; font: 400 12px var(--mono); color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
+.factor .meter { height: 6px; background: var(--hover); position: relative; transform: skewX(-15deg); }
+.factor .meter i { position: absolute; inset: 0 auto 0 0; background: var(--text-3); transition: width .6s ease; }
+.factor b { color: var(--text); font-weight: 500; text-align: right; }
+.suppr { margin-top: 16px; font: 400 12px/1.6 var(--mono); color: var(--warning); border-left: 2px solid var(--warning); padding-left: 12px; }
+.suppr:empty { display: none; }
 
 /* ---------- FrameBoost ---------- */
 .fb { background: linear-gradient(180deg, #0a0506 0%, var(--bg) 70%); }
@@ -134,13 +260,38 @@ section { padding: 110px 0; border-bottom: 1px solid var(--border); }
 .fact { display: grid; grid-template-columns: 150px 1fr; gap: 20px; padding: 16px 0; border-top: 1px solid var(--border); }
 .fact dt { font: 900 italic 17px var(--display); text-transform: uppercase; }
 .fact dd { margin: 0; color: var(--text-2); font-size: 15px; }
-.modes { display: grid; gap: 16px; }
+.modes { display: grid; grid-template-columns: minmax(0,1fr); gap: 16px; min-width: 0; }
 .mode { border-left: 3px solid var(--accent); }
 .mode.alt { border-left-color: var(--text-3); }
 .mode .num { font-size: 44px; }
 
+.strip-box { background: var(--surface); border: 1px solid var(--border); padding: 22px 24px 20px; }
+.strip-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lane { margin-top: 18px; }
+.lane-head { display: flex; justify-content: space-between; font: 400 11px var(--mono); color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+.lane-head b { font: 900 italic 22px/1 var(--display); color: var(--text); letter-spacing: 0; }
+.lane-head b.hot { color: var(--accent-bright); }
+.film { overflow: hidden; min-width: 0; max-width: 100%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.film-row { display: flex; gap: 6px; width: max-content; animation: film 1s linear infinite; }
+@keyframes film { to { transform: translateX(-72px); } }
+.film-row i { width: 30px; height: 44px; flex: none; transform: skewX(-10deg); background: #d9d9d9; position: relative; transition: background .3s, opacity .3s; }
+.film-row i::after { content: ""; position: absolute; left: 5px; right: 5px; top: 7px; height: 3px; background: rgba(0,0,0,.25); }
+.film-row i.dup { background: transparent; border: 1px dashed var(--border-2); }
+.film-row i.dup::after { display: none; }
+.film-row i.gen { background: repeating-linear-gradient(-56deg, var(--accent) 0 4px, var(--accent-bright) 4px 8px); box-shadow: 0 0 14px var(--accent-glow); }
+.film-row i.wide { width: 66px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font: 400 11px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 12px; height: 12px; display: inline-block; transform: skewX(-10deg); }
+.cap { margin-top: 16px; }
+.cap-out { display: flex; align-items: flex-end; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+.cap-out .num { font-size: 56px; }
+.cap-out p { margin: 0; color: var(--text-2); font-size: 15px; flex-basis: 100%; }
+
 /* ---------- steps ---------- */
-.steps { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--border); }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--border); position: relative; }
+.steps::before { content: ""; position: absolute; left: 0; top: -1px; height: 3px; width: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform 1.4s cubic-bezier(.2,.8,.2,1) .2s; }
+.steps.in::before { transform: scaleX(1); }
 .step { padding: 28px 24px; border-right: 1px solid var(--border); position: relative; }
 .step:last-child { border-right: 0; }
 .step .n { font: 900 italic 56px/1 var(--display); color: var(--accent); }
@@ -149,40 +300,103 @@ section { padding: 110px 0; border-bottom: 1px solid var(--border); }
 /* ---------- game boost terminal ---------- */
 .split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 48px; align-items: center; }
 .split + .split { margin-top: 90px; }
-.split ul { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
-.split li { color: var(--text-2); padding-left: 22px; position: relative; }
-.split li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
-.term { background: #000; border: 1px solid var(--border); padding: 22px; font: 400 13px/1.8 var(--mono); color: var(--text-2); overflow-x: auto; white-space: pre; }
+ul.ticks { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+ul.ticks li { color: var(--text-2); padding-left: 22px; position: relative; }
+ul.ticks li::before { content: ""; position: absolute; left: 0; top: 11px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
+.term { background: #000; border: 1px solid var(--border); font: 400 13px/1.8 var(--mono); color: var(--text-2); overflow-x: auto; }
+.term-bar { display: flex; gap: 6px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); font: 400 11px var(--mono); color: var(--text-3); letter-spacing: .08em; }
+.term-bar i { width: 9px; height: 9px; background: var(--border-2); transform: skewX(-12deg); }
+.term-bar i:first-child { background: var(--accent); }
+.term-bar span { margin-left: 8px; }
+.term pre { margin: 0; padding: 20px 22px; font: inherit; white-space: pre; }
 .term .h { color: var(--accent-bright); }
 .term .ok { color: var(--success); }
+.js .term .ln { opacity: 0; transition: opacity .15s; }
+.js .term.in .ln { opacity: 1; }
+.caret { display: inline-block; width: 8px; height: 15px; background: var(--accent-bright); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------- honest comparison ---------- */
+.vs { border: 1px solid var(--border); }
+.vs-row { display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; border-bottom: 1px solid var(--border); }
+.vs-row:last-child { border-bottom: 0; }
+.vs-row > div { padding: 18px 22px; font-size: 15px; }
+.vs-row > div:first-child { font: 900 italic 18px var(--display); text-transform: uppercase; }
+.vs-row > div:nth-child(2) { color: var(--text-3); border-left: 1px solid var(--border); }
+.vs-row > div:nth-child(3) { color: var(--text); border-left: 1px solid var(--border); background: linear-gradient(90deg, rgba(232,18,31,.07), transparent); }
+.vs-row.th > div { font: 500 11px var(--mono) !important; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); background: #080808; }
+.vs-row.th > div:nth-child(3) { color: var(--accent-bright); }
+.x, .ck { display: inline-block; width: 18px; font-weight: 600; }
+.x { color: var(--text-3); } .ck { color: var(--success); }
 
 /* ---------- pricing ---------- */
 .plans { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; align-items: stretch; }
-.plan { display: flex; flex-direction: column; }
+.plan { display: flex; flex-direction: column; position: relative; }
 .plan .tag, .plan .btn { align-self: flex-start; }
-.plan.featured { border: 2px solid var(--accent); }
+.plan.featured { border: 2px solid var(--accent); box-shadow: 0 0 60px rgba(232,18,31,.12); }
+.plan.featured::before { content: ""; position: absolute; right: -2px; top: -2px; width: 90px; height: 8px; background: var(--hatch); }
 .plan .price { font: 900 italic 60px/1 var(--display); margin: 18px 0 4px; }
 .plan .price small { font-size: 18px; color: var(--text-3); }
 .plan ul { list-style: none; padding: 0; margin: 18px 0 26px; display: grid; gap: 8px; flex: 1; }
 .plan li { color: var(--text-2); font-size: 15px; padding-left: 22px; position: relative; }
 .plan li::before { content: ""; position: absolute; left: 0; top: 10px; width: 10px; height: 3px; background: var(--accent); transform: skewX(var(--skew)); }
-.plan .soon { margin: 0 0 14px; }
-.head p a { color: var(--accent-bright); }
-.plan .soon { font: 500 12px var(--mono); color: var(--warning); letter-spacing: .08em; text-transform: uppercase; }
+.acct { margin: 0 0 18px; font-size: 15px; color: var(--text-2); }
+.acct a { color: var(--accent-bright); }
+.acct b { color: var(--text); font-weight: 600; }
+.acct .offer { display: block; margin-bottom: 8px; padding: 10px 14px; border-left: 2px solid var(--success); background: var(--surface); color: var(--text); }
 .plans-note { margin-top: 22px; font-size: 14px; color: var(--text-3); }
 .plans-note a { color: var(--accent-bright); }
 
-/* ---------- download ---------- */
-.dl { text-align: left; }
-.dl-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-top: 40px; }
-.dl-card .ver { font: 900 italic 40px var(--display); }
-.dl-card .meta { font: 400 12px var(--mono); color: var(--text-3); margin: 6px 0 22px; }
+/* ---------- FAQ ---------- */
+.faq-head { position: sticky; top: 100px; }
+.faq-grid { display: grid; grid-template-columns: minmax(0,.7fr) minmax(0,1.3fr); gap: 56px; align-items: start; }
+.faq details { border-top: 1px solid var(--border); }
+.faq details:last-child { border-bottom: 1px solid var(--border); }
+.faq summary { list-style: none; cursor: pointer; padding: 22px 44px 22px 0; position: relative; font: 900 italic 22px/1.1 var(--display); text-transform: uppercase; transition: color .15s; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary:hover { color: var(--accent-bright); }
+.faq summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 16px; height: 16px; margin-top: -8px;
+                      background: linear-gradient(var(--accent), var(--accent)) center / 16px 3px no-repeat, linear-gradient(var(--accent), var(--accent)) center / 3px 16px no-repeat; transition: transform .25s; }
+.faq details[open] summary::after { transform: rotate(135deg); }
+.faq .ans { color: var(--text-2); padding: 0 0 24px; max-width: 64ch; }
+.faq .ans p { margin: 0 0 10px; }
+.faq .ans a { color: var(--accent-bright); }
 
-footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
-.foot { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: space-between; }
-.foot nav { display: flex; gap: 20px; }
+/* ---------- download ---------- */
+.dl-grid { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 16px; }
+.dl-card .ver { font: 900 italic 64px/1 var(--display); margin-top: 14px; }
+.dl-card .meta { font: 400 12px var(--mono); color: var(--text-3); margin: 10px 0 22px; line-height: 1.7; }
+.dl-card .ctas { margin-top: 0; }
+.rel { list-style: none; padding: 0; margin: 14px 0 0; }
+.rel li { display: grid; grid-template-columns: 76px 1fr auto; gap: 12px; align-items: baseline; padding: 11px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.rel li b { font: 900 italic 18px var(--display); }
+.rel li a { color: var(--text-2); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel li a:hover { color: var(--text); }
+.rel li time { font: 400 11px var(--mono); color: var(--text-3); }
+.req { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border: 1px solid var(--border); margin-top: 16px; }
+.req div { padding: 16px 18px; border-right: 1px solid var(--border); }
+.req div:last-child { border-right: 0; }
+.req b { display: block; font: 900 italic 18px var(--display); text-transform: uppercase; margin-top: 4px; }
+
+/* ---------- discord band ---------- */
+.band { padding: 0; border-bottom: 0; }
+.band-in { position: relative; overflow: hidden; background: var(--accent); padding: 64px 0; }
+.band-in::before, .band-in::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60px; background: repeating-linear-gradient(-56deg, #000 0 10px, transparent 10px 20px); }
+.band-in::before { left: 0; } .band-in::after { right: 0; }
+.band .wrap { padding: 0 92px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 28px; }
+.band h2 { color: #fff; font-size: clamp(40px, 6vw, 76px); }
+.band p { margin: 10px 0 0; color: rgba(255,255,255,.85); font-size: 18px; max-width: 48ch; }
+.btn-dark { background: #000; color: #fff; }
+.btn-dark:hover { background: #111; box-shadow: 0 0 0 1px #fff; }
+
+footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top: 1px solid var(--border); }
+.foot { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 32px; }
+.foot img { height: 30px; width: auto; margin-bottom: 14px; }
+.foot h4 { margin: 0 0 12px; font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.foot nav { display: grid; gap: 8px; }
 .foot a { text-decoration: none; color: var(--text-2); }
 .foot a:hover { color: var(--text); }
+.foot-base { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font: 400 12px var(--mono); }
 
 /* language switch */
 .lang { display: inline-flex; transform: skewX(var(--skew)); border: 1px solid var(--border); }
@@ -218,69 +432,115 @@ footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
 #intro .line { font: 400 12px var(--mono); letter-spacing: .14em; color: var(--text-3); min-height: 1.4em; }
 #intro .skip { position: absolute; right: 24px; bottom: 24px; font: 400 11px var(--mono); letter-spacing: .1em; color: var(--text-3); text-transform: uppercase; }
 
+/* back to top */
+.top-btn { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 46px; height: 46px; background: var(--accent); border: 0; cursor: pointer; transform: skewX(var(--skew)) translateY(90px); transition: transform .3s; display: grid; place-items: center; }
+.top-btn svg { transform: skewX(12deg); }
+.top-btn.on { transform: skewX(var(--skew)) translateY(0); }
+
 /* reveal: content is visible without JS; JS only animates it in */
 .js .rv { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
 .js .rv.in { opacity: 1; transform: none; }
 
+@media (max-width: 1080px) {
+  .builder { grid-template-columns: minmax(0,1fr); }
+  .pit { position: relative; top: 0; }
+  .pit-log { height: 260px; }
+}
 @media (max-width: 960px) {
-  .hero-grid, .fb-grid, .split { grid-template-columns: minmax(0,1fr); }
+  .hero-grid, .fb-grid, .split, .bn-grid, .faq-grid { grid-template-columns: minmax(0,1fr); }
+  .faq-head { position: static; }
   .grid-4, .steps { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .step:nth-child(2) { border-right: 0; }
   .step:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
-  .plans { grid-template-columns: minmax(0,1fr); }
-  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .stat:nth-child(2) { border-right: 0; }
-  .stat:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .plans, .dl-grid { grid-template-columns: minmax(0,1fr); }
+  .stats, .req { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .stat:nth-child(2), .req div:nth-child(2) { border-right: 0; }
+  .stat:nth-child(-n+2), .req div:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
   .nav .links { display: none; }
-  .nav .links + .lang { margin-left: auto; }
+  .nav .lang { margin-left: auto; }
+  .burger { display: block; }
+  .foot { grid-template-columns: 1fr 1fr; }
+  .foot > div:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
   .wrap { padding: 0 16px; }
   section { padding: 76px 0; }
-  .grid-4, .grid-2, .steps, .dl-grid { grid-template-columns: minmax(0,1fr); }
+  .hero { padding: 56px 0 80px; }
+  .nav { gap: 12px; }
+  .nav .btn-small { display: none; }
+  .grid-4, .grid-2, .steps, .mods { grid-template-columns: minmax(0,1fr); }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
   .num.big { font-size: 80px; }
   .fact { grid-template-columns: minmax(0,1fr); gap: 4px; }
+  .evid { grid-template-columns: minmax(0,1fr); }
+  .factor { grid-template-columns: 1fr 80px 40px; }
+  .vs-row { grid-template-columns: minmax(0,1fr); }
+  .vs-row > div:nth-child(2), .vs-row > div:nth-child(3) { border-left: 0; border-top: 1px solid var(--border); }
+  .vs-row.th { display: none; }
+  .vs-row > div:nth-child(2)::before { content: attr(data-l); display: block; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+  .vs-row > div:nth-child(3)::before { content: attr(data-l); display: block; font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; color: var(--accent-bright); }
+  .pit-stats .num { font-size: 32px; }
+  .band-in::before, .band-in::after { width: 18px; }
+  .band .wrap { padding: 0 36px; }
+  .rel li { grid-template-columns: 64px 1fr; }
+  .rel li time { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .js .rv { opacity: 1; transform: none; }
+  .js .rv, .js .term .ln { opacity: 1; transform: none; }
+  html { scroll-behavior: auto; }
 }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#modules">Skip to content</a>
 <div class="stripe"></div>
-<header>
+<header id="hdr">
   <div class="wrap nav">
     <a href="#top" aria-label="RESET FPS BOOSTER home"><img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="112" height="28"></a>
     <nav class="links" aria-label="Sections">
       <a href="#modules">Modules</a>
+      <a href="#bottleneck">Bottleneck</a>
       <a href="#frameboost">FrameBoost</a>
       <a href="#premium">Premium</a>
-      <a href="#undo">Undo</a>
+      <a href="#faq">FAQ</a>
       <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a>
+      <a href="konto.html">Account</a>
     </nav>
     <div class="lang" role="group" aria-label="Language">
       <button type="button" data-lang="en" aria-pressed="true"><span>EN</span></button>
       <button type="button" data-lang="de" aria-pressed="false"><span>DE</span></button>
     </div>
     <a class="btn btn-primary btn-small" href="#download"><span>Download</span></a>
+    <button class="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mnav"><i></i><i></i><i></i></button>
   </div>
+  <nav class="mnav wrap" id="mnav" aria-label="Menu">
+    <a href="#modules">Modules</a>
+    <a href="#bottleneck">Bottleneck</a>
+    <a href="#frameboost">FrameBoost</a>
+    <a href="#premium">Premium</a>
+    <a href="#faq">FAQ</a>
+    <a href="#download">Download</a>
+    <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a>
+    <a href="konto.html">Account</a>
+  </nav>
+  <div class="progress" id="progress"></div>
 </header>
 
 <main id="top">
   <!-- ================= HERO ================= -->
   <div class="hero">
+    <div class="track" aria-hidden="true"></div>
     <div class="wrap hero-grid">
       <div>
         <div class="status"><span class="dot"></span>SYSTEM ONLINE // PERFORMANCE ENGINE READY</div>
         <h1>Real optimization.<br><span class="accent">No placebo.</span></h1>
-        <p class="lead">RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every change can be undone.</p>
+        <p class="lead">RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every setting can be undone.</p>
         <div class="ctas">
           <a class="btn btn-primary" href="#download"><span>Download for Windows</span></a>
-          <a class="btn btn-secondary" href="#frameboost"><span>See FrameBoost</span></a>
+          <a class="btn btn-secondary" href="#modules"><span>Build your setup</span></a>
         </div>
-        <p class="fine">Windows 10/11 x64 · Free core app · No telemetry</p>
+        <p class="fine">Windows 10/11 x64 · Free core app · No telemetry · <b class="dyn" id="heroVer">v1.3.3</b></p>
       </div>
 
       <div class="panel rv" aria-label="Example FrameBoost readout">
@@ -300,12 +560,19 @@ footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
     </div>
   </div>
 
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-row">
+      <span>13 modules<b>//</b>No placebo<b>//</b>Every change logged<b>//</b>No injection<b>//</b>No telemetry<b>//</b>Bottleneck Engine<b>//</b>RESET FrameBoost<b>//</b>Backup per change<b>//</b></span>
+      <span>13 modules<b>//</b>No placebo<b>//</b>Every change logged<b>//</b>No injection<b>//</b>No telemetry<b>//</b>Bottleneck Engine<b>//</b>RESET FrameBoost<b>//</b>Backup per change<b>//</b></span>
+    </div>
+  </div>
+
   <div class="wrap">
     <div class="stats">
-      <div class="stat rv"><div class="num">8</div><p>Optimization modules</p></div>
-      <div class="stat rv"><div class="num">100<span class="unit" style="font-size:24px;color:var(--accent)">%</span></div><p>Reversible changes</p></div>
+      <div class="stat rv"><div class="num" data-count="13">13</div><p>Optimization modules</p></div>
+      <div class="stat rv"><div class="num" data-count="7">7</div><p>Bottlenecks it can name</p></div>
       <div class="stat rv"><div class="num">0</div><p>Fabricated FPS claims</p></div>
-      <div class="stat rv"><div class="num">2<span class="unit" style="font-size:24px;color:var(--accent)">×</span></div><p>Frames with FrameBoost</p></div>
+      <div class="stat rv"><div class="num">2<small>×</small></div><p>Frames with FrameBoost</p></div>
     </div>
   </div>
 
@@ -314,18 +581,60 @@ footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
     <div class="wrap">
       <div class="head rv">
         <div class="eyebrow">Modules</div>
-        <h2>Every module, <span class="accent">one purpose</span></h2>
-        <p>Each one reads the real setting first, tells you what it will change and how risky that is, and logs the old value before touching it.</p>
+        <h2>Build your setup. <span class="accent">See every write.</span></h2>
+        <p>Pick modules the way you would in the app. The pit board shows exactly what each one writes, whether it needs admin or a restart, and what gets backed up first. These are the real keys and values from the source code.</p>
       </div>
-      <div class="grid grid-4">
-        <article class="card rv"><div class="tags"><span class="tag"><span>Gaming</span></span><span class="risk low">Low risk</span></div><h3>Game Mode &amp; Game DVR</h3><p>Prioritizes your game's scheduling and turns off the Xbox Game Bar capture buffer that quietly eats CPU, GPU and disk I/O.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>Windows</span></span><span class="risk low">Low risk</span></div><h3>Power plan &amp; startup</h3><p>High Performance so the CPU stops downclocking, and non-essential startup helpers off. Gaming platforms are never touched.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>GPU</span></span><span class="risk med">Medium risk</span></div><h3>GPU scheduling</h3><p>Hardware-accelerated GPU scheduling for lower latency on supported cards. Needs a restart, so it's opt-in.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>GPU</span></span><span class="risk med">Medium risk</span></div><h3>NVIDIA max performance</h3><p>Power management, threaded optimization, texture filtering and V-Sync, set through NVIDIA's own NVAPI.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>Network</span></span><span class="risk low">Low risk</span></div><h3>Network throttling</h3><p>Removes the roughly 10,000 packets per second cap Windows applies while a multimedia or gaming task runs.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>Memory</span></span><span class="risk low">Low risk</span></div><h3>RAM cleaner</h3><p>Trims idle background working sets and clears the standby list. Nothing is closed; pages come back on next use.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>Storage</span></span><span class="risk low">Low risk</span></div><h3>Temp file cleanup</h3><p>Shows the reclaimable size of your temp folders before deleting a single byte.</p></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>CPU</span></span><span class="risk low">Low risk</span></div><h3>Power throttling</h3><p>Stops Windows from throttling background processes. Flagged on laptops, where it costs battery.</p></article>
+      <div class="builder">
+        <div>
+          <div class="bar-top">
+            <div class="chips" id="filters" role="group" aria-label="Filter by category"></div>
+            <div class="chips" id="presets" role="group" aria-label="Presets"></div>
+          </div>
+          <div class="mods dyn" id="mods"></div>
+        </div>
+        <aside class="pit" aria-label="Change preview">
+          <div class="pit-head"><span class="live" style="display:inline-flex;align-items:center;gap:10px"><span class="dot red"></span>Change preview</span><span class="tag"><span>Dry run</span></span></div>
+          <div class="pit-stats">
+            <div><div class="lbl">Selected</div><div class="num" id="pSel">0</div></div>
+            <div><div class="lbl">Admin</div><div class="num" id="pAdm">0</div></div>
+            <div><div class="lbl">Restart</div><div class="num" id="pRst">0</div></div>
+          </div>
+          <div class="pit-log dyn" id="pLog" aria-live="polite"></div>
+          <div class="pit-foot">Nothing here touches your PC. In the app, this list is what you approve before anything is written.</div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BOTTLENECK ENGINE ================= -->
+  <section id="bottleneck" class="bn">
+    <div class="wrap bn-grid">
+      <div class="rv">
+        <div class="eyebrow">Bottleneck Engine</div>
+        <h2 style="margin-top:16px">Why are you <span class="accent">losing FPS?</span></h2>
+        <p class="lead">Instead of a list of tweaks, you get one explained diagnosis. The engine samples real telemetry every two seconds while you play and names what is actually holding the game back.</p>
+        <ol class="flow">
+          <li><div><b>Six collectors</b><span>CPU, GPU, VRAM, RAM, disk and processes, read from Windows and the driver.</span></div></li>
+          <li><div><b>Seven analyzers</b><span>Each one votes for a cause. No single signal decides anything alone.</span></div></li>
+          <li><div><b>Root cause first</b><span>If heat or the power limit explains a "GPU limited" reading, the symptom is turned down and the cause leads.</span></div></li>
+          <li><div><b>Confidence, not guesses</b><span>Only causes with real confidence are shown, at most three, each with the numbers behind it.</span></div></li>
+        </ol>
+      </div>
+      <div class="panel diag rv" aria-label="Example Bottleneck Engine diagnosis">
+        <div class="panel-top">
+          <span class="live"><span class="dot"></span><span class="dyn" id="bGame">Apex Legends</span></span>
+          <span class="tag"><span>Example</span></span>
+        </div>
+        <div class="diag-body dyn" aria-live="polite">
+          <div class="lbl" id="bPrimLbl">Primary bottleneck</div>
+          <h3 class="verdict" id="bHead">THERMAL LIMITED</h3>
+          <p class="expl" id="bExpl"></p>
+          <div class="conf"><div class="segs" id="bSegs"></div><div class="num" id="bConf">0%</div></div>
+          <div class="evid" id="bEvid"></div>
+          <div class="factors" id="bFactors"></div>
+          <div class="suppr" id="bSup"></div>
+        </div>
+        <div class="diag-tabs chips dyn" id="bTabs" role="tablist" aria-label="Example scenarios"></div>
       </div>
     </div>
   </section>
@@ -340,19 +649,54 @@ footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
         <dl class="facts">
           <div class="fact"><dt>No injection</dt><dd>No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.</dd></div>
           <div class="fact"><dt>Honest count</dt><dd>A picture shown twice is one frame. Output FPS only counts frames that are actually new.</dd></div>
-          <div class="fact"><dt>Best setup</dt><dd>Cap the game at half your refresh rate and leave the GPU some headroom. The app tells you the cap for your monitor.</dd></div>
+          <div class="fact"><dt>Steps aside</dt><dd>If the game already uses the whole GPU, generating frames would slow it down. FrameBoost passes the game through untouched and starts again when there is room.</dd></div>
+          <div class="fact"><dt>Failsafe</dt><dd>If something goes wrong, it stops on its own and leaves nothing running.</dd></div>
         </dl>
       </div>
       <div class="modes">
-        <div class="card mode rv">
-          <div class="tags"><span class="tag red"><span>Quality</span></span><span class="risk">Default</span></div>
-          <div class="num">60 <span class="accent">//</span> 120</div>
-          <p>Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.</p>
+        <div class="strip-box rv">
+          <div class="strip-top">
+            <div class="lbl">What reaches your screen</div>
+            <div class="chips" id="fbToggle" role="group" aria-label="FrameBoost">
+              <button type="button" class="chip" data-fb="off" aria-pressed="false"><span>Off</span></button>
+              <button type="button" class="chip" data-fb="on" aria-pressed="true"><span>On</span></button>
+            </div>
+          </div>
+          <div class="lane">
+            <div class="lane-head"><span>Game renders</span><b>60 FPS</b></div>
+            <div class="film" aria-hidden="true"><div class="film-row" id="laneGame"></div></div>
+          </div>
+          <div class="lane">
+            <div class="lane-head"><span>Screen shows</span><b class="hot dyn" id="laneOutNum">120 FPS</b></div>
+            <div class="film" aria-hidden="true"><div class="film-row" id="laneOut"></div></div>
+          </div>
+          <div class="legend">
+            <span><i style="background:#d9d9d9"></i>Real frame</span>
+            <span><i style="background:var(--accent)"></i>Generated frame</span>
+            <span><i style="border:1px dashed var(--border-2)"></i>Same frame again</span>
+          </div>
         </div>
-        <div class="card mode alt rv">
-          <div class="tags"><span class="tag"><span>Low latency</span></span><span class="risk">One switch</span></div>
-          <div class="num">LOW <span class="accent">LAT</span></div>
-          <p>Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.</p>
+        <div class="strip-box cap rv">
+          <div class="lbl">Your monitor</div>
+          <div class="chips" id="hzPick" role="group" aria-label="Monitor refresh rate" style="margin-top:12px"></div>
+          <div class="cap-out">
+            <div><div class="lbl">Cap game at</div><div class="num" id="capIn">72</div></div>
+            <div class="slash" style="font-size:48px">//</div>
+            <div><div class="lbl">On screen</div><div class="num" style="color:var(--accent-bright)" id="capOut">144</div></div>
+            <p id="capTxt"></p>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="card mode rv">
+            <div class="tags"><span class="tag red"><span>Quality</span></span><span class="risk">Default</span></div>
+            <div class="num">60 <span class="accent">//</span> 120</div>
+            <p>Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.</p>
+          </div>
+          <div class="card mode alt rv">
+            <div class="tags"><span class="tag"><span>Low latency</span></span><span class="risk">One switch</span></div>
+            <div class="num">LOW <span class="accent">LAT</span></div>
+            <p>Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -383,31 +727,55 @@ footer { padding: 40px 0 60px; color: var(--text-3); font-size: 14px; }
           <div class="eyebrow">Game Boost</div>
           <h2 style="margin-top:16px">Detects your game. <span class="accent">Clears the track.</span></h2>
           <p class="lead">When a game starts, other background apps drop in CPU priority. Nothing is suspended or closed, and everything returns to normal the moment you quit.</p>
-          <ul>
+          <ul class="ticks">
             <li>Streaming software stays untouched: OBS, Streamlabs, XSplit, NVIDIA Broadcast</li>
             <li>Voice chat stays smooth: Discord, Teams, TeamSpeak</li>
             <li>Every activation lands in the change log</li>
           </ul>
         </div>
-        <div class="term rv" role="img" aria-label="Game Boost log example"><span class="h">[GAME BOOST]</span> Counter-Strike 2 detected (PID 41208)
-&gt; deprioritized 14 background process(es)
-&gt; game process priority: AboveNormal
-<span class="ok">✓</span> OBS64.exe untouched
-<span class="ok">✓</span> Discord.exe untouched
-&gt; waiting for exit…</div>
+        <div class="term rv" role="img" aria-label="Game Boost log example">
+          <div class="term-bar"><i></i><i></i><i></i><span>GAME BOOST · LOG</span></div>
+<pre><span class="ln"><span class="h">[GAME BOOST]</span> Counter-Strike 2 detected (PID 41208)</span>
+<span class="ln">&gt; deprioritized 14 background process(es)</span>
+<span class="ln">&gt; game process priority: AboveNormal</span>
+<span class="ln"><span class="ok">✓</span> OBS64.exe untouched</span>
+<span class="ln"><span class="ok">✓</span> Discord.exe untouched</span>
+<span class="ln">&gt; waiting for exit… <span class="caret"></span></span></pre>
+        </div>
       </div>
       <div class="split">
-        <div class="term rv" role="img" aria-label="Autoexec example"><span class="h">// Managed by RESET FPS BOOSTER</span>
-fps_max              0
-r_shadows            0
-mat_bloomscale       0
-stream_drop_unused   1
-<span class="ok">✓</span> previous autoexec.cfg backed up</div>
+        <div class="term rv" role="img" aria-label="Autoexec example">
+          <div class="term-bar"><i></i><i></i><i></i><span>AUTOEXEC.CFG</span></div>
+<pre><span class="ln"><span class="h">// Managed by RESET FPS BOOSTER</span></span>
+<span class="ln">fps_max              0</span>
+<span class="ln">r_shadows            0</span>
+<span class="ln">mat_bloomscale       0</span>
+<span class="ln">stream_drop_unused   1</span>
+<span class="ln"><span class="ok">✓</span> previous autoexec.cfg backed up</span></pre>
+        </div>
         <div class="rv">
           <div class="eyebrow">Game profiles</div>
           <h2 style="margin-top:16px">Every Steam and Epic install. <span class="accent">No fixed list.</span></h2>
           <p class="lead">Games are found from your real library metadata. Apex Legends and Counter-Strike 2 get a curated autoexec.cfg in one click, with your old file backed up.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HONEST ================= -->
+  <section>
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Honest by design</div>
+        <h2>Most boosters sell a number. <span class="accent">We show the work.</span></h2>
+      </div>
+      <div class="vs rv">
+        <div class="vs-row th"><div></div><div>Typical "FPS booster"</div><div>RESET FPS BOOSTER</div></div>
+        <div class="vs-row"><div>FPS gains</div><div data-l="Typical"><span class="x">✕</span>Promises "+200% FPS" before it has seen your PC</div><div data-l="RESET"><span class="ck">✓</span>Never shows a number it didn't measure</div></div>
+        <div class="vs-row"><div>What changes</div><div data-l="Typical"><span class="x">✕</span>One button, hidden tweak list</div><div data-l="RESET"><span class="ck">✓</span>Every key, value and API call listed before you apply</div></div>
+        <div class="vs-row"><div>Undo</div><div data-l="Typical"><span class="x">✕</span>Hope, or reinstall Windows</div><div data-l="RESET"><span class="ck">✓</span>Backup per change, plus a Windows restore point</div></div>
+        <div class="vs-row"><div>Diagnosis</div><div data-l="Typical"><span class="x">✕</span>The same tweaks for every PC</div><div data-l="RESET"><span class="ck">✓</span>Bottleneck Engine names what limits your game</div></div>
+        <div class="vs-row"><div>Frame generation</div><div data-l="Typical"><span class="x">✕</span>Counts repeated frames as FPS</div><div data-l="RESET"><span class="ck">✓</span>Only new frames count, nothing injected</div></div>
       </div>
     </div>
   </section>
@@ -418,12 +786,13 @@ stream_drop_unused   1
       <div class="head rv">
         <div class="eyebrow">Trust</div>
         <h2>You can undo <span class="accent">anything</span></h2>
+        <p>Every setting the app changes can be reverted. The one thing that can't, deleting temp files, tells you so and shows the size before it runs.</p>
       </div>
-      <div class="grid grid-2">
-        <article class="card rv"><h3>Backup per change</h3><p>Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.</p></article>
-        <article class="card rv"><h3>Plain-language log</h3><p>"Power Management: Adaptive → Prefer Maximum Performance." The actual old and new value, not a code.</p></article>
-        <article class="card rv"><h3>Windows restore points</h3><p>On top of its own snapshots, the app creates a real System Restore point in one click.</p></article>
-        <article class="card rv"><h3>Admin-aware</h3><p>Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.</p></article>
+      <div class="grid grid-4">
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div><h3>Backup per change</h3><p>Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><h3>Plain-language log</h3><p>"Power Management: Adaptive → Prefer Maximum Performance." The actual old and new value, not a code.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg></div><h3>Windows restore points</h3><p>On top of its own snapshots, the app creates a real System Restore point in one click.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Admin-aware</h3><p>Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.</p></article>
       </div>
     </div>
   </section>
@@ -434,14 +803,16 @@ stream_drop_unused   1
       <div class="head rv">
         <div class="eyebrow">Premium</div>
         <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
-        <p>Premium unlocks RESET FrameBoost on your RESET account. Online checkout isn&#39;t open yet, so for now FrameBoost is unlocked on request: email <a href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock">lukas.reschke80@gmail.com</a> with the e-mail address of your account.</p>
+        <p>Premium unlocks RESET FrameBoost on your RESET account. Signed in on this site or in the app, a purchase lands straight on your account. Without signing in you get a code right after paying, which you redeem in the app. Payment runs through Stripe.</p>
       </div>
+      <p class="acct dyn" id="acctBar"></p>
       <div class="plans">
         <article class="card plan rv">
           <span class="tag"><span>Free</span></span>
           <div class="price">0 €</div>
           <ul>
             <li>All optimization modules</li>
+            <li>Bottleneck Engine</li>
             <li>Game Boost and game profiles</li>
             <li>Backups, restore points, change log</li>
             <li>Performance monitor</li>
@@ -457,8 +828,7 @@ stream_drop_unused   1
             <li>Quality and low-latency modes</li>
             <li>Future FrameBoost updates</li>
           </ul>
-          <p class="soon">Online checkout opens soon</p>
-          <a class="btn btn-primary" href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock"><span>Request unlock</span></a>
+          <a class="btn btn-primary" data-plan="lifetime" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
         </article>
         <article class="card plan rv">
           <span class="tag"><span>Monthly</span></span>
@@ -468,16 +838,60 @@ stream_drop_unused   1
             <li>RESET FrameBoost</li>
             <li>Cancel anytime</li>
           </ul>
-          <p class="soon">Online checkout opens soon</p>
-          <a class="btn btn-secondary" href="mailto:lukas.reschke80@gmail.com?subject=FrameBoost%20unlock"><span>Request unlock</span></a>
+          <a class="btn btn-secondary" data-plan="monthly" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
         </article>
       </div>
-      <p class="plans-note">Create your account in the app first (Account page), then send that e-mail address. You get an unlock code to redeem on the same page. Or ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+      <p class="plans-note">After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section id="faq">
+    <div class="wrap faq-grid">
+      <div class="head faq-head rv">
+        <div class="eyebrow">FAQ</div>
+        <h2>Straight <span class="accent">answers</span></h2>
+        <p>Something missing? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+      </div>
+      <div class="faq rv">
+        <details>
+          <summary>How many FPS will I gain?</summary>
+          <div class="ans"><p>We don't know, and neither does anyone who promises a number before seeing your PC. The modules remove real overhead like background recording, power saving and network throttling. How much that is worth depends on what limits your game, and the Bottleneck Engine tells you exactly that.</p></div>
+        </details>
+        <details>
+          <summary>Is it safe? Can I go back?</summary>
+          <div class="ans"><p>Every module shows its risk level before you apply it, and the previous value is backed up first. You can restore a single change or a whole session, and create a Windows restore point on top. Temp file cleanup is the only action that can't be undone, and it says so.</p></div>
+        </details>
+        <details>
+          <summary>Can it get me banned by anti-cheat?</summary>
+          <div class="ans"><p>The optimizer changes Windows and driver settings, not games. FrameBoost doesn't inject a DLL, hook the game or read its memory; it reads the game window the way screen capture does. We can't speak for every anti-cheat, so if you're unsure, check your game's rules.</p></div>
+        </details>
+        <details>
+          <summary>Does it work with AMD or Intel graphics?</summary>
+          <div class="ans"><p>Yes. All Windows modules work on any GPU. The NVIDIA Max Performance module and the GPU temperature readout are NVIDIA-only, and the app hides what doesn't apply to your hardware.</p></div>
+        </details>
+        <details>
+          <summary>Why does it sometimes need admin rights?</summary>
+          <div class="ans"><p>Five modules write system-wide settings that Windows only lets administrators change. They are marked upfront, and the app offers to restart elevated instead of failing silently. Everything else runs without admin.</p></div>
+        </details>
+        <details>
+          <summary>How do I set up a game for FrameBoost?</summary>
+          <div class="ans"><p>Set the game to borderless window, because exclusive fullscreen doesn't always work. Cap it at half your monitor's refresh rate and leave the GPU some room. The app shows the exact cap for the monitor you pick.</p></div>
+        </details>
+        <details>
+          <summary>Does the app collect data?</summary>
+          <div class="ans"><p>No telemetry. An account is only needed for Premium and stores your e-mail address. The update check asks GitHub whether a newer release exists.</p></div>
+        </details>
+        <details>
+          <summary>Which languages does the app speak?</summary>
+          <div class="ans"><p>English, German and Russian. You can switch live in the settings, without a restart.</p></div>
+        </details>
+      </div>
     </div>
   </section>
 
   <!-- ================= DOWNLOAD ================= -->
-  <section id="download" class="dl">
+  <section id="download">
     <div class="wrap">
       <div class="head rv">
         <div class="eyebrow">Download</div>
@@ -487,80 +901,113 @@ stream_drop_unused   1
       <div class="dl-grid">
         <article class="card dl-card rv" style="border-left:3px solid var(--accent)">
           <span class="tag red"><span>Latest</span></span>
-          <div class="ver" style="margin-top:14px">v1.3.3</div>
-          <div class="meta">Windows 10/11 x64 · racing redesign, RESET FrameBoost, accounts, English, German and Russian</div>
-          <a class="btn btn-primary" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest"><span>Download for Windows</span></a>
+          <div class="ver dyn" id="dlVer">v1.3.3</div>
+          <div class="meta"><span class="dyn" id="dlMeta"></span>Windows 10/11 x64 · Bottleneck Engine, RESET FrameBoost, accounts, English, German and Russian</div>
+          <div class="ctas">
+            <a class="btn btn-primary" id="dlBtn" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest"><span>Download for Windows</span></a>
+          </div>
         </article>
         <article class="card dl-card rv">
-          <span class="tag"><span>Already installed?</span></span>
-          <div class="ver" style="margin-top:14px">Auto-update</div>
-          <div class="meta">The app finds new versions on its own and installs them in one click.</div>
-          <a class="btn btn-secondary" href="https://github.com/RESET-Y/reset-fps-booster/releases"><span>All releases</span></a>
+          <span class="tag"><span>Recent releases</span></span>
+          <ul class="rel dyn" id="rel">
+            <li><b>v1.3.3</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Full translation and the Discord link</a><time>2026-09-28</time></li>
+            <li><b>v1.3.2</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">The app knows its own version</a><time>2026-09-28</time></li>
+            <li><b>v1.3.1</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Window picker and update pop-up</a><time>2026-09-28</time></li>
+            <li><b>v1.3.0</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Stable release with the racing redesign</a><time>2026-09-24</time></li>
+          </ul>
+          <p style="margin-top:16px"><a class="btn btn-secondary btn-small" href="https://github.com/RESET-Y/reset-fps-booster/releases"><span>All releases</span></a></p>
         </article>
+      </div>
+      <div class="req rv">
+        <div><span class="lbl">System</span><b>Windows 10 / 11</b></div>
+        <div><span class="lbl">Architecture</span><b>x64</b></div>
+        <div><span class="lbl">Runtime</span><b>Included</b></div>
+        <div><span class="lbl">Updates</span><b>Automatic</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DISCORD ================= -->
+  <section class="band">
+    <div class="band-in">
+      <div class="wrap">
+        <div>
+          <h2>Join the pit crew</h2>
+          <p>Questions, setups, bug reports and first looks at new builds. The RESET Discord is where it happens.</p>
+        </div>
+        <a class="btn btn-dark" href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener"><span>Open Discord</span></a>
       </div>
     </div>
   </section>
 </main>
 
 <footer>
-  <div class="wrap foot">
-    <span>Made by Lukas Reschke</span>
-    <nav aria-label="Links">
-      <a href="https://github.com/RESET-Y/reset-fps-booster">Source</a>
-      <a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a>
-      <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a>
-      <a href="https://github.com/RESET-Y/reset-fps-booster/issues">Report a problem</a>
-    </nav>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="130" height="30" loading="lazy">
+        <p style="margin:0;max-width:34ch">Real optimization you can see and undo. Made by Lukas Reschke.</p>
+      </div>
+      <div><h4>Product</h4><nav aria-label="Product"><a href="#modules">Modules</a><a href="#bottleneck">Bottleneck</a><a href="#frameboost">FrameBoost</a><a href="#premium">Premium</a></nav></div>
+      <div><h4>Project</h4><nav aria-label="Project"><a href="https://github.com/RESET-Y/reset-fps-booster">Source</a><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a><a href="https://github.com/RESET-Y/reset-fps-booster/issues">Report a problem</a></nav></div>
+      <div><h4>Community</h4><nav aria-label="Community"><a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a><a href="#faq">FAQ</a><a href="mailto:lukas.reschke80@gmail.com">E-mail</a></nav></div>
+      <div><h4>Legal</h4><nav aria-label="Legal"><a href="impressum.html">Legal notice</a><a href="datenschutz.html">Privacy</a><a href="agb.html">Terms</a></nav></div>
+    </div>
+    <div class="foot-base"><span>© 2026 RESET</span><span>No placebo. No fake FPS.</span></div>
   </div>
 </footer>
 <div class="stripe"></div>
+<button class="top-btn" id="topBtn" type="button" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 15l7-7 7 7"/></svg></button>
 
+<script src="assets/account.js?v=3"></script>
 <script>
 document.documentElement.classList.add("js");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let LANG = "en";
+const L = o => (typeof o === "string" ? o : (o[LANG] || o.en));
 
 // ---------- language: English in the markup, German swapped in text node by text node ----------
 const DE = {
+ "Skip to content": "Zum Inhalt springen",
  "Modules": "Module",
- "Undo": "Rückgängig",
+ "Bottleneck": "Engpass",
  "SYSTEM ONLINE // PERFORMANCE ENGINE READY": "SYSTEM ONLINE // PERFORMANCE ENGINE BEREIT",
  "Real optimization.": "Echte Optimierung.",
  "No placebo.": "Kein Placebo.",
- "RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every change can be undone.": "RESET FPS BOOSTER liest deine echte Hardware aus, setzt dokumentierte Windows- und NVIDIA-Einstellungen über ihre echten Schnittstellen und zeigt dir genau, was sich geändert hat. Jeder Wert vorher und nachher, und jede Änderung lässt sich rückgängig machen.",
+ "RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every setting can be undone.": "RESET FPS BOOSTER liest deine echte Hardware aus, setzt dokumentierte Windows- und NVIDIA-Einstellungen über ihre echten Schnittstellen und zeigt dir genau, was sich geändert hat. Jeder Wert vorher und nachher, und jede Einstellung lässt sich rückgängig machen.",
  "Download for Windows": "Für Windows laden",
- "See FrameBoost": "FrameBoost ansehen",
- "Windows 10/11 x64 · Free core app · No telemetry": "Windows 10/11 x64 · Kern-App kostenlos · Keine Telemetrie",
+ "Build your setup": "Setup zusammenstellen",
+ "Windows 10/11 x64 · Free core app · No telemetry ·": "Windows 10/11 x64 · Kern-App kostenlos · Keine Telemetrie ·",
  "FrameBoost active": "FrameBoost aktiv",
  "GAME FPS": "SPIEL-FPS",
  "OUTPUT FPS": "AUSGABE-FPS",
  "Example readout from Apex Legends on an RTX 3060, capped at 60.": "Beispielwerte aus Apex Legends auf einer RTX 3060, begrenzt auf 60.",
  "Optimization modules": "Optimierungsmodule",
- "Reversible changes": "Umkehrbare Änderungen",
+ "Bottlenecks it can name": "Engpässe, die es erkennt",
  "Fabricated FPS claims": "Erfundene FPS-Angaben",
  "Frames with FrameBoost": "Frames mit FrameBoost",
- "Every module,": "Jedes Modul,",
- "one purpose": "ein Zweck",
- "Each one reads the real setting first, tells you what it will change and how risky that is, and logs the old value before touching it.": "Jedes liest zuerst die echte Einstellung, sagt dir, was es ändert und wie riskant das ist, und sichert den alten Wert, bevor es etwas anfasst.",
- "Low risk": "Geringes Risiko",
- "Medium risk": "Mittleres Risiko",
- "Game Mode & Game DVR": "Spielmodus & Game DVR",
- "Prioritizes your game's scheduling and turns off the Xbox Game Bar capture buffer that quietly eats CPU, GPU and disk I/O.": "Priorisiert dein Spiel und schaltet den Aufnahmepuffer der Xbox Game Bar ab, der still CPU, GPU und Festplatte belastet.",
- "Power plan & startup": "Energieplan & Autostart",
- "High Performance so the CPU stops downclocking, and non-essential startup helpers off. Gaming platforms are never touched.": "Höchstleistung, damit die CPU nicht heruntertaktet, und unnötige Autostart-Helfer aus. Spieleplattformen bleiben immer unberührt.",
- "GPU scheduling": "GPU-Planung",
- "Hardware-accelerated GPU scheduling for lower latency on supported cards. Needs a restart, so it's opt-in.": "Hardwarebeschleunigte GPU-Planung für weniger Latenz auf unterstützten Karten. Braucht einen Neustart, deshalb nur auf Wunsch.",
- "NVIDIA max performance": "NVIDIA Maximale Leistung",
- "Power management, threaded optimization, texture filtering and V-Sync, set through NVIDIA's own NVAPI.": "Energieverwaltung, Threaded Optimization, Texturfilterung und V-Sync, gesetzt über NVIDIAs eigene NVAPI.",
- "Network": "Netzwerk",
- "Network throttling": "Netzwerkdrosselung",
- "Removes the roughly 10,000 packets per second cap Windows applies while a multimedia or gaming task runs.": "Entfernt die Grenze von rund 10.000 Paketen pro Sekunde, die Windows setzt, solange Multimedia oder ein Spiel läuft.",
- "Memory": "Arbeitsspeicher",
- "RAM cleaner": "RAM-Reiniger",
- "Trims idle background working sets and clears the standby list. Nothing is closed; pages come back on next use.": "Verkleinert den Speicher untätiger Hintergrundprozesse und leert die Standby-Liste. Nichts wird geschlossen, die Daten kommen bei Bedarf zurück.",
- "Storage": "Speicher",
- "Temp file cleanup": "Temp-Dateien bereinigen",
- "Shows the reclaimable size of your temp folders before deleting a single byte.": "Zeigt, wie viel Platz deine Temp-Ordner freigeben, bevor ein einziges Byte gelöscht wird.",
- "Power throttling": "Energiedrosselung",
- "Stops Windows from throttling background processes. Flagged on laptops, where it costs battery.": "Verhindert, dass Windows Hintergrundprozesse drosselt. Auf Laptops markiert, weil es Akku kostet.",
+ "Build your setup.": "Stell dein Setup zusammen.",
+ "See every write.": "Sieh jede Änderung.",
+ "Pick modules the way you would in the app. The pit board shows exactly what each one writes, whether it needs admin or a restart, and what gets backed up first. These are the real keys and values from the source code.": "Wähl Module wie in der App. Die Boxentafel zeigt genau, was jedes schreibt, ob es Adminrechte oder einen Neustart braucht und was vorher gesichert wird. Das sind die echten Schlüssel und Werte aus dem Quellcode.",
+ "Change preview": "Änderungsvorschau",
+ "Dry run": "Probelauf",
+ "Selected": "Gewählt",
+ "Admin": "Admin",
+ "Restart": "Neustart",
+ "Nothing here touches your PC. In the app, this list is what you approve before anything is written.": "Hier wird nichts an deinem PC verändert. In der App ist genau diese Liste das, was du freigibst, bevor etwas geschrieben wird.",
+ "Bottleneck Engine": "Engpass-Analyse",
+ "Why are you": "Warum verlierst du",
+ "losing FPS?": "FPS?",
+ "Instead of a list of tweaks, you get one explained diagnosis. The engine samples real telemetry every two seconds while you play and names what is actually holding the game back.": "Statt einer Liste von Tweaks bekommst du eine erklärte Diagnose. Die Analyse misst alle zwei Sekunden echte Werte, während du spielst, und benennt, was dein Spiel wirklich ausbremst.",
+ "Six collectors": "Sechs Sensoren",
+ "CPU, GPU, VRAM, RAM, disk and processes, read from Windows and the driver.": "CPU, GPU, VRAM, RAM, Festplatte und Prozesse, ausgelesen aus Windows und dem Treiber.",
+ "Seven analyzers": "Sieben Analysen",
+ "Each one votes for a cause. No single signal decides anything alone.": "Jede stimmt für eine Ursache. Kein einzelnes Signal entscheidet allein.",
+ "Root cause first": "Ursache zuerst",
+ "If heat or the power limit explains a \"GPU limited\" reading, the symptom is turned down and the cause leads.": "Wenn Hitze oder das Leistungslimit ein „GPU-limitiert“ erklärt, wird das Symptom abgeschwächt und die Ursache steht vorn.",
+ "Confidence, not guesses": "Sicherheit statt Raten",
+ "Only causes with real confidence are shown, at most three, each with the numbers behind it.": "Gezeigt werden nur Ursachen mit echter Sicherheit, höchstens drei, jede mit den Zahlen dahinter.",
+ "Example": "Beispiel",
  "Twice the frames.": "Doppelte Frames.",
  "Nothing injected.": "Nichts injiziert.",
  "FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.": "FrameBoost nimmt dein Spielfenster auf, schätzt die Bewegung zwischen zwei echten Frames und zeigt dazwischen einen erzeugten Frame. Es läuft neben dem Spiel, nie darin.",
@@ -568,8 +1015,21 @@ const DE = {
  "No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.": "Keine DLL, keine Hooks, kein Zugriff auf Spielspeicher oder Spieldateien. Es liest das Spielfenster so, wie eine Bildschirmaufnahme es tut.",
  "Honest count": "Ehrlich gezählt",
  "A picture shown twice is one frame. Output FPS only counts frames that are actually new.": "Ein Bild, das zweimal gezeigt wird, ist ein Frame. Die Ausgabe-FPS zählen nur Frames, die wirklich neu sind.",
- "Best setup": "Beste Einstellung",
- "Cap the game at half your refresh rate and leave the GPU some headroom. The app tells you the cap for your monitor.": "Begrenze das Spiel auf die halbe Bildwiederholrate und lass der GPU etwas Luft. Die App zeigt dir das Limit für deinen Monitor.",
+ "Steps aside": "Tritt beiseite",
+ "If the game already uses the whole GPU, generating frames would slow it down. FrameBoost passes the game through untouched and starts again when there is room.": "Wenn das Spiel die GPU schon voll auslastet, würden erzeugte Frames es bremsen. FrameBoost lässt das Spiel dann unverändert durch und startet von selbst neu, sobald wieder Luft ist.",
+ "Failsafe": "Notabschaltung",
+ "If something goes wrong, it stops on its own and leaves nothing running.": "Wenn etwas schiefgeht, stoppt es von selbst und lässt nichts weiterlaufen.",
+ "What reaches your screen": "Was auf deinem Bildschirm ankommt",
+ "Off": "Aus",
+ "On": "An",
+ "Game renders": "Spiel rendert",
+ "Screen shows": "Bildschirm zeigt",
+ "Real frame": "Echter Frame",
+ "Generated frame": "Erzeugter Frame",
+ "Same frame again": "Gleicher Frame nochmal",
+ "Your monitor": "Dein Monitor",
+ "Cap game at": "Spiel begrenzen auf",
+ "On screen": "Auf dem Bildschirm",
  "Quality": "Qualität",
  "Default": "Standard",
  "Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.": "Bewegungsschätzung in voller Auflösung für die saubersten Zwischenbilder, dafür etwas mehr Latenz.",
@@ -580,6 +1040,7 @@ const DE = {
  "Four steps,": "Vier Schritte,",
  "always in this order": "immer in dieser Reihenfolge",
  "Nothing is applied before you've seen it.": "Nichts wird angewendet, bevor du es gesehen hast.",
+ "Scan": "Scannen",
  "Reads your real CPU, GPU, RAM and storage and the current state of every module.": "Liest deine echte CPU, GPU, RAM und Speicher aus und den aktuellen Zustand jedes Moduls.",
  "Review": "Prüfen",
  "Shows the exact setting each module changes, its risk, and whether it needs admin or a restart.": "Zeigt genau, welche Einstellung jedes Modul ändert, sein Risiko und ob es Adminrechte oder einen Neustart braucht.",
@@ -597,9 +1058,29 @@ const DE = {
  "Every Steam and Epic install.": "Jede Steam- und Epic-Installation.",
  "No fixed list.": "Keine feste Liste.",
  "Games are found from your real library metadata. Apex Legends and Counter-Strike 2 get a curated autoexec.cfg in one click, with your old file backed up.": "Spiele werden aus deinen echten Bibliotheksdaten gefunden. Apex Legends und Counter-Strike 2 bekommen mit einem Klick eine abgestimmte autoexec.cfg, deine alte Datei wird gesichert.",
+ "Honest by design": "Ehrlich aus Prinzip",
+ "Most boosters sell a number.": "Die meisten Booster verkaufen eine Zahl.",
+ "We show the work.": "Wir zeigen die Arbeit.",
+ "Typical \"FPS booster\"": "Typischer „FPS-Booster“",
+ "FPS gains": "FPS-Gewinn",
+ "Promises \"+200% FPS\" before it has seen your PC": "Verspricht „+200 % FPS“, bevor er deinen PC gesehen hat",
+ "Never shows a number it didn't measure": "Zeigt nie eine Zahl, die nicht gemessen wurde",
+ "What changes": "Was sich ändert",
+ "One button, hidden tweak list": "Ein Knopf, versteckte Tweak-Liste",
+ "Every key, value and API call listed before you apply": "Jeder Schlüssel, Wert und API-Aufruf wird vor dem Anwenden aufgelistet",
+ "Undo": "Rückgängig",
+ "Hope, or reinstall Windows": "Hoffen oder Windows neu installieren",
+ "Backup per change, plus a Windows restore point": "Backup pro Änderung, dazu ein Windows-Wiederherstellungspunkt",
+ "Diagnosis": "Diagnose",
+ "The same tweaks for every PC": "Dieselben Tweaks für jeden PC",
+ "Bottleneck Engine names what limits your game": "Die Engpass-Analyse benennt, was dein Spiel begrenzt",
+ "Frame generation": "Frame-Generierung",
+ "Counts repeated frames as FPS": "Zählt wiederholte Frames als FPS",
+ "Only new frames count, nothing injected": "Nur neue Frames zählen, nichts injiziert",
  "Trust": "Vertrauen",
  "You can undo": "Du kannst alles",
  "anything": "rückgängig machen",
+ "Every setting the app changes can be reverted. The one thing that can't, deleting temp files, tells you so and shows the size before it runs.": "Jede Einstellung, die die App ändert, lässt sich zurücknehmen. Das Einzige, was nicht geht, das Löschen von Temp-Dateien, sagt dir das und zeigt vorher die Größe.",
  "Backup per change": "Backup pro Änderung",
  "Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.": "Jeder Registry-Wert, jede Treibereinstellung und jede Datei wird vorher gesichert. Stell eine Änderung oder eine ganze Sitzung wieder her.",
  "Plain-language log": "Protokoll in Klartext",
@@ -610,8 +1091,7 @@ const DE = {
  "Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.": "Module, die Adminrechte brauchen, sagen es vorher, und die App bietet einen Neustart mit Adminrechten an, statt still zu scheitern.",
  "The optimizer is free.": "Der Optimierer ist kostenlos.",
  "FrameBoost is Premium.": "FrameBoost ist Premium.",
- "Premium unlocks RESET FrameBoost on your RESET account. Online checkout isn't open yet, so for now FrameBoost is unlocked on request: email": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Der Online-Kauf ist noch nicht offen, deshalb wird FrameBoost vorerst auf Anfrage freigeschaltet: schreib an",
- "with the e-mail address of your account.": "mit der E-Mail-Adresse deines Accounts.",
+ "Premium unlocks RESET FrameBoost on your RESET account. Signed in on this site or in the app, a purchase lands straight on your account. Without signing in you get a code right after paying, which you redeem in the app. Payment runs through Stripe.": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Bist du hier oder in der App angemeldet, landet der Kauf direkt auf deinem Account. Ohne Anmeldung bekommst du nach dem Bezahlen einen Code, den du in der App einlöst. Bezahlt wird über Stripe.",
  "Free": "Kostenlos",
  "All optimization modules": "Alle Optimierungsmodule",
  "Game Boost and game profiles": "Game Boost und Spielprofile",
@@ -622,29 +1102,67 @@ const DE = {
  "RESET FrameBoost, for good": "RESET FrameBoost, für immer",
  "Quality and low-latency modes": "Qualitäts- und Low-Latency-Modus",
  "Future FrameBoost updates": "Künftige FrameBoost-Updates",
- "Online checkout opens soon": "Online-Kauf folgt bald",
- "Request unlock": "Freischaltung anfragen",
+ "Buy now": "Jetzt kaufen",
+ "Subscribe": "Abonnieren",
  "Monthly": "Monatlich",
  "/ month": "/ Monat",
  "Cancel anytime": "Jederzeit kündbar",
- "Create your account in the app first (Account page), then send that e-mail address. You get an unlock code to redeem on the same page. Or ask in the": "Leg zuerst in der App einen Account an (Seite Konto) und schick dann diese E-Mail-Adresse. Du bekommst einen Code, den du auf derselben Seite einlöst. Oder frag im",
+ "After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the": "Nach dem Bezahlen siehst du deinen Code. Öffne in der App die Seite Konto, melde dich an und löse ihn unter „Du hast einen Code?“ ein. Das Monats-Abo ist jederzeit kündbar, Details in den",
+ "terms": "AGB",
+ ". Questions? Ask in the": ". Fragen? Frag im",
  "RESET Discord": "RESET-Discord",
- "Create your account in the app first (Account page), then send that e-mail address. You get an unlock code to redeem on the same page.": "Leg zuerst in der App einen Account an (Seite Konto) und schick dann diese E-Mail-Adresse. Du bekommst einen Code, den du auf derselben Seite einlöst.",
+ "Straight": "Klare",
+ "answers": "Antworten",
+ "Something missing? Ask in the": "Fehlt etwas? Frag im",
+ "How many FPS will I gain?": "Wie viele FPS gewinne ich?",
+ "We don't know, and neither does anyone who promises a number before seeing your PC. The modules remove real overhead like background recording, power saving and network throttling. How much that is worth depends on what limits your game, and the Bottleneck Engine tells you exactly that.": "Wissen wir nicht, und niemand, der eine Zahl verspricht, bevor er deinen PC gesehen hat, weiß es. Die Module entfernen echten Ballast wie Hintergrundaufnahme, Energiesparen und Netzwerkdrosselung. Wie viel das bringt, hängt davon ab, was dein Spiel begrenzt, und genau das sagt dir die Engpass-Analyse.",
+ "Is it safe? Can I go back?": "Ist das sicher? Kann ich zurück?",
+ "Every module shows its risk level before you apply it, and the previous value is backed up first. You can restore a single change or a whole session, and create a Windows restore point on top. Temp file cleanup is the only action that can't be undone, and it says so.": "Jedes Modul zeigt sein Risiko, bevor du es anwendest, und der vorherige Wert wird zuerst gesichert. Du kannst eine einzelne Änderung oder eine ganze Sitzung zurücknehmen und zusätzlich einen Windows-Wiederherstellungspunkt anlegen. Die Temp-Bereinigung ist die einzige Aktion, die sich nicht rückgängig machen lässt, und sie sagt das auch.",
+ "Can it get me banned by anti-cheat?": "Kann mich das einen Anti-Cheat-Bann kosten?",
+ "The optimizer changes Windows and driver settings, not games. FrameBoost doesn't inject a DLL, hook the game or read its memory; it reads the game window the way screen capture does. We can't speak for every anti-cheat, so if you're unsure, check your game's rules.": "Der Optimierer ändert Windows- und Treibereinstellungen, keine Spiele. FrameBoost injiziert keine DLL, hängt sich nicht ins Spiel und liest keinen Spielspeicher, es liest das Spielfenster wie eine Bildschirmaufnahme. Für jedes Anti-Cheat können wir nicht sprechen, im Zweifel schau in die Regeln deines Spiels.",
+ "Does it work with AMD or Intel graphics?": "Funktioniert es mit AMD- oder Intel-Grafik?",
+ "Yes. All Windows modules work on any GPU. The NVIDIA Max Performance module and the GPU temperature readout are NVIDIA-only, and the app hides what doesn't apply to your hardware.": "Ja. Alle Windows-Module laufen mit jeder GPU. Das Modul NVIDIA Maximale Leistung und die GPU-Temperaturanzeige gibt es nur für NVIDIA, und die App blendet aus, was für deine Hardware nicht passt.",
+ "Why does it sometimes need admin rights?": "Warum braucht es manchmal Adminrechte?",
+ "Five modules write system-wide settings that Windows only lets administrators change. They are marked upfront, and the app offers to restart elevated instead of failing silently. Everything else runs without admin.": "Fünf Module schreiben systemweite Einstellungen, die Windows nur Administratoren ändern lässt. Sie sind vorher markiert, und die App bietet einen Neustart mit Adminrechten an, statt still zu scheitern. Alles andere läuft ohne Admin.",
+ "How do I set up a game for FrameBoost?": "Wie richte ich ein Spiel für FrameBoost ein?",
+ "Set the game to borderless window, because exclusive fullscreen doesn't always work. Cap it at half your monitor's refresh rate and leave the GPU some room. The app shows the exact cap for the monitor you pick.": "Stell das Spiel auf Vollbild-Fenster (randlos), echtes Vollbild funktioniert nicht immer. Begrenze es auf die halbe Bildwiederholrate deines Monitors und lass der GPU etwas Luft. Die App zeigt dir das genaue Limit für den Monitor, den du wählst.",
+ "Does the app collect data?": "Sammelt die App Daten?",
+ "No telemetry. An account is only needed for Premium and stores your e-mail address. The update check asks GitHub whether a newer release exists.": "Keine Telemetrie. Ein Account ist nur für Premium nötig und speichert deine E-Mail-Adresse. Die Update-Prüfung fragt bei GitHub nach, ob es eine neuere Version gibt.",
+ "Which languages does the app speak?": "Welche Sprachen spricht die App?",
+ "English, German and Russian. You can switch live in the settings, without a restart.": "Englisch, Deutsch und Russisch. Du kannst live in den Einstellungen wechseln, ohne Neustart.",
  "Get": "Hol dir",
  "Self-contained installer, no extra runtimes. The app updates itself.": "Installer ohne zusätzliche Laufzeitumgebungen. Die App aktualisiert sich selbst.",
- "Windows 10/11 x64 · optimizer, game boost, backups": "Windows 10/11 x64 · Optimierer, Game Boost, Backups",
- "Download stable": "Stable laden",
- "Adds RESET FrameBoost, accounts, German and Russian": "Mit RESET FrameBoost, Accounts, Deutsch und Russisch",
- "Download beta": "Beta laden",
  "Latest": "Aktuell",
- "Windows 10/11 x64 · racing redesign, RESET FrameBoost, accounts, English, German and Russian": "Windows 10/11 x64 · Racing-Redesign, RESET FrameBoost, Accounts, Englisch, Deutsch und Russisch",
- "Already installed?": "Schon installiert?",
- "Auto-update": "Auto-Update",
- "The app finds new versions on its own and installs them in one click.": "Die App findet neue Versionen selbst und installiert sie mit einem Klick.",
+ "Windows 10/11 x64 · Bottleneck Engine, RESET FrameBoost, accounts, English, German and Russian": "Windows 10/11 x64 · Engpass-Analyse, RESET FrameBoost, Accounts, Englisch, Deutsch und Russisch",
+ "Recent releases": "Letzte Versionen",
  "All releases": "Alle Releases",
- "Made by Lukas Reschke": "Entwickelt von Lukas Reschke",
+ "System": "System",
+ "Architecture": "Architektur",
+ "Runtime": "Laufzeit",
+ "Included": "Enthalten",
+ "Updates": "Updates",
+ "Automatic": "Automatisch",
+ "Join the pit crew": "Werd Teil der Boxencrew",
+ "Questions, setups, bug reports and first looks at new builds. The RESET Discord is where it happens.": "Fragen, Setups, Fehlerberichte und erste Blicke auf neue Versionen. Im RESET-Discord passiert es.",
+ "Open Discord": "Discord öffnen",
+ "Real optimization you can see and undo. Made by Lukas Reschke.": "Echte Optimierung, die du sehen und rückgängig machen kannst. Entwickelt von Lukas Reschke.",
+ "Product": "Produkt",
+ "Project": "Projekt",
+ "Community": "Community",
  "Source": "Quellcode",
+ "Releases": "Releases",
  "Report a problem": "Problem melden",
+ "E-mail": "E-Mail",
+ "Legal": "Rechtliches",
+ "Account": "Konto",
+ "Legal notice": "Impressum",
+ "Privacy": "Datenschutz",
+ "Terms": "AGB",
+ "No placebo. No fake FPS.": "Kein Placebo. Keine falschen FPS.",
+ "13 modules": "13 Module",
+ "No placebo": "Kein Placebo",
+ "Every change logged": "Jede Änderung protokolliert",
+ "No telemetry": "Keine Telemetrie",
  "Skip": "Überspringen"
 };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -655,17 +1173,21 @@ const textNodes = [];
     if (c.nodeType === 3 && c.nodeValue.trim()) {
       const key = c.nodeValue.replace(/\s+/g, " ").trim();
       if (DE[key]) textNodes.push({ node: c, en: c.nodeValue, key });
-    } else if (c.nodeType === 1 && !c.classList.contains("term") && c.tagName !== "SCRIPT") collect(c);
+    } else if (c.nodeType === 1 && !c.classList.contains("term") && !c.classList.contains("dyn") && c.tagName !== "SCRIPT") collect(c);
   }
 })(document.body);
+const attrNodes = [...document.querySelectorAll("[data-l]")];
 function setLang(lang) {
+  LANG = lang;
   for (const t of textNodes) {
     const lead = t.en.match(/^\s*/)[0], tail = t.en.match(/\s*$/)[0];
     t.node.nodeValue = lang === "de" ? lead + DE[t.key] + tail : t.en;
   }
   document.documentElement.lang = lang;
   document.querySelectorAll(".lang button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  attrNodes.forEach(n => { n.dataset.en = n.dataset.en || n.dataset.l; n.dataset.l = lang === "de" && n.dataset.en === "Typical" ? "Typisch" : n.dataset.en; });
   store.set("rfb-lang", lang);
+  renderAll();
 }
 // the switch itself: panel in, swap, panel out, visible text decodes into place
 const wipe = document.createElement("div");
@@ -675,7 +1197,7 @@ document.body.appendChild(wipe);
 let switching = false;
 function switchLang(lang) {
   if (switching || document.documentElement.lang === lang) return;
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches || !wipe.animate) { setLang(lang); return; }
+  if (reduce || !wipe.animate) { setLang(lang); return; }
   switching = true;
   wipe.firstChild.innerHTML = lang.toUpperCase() + "<small>" + (lang === "de" ? "DEUTSCH" : "ENGLISH") + "</small>";
   const inAnim = wipe.animate([{ transform: "translateX(-140%) skewX(-12deg)" }, { transform: "translateX(0) skewX(-12deg)" }],
@@ -713,19 +1235,321 @@ function decodeVisible() {
     })(start);
   }
 }
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M4 12l5 5L20 6"/></svg>';
+
+// ================= MODULE BUILDER =================
+// Keys, values, risk and admin flags mirror src/ResetFpsBooster/Optimization/Modules.
+const CATS = {
+  all: { en: "All", de: "Alle" }, gaming: { en: "Gaming", de: "Gaming" }, windows: { en: "Windows", de: "Windows" },
+  cpu: { en: "CPU", de: "CPU" }, gpu: { en: "GPU", de: "GPU" }, memory: { en: "Memory", de: "Arbeitsspeicher" },
+  storage: { en: "Storage", de: "Speicher" }, network: { en: "Network", de: "Netzwerk" }
+};
+const MODS = [
+  { id: "game-mode", cat: "gaming", risk: "low", name: { en: "Windows Game Mode", de: "Windows-Spielmodus" },
+    d: { en: "Lets Windows prioritize your game's CPU and GPU scheduling over background tasks while it has focus.", de: "Lässt Windows die CPU- und GPU-Planung deines Spiels vor Hintergrundaufgaben bevorzugen, solange es im Vordergrund ist." },
+    w: [["HKCU\\Software\\Microsoft\\GameBar", "AutoGameModeEnabled", "1"]] },
+  { id: "game-dvr", cat: "gaming", risk: "low", name: { en: "Game DVR off", de: "Game DVR aus" },
+    d: { en: "Turns off the Xbox Game Bar capture buffer that quietly records gameplay and eats CPU, GPU and disk I/O.", de: "Schaltet den Aufnahmepuffer der Xbox Game Bar ab, der still mitschneidet und CPU, GPU und Festplatte belastet." },
+    w: [["HKCU\\System\\GameConfigStore", "GameDVR_Enabled", "0"], ["HKCU\\Software\\Microsoft\\GameBar", "UseNexusForGameBarEnabled", "0"], ["HKCU\\Software\\Microsoft\\GameBar", "AllowAutoGameMode", "1"]] },
+  { id: "power-plan", cat: "windows", risk: "low", name: { en: "High Performance plan", de: "Höchstleistung" },
+    d: { en: "Switches the active power plan from Balanced to High Performance so the CPU stops downclocking while you play.", de: "Stellt den aktiven Energieplan von Ausbalanciert auf Höchstleistung, damit die CPU beim Spielen nicht heruntertaktet." },
+    w: [["powercfg", "active scheme", "High Performance"]] },
+  { id: "startup", cat: "windows", risk: "low", name: { en: "Startup cleanup", de: "Autostart aufräumen" },
+    d: { en: "Disables non-essential startup helpers like OneDrive, Spotify or Adobe updaters. Gaming platforms and drivers are never touched.", de: "Deaktiviert unnötige Autostart-Helfer wie OneDrive, Spotify oder Adobe-Updater. Spieleplattformen und Treiber bleiben immer unberührt." },
+    w: [["Startup entries", "OneDrive, Spotify, Adobe updaters …", "disabled"]] },
+  { id: "bg-apps", cat: "windows", risk: "low", name: { en: "Background Store apps", de: "Store-Apps im Hintergrund" },
+    d: { en: "Stops Microsoft Store apps from running and syncing in the background when you're not using them.", de: "Verhindert, dass Microsoft-Store-Apps im Hintergrund laufen und synchronisieren, wenn du sie nicht nutzt." },
+    w: [["HKCU\\…\\CurrentVersion\\BackgroundAccessApplications", "GlobalUserDisabled", "1"]] },
+  { id: "visual", cat: "windows", risk: "low", name: { en: "Visual effects", de: "Visuelle Effekte" },
+    d: { en: "Turns off window animations, transparency and shadows so the desktop compositor uses less GPU time. Purely cosmetic.", de: "Schaltet Fensteranimationen, Transparenz und Schatten ab, damit der Desktop weniger GPU-Zeit braucht. Rein optisch." },
+    w: [["HKCU\\…\\Explorer\\VisualEffects", "VisualFXSetting", "2"]] },
+  { id: "power-throttling", cat: "cpu", risk: "med", admin: true, name: { en: "CPU power throttling", de: "CPU-Energiedrosselung" },
+    d: { en: "Stops Windows from throttling background processes. On laptops this costs battery on the go.", de: "Verhindert, dass Windows Hintergrundprozesse drosselt. Auf Laptops kostet das Akku unterwegs." },
+    w: [["HKLM\\SYSTEM\\…\\Control\\Power\\PowerThrottling", "PowerThrottlingOff", "1"]] },
+  { id: "hags", cat: "gpu", risk: "med", admin: true, restart: true, name: { en: "Hardware GPU scheduling", de: "Hardware-GPU-Planung" },
+    d: { en: "Lets a compatible GPU manage its own video memory queue for lower latency.", de: "Lässt eine kompatible GPU ihre Grafikspeicher-Warteschlange selbst verwalten, für weniger Latenz." },
+    w: [["HKLM\\SYSTEM\\…\\Control\\GraphicsDrivers", "HwSchMode", "2"]] },
+  { id: "gpu-prio", cat: "gpu", risk: "med", admin: true, name: { en: "Gaming task priority", de: "Gaming-Aufgabenpriorität" },
+    d: { en: "Raises the CPU and GPU priority Windows gives the built-in \"Games\" multimedia task category.", de: "Erhöht die CPU- und GPU-Priorität, die Windows der eingebauten Multimedia-Kategorie „Games“ gibt." },
+    w: [["HKLM\\…\\SystemProfile\\Tasks\\Games", "GPU Priority", "8"], ["HKLM\\…\\SystemProfile\\Tasks\\Games", "Priority", "6"], ["HKLM\\…\\SystemProfile\\Tasks\\Games", "Scheduling Category", "High"], ["HKLM\\…\\SystemProfile\\Tasks\\Games", "SFIO Priority", "High"]] },
+  { id: "nvidia", cat: "gpu", risk: "med", nvidia: true, name: { en: "NVIDIA max performance", de: "NVIDIA Maximale Leistung" },
+    d: { en: "Sets the global driver profile through NVIDIA's own NVAPI, the same settings as Manage 3D Settings.", de: "Setzt das globale Treiberprofil über NVIDIAs eigene NVAPI, dieselben Einstellungen wie „3D-Einstellungen verwalten“." },
+    w: [["NVAPI global profile", "Power management", "Prefer max performance"], ["NVAPI global profile", "Threaded optimization", "On"], ["NVAPI global profile", "Texture filtering", "High performance"], ["NVAPI global profile", "Vertical sync", "Off"]] },
+  { id: "net", cat: "network", risk: "low", admin: true, name: { en: "Network throttling", de: "Netzwerkdrosselung" },
+    d: { en: "Removes the roughly 10,000 packets per second cap Windows applies while a multimedia or gaming task runs.", de: "Entfernt die Grenze von rund 10.000 Paketen pro Sekunde, die Windows setzt, solange Multimedia oder ein Spiel läuft." },
+    w: [["HKLM\\…\\Multimedia\\SystemProfile", "NetworkThrottlingIndex", "0xFFFFFFFF"]] },
+  { id: "ram", cat: "memory", risk: "low", admin: true, oneshot: true, name: { en: "RAM cleaner", de: "RAM-Reiniger" },
+    d: { en: "Trims memory held by idle background processes and clears the standby list. Nothing is closed, no data is lost.", de: "Verkleinert den Speicher untätiger Hintergrundprozesse und leert die Standby-Liste. Nichts wird geschlossen, keine Daten gehen verloren." },
+    w: [["Idle processes ≥ 20 MB", "working set", "trimmed"], ["Standby list", "cached pages", "released"]] },
+  { id: "temp", cat: "storage", risk: "low", noundo: true, name: { en: "Temp file cleanup", de: "Temp-Dateien bereinigen" },
+    d: { en: "Deletes leftovers from your user and system temp folders, after showing you how much space it frees.", de: "Löscht Reste aus deinen Benutzer- und System-Temp-Ordnern, nachdem es dir zeigt, wie viel Platz frei wird." },
+    w: [["%TEMP%", "files", "deleted"], ["%WINDIR%\\Temp", "files", "deleted"]] }
+];
+const TXT = {
+  low: { en: "Low risk", de: "Geringes Risiko" }, med: { en: "Medium risk", de: "Mittleres Risiko" },
+  admin: { en: "Admin", de: "Admin" }, restart: { en: "Restart", de: "Neustart" }, nvidia: { en: "NVIDIA only", de: "Nur NVIDIA" },
+  noundo: { en: "Can't be undone", de: "Nicht umkehrbar" }, oneshot: { en: "One-shot", de: "Einmalig" },
+  safe: { en: "Safe start", de: "Sicherer Start" }, comp: { en: "Select all", de: "Alle wählen" }, clear: { en: "Clear", de: "Leeren" },
+  empty: { en: "// select modules to see what the app would write", de: "// wähle Module, um zu sehen, was die App schreiben würde" },
+  backup: { en: "backup: previous value saved", de: "Backup: vorheriger Wert gesichert" },
+  noundoL: { en: "cannot be undone · size shown before delete", de: "nicht umkehrbar · Größe wird vorher gezeigt" },
+  oneshotL: { en: "one-shot · nothing persistent changed", de: "einmalig · nichts dauerhaft geändert" },
+  needAdmin: { en: "needs admin", de: "braucht Admin" }, needRestart: { en: "restart required", de: "Neustart nötig" },
+  ready: { en: "ready to apply", de: "bereit zum Anwenden" }, modules: { en: "module(s)", de: "Modul(e)" }, writes: { en: "write(s)", de: "Änderung(en)" }
+};
+let filter = "all";
+const picked = new Set(["game-mode", "game-dvr", "net"]);
+const modsEl = document.getElementById("mods"), logEl = document.getElementById("pLog");
+function renderFilters() {
+  document.getElementById("filters").innerHTML = Object.keys(CATS).filter(c => c === "all" || MODS.some(m => m.cat === c))
+    .map(c => `<button type="button" class="chip" data-f="${c}" aria-pressed="${c === filter}"><span>${esc(L(CATS[c]))}</span></button>`).join("");
+  document.getElementById("presets").innerHTML = ["safe", "comp", "clear"]
+    .map(p => `<button type="button" class="chip ghost" data-p="${p}"><span>${esc(L(TXT[p]))}</span></button>`).join("");
+}
+function renderMods() {
+  modsEl.innerHTML = MODS.map(m => {
+    const flags = [m.admin && `<span class="flag">${L(TXT.admin)}</span>`, m.restart && `<span class="flag">${L(TXT.restart)}</span>`,
+                   m.nvidia && `<span class="flag">${L(TXT.nvidia)}</span>`, m.oneshot && `<span class="flag">${L(TXT.oneshot)}</span>`,
+                   m.noundo && `<span class="flag warn">${L(TXT.noundo)}</span>`].filter(Boolean).join("");
+    return `<button type="button" class="mod${filter !== "all" && m.cat !== filter ? " hide" : ""}" data-id="${m.id}" aria-pressed="${picked.has(m.id)}">
+      <div class="tags"><span class="tag"><span>${esc(L(CATS[m.cat]))}</span></span><span class="risk ${m.risk}">${esc(L(TXT[m.risk]))}</span></div>
+      <span class="box">${CHECK}</span><h3>${esc(L(m.name))}</h3><p>${esc(L(m.d))}</p>${flags ? `<div class="flags">${flags}</div>` : ""}</button>`;
+  }).join("");
+}
+function renderLog(fresh) {
+  const sel = MODS.filter(m => picked.has(m.id));
+  document.getElementById("pSel").textContent = sel.length;
+  document.getElementById("pAdm").textContent = sel.filter(m => m.admin).length;
+  document.getElementById("pRst").textContent = sel.filter(m => m.restart).length;
+  if (!sel.length) { logEl.innerHTML = `<span class="k">${esc(L(TXT.empty))}</span>`; return; }
+  let writes = 0;
+  const blocks = sel.map(m => {
+    let s = `<span class="h">[${esc(L(m.name).toUpperCase())}]</span>`;
+    let lastKey = "";
+    for (const [key, name, val] of m.w) {
+      if (key !== lastKey) { s += `\n<span class="k">${esc(key)}</span>`; lastKey = key; }
+      s += `\n  ${esc(name.padEnd(24, " "))} <span class="v">→ ${esc(val)}</span>`;
+      writes++;
+    }
+    if (m.noundo) s += `\n<span class="w">⚠ ${esc(L(TXT.noundoL))}</span>`;
+    else if (m.oneshot) s += `\n<span class="k">· ${esc(L(TXT.oneshotL))}</span>`;
+    else s += `\n<span class="ok">✓</span> ${esc(L(TXT.backup))}`;
+    if (m.admin) s += `  <span class="w">· ${esc(L(TXT.needAdmin))}</span>`;
+    if (m.restart) s += `  <span class="w">· ${esc(L(TXT.needRestart))}</span>`;
+    return `<div${m.id === fresh ? ' class="new"' : ""}>${s}</div>`;
+  });
+  logEl.innerHTML = blocks.join("\n") + `\n\n<span class="ok">▶ ${sel.length} ${esc(L(TXT.modules))} · ${writes} ${esc(L(TXT.writes))} · ${esc(L(TXT.ready))}</span>`;
+  if (fresh) { const n = logEl.querySelector(".new"); if (n) logEl.scrollTop = n.offsetTop - logEl.offsetTop - 10; }
+}
+modsEl.addEventListener("click", e => {
+  const b = e.target.closest(".mod"); if (!b) return;
+  const id = b.dataset.id;
+  const on = !picked.has(id);
+  on ? picked.add(id) : picked.delete(id);
+  b.setAttribute("aria-pressed", String(on));
+  renderLog(on ? id : null);
+});
+document.getElementById("filters").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll("#filters .chip").forEach(c => c.setAttribute("aria-pressed", String(c === b)));
+  modsEl.querySelectorAll(".mod").forEach(m => m.classList.toggle("hide", filter !== "all" && MODS.find(x => x.id === m.dataset.id).cat !== filter));
+});
+document.getElementById("presets").addEventListener("click", e => {
+  const b = e.target.closest("[data-p]"); if (!b) return;
+  picked.clear();
+  if (b.dataset.p === "safe") MODS.filter(m => m.risk === "low" && !m.noundo).forEach(m => picked.add(m.id));
+  if (b.dataset.p === "comp") MODS.forEach(m => picked.add(m.id));
+  renderMods(); renderLog();
+});
+
+// ================= BOTTLENECK ENGINE =================
+// Headlines and explanations are the app's own strings (Bn.H.* / Bn.I.*). Numbers are an example.
+const BN = [
+  { k: "thermal", tab: { en: "Thermal", de: "Temperatur" }, game: "Apex Legends", conf: 78,
+    h: { en: "THERMAL LIMITED", de: "TEMPERATUR-LIMITIERT" },
+    i: { en: "Heat is currently capping performance before power or workload demand does.", de: "Hitze begrenzt die Leistung gerade, noch bevor Strom oder Last es tun." },
+    ev: [[{ en: "GPU temp", de: "GPU-Temp." }, "87", "°C"], [{ en: "GPU clock", de: "GPU-Takt" }, "1.58", "GHz"], [{ en: "GPU load", de: "GPU-Last" }, "99", "%"]],
+    f: [[{ en: "GPU limited", de: "GPU-limitiert" }, 34], [{ en: "Background workload", de: "Hintergrundlast" }, 12]],
+    sup: { en: "GPU-limited signal reduced: heat explains the full GPU load.", de: "GPU-limitiert abgeschwächt: die Hitze erklärt die volle GPU-Last." } },
+  { k: "cpu", tab: { en: "CPU", de: "CPU" }, game: "Counter-Strike 2", conf: 84,
+    h: { en: "CPU LIMITED", de: "CPU-LIMITIERT" },
+    i: { en: "Your CPU is currently limiting GPU utilization in this workload.", de: "Deine CPU begrenzt in dieser Last gerade die GPU-Auslastung." },
+    ev: [[{ en: "Busiest thread", de: "Stärkster Thread" }, "97", "%"], [{ en: "GPU load", de: "GPU-Last" }, "58", "%"], [{ en: "CPU clock", de: "CPU-Takt" }, "4.61", "GHz"]],
+    f: [[{ en: "Background workload", de: "Hintergrundlast" }, 38]] },
+  { k: "gpu", tab: { en: "GPU", de: "GPU" }, game: "Cyberpunk 2077", conf: 91,
+    h: { en: "GPU LIMITED", de: "GPU-LIMITIERT" },
+    i: { en: "Your GPU is the dominant factor right now, working close to its ceiling.", de: "Deine GPU ist gerade der entscheidende Faktor, sie arbeitet nah an ihrer Grenze." },
+    ev: [[{ en: "GPU load", de: "GPU-Last" }, "99", "%"], [{ en: "GPU clock", de: "GPU-Takt" }, "2.71", "GHz"], [{ en: "Busiest thread", de: "Stärkster Thread" }, "54", "%"]],
+    f: [[{ en: "VRAM limited", de: "VRAM-limitiert" }, 33]] },
+  { k: "power", tab: { en: "Power", de: "Leistung" }, game: "Fortnite", conf: 72,
+    h: { en: "POWER LIMITED", de: "LEISTUNGS-LIMITIERT" },
+    i: { en: "Your GPU is hitting its configured power limit, which is capping its clock speed.", de: "Deine GPU erreicht ihr eingestelltes Leistungslimit, das ihren Takt begrenzt." },
+    ev: [[{ en: "GPU power", de: "GPU-Leistung" }, "100", { en: "% of limit", de: "% vom Limit" }], [{ en: "GPU clock", de: "GPU-Takt" }, "1.82", "GHz"], [{ en: "GPU load", de: "GPU-Last" }, "97", "%"]],
+    f: [[{ en: "GPU limited", de: "GPU-limitiert" }, 36]],
+    sup: { en: "GPU-limited signal reduced: the power limit explains the capped clock.", de: "GPU-limitiert abgeschwächt: das Leistungslimit erklärt den gedrosselten Takt." } },
+  { k: "vram", tab: { en: "VRAM", de: "VRAM" }, game: "Hogwarts Legacy", conf: 81,
+    h: { en: "VRAM LIMITED", de: "VRAM-LIMITIERT" },
+    i: { en: "Video memory is nearly exhausted for the current workload.", de: "Der Grafikspeicher ist für die aktuelle Last fast voll." },
+    ev: [[{ en: "VRAM used", de: "VRAM belegt" }, "7.8", "/ 8 GB"], [{ en: "GPU load", de: "GPU-Last" }, "71", "%"], [{ en: "RAM used", de: "RAM belegt" }, "13.2", "GB"]],
+    f: [[{ en: "Memory limited", de: "RAM-limitiert" }, 35]] },
+  { k: "mem", tab: { en: "RAM", de: "RAM" }, game: "Star Citizen", conf: 70,
+    h: { en: "MEMORY LIMITED", de: "RAM-LIMITIERT" },
+    i: { en: "Available RAM is under real pressure, not just heavily used.", de: "Der freie Arbeitsspeicher steht unter echtem Druck, er ist nicht nur stark belegt." },
+    ev: [[{ en: "RAM free", de: "RAM frei" }, "0.9", "GB"], [{ en: "Commit", de: "Zugesichert" }, "94", "%"], [{ en: "Disk load", de: "Festplatte" }, "88", "%"]],
+    f: [[{ en: "Background workload", de: "Hintergrundlast" }, 41]] },
+  { k: "bg", tab: { en: "Background", de: "Hintergrund" }, game: "Rocket League", conf: 66,
+    h: { en: "BACKGROUND WORKLOAD", de: "HINTERGRUNDLAST" },
+    i: { en: "Other running processes are consuming resources your game could otherwise use.", de: "Andere laufende Prozesse belegen Ressourcen, die dein Spiel sonst nutzen könnte." },
+    ev: [[{ en: "Top process", de: "Top-Prozess" }, "18", { en: "% CPU", de: "% CPU" }], [{ en: "Background CPU", de: "Hintergrund-CPU" }, "31", "%"], [{ en: "GPU load", de: "GPU-Last" }, "64", "%"]],
+    f: [[{ en: "CPU limited", de: "CPU-limitiert" }, 39]] }
+];
+const bnPrim = { en: "Primary bottleneck", de: "Hauptengpass" };
+let bnIdx = 0, bnAuto = !reduce, bnTimer = null, bnCount = null;
+const bSegs = document.getElementById("bSegs");
+for (let i = 0; i < 20; i++) bSegs.appendChild(document.createElement("i"));
+function renderBnTabs() {
+  document.getElementById("bTabs").innerHTML = BN.map((s, i) =>
+    `<button type="button" class="chip" role="tab" aria-selected="${i === bnIdx}" data-i="${i}"><span>${esc(L(s.tab))}</span></button>`).join("");
+}
+function renderBn(animate) {
+  const s = BN[bnIdx];
+  document.getElementById("bGame").textContent = s.game;
+  document.getElementById("bPrimLbl").textContent = L(bnPrim);
+  document.getElementById("bHead").textContent = L(s.h);
+  document.getElementById("bExpl").textContent = L(s.i);
+  document.getElementById("bEvid").innerHTML = s.ev.map(([l, v, u]) =>
+    `<div><span class="lbl">${esc(L(l))}</span><span class="num">${esc(LANG === "de" ? v.replace(".", ",") : v)}<span class="unit" style="font-size:14px">${esc(L(u))}</span></span></div>`).join("");
+  document.getElementById("bFactors").innerHTML = s.f.map(([l, c]) =>
+    `<div class="factor"><span>${esc(L(l))}</span><span class="meter"><i style="width:${c}%"></i></span><b>${c}%</b></div>`).join("");
+  document.getElementById("bSup").textContent = s.sup ? L(s.sup) : "";
+  document.querySelectorAll("#bTabs .chip").forEach((c, i) => c.setAttribute("aria-selected", String(i === bnIdx)));
+  const lit = c => [...bSegs.children].forEach((b, i) => b.classList.toggle("on", i < Math.round(c / 5)));
+  cancelAnimationFrame(bnCount);
+  if (!animate || reduce) { document.getElementById("bConf").textContent = s.conf + "%"; lit(s.conf); return; }
+  const t0 = performance.now();
+  (function tick(now) {
+    const k = Math.min(1, (now - t0) / 700), c = Math.round(s.conf * (1 - Math.pow(1 - k, 3)));
+    document.getElementById("bConf").textContent = c + "%"; lit(c);
+    if (k < 1) bnCount = requestAnimationFrame(tick);
+  })(t0);
+}
+document.getElementById("bTabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-i]"); if (!b) return;
+  bnAuto = false; clearInterval(bnTimer);
+  bnIdx = +b.dataset.i; renderBn(true);
+});
+
+// ================= FRAMEBOOST =================
+let fbOn = true, hz = 144;
+const HZ = [120, 144, 165, 240];
+function renderFilm() {
+  const game = document.getElementById("laneGame"), out = document.getElementById("laneOut");
+  game.innerHTML = Array.from({ length: 24 }, () => '<i class="wide"></i>').join("");
+  out.innerHTML = Array.from({ length: 24 }, () => `<i></i><i class="${fbOn ? "gen" : "dup"}"></i>`).join("");
+  document.getElementById("laneOutNum").textContent = (fbOn ? 120 : 60) + " FPS";
+  document.querySelectorAll("#fbToggle .chip").forEach(c => c.setAttribute("aria-pressed", String((c.dataset.fb === "on") === fbOn)));
+}
+document.getElementById("fbToggle").addEventListener("click", e => {
+  const b = e.target.closest("[data-fb]"); if (!b) return;
+  fbOn = b.dataset.fb === "on"; renderFilm();
+});
+const capTxt = {
+  en: (a, b) => `Cap the game at ${a} FPS. FrameBoost doubles it to ${b}, which your ${hz} Hz monitor can show.`,
+  de: (a, b) => `Begrenze das Spiel auf ${a} FPS. FrameBoost verdoppelt das auf ${b}, und das kann dein ${hz}-Hz-Monitor anzeigen.`
+};
+function renderCap() {
+  const pick = document.getElementById("hzPick");
+  pick.innerHTML = HZ.map(h => `<button type="button" class="chip" data-hz="${h}" aria-pressed="${h === hz}"><span>${h} Hz</span></button>`).join("");
+  const a = Math.floor(hz / 2), b = a * 2;
+  document.getElementById("capIn").textContent = a;
+  document.getElementById("capOut").textContent = b;
+  document.getElementById("capTxt").textContent = capTxt[LANG](a, b);
+}
+document.getElementById("hzPick").addEventListener("click", e => {
+  const b = e.target.closest("[data-hz]"); if (!b) return;
+  hz = +b.dataset.hz; renderCap();
+});
+
+// ================= RELEASES (live from GitHub, static fallback in the markup) =================
+let releases = null;
+const RELNOTES = {
+  "v1.3.4": { en: "Buy Premium in the app", de: "Premium direkt in der App kaufen" },
+  "v1.3.3": { en: "Full German and Russian translation, Discord link", de: "Komplett auf Deutsch und Russisch, Discord-Link" },
+  "v1.3.2": { en: "The app knows its own version", de: "Die App kennt ihre eigene Version" },
+  "v1.3.1": { en: "FrameBoost window picker and update pop-up", de: "FrameBoost-Fensterauswahl und Update-Hinweis" },
+  "v1.3.0": { en: "Stable release with the racing redesign", de: "Stabile Version mit dem Racing-Redesign" }
+};
+function fmtDate(iso) {
+  try { return new Date(iso).toLocaleDateString(LANG === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return iso.slice(0, 10); }
+}
+function renderReleases() {
+  if (!releases || !releases.length) return;
+  const r = releases[0];
+  const tag = r.tag_name.startsWith("v") ? r.tag_name : "v" + r.tag_name;
+  document.getElementById("dlVer").textContent = tag;
+  document.getElementById("heroVer").textContent = tag;
+  const exe = (r.assets || []).find(a => /\.exe$/i.test(a.name));
+  document.getElementById("dlMeta").textContent = (LANG === "de" ? "Veröffentlicht " : "Released ") + fmtDate(r.published_at)
+    + (exe ? " · " + (exe.size / 1048576).toFixed(0) + " MB" : "") + " · ";
+  if (exe) document.getElementById("dlBtn").href = exe.browser_download_url;
+  document.getElementById("rel").innerHTML = releases.slice(0, 4).map(x => {
+    const t = x.tag_name.startsWith("v") ? x.tag_name : "v" + x.tag_name;
+    const bold = ((x.body || "").match(/\*\*(.+?)\*\*/) || [])[1];
+    const name = RELNOTES[t] ? L(RELNOTES[t]) : (x.name || "").replace(/^v?[\d.]+(-\w+)?\s*[:·-]?\s*/, "") || (bold ? bold.replace(/:$/, "") : (LANG === "de" ? "Versionshinweise" : "Release notes"));
+    return `<li><b>${esc(t)}</b><a href="${esc(x.html_url)}">${esc(name)}</a><time datetime="${esc(x.published_at)}">${esc(fmtDate(x.published_at))}</time></li>`;
+  }).join("");
+}
+fetch("https://api.github.com/repos/RESET-Y/reset-fps-booster/releases?per_page=4", { headers: { Accept: "application/vnd.github+json" } })
+  .then(r => r.ok ? r.json() : null)
+  .then(list => { if (Array.isArray(list)) { releases = list.filter(x => !x.draft); renderReleases(); } })
+  .catch(() => {});
+
+// ---------- account: signed in, a purchase goes straight to the account ----------
+function renderAcct() {
+  const u = window.RFB && RFB.user;
+  document.querySelectorAll("[data-plan]").forEach(a => { a.href = RFB.buyUrl(a.dataset.plan); });
+  const bar = document.getElementById("acctBar");
+  const offer = window.__offer
+    ? (LANG === "de" ? `<span class="offer">Code <b>${esc(__offer.code)}</b> aktiv: ${__offer.discount_percent} % Rabatt${__offer.discount_forever ? "" : " (beim Abo auf den ersten Monat)"}. Wird beim Bezahlen automatisch eingetragen.</span>`
+                     : `<span class="offer">Code <b>${esc(__offer.code)}</b> applied: ${__offer.discount_percent}% off${__offer.discount_forever ? "" : " (first month on the monthly plan)"}. It's filled in at checkout automatically.</span>`)
+    : "";
+  bar.innerHTML = offer + (u
+    ? (LANG === "de" ? `Angemeldet als <b>${esc(u.email)}</b>. Der Kauf geht direkt auf deinen Account. <a href="konto.html">Konto</a>`
+                     : `Signed in as <b>${esc(u.email)}</b>. Your purchase goes straight to your account. <a href="konto.html">Account</a>`)
+    : (LANG === "de" ? `<a href="konto.html">Melde dich an</a>, damit der Kauf direkt auf deinem Account landet. Ohne Anmeldung bekommst du einen Code.`
+                     : `<a href="konto.html">Sign in</a> so the purchase lands straight on your account. Without signing in you get a code.`));
+}
+// A streamer's code: show what it gives, or forget it if it no longer exists.
+if (RFB.referral) RFB.publicRpc("affiliate_offer", { p_code: RFB.referral })
+  .then(o => { if (o) window.__offer = o; else RFB.dropReferral(); renderAcct(); })
+  .catch(() => {});
+
+function renderAll() {
+  renderAcct();
+  renderFilters(); renderMods(); renderLog();
+  renderBnTabs(); renderBn(false);
+  renderFilm(); renderCap();
+  renderReleases();
+  document.querySelectorAll(".burger").forEach(b => b.setAttribute("aria-label", LANG === "de" ? "Menü" : "Menu"));
+}
+
 const startLang = store.get("rfb-lang") || ((navigator.language || "").toLowerCase().startsWith("de") ? "de" : "en");
-if (startLang === "de") setLang("de");
+if (startLang === "de") setLang("de"); else renderAll();
+if (bnAuto) bnTimer = setInterval(() => { if (!bnAuto || document.hidden) return; bnIdx = (bnIdx + 1) % BN.length; renderBn(true); }, 6000);
 
 // ---------- intro: once per visit, click or any key skips ----------
 (function intro() {
   let seen = false;
   try { seen = sessionStorage.getItem("rfb-intro") === "1"; sessionStorage.setItem("rfb-intro", "1"); } catch {}
-  if (seen || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (seen || reduce) return;
   const el = document.createElement("div");
   el.id = "intro";
   el.setAttribute("aria-hidden", "true");
   el.innerHTML = '<div class="stripe"></div><div class="core"><img src="assets/logo_wide.png" alt=""><div class="bar"></div><div class="line"></div></div>'
-               + '<div class="skip">' + (document.documentElement.lang === "de" ? DE.Skip : "Skip") + '</div><div class="stripe bottom"></div>';
+               + '<div class="skip">' + (LANG === "de" ? DE.Skip : "Skip") + '</div><div class="stripe bottom"></div>';
   document.body.appendChild(el);
   document.body.style.overflow = "hidden";
   const bar = el.querySelector(".bar"), line = el.querySelector(".line");
@@ -748,18 +1572,44 @@ if (startLang === "de") setLang("de");
   setTimeout(finish, 3200);
 })();
 
-// reveal on scroll; anything already on screen shows at once
+// reveal on scroll; anything already on screen shows at once. Terminals type their lines in.
 const io = new IntersectionObserver(es => es.forEach(e => {
-  if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  if (!e.isIntersecting) return;
+  const t = e.target;
+  t.classList.add("in"); io.unobserve(t);
+  if (t.classList.contains("term") && !reduce) t.querySelectorAll(".ln").forEach((l, i) => l.style.transitionDelay = (0.25 + i * 0.28) + "s");
+  if (t.dataset.count && !reduce) countUp(t);
+  t.querySelectorAll && t.querySelectorAll("[data-count]").forEach(n => !reduce && countUp(n));
 }), { threshold: 0.12 });
-document.querySelectorAll(".rv").forEach(el => io.observe(el));
+document.querySelectorAll(".rv, .term").forEach(el => io.observe(el));
+function countUp(n) {
+  const end = +n.dataset.count, t0 = performance.now();
+  (function f(now) { const k = Math.min(1, (now - t0) / 900); n.textContent = Math.round(end * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); })(t0);
+}
+
+// header: scroll progress, section highlight, mobile menu, back to top
+const hdr = document.getElementById("hdr"), prog = document.getElementById("progress"), topBtn = document.getElementById("topBtn");
+function onScroll() {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  prog.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+  topBtn.classList.toggle("on", scrollY > innerHeight * 1.2);
+}
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+topBtn.addEventListener("click", () => scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" }));
+const burger = hdr.querySelector(".burger");
+burger.addEventListener("click", () => { const o = hdr.classList.toggle("open"); burger.setAttribute("aria-expanded", String(o)); });
+hdr.querySelectorAll(".mnav a").forEach(a => a.addEventListener("click", () => { hdr.classList.remove("open"); burger.setAttribute("aria-expanded", "false"); }));
+const navLinks = [...document.querySelectorAll(".nav .links a[href^='#']")];
+const spy = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) navLinks.forEach(a => a.classList.toggle("here", a.getAttribute("href") === "#" + e.target.id));
+}), { rootMargin: "-45% 0px -50% 0px" });
+navLinks.forEach(a => { const s = document.querySelector(a.getAttribute("href")); if (s) spy.observe(s); });
 
 // hero readout: fills its bar, then breathes like a live counter
 const segs = document.getElementById("segs");
 const N = 24;
 for (let i = 0; i < N; i++) segs.appendChild(document.createElement("i"));
 const bars = [...segs.children];
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function show(out) {
   document.getElementById("out").textContent = out;
   const lit = Math.round(out / 144 * N);

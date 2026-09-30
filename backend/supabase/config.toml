@@ -4,6 +4,11 @@
 [functions.stripe-webhook]
 verify_jwt = false
 
+# The thank-you page on the website has no Supabase session either. The long,
+# random Stripe session id it sends is the key - see functions/purchase-code.
+[functions.purchase-code]
+verify_jwt = false
+
 # Called by the app with a user token and by the hourly cron job with none.
 # It only ever sets roles to what the database says, so it checks the token
 # itself instead of requiring one - see functions/discord-sync/index.ts.
