@@ -308,8 +308,16 @@ $("refresh").addEventListener("click", load);
 // Stripe key). Everything else is a plain manager-only database function.
 const SITE = "https://reset-booster.netlify.app";
 async function adminFn(body) {
-  const r = await fetch(SUPABASE + "/functions/v1/affiliate-admin", {
-    method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let r;
+  try {
+    r = await fetch(SUPABASE + "/functions/v1/affiliate-admin", {
+      method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    // No readable answer at all: the function is missing, misnamed or
+    // crashing on start (Supabase then answers without CORS headers).
+    if (e.message === "expired") throw e;
+    throw new Error("unreachable");
+  }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || String(r.status));
   return j;
@@ -354,7 +362,9 @@ $("affForm").addEventListener("submit", async e => {
   } catch (err) {
     const m = err.message;
     $("affMsg").textContent = /already exists/.test(m) ? "Diesen Code gibt es schon."
+      : m === "unreachable" ? "Funktion affiliate-admin nicht erreichbar. Ist sie in Supabase deployt, und zeigen ihre Logs einen Fehler?"
       : /not allowed/.test(m) ? "Nicht erlaubt: kein Manager."
+      : /not signed in|^401$/.test(m) ? "Nicht angemeldet. Bitte ab- und wieder anmelden."
       : /STRIPE_API_KEY|stripe:.*(key|Invalid API)/i.test(m) ? "Stripe-Schlüssel fehlt oder ist falsch (Secret STRIPE_API_KEY in Supabase)."
       : /stripe:/.test(m) ? "Stripe: " + m.replace(/^stripe:\s*/, "")
       : "Konnte nicht angelegt werden (" + m + ").";
@@ -456,7 +466,7 @@ $("affList").addEventListener("click", async e => {
   if (b.dataset.activeId) {
     b.disabled = true;
     try { await adminFn({ action: "set_active", id: Number(b.dataset.activeId), active: b.dataset.active !== "true" }); loadAffiliates(); }
-    catch { toast("Fehlgeschlagen"); b.disabled = false; }
+    catch (err) { toast(err.message === "unreachable" ? "Funktion nicht erreichbar" : "Fehlgeschlagen"); b.disabled = false; }
   }
   if (b.dataset.detail) { const id = Number(b.dataset.detail); openAff = openAff === id ? null : id; renderAffiliates(); }
   if (b.dataset.reverse) {
