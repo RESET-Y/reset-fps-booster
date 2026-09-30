@@ -1,0 +1,35 @@
+/* Legal pages: same livery as the main site, set for long reading. */
+:root { --bg: #050505; --surface: #0c0c0c; --border: #262626; --text: #fff; --text-2: #b4b4b4; --text-3: #6a6a6a;
+        --accent: #e8121f; --accent-bright: #ff3242; --skew: -12deg;
+        --display: "Saira Condensed", "Arial Narrow", sans-serif; --body: "Barlow", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", Consolas, monospace; }
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+body { margin: 0; background: var(--bg); color: var(--text-2); font: 400 17px/1.7 var(--body); }
+.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
+.wrap { max-width: 780px; margin: 0 auto; padding: 0 16px; }
+header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; }
+header img { height: 26px; width: auto; display: block; }
+.lang { display: inline-flex; transform: skewX(var(--skew)); border: 1px solid var(--border); }
+.lang button { background: none; border: 0; color: var(--text-3); font: 800 italic 13px var(--display); letter-spacing: .06em; padding: 6px 10px; cursor: pointer; }
+.lang button > span { display: inline-block; transform: skewX(12deg); }
+.lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.lang button:hover:not([aria-pressed="true"]) { color: var(--text); }
+main { padding: 40px 0 72px; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); display: flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); }
+h1 { margin: 12px 0 8px; color: var(--text); font: 900 italic clamp(40px, 8vw, 64px)/1 var(--display); text-transform: uppercase; overflow-wrap: anywhere; }
+h2 { margin: 40px 0 8px; color: var(--text); font: 800 italic 24px/1.2 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+h3 { margin: 24px 0 4px; color: var(--text); font: 600 17px var(--body); }
+p, ul { margin: 10px 0 0; }
+ul { padding-left: 22px; }
+li + li { margin-top: 4px; }
+strong { color: var(--text); font-weight: 600; }
+a { color: var(--accent-bright); overflow-wrap: anywhere; }
+address { font-style: normal; color: var(--text); }
+.note { margin-top: 16px; padding: 12px 16px; border-left: 2px solid var(--accent); background: var(--surface); font-size: 15px; }
+.updated { font: 400 12px var(--mono); color: var(--text-3); letter-spacing: .06em; }
+footer { border-top: 1px solid var(--border); padding: 28px 0 40px; font: 400 12px var(--mono); color: var(--text-3); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+footer a { color: var(--text-2); text-decoration: none; }
+footer a:hover, footer a[aria-current="page"] { color: var(--text); }
+[hidden] { display: none !important; }
