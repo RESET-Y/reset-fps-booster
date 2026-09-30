@@ -14,7 +14,7 @@ header img { height: 26px; width: auto; display: block; }
 .lang button > span { display: inline-block; transform: skewX(12deg); }
 .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .lang button:hover:not([aria-pressed="true"]) { color: var(--text); }
-main { padding: 40px 0 72px; }
+main.wrap { padding-top: 40px; padding-bottom: 72px; }
 .eyebrow { font: 500 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); display: flex; align-items: center; gap: 10px; }
 .eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--accent); }
 h1 { margin: 12px 0 8px; color: var(--text); font: 900 italic clamp(40px, 8vw, 64px)/1 var(--display); text-transform: uppercase; overflow-wrap: anywhere; }

@@ -3,3 +3,8 @@
 # instead - see functions/stripe-webhook/index.ts.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# The thank-you page on the website has no Supabase session either. The long,
+# random Stripe session id it sends is the key - see functions/purchase-code.
+[functions.purchase-code]
+verify_jwt = false

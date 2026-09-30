@@ -797,7 +797,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
       <div class="head rv">
         <div class="eyebrow">Premium</div>
         <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
-        <p>Premium unlocks RESET FrameBoost on your RESET account. You buy it right in the app, on the Account page, so the purchase lands on the right account. Payment runs through Stripe.</p>
+        <p>Premium unlocks RESET FrameBoost on your RESET account. Buy it here and you get a code right after paying, which you redeem in the app. Or buy it in the app on the Account page, and it lands on your account straight away. Payment runs through Stripe.</p>
       </div>
       <div class="plans">
         <article class="card plan rv">
@@ -821,7 +821,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
             <li>Quality and low-latency modes</li>
             <li>Future FrameBoost updates</li>
           </ul>
-          <a class="btn btn-primary" href="#download"><span>Buy in the app</span></a>
+          <a class="btn btn-primary" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
         </article>
         <article class="card plan rv">
           <span class="tag"><span>Monthly</span></span>
@@ -831,10 +831,10 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
             <li>RESET FrameBoost</li>
             <li>Cancel anytime</li>
           </ul>
-          <a class="btn btn-secondary" href="#download"><span>Buy in the app</span></a>
+          <a class="btn btn-secondary" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
         </article>
       </div>
-      <p class="plans-note">Download the app, create your account on the Account page and pick a plan there. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+      <p class="plans-note">After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
     </div>
   </section>
 
@@ -1083,7 +1083,7 @@ const DE = {
  "Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.": "Module, die Adminrechte brauchen, sagen es vorher, und die App bietet einen Neustart mit Adminrechten an, statt still zu scheitern.",
  "The optimizer is free.": "Der Optimierer ist kostenlos.",
  "FrameBoost is Premium.": "FrameBoost ist Premium.",
- "Premium unlocks RESET FrameBoost on your RESET account. You buy it right in the app, on the Account page, so the purchase lands on the right account. Payment runs through Stripe.": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Gekauft wird direkt in der App auf der Seite Konto, damit der Kauf beim richtigen Account landet. Bezahlt wird über Stripe.",
+ "Premium unlocks RESET FrameBoost on your RESET account. Buy it here and you get a code right after paying, which you redeem in the app. Or buy it in the app on the Account page, and it lands on your account straight away. Payment runs through Stripe.": "Premium schaltet RESET FrameBoost für deinen RESET-Account frei. Kaufst du hier, bekommst du direkt nach dem Bezahlen einen Code, den du in der App einlöst. Oder du kaufst in der App auf der Seite Konto, dann landet Premium sofort auf deinem Account. Bezahlt wird über Stripe.",
  "Free": "Kostenlos",
  "All optimization modules": "Alle Optimierungsmodule",
  "Game Boost and game profiles": "Game Boost und Spielprofile",
@@ -1094,11 +1094,12 @@ const DE = {
  "RESET FrameBoost, for good": "RESET FrameBoost, für immer",
  "Quality and low-latency modes": "Qualitäts- und Low-Latency-Modus",
  "Future FrameBoost updates": "Künftige FrameBoost-Updates",
- "Buy in the app": "In der App kaufen",
+ "Buy now": "Jetzt kaufen",
+ "Subscribe": "Abonnieren",
  "Monthly": "Monatlich",
  "/ month": "/ Monat",
  "Cancel anytime": "Jederzeit kündbar",
- "Download the app, create your account on the Account page and pick a plan there. The monthly plan can be cancelled anytime, details in the": "Lade die App herunter, leg auf der Seite Konto deinen Account an und wähle dort deinen Plan. Das Monats-Abo ist jederzeit kündbar, Details in den",
+ "After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the": "Nach dem Bezahlen siehst du deinen Code. Öffne in der App die Seite Konto, melde dich an und löse ihn unter „Du hast einen Code?“ ein. Das Monats-Abo ist jederzeit kündbar, Details in den",
  "terms": "AGB",
  ". Questions? Ask in the": ". Fragen? Frag im",
  "RESET Discord": "RESET-Discord",
@@ -1466,6 +1467,7 @@ document.getElementById("hzPick").addEventListener("click", e => {
 // ================= RELEASES (live from GitHub, static fallback in the markup) =================
 let releases = null;
 const RELNOTES = {
+  "v1.3.4": { en: "Buy Premium in the app", de: "Premium direkt in der App kaufen" },
   "v1.3.3": { en: "Full German and Russian translation, Discord link", de: "Komplett auf Deutsch und Russisch, Discord-Link" },
   "v1.3.2": { en: "The app knows its own version", de: "Die App kennt ihre eigene Version" },
   "v1.3.1": { en: "FrameBoost window picker and update pop-up", de: "FrameBoost-Fensterauswahl und Update-Hinweis" },
