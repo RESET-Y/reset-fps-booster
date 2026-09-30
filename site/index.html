@@ -841,7 +841,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
           <a class="btn btn-secondary" data-plan="monthly" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
         </article>
       </div>
-      <p class="plans-note">After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+      <p class="plans-note">Buying needs a free RESET account: sign in or create one, and Premium is switched on for that account by itself, in the app and on every PC you sign in on. No code to keep. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
     </div>
   </section>
 
@@ -959,7 +959,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
 <div class="stripe"></div>
 <button class="top-btn" id="topBtn" type="button" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 15l7-7 7 7"/></svg></button>
 
-<script src="assets/account.js?v=3"></script>
+<script src="assets/account.js?v=4"></script>
 <script>
 document.documentElement.classList.add("js");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1107,7 +1107,7 @@ const DE = {
  "Monthly": "Monatlich",
  "/ month": "/ Monat",
  "Cancel anytime": "Jederzeit kündbar",
- "After paying you see your code. In the app, open the Account page, sign in and redeem it under “Have a code?”. The monthly plan can be cancelled anytime, details in the": "Nach dem Bezahlen siehst du deinen Code. Öffne in der App die Seite Konto, melde dich an und löse ihn unter „Du hast einen Code?“ ein. Das Monats-Abo ist jederzeit kündbar, Details in den",
+ "Buying needs a free RESET account: sign in or create one, and Premium is switched on for that account by itself, in the app and on every PC you sign in on. No code to keep. The monthly plan can be cancelled anytime, details in the": "Zum Kaufen brauchst du einen kostenlosen RESET-Account: Melde dich an oder erstelle einen, und Premium wird auf diesem Account automatisch freigeschaltet, in der App und auf jedem PC, auf dem du dich anmeldest. Kein Code, den du aufheben musst. Das Monats-Abo ist jederzeit kündbar, Details in den",
  "terms": "AGB",
  ". Questions? Ask in the": ". Fragen? Frag im",
  "RESET Discord": "RESET-Discord",
@@ -1510,7 +1510,7 @@ fetch("https://api.github.com/repos/RESET-Y/reset-fps-booster/releases?per_page=
 // ---------- account: signed in, a purchase goes straight to the account ----------
 function renderAcct() {
   const u = window.RFB && RFB.user;
-  document.querySelectorAll("[data-plan]").forEach(a => { a.href = RFB.buyUrl(a.dataset.plan); });
+  document.querySelectorAll("[data-plan]").forEach(a => { a.href = RFB.checkoutUrl(a.dataset.plan); });
   const bar = document.getElementById("acctBar");
   const offer = window.__offer
     ? (LANG === "de" ? `<span class="offer">Code <b>${esc(__offer.code)}</b> aktiv: ${__offer.discount_percent} % Rabatt${__offer.discount_forever ? "" : " (beim Abo auf den ersten Monat)"}. Wird beim Bezahlen automatisch eingetragen.</span>`
@@ -1519,8 +1519,8 @@ function renderAcct() {
   bar.innerHTML = offer + (u
     ? (LANG === "de" ? `Angemeldet als <b>${esc(u.email)}</b>. Der Kauf geht direkt auf deinen Account. <a href="konto.html">Konto</a>`
                      : `Signed in as <b>${esc(u.email)}</b>. Your purchase goes straight to your account. <a href="konto.html">Account</a>`)
-    : (LANG === "de" ? `<a href="konto.html">Melde dich an</a>, damit der Kauf direkt auf deinem Account landet. Ohne Anmeldung bekommst du einen Code.`
-                     : `<a href="konto.html">Sign in</a> so the purchase lands straight on your account. Without signing in you get a code.`));
+    : (LANG === "de" ? `Zum Kaufen brauchst du einen RESET-Account. <a href="konto.html">Anmelden oder Account erstellen</a>, Premium landet dann automatisch darauf.`
+                     : `Buying needs a RESET account. <a href="konto.html">Sign in or create one</a>, and Premium lands on it by itself.`));
 }
 // A streamer's code: show what it gives, or forget it if it no longer exists.
 if (RFB.referral) RFB.publicRpc("affiliate_offer", { p_code: RFB.referral })

@@ -39,6 +39,14 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
 .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 .plans a { margin-top: 0; text-align: center; }
 @media (max-width: 480px) { .plans { grid-template-columns: 1fr; } }
+.tabs { display: flex; gap: 0; margin-top: 24px; border-bottom: 1px solid var(--border); }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; padding: 10px 16px; cursor: pointer;
+               color: var(--text-3); font: 900 italic 15px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tabs + .panel { margin-top: 0; border-top: 0; }
+.next { margin-top: 20px; padding: 14px 16px; border-left: 3px solid var(--accent); background: var(--surface); font-size: 15px; }
+.next b { color: var(--text); }
+.linkish { background: none; border: 0; padding: 0; color: var(--text-3); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>
 </head>
 <body>
@@ -68,7 +76,7 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
 </footer>
 <div class="stripe"></div>
 <script src="assets/legal.js"></script>
-<script src="assets/account.js?v=3"></script>
+<script src="assets/account.js?v=4"></script>
 <script>
 (function () {
   const out = document.getElementById("out");
@@ -77,7 +85,18 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
       title: "Konto",
       intro: "Melde dich mit deinem RESET-Account aus der App an. Dann landet ein Kauf direkt auf deinem Account, und hier findest du alle Codes, die du mit deiner E-Mail gekauft hast.",
       email: "E-Mail", password: "Passwort", signIn: "Anmelden", signOut: "Abmelden",
-      noAccount: "Noch keinen Account? Leg ihn in der App auf der Seite <strong>Konto</strong> an.",
+      noAccount: "Noch keinen Account? Erstell ihn oben unter <strong>Account erstellen</strong>, oder in der App auf der Seite <strong>Konto</strong>.",
+      tabIn: "Anmelden", tabUp: "Account erstellen",
+      password2: "Passwort wiederholen", create: "Account erstellen",
+      pwShort: "Das Passwort braucht mindestens 8 Zeichen.", pwMismatch: "Die Passwörter stimmen nicht überein.",
+      exists: "Mit dieser E-Mail gibt es schon einen Account. Melde dich an.", weak: "Dieses Passwort ist zu schwach. Nimm ein längeres.",
+      mailSent: m => "Fast fertig: Wir haben dir eine Mail an " + m + " geschickt. Klick auf den Link darin, dann bist du angemeldet" + "",
+      mailSentBuy: " und es geht direkt weiter zur Kasse. Öffne den Link am besten in diesem Browser.",
+      mailSentEnd: ".",
+      linkBad: "Der Bestätigungslink ist abgelaufen oder wurde schon benutzt. Melde dich einfach mit deiner E-Mail und deinem Passwort an.",
+      pendingNext: plan => "Du kaufst <b>" + plan + "</b>. Melde dich an oder erstelle einen Account, danach geht es direkt weiter zur Kasse. Premium landet automatisch auf deinem Account, du brauchst keinen Code.",
+      pendingCancel: "Abbrechen",
+      toCheckout: "Weiter zur Kasse …",
       invalid: "E-Mail oder Passwort falsch.", unconfirmed: "Bestätige zuerst deine E-Mail-Adresse über den Link in der Mail.", failed: "Anmeldung fehlgeschlagen. Versuch es gleich noch mal.",
       signedInAs: "Angemeldet als",
       premium: "Premium", active: "Aktiv", forever: "ohne Ablauf", until: d => "bis " + d, none: "Nicht aktiv",
@@ -98,7 +117,18 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
       title: "Account",
       intro: "Sign in with the RESET account from the app. A purchase then goes straight to your account, and you find every code bought with your e-mail here.",
       email: "E-mail", password: "Password", signIn: "Sign in", signOut: "Sign out",
-      noAccount: "No account yet? Create one in the app on the <strong>Account</strong> page.",
+      noAccount: "No account yet? Create one above under <strong>Create account</strong>, or in the app on the <strong>Account</strong> page.",
+      tabIn: "Sign in", tabUp: "Create account",
+      password2: "Repeat password", create: "Create account",
+      pwShort: "The password needs at least 8 characters.", pwMismatch: "The passwords don't match.",
+      exists: "There's already an account with this e-mail. Please sign in.", weak: "That password is too weak. Use a longer one.",
+      mailSent: m => "Almost done: we sent an e-mail to " + m + ". Click the link in it and you're signed in",
+      mailSentBuy: " and taken straight to checkout. Best open the link in this browser.",
+      mailSentEnd: ".",
+      linkBad: "The confirmation link has expired or was already used. Just sign in with your e-mail and password.",
+      pendingNext: plan => "You're buying <b>" + plan + "</b>. Sign in or create an account, then checkout opens right away. Premium lands on your account by itself, no code needed.",
+      pendingCancel: "Cancel",
+      toCheckout: "Opening checkout …",
       invalid: "Wrong e-mail or password.", unconfirmed: "Confirm your e-mail address first, using the link in the e-mail.", failed: "Sign-in failed. Try again in a moment.",
       signedInAs: "Signed in as",
       premium: "Premium", active: "Active", forever: "no end date", until: d => "until " + d, none: "Not active",
@@ -122,7 +152,24 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
   const date = iso => { try { return new Date(iso).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return ""; } };
 
   // what the page shows; render() is pure, so a language switch just redraws
-  let st = { signInMsg: "", signInBad: true, status: null, codes: null, loadFail: false, redeemMsg: "", redeemGood: false, busy: false };
+  let st = { signInMsg: "", signInBad: true, status: null, codes: null, loadFail: false, redeemMsg: "", redeemGood: false, busy: false,
+             mode: "in", upMsg: "", upBad: true, leaving: false };
+
+  // ?buy=lifetime from a buy button: remember the plan, then tidy the address.
+  (function () {
+    const q = new URLSearchParams(location.search), b = q.get("buy");
+    if (b) { RFB.setPending(b); q.delete("buy"); history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash); }
+  })();
+
+  // Signed in and a plan waiting: straight on to checkout, on this account.
+  function continueToCheckout() {
+    const plan = RFB.pending;
+    if (!plan || !RFB.user) return false;
+    RFB.setPending(null);
+    st.leaving = true; render();
+    location.href = RFB.buyUrl(plan);
+    return true;
+  }
 
   function codeList(list, local) {
     const x = t();
@@ -139,15 +186,32 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
   function render() {
     const x = t(), u = RFB.user, local = RFB.localCodes();
     let h = `<h1>${x.title}</h1>`;
+    if (st.leaving) { out.innerHTML = h + `<p class="status on">${x.toCheckout}</p>`; return; }
+    const pending = RFB.pending;
     if (!u) {
-      h += `<p>${x.intro}</p>
-        <form class="panel" id="signin" novalidate>
+      h += pending
+        ? `<div class="next">${x.pendingNext(esc(x.plan[pending]))} <button type="button" class="linkish" id="nobuy">${x.pendingCancel}</button></div>`
+        : `<p>${x.intro}</p>`;
+      h += `<div class="tabs" role="tablist">
+          <button type="button" role="tab" data-mode="in" aria-selected="${st.mode === "in"}">${x.tabIn}</button>
+          <button type="button" role="tab" data-mode="up" aria-selected="${st.mode === "up"}">${x.tabUp}</button></div>`;
+      if (st.mode === "in") {
+        h += `<form class="panel" id="signin" novalidate>
           <label for="em">${x.email}</label><input id="em" type="email" autocomplete="email" required>
           <label for="pw">${x.password}</label><input id="pw" type="password" autocomplete="current-password" required>
           <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.signIn}</span></button>
           <p class="msg ${st.signInBad ? "bad" : ""}" role="status">${esc(st.signInMsg)}</p>
           <p style="font-size:15px">${x.noAccount}</p>
         </form>`;
+      } else {
+        h += `<form class="panel" id="signup" novalidate>
+          <label for="uem">${x.email}</label><input id="uem" type="email" autocomplete="email" required>
+          <label for="upw">${x.password}</label><input id="upw" type="password" autocomplete="new-password" minlength="8" required>
+          <label for="upw2">${x.password2}</label><input id="upw2" type="password" autocomplete="new-password" minlength="8" required>
+          <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.create}</span></button>
+          <p class="msg ${st.upBad ? "bad" : "good"}" role="status">${st.upMsg}</p>
+        </form>`;
+      }
     } else {
       const s = st.status;
       h += `<div class="row" style="justify-content:space-between"><p style="margin:0">${x.signedInAs} <strong>${esc(u.email)}</strong></p>
@@ -206,8 +270,32 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
       if (!email || !pw) return;
       st.busy = true; st.signInMsg = ""; render();
       document.getElementById("em").value = email;
-      try { await RFB.signIn(email, pw); st = { ...st, signInMsg: "", status: null, codes: null, busy: false }; load(); }
+      try { await RFB.signIn(email, pw); st = { ...st, signInMsg: "", status: null, codes: null, busy: false }; if (!continueToCheckout()) load(); }
       catch (err) { st.busy = false; st.signInMsg = t()[err.kind] || t().failed; render(); document.getElementById("em").value = email; }
+    });
+    out.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => { st.mode = b.dataset.mode; st.signInMsg = ""; st.upMsg = ""; render(); }));
+    const nb = document.getElementById("nobuy");
+    if (nb) nb.addEventListener("click", () => { RFB.setPending(null); render(); });
+    const su = document.getElementById("signup");
+    if (su) su.addEventListener("submit", async e => {
+      e.preventDefault();
+      const x = t(), email = document.getElementById("uem").value.trim();
+      const pw = document.getElementById("upw").value, pw2 = document.getElementById("upw2").value;
+      if (!email) return;
+      const keep = () => { const f = document.getElementById("uem"); if (f) f.value = email; };
+      if (pw.length < 8) { st.upBad = true; st.upMsg = esc(x.pwShort); render(); return keep(); }
+      if (pw !== pw2) { st.upBad = true; st.upMsg = esc(x.pwMismatch); render(); return keep(); }
+      st.busy = true; st.upMsg = ""; render(); keep();
+      try {
+        const r = await RFB.signUp(email, pw);
+        st.busy = false;
+        if (r === "signedin") { if (!continueToCheckout()) load(); return; }
+        st.upBad = false;
+        st.upMsg = esc(x.mailSent(email)) + (RFB.pending ? esc(x.mailSentBuy) : esc(x.mailSentEnd));
+        render(); keep();
+      } catch (err) {
+        st.busy = false; st.upBad = true; st.upMsg = esc(x[err.kind] || x.failed); render(); keep();
+      }
     });
     const so = document.getElementById("signout");
     if (so) so.addEventListener("click", () => { RFB.signOut(); st = { ...st, status: null, codes: null, redeemMsg: "" }; render(); });
@@ -218,7 +306,12 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
   }
 
   new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
-  load();
+  (async function start() {
+    const link = await RFB.fromLink().catch(() => "failed");
+    if (link && link !== "signedin") { st.signInMsg = t().linkBad; st.signInBad = true; }
+    if (continueToCheckout()) return;
+    load();
+  })();
 })();
 </script>
 </body>
