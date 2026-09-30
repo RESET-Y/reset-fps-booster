@@ -21,3 +21,9 @@
   for = "/manager/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+
+# A streamer's link: /r/MONTE10 -> the start page with the code remembered.
+[[redirects]]
+  from = "/r/:code"
+  to = "/?ref=:code#premium"
+  status = 302

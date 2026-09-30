@@ -343,6 +343,7 @@ ul.ticks li::before { content: ""; position: absolute; left: 0; top: 11px; width
 .acct { margin: 0 0 18px; font-size: 15px; color: var(--text-2); }
 .acct a { color: var(--accent-bright); }
 .acct b { color: var(--text); font-weight: 600; }
+.acct .offer { display: block; margin-bottom: 8px; padding: 10px 14px; border-left: 2px solid var(--success); background: var(--surface); color: var(--text); }
 .plans-note { margin-top: 22px; font-size: 14px; color: var(--text-3); }
 .plans-note a { color: var(--accent-bright); }
 
@@ -958,7 +959,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
 <div class="stripe"></div>
 <button class="top-btn" id="topBtn" type="button" aria-label="Back to top"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 15l7-7 7 7"/></svg></button>
 
-<script src="assets/account.js"></script>
+<script src="assets/account.js?v=3"></script>
 <script>
 document.documentElement.classList.add("js");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1511,12 +1512,20 @@ function renderAcct() {
   const u = window.RFB && RFB.user;
   document.querySelectorAll("[data-plan]").forEach(a => { a.href = RFB.buyUrl(a.dataset.plan); });
   const bar = document.getElementById("acctBar");
-  bar.innerHTML = u
+  const offer = window.__offer
+    ? (LANG === "de" ? `<span class="offer">Code <b>${esc(__offer.code)}</b> aktiv: ${__offer.discount_percent} % Rabatt${__offer.discount_forever ? "" : " (beim Abo auf den ersten Monat)"}. Wird beim Bezahlen automatisch eingetragen.</span>`
+                     : `<span class="offer">Code <b>${esc(__offer.code)}</b> applied: ${__offer.discount_percent}% off${__offer.discount_forever ? "" : " (first month on the monthly plan)"}. It's filled in at checkout automatically.</span>`)
+    : "";
+  bar.innerHTML = offer + (u
     ? (LANG === "de" ? `Angemeldet als <b>${esc(u.email)}</b>. Der Kauf geht direkt auf deinen Account. <a href="konto.html">Konto</a>`
                      : `Signed in as <b>${esc(u.email)}</b>. Your purchase goes straight to your account. <a href="konto.html">Account</a>`)
     : (LANG === "de" ? `<a href="konto.html">Melde dich an</a>, damit der Kauf direkt auf deinem Account landet. Ohne Anmeldung bekommst du einen Code.`
-                     : `<a href="konto.html">Sign in</a> so the purchase lands straight on your account. Without signing in you get a code.`);
+                     : `<a href="konto.html">Sign in</a> so the purchase lands straight on your account. Without signing in you get a code.`));
 }
+// A streamer's code: show what it gives, or forget it if it no longer exists.
+if (RFB.referral) RFB.publicRpc("affiliate_offer", { p_code: RFB.referral })
+  .then(o => { if (o) window.__offer = o; else RFB.dropReferral(); renderAcct(); })
+  .catch(() => {});
 
 function renderAll() {
   renderAcct();

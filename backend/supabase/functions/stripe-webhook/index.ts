@@ -31,6 +31,12 @@
 // The buyer's e-mail is kept with it (migration 0005), so a lost code shows
 // up again on the website's account page once they sign in with that e-mail.
 //
+// AFFILIATES: a checkout paid with an affiliate's promotion code is counted
+// for them (affiliate_sales, migration 0006), with the commission fixed from
+// the net amount at that moment. Renewals of such a subscription count too
+// when the affiliate gets recurring commission (invoice.paid). A full refund
+// of a one-time payment takes its sale back out.
+//
 // Environment (Supabase -> Edge Functions -> Secrets):
 //   STRIPE_WEBHOOK_SECRET        whsec_... from the webhook endpoint in Stripe
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   provided by Supabase itself
@@ -139,6 +145,18 @@ Deno.serve(async (req) => {
 
   const fail = (what: unknown) => { console.error(what); return new Response("db error", { status: 500 }); };
 
+  // Counted once per payment: the id is the checkout session or invoice, so a
+  // retried delivery hits the primary key and changes nothing.
+  const countSale = async (affiliate: any, id: string, plan: string, kind: string, ref: string, netCents: number) => {
+    const commission = Math.round(netCents * Number(affiliate.commission_percent) / 100);
+    const { error } = await db.from("affiliate_sales").upsert({
+      id, affiliate_id: affiliate.id, plan, kind, stripe_ref: ref,
+      net_cents: netCents, commission_cents: commission, currency: obj.currency ?? "eur",
+    }, { onConflict: "id", ignoreDuplicates: true });
+    if (!error) console.log(`affiliate sale: ${affiliate.code} ${kind} ${plan} net=${netCents} commission=${commission}`);
+    return error;
+  };
+
   switch (event?.type) {
     // ---- A COMPLETED CHECKOUT: lifetime payment or a new subscription -------
     case "checkout.session.completed": {
@@ -185,6 +203,41 @@ Deno.serve(async (req) => {
         if (error) return fail(error);
         console.log(`${plan} code issued: code=${code} ref=${ref} session=${obj.id}`);
       }
+
+      // Paid with an affiliate's code? discounts[].promotion_code is the id
+      // (or, if ever expanded, the object).
+      const promoIds = (obj.discounts ?? [])
+        .map((d: any) => typeof d.promotion_code === "string" ? d.promotion_code : d.promotion_code?.id)
+        .filter(Boolean);
+      if (promoIds.length) {
+        const { data: affiliate, error: affError } = await db.from("affiliates")
+          .select("id, code, commission_percent").in("stripe_promo_id", promoIds).limit(1).maybeSingle();
+        if (affError) return fail(affError);
+        if (affiliate) {
+          const net = (obj.amount_total ?? 0) - (obj.total_details?.amount_tax ?? 0);
+          const saleError = await countSale(affiliate, obj.id, plan, "first", ref, net);
+          if (saleError) return fail(saleError);
+        }
+      }
+      break;
+    }
+
+    // ---- A SUBSCRIPTION RENEWAL: recurring affiliate commission --------------
+    case "invoice.paid": {
+      // The first invoice is already counted with its checkout.
+      if (obj.billing_reason !== "subscription_cycle") break;
+      const subId: string | undefined = obj.subscription ?? obj.parent?.subscription_details?.subscription;
+      if (!subId) break;
+      const { data: first, error: firstError } = await db.from("affiliate_sales")
+        .select("affiliates(id, code, commission_percent, commission_recurring)")
+        .eq("stripe_ref", `sub_${subId}`).eq("kind", "first").limit(1).maybeSingle();
+      if (firstError) return fail(firstError);
+      const affiliate: any = (first as any)?.affiliates;
+      if (!affiliate?.commission_recurring) break;
+      const tax = typeof obj.tax === "number" ? obj.tax
+        : (obj.total_taxes ?? []).reduce((sum: number, t: any) => sum + (t.amount ?? 0), 0);
+      const saleError = await countSale(affiliate, obj.id, "monthly", "renewal", `sub_${subId}`, (obj.amount_paid ?? 0) - tax);
+      if (saleError) return fail(saleError);
       break;
     }
 
@@ -240,6 +293,9 @@ Deno.serve(async (req) => {
       const { data: codes, error: codeError } = await db.from("premium_codes")
         .update({ active: false }).eq("stripe_ref", ref).select("code");
       if (codeError) return fail(codeError);
+      // No commission on money that went back.
+      const { error: saleError } = await db.from("affiliate_sales").update({ reversed: true }).eq("stripe_ref", ref);
+      if (saleError) return fail(saleError);
       console.log(`refund: ref=${ref} rows=${data?.length ?? 0} codes=${codes?.length ?? 0}`);
       break;
     }

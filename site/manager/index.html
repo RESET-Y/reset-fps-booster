@@ -60,6 +60,31 @@ input:focus { outline: none; border-color: var(--accent); }
 .empty { color: var(--text-3); font-size: 14px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 250%) skewX(-12deg); opacity: 0; background: var(--success); color: #041; font: 900 italic 16px var(--display); text-transform: uppercase; padding: 10px 20px; transition: transform .25s, opacity .25s; }
 .toast.show { transform: translate(-50%, 0) skewX(-12deg); opacity: 1; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg.two-way { grid-template-columns: 1fr 1fr; }
+.seg.two-way button { font-size: 14px; padding: 11px 4px; }
+.hint { font-size: 13px; color: var(--text-3); margin-top: 6px; }
+.aff { padding: 14px 0; border-top: 1px solid var(--border); }
+.aff:first-of-type { border-top: 0; }
+.aff.off .code { color: var(--text-3); text-decoration: line-through; }
+.aff .top { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+.aff .code { font: 500 16px var(--mono); }
+.aff .name { font-size: 14px; color: var(--text-2); }
+.aff .meta { font: 400 12px var(--mono); color: var(--text-3); margin-top: 4px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.stats div { background: var(--surface-2); padding: 8px; }
+.stats b { display: block; font: 900 italic 19px var(--display); }
+.stats b.due { color: var(--success); }
+.stats span { font: 400 10px var(--mono); color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
+.detail { margin-top: 12px; padding: 12px; background: #000; border: 1px solid var(--border); }
+.detail h3 { margin: 16px 0 8px; font: 900 italic 16px var(--display); text-transform: uppercase; }
+.detail h3:first-child { margin-top: 0; }
+.line { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.line:first-of-type { border-top: 0; }
+.line small { display: block; font: 400 11px var(--mono); color: var(--text-3); }
+.line.rev { color: var(--text-3); text-decoration: line-through; }
+.mini { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 900 italic 12px var(--display); padding: 7px 10px; transform: skewX(-12deg); cursor: pointer; text-transform: uppercase; }
+.detail .btn { font-size: 15px; padding: 12px; margin-top: 12px; }
 [hidden] { display: none !important; }
 </style>
 </head>
@@ -120,6 +145,44 @@ input:focus { outline: none; border-color: var(--accent); }
       </div>
       <div id="list"><div class="empty">Lädt…</div></div>
     </section>
+
+    <section class="card accent">
+      <h2>Neuer Affiliate</h2>
+      <form id="affForm" novalidate>
+        <div class="two">
+          <div><label for="affName">Name</label><input id="affName" type="text" placeholder="z. B. Monte" required></div>
+          <div><label for="affCode">Code</label><input id="affCode" type="text" placeholder="MONTE10" maxlength="20" autocapitalize="characters" spellcheck="false" style="font-family:var(--mono);text-transform:uppercase" required></div>
+        </div>
+        <div class="hint">Code: 3–20 Buchstaben oder Ziffern. Den tippen Käufer beim Bezahlen ein.</div>
+        <div class="two">
+          <div><label for="affDiscount">Rabatt %</label><input id="affDiscount" type="number" min="1" max="100" step="1" value="10" inputmode="numeric"></div>
+          <div><label for="affCommission">Provision %</label><input id="affCommission" type="text" value="25" inputmode="decimal"></div>
+        </div>
+        <label>Rabatt beim Abo</label>
+        <div class="seg two-way" id="affDiscountMode">
+          <button type="button" data-v="once" aria-pressed="true">Nur 1. Monat</button>
+          <button type="button" data-v="forever">Jeden Monat</button>
+        </div>
+        <label>Provision beim Abo</label>
+        <div class="seg two-way" id="affCommissionMode">
+          <button type="button" data-v="first" aria-pressed="true">Nur 1. Monat</button>
+          <button type="button" data-v="recurring">Jeden Monat</button>
+        </div>
+        <label for="affContact">Kontakt (optional)</label>
+        <input id="affContact" type="text" placeholder="Twitch, Discord, E-Mail, PayPal …">
+        <div class="hint">Provision = Anteil vom bezahlten Betrag ohne MwSt. Der Rabatt ist danach fest, die Provision kannst du jederzeit ändern.</div>
+        <button class="btn" type="submit" id="affCreate">Affiliate anlegen</button>
+        <div class="msg" id="affMsg"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0">Affiliates</h2>
+        <button class="btn ghost" id="affRefresh">Neu laden</button>
+      </div>
+      <div id="affList"><div class="empty">Lädt…</div></div>
+    </section>
   </div>
 </main>
 <div class="toast" id="toast">Kopiert</div>
@@ -167,6 +230,7 @@ async function showApp() {
   $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
   $("who").textContent = "ANGEMELDET: " + (session.email || "");
   load();
+  loadAffiliates();
 }
 
 $("loginForm").addEventListener("submit", async e => {
@@ -237,6 +301,175 @@ $("list").addEventListener("click", async e => {
   }
 });
 $("refresh").addEventListener("click", load);
+
+// ================= affiliates =================
+// Creating one and switching it on/off also changes the promotion code in
+// Stripe, so those go through the affiliate-admin function (it holds the
+// Stripe key). Everything else is a plain manager-only database function.
+const SITE = "https://reset-booster.netlify.app";
+async function adminFn(body) {
+  const r = await fetch(SUPABASE + "/functions/v1/affiliate-admin", {
+    method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || String(r.status));
+  return j;
+}
+const euro = c => (Number(c || 0) / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+const pct = n => Number(n).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
+function segValue(id) { return $(id).querySelector('[aria-pressed="true"]').dataset.v; }
+function segWire(id) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    [...$(id).children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  });
+}
+segWire("affDiscountMode"); segWire("affCommissionMode");
+$("affCode").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); });
+
+$("affForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = $("affCreate"); $("affMsg").textContent = "";
+  const body = {
+    action: "create",
+    name: $("affName").value.trim(),
+    code: $("affCode").value.trim(),
+    contact: $("affContact").value.trim(),
+    discount_percent: Number($("affDiscount").value),
+    discount_forever: segValue("affDiscountMode") === "forever",
+    commission_percent: Number(String($("affCommission").value).replace(",", ".")),
+    commission_recurring: segValue("affCommissionMode") === "recurring"
+  };
+  if (!body.name) { $("affMsg").textContent = "Name fehlt."; return; }
+  if (!/^[A-Z0-9]{3,20}$/.test(body.code)) { $("affMsg").textContent = "Code: 3–20 Buchstaben oder Ziffern."; return; }
+  if (!(body.discount_percent >= 1 && body.discount_percent <= 100)) { $("affMsg").textContent = "Rabatt: 1 bis 100 %."; return; }
+  if (!(body.commission_percent >= 0 && body.commission_percent <= 100)) { $("affMsg").textContent = "Provision: 0 bis 100 %."; return; }
+  btn.disabled = true;
+  try {
+    await adminFn(body);
+    const link = SITE + "/r/" + body.code;
+    toast((await copy(link)) ? "Link kopiert" : "Angelegt");
+    $("affForm").reset(); $("affDiscount").value = 10; $("affCommission").value = 25;
+    ["affDiscountMode", "affCommissionMode"].forEach(id => [...$(id).children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === 0))));
+    loadAffiliates();
+  } catch (err) {
+    const m = err.message;
+    $("affMsg").textContent = /already exists/.test(m) ? "Diesen Code gibt es schon."
+      : /not allowed/.test(m) ? "Nicht erlaubt: kein Manager."
+      : /STRIPE_API_KEY|stripe:.*(key|Invalid API)/i.test(m) ? "Stripe-Schlüssel fehlt oder ist falsch (Secret STRIPE_API_KEY in Supabase)."
+      : /stripe:/.test(m) ? "Stripe: " + m.replace(/^stripe:\s*/, "")
+      : "Konnte nicht angelegt werden (" + m + ").";
+  } finally { btn.disabled = false; }
+});
+
+let affiliates = [], openAff = null;
+async function loadAffiliates() {
+  try { affiliates = await rpc("list_affiliates") || []; renderAffiliates(); }
+  catch { $("affList").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+}
+function renderAffiliates() {
+  if (!affiliates.length) { $("affList").innerHTML = '<div class="empty">Noch keine Affiliates.</div>'; return; }
+  $("affList").innerHTML = affiliates.map(a => {
+    const due = Number(a.commission_cents) - Number(a.paid_cents);
+    return `<div class="aff ${a.active ? "" : "off"}" data-id="${a.id}">
+      <div class="top">
+        <div>
+          <div class="code">${esc(a.code)}</div>
+          <div class="name">${esc(a.name)}${a.contact ? " · " + esc(a.contact) : ""}</div>
+          <div class="meta">${a.discount_percent} % Rabatt${a.discount_forever ? " (jeden Monat)" : ""} · ${pct(a.commission_percent)} Provision${a.commission_recurring ? " (jeden Monat)" : " (nur 1. Zahlung)"}${a.active ? "" : " · AUS"}</div>
+        </div>
+        <div class="actions">
+          <button class="icon" data-link="${esc(a.code)}" aria-label="Link kopieren">LINK</button>
+          <button class="icon ${a.active ? "on" : ""}" data-active-id="${a.id}" data-active="${a.active}" aria-label="${a.active ? "Deaktivieren" : "Aktivieren"}">${a.active ? "AN" : "AUS"}</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div><b>${a.sales}</b><span>Käufe</span></div>
+        <div><b>${euro(a.net_cents)}</b><span>Umsatz netto</span></div>
+        <div><b class="${due > 0 ? "due" : ""}">${euro(due)}</b><span>Offen</span></div>
+      </div>
+      <div class="meta" style="margin-top:6px">Provision gesamt ${euro(a.commission_cents)} · ausgezahlt ${euro(a.paid_cents)}</div>
+      <button class="btn ghost" style="margin-top:10px" data-detail="${a.id}">${openAff === a.id ? "Schließen" : "Details, Auszahlung, Provision"}</button>
+      ${openAff === a.id ? `<div class="detail" id="detail">Lädt…</div>` : ""}
+    </div>`;
+  }).join("");
+  if (openAff != null) loadDetail(openAff);
+}
+async function loadDetail(id) {
+  const a = affiliates.find(x => x.id === id); const box = $("detail"); if (!a || !box) return;
+  let act;
+  try { act = await rpc("list_affiliate_activity", { p_affiliate: id }); }
+  catch { box.textContent = "Konnte nicht geladen werden."; return; }
+  const due = Number(a.commission_cents) - Number(a.paid_cents);
+  box.innerHTML = `
+    <h3>Auszahlung eintragen</h3>
+    <div class="two">
+      <div><label for="payAmount">Betrag €</label><input id="payAmount" type="text" inputmode="decimal" value="${due > 0 ? (due / 100).toFixed(2).replace(".", ",") : ""}"></div>
+      <div><label for="payNote">Notiz</label><input id="payNote" type="text" placeholder="PayPal, Überweisung …"></div>
+    </div>
+    <button class="btn" type="button" id="payAdd">Auszahlung speichern</button>
+    <h3>Provision ändern</h3>
+    <div class="two">
+      <div><label for="edCommission">Provision %</label><input id="edCommission" type="text" inputmode="decimal" value="${String(a.commission_percent).replace(".", ",")}"></div>
+      <div><label for="edName">Name</label><input id="edName" type="text" value="${esc(a.name)}"></div>
+    </div>
+    <label for="edContact">Kontakt</label><input id="edContact" type="text" value="${esc(a.contact || "")}">
+    <label>Provision beim Abo</label>
+    <div class="seg two-way" id="edMode">
+      <button type="button" data-v="first" aria-pressed="${!a.commission_recurring}">Nur 1. Monat</button>
+      <button type="button" data-v="recurring" aria-pressed="${a.commission_recurring}">Jeden Monat</button>
+    </div>
+    <div class="hint">Gilt für neue Verkäufe. Bisherige bleiben, wie sie waren.</div>
+    <button class="btn" type="button" id="edSave">Speichern</button>
+    <h3>Verkäufe</h3>
+    ${act.sales.length ? act.sales.map(x => `<div class="line ${x.reversed ? "rev" : ""}">
+        <div>${x.plan === "monthly" ? "Monthly" : "Lifetime"}${x.kind === "renewal" ? " · Verlängerung" : ""} · ${euro(x.net_cents)} → ${euro(x.commission_cents)}
+          <small>${new Date(x.created_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}${x.reversed ? " · storniert" : ""}</small></div>
+        <button class="mini" data-reverse="${esc(x.id)}" data-reversed="${x.reversed}">${x.reversed ? "Zurück" : "Storno"}</button>
+      </div>`).join("") : '<div class="empty">Noch keine Verkäufe.</div>'}
+    <h3>Auszahlungen</h3>
+    ${act.payouts.length ? act.payouts.map(p => `<div class="line">
+        <div>${euro(p.amount_cents)}${p.note ? " · " + esc(p.note) : ""}<small>${new Date(p.paid_at).toLocaleDateString("de-DE")}</small></div>
+        <button class="mini" data-payout-del="${p.id}">Löschen</button>
+      </div>`).join("") : '<div class="empty">Noch nichts ausgezahlt.</div>'}`;
+  segWire("edMode");
+  $("payAdd").onclick = async () => {
+    const raw = $("payAmount").value.trim();
+    // "1.234,50" or "12,50" (German) as well as "12.50"
+    const cents = Math.round(Number(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw) * 100);
+    if (!(cents > 0)) { toast("Betrag fehlt"); return; }
+    try { await rpc("add_affiliate_payout", { p_affiliate: id, p_amount_cents: cents, p_note: $("payNote").value }); toast("Gespeichert"); loadAffiliates(); }
+    catch { toast("Fehlgeschlagen"); }
+  };
+  $("edSave").onclick = async () => {
+    const p = Number($("edCommission").value.replace(",", "."));
+    if (!(p >= 0 && p <= 100)) { toast("Provision 0–100 %"); return; }
+    try {
+      await rpc("update_affiliate", { p_id: id, p_name: $("edName").value, p_contact: $("edContact").value,
+                                      p_commission_percent: p, p_commission_recurring: segValue("edMode") === "recurring" });
+      toast("Gespeichert"); loadAffiliates();
+    } catch { toast("Fehlgeschlagen"); }
+  };
+}
+$("affList").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.link) { if (await copy(SITE + "/r/" + b.dataset.link)) toast("Link kopiert"); }
+  if (b.dataset.activeId) {
+    b.disabled = true;
+    try { await adminFn({ action: "set_active", id: Number(b.dataset.activeId), active: b.dataset.active !== "true" }); loadAffiliates(); }
+    catch { toast("Fehlgeschlagen"); b.disabled = false; }
+  }
+  if (b.dataset.detail) { const id = Number(b.dataset.detail); openAff = openAff === id ? null : id; renderAffiliates(); }
+  if (b.dataset.reverse) {
+    try { await rpc("set_affiliate_sale_reversed", { p_sale: b.dataset.reverse, p_reversed: b.dataset.reversed !== "true" }); loadAffiliates(); }
+    catch { toast("Fehlgeschlagen"); }
+  }
+  if (b.dataset.payoutDel) {
+    if (!confirm("Diese Auszahlung löschen?")) return;
+    try { await rpc("delete_affiliate_payout", { p_payout: Number(b.dataset.payoutDel) }); loadAffiliates(); }
+    catch { toast("Fehlgeschlagen"); }
+  }
+});
+$("affRefresh").addEventListener("click", loadAffiliates);
 
 session ? showApp() : showLogin();
 </script>
