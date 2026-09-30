@@ -12,18 +12,14 @@ namespace ResetFpsBooster.Core;
 /// account. These URLs are public by nature - anyone can open a Payment Link.
 public static class StoreConfig
 {
-    // Monthly is the live link. Lifetime is still a TEST MODE link
-    // (buy.stripe.com/test_...), which only accepts Stripe's test cards -
-    // replace it with the live link before StoreLive goes true.
+    // Live-mode links. Test links look like buy.stripe.com/test_... and only
+    // accept Stripe's test cards - never ship one of those here.
     public const string MonthlyPaymentLink = "https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00";
-    public const string LifetimePaymentLink = "https://buy.stripe.com/test_00w6oH5WAdFFfeAfSs73G01";
+    public const string LifetimePaymentLink = "https://buy.stripe.com/6oUdR95W872P2nHena8og01";
 
-    /// OFF UNTIL STRIPE IS LIVE. The links above are test-mode links: they only
-    /// accept Stripe's test cards, so a real user clicking Buy would reach a
-    /// checkout that can never take their money. With this false the Account
+    /// The master switch for buying in the app. With this false the Account
     /// page says purchasing is not open yet, and Premium comes only from codes.
-    /// Flip to true together with swapping in the live links.
-    public const bool StoreLive = false;
+    public const bool StoreLive = true;
 
     public static bool IsConfigured =>
         StoreLive
