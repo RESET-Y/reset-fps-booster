@@ -2394,5 +2394,150 @@
     "en": "You can close this tab and go back to RESET FPS BOOSTER.",
     "de": "Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.",
     "ru": "Можно закрыть эту вкладку и вернуться в RESET FPS BOOSTER."
+  },
+  "Nav.SmoothMotion": {
+    "en": "Smooth Motion",
+    "de": "Smooth Motion",
+    "ru": "Smooth Motion"
+  },
+  "Smooth.Intro": {
+    "en": "Makes everything on screen look more fluid: the picture gets motion blur along the real motion, like the \"240 FPS\" clips. It covers the whole screen evenly, HUD and crosshair included. An ON/OFF button and a strength slider - the rest adjusts itself.",
+    "de": "Lässt alles auf dem Bildschirm flüssiger aussehen: Das Bild bekommt Bewegungsunschärfe entlang der echten Bewegung, wie in den „240 FPS“-Clips. Sie wirkt gleichmäßig auf den ganzen Bildschirm, HUD und Fadenkreuz eingeschlossen. Ein Ein/Aus-Knopf und ein Stärke-Regler – der Rest passt sich selbst an.",
+    "ru": "Делает всё на экране визуально плавнее: изображение получает размытие вдоль реального движения, как в роликах «240 FPS». Оно действует равномерно на весь экран, включая HUD и прицел. Кнопка ВКЛ/ВЫКЛ и ползунок силы — остальное подстраивается само."
+  },
+  "Smooth.TurnOn": {
+    "en": "Turn Smooth Motion on",
+    "de": "Smooth Motion einschalten",
+    "ru": "Включить Smooth Motion"
+  },
+  "Smooth.TurnOff": {
+    "en": "Turn Smooth Motion off",
+    "de": "Smooth Motion ausschalten",
+    "ru": "Выключить Smooth Motion"
+  },
+  "Smooth.Active": {
+    "en": "SMOOTH MOTION ACTIVE",
+    "de": "SMOOTH MOTION AKTIV",
+    "ru": "SMOOTH MOTION АКТИВЕН"
+  },
+  "Smooth.Alone": {
+    "en": "WHOLE SCREEN · real frames only, no frame generation",
+    "de": "GANZER BILDSCHIRM · nur echte Bilder, keine Frame-Generierung",
+    "ru": "ВЕСЬ ЭКРАН · только реальные кадры, без генерации"
+  },
+  "Smooth.WithFrameBoost": {
+    "en": "WITH FRAMEBOOST · blur on real and generated frames",
+    "de": "MIT FRAMEBOOST · Unschärfe auf echten und erzeugten Bildern",
+    "ru": "С FRAMEBOOST · размытие на реальных и сгенерированных кадрах"
+  },
+  "Smooth.AutoNote": {
+    "en": "Strength is set every frame from your movement, the frame rate and your monitor's refresh rate.",
+    "de": "Die Stärke wird in jedem Bild aus deiner Bewegung, der Bildrate und der Hz-Zahl deines Monitors bestimmt.",
+    "ru": "Сила определяется в каждом кадре по вашему движению, частоте кадров и герцовке монитора."
+  },
+  "Smooth.FollowsFrameBoost": {
+    "en": "FrameBoost is running - Smooth Motion uses the same game window.",
+    "de": "FrameBoost läuft – Smooth Motion nutzt dasselbe Spielfenster.",
+    "ru": "FrameBoost запущен — Smooth Motion использует то же окно игры."
+  },
+  "Smooth.PremiumFeature": {
+    "en": "Smooth Motion is a Premium feature",
+    "de": "Smooth Motion ist eine Premium-Funktion",
+    "ru": "Smooth Motion — премиум-функция"
+  },
+  "Smooth.PremiumDot": {
+    "en": "Smooth Motion is a Premium feature.",
+    "de": "Smooth Motion ist eine Premium-Funktion.",
+    "ru": "Smooth Motion — премиум-функция."
+  },
+  "Smooth.Stopped": {
+    "en": "Smooth Motion stopped on its own (the engine exited). Nothing was left running.",
+    "de": "Smooth Motion hat sich selbst beendet (die Engine wurde beendet). Es läuft nichts mehr im Hintergrund.",
+    "ru": "Smooth Motion остановился сам (движок завершился). Ничего не осталось запущенным."
+  },
+  "Smooth.HowTitle": {
+    "en": "How it works",
+    "de": "So funktioniert es",
+    "ru": "Как это работает"
+  },
+  "Smooth.How1": {
+    "en": "Adaptive: the faster the picture moves, the longer the blur. Lower frame rates get more, high refresh rates less.",
+    "de": "Adaptiv: Je schneller sich das Bild bewegt, desto länger die Unschärfe. Niedrige Bildraten bekommen mehr, hohe Hz-Zahlen weniger.",
+    "ru": "Адаптивно: чем быстрее движется изображение, тем длиннее размытие. При низкой частоте кадров сильнее, при высокой герцовке слабее."
+  },
+  "Smooth.How2": {
+    "en": "Follows the real motion of each part of the picture and treats the whole screen the same - no sharp islands next to blurred areas.",
+    "de": "Folgt der echten Bewegung jedes Bildbereichs und behandelt den ganzen Bildschirm gleich – keine scharfen Inseln neben verwischten Stellen.",
+    "ru": "Следует реальному движению каждой части изображения и обрабатывает весь экран одинаково — без чётких островков рядом с размытыми участками."
+  },
+  "Smooth.How3": {
+    "en": "A look, not extra FPS. Nothing blurred is counted as a frame.",
+    "de": "Ein Look, keine zusätzlichen FPS. Nichts Verwischtes wird als Bild gezählt.",
+    "ru": "Это визуальный эффект, а не дополнительные FPS. Размытое не считается кадром."
+  },
+  "Smooth.How4": {
+    "en": "Without touching a game, the only way is the one FrameBoost uses: the screen is captured and shown again on top. That adds the capture delay, but no generated frames and no waiting. Recordings and screenshots show the screen without the effect.",
+    "de": "Ohne Eingriff in ein Spiel geht es nur auf dem Weg, den auch FrameBoost nutzt: Der Bildschirm wird aufgenommen und darüber erneut angezeigt. Dadurch kommt die Aufnahme-Verzögerung dazu, aber keine erzeugten Bilder und kein Warten. Aufnahmen und Screenshots zeigen den Bildschirm ohne den Effekt.",
+    "ru": "Без вмешательства в игру это возможно только так же, как у FrameBoost: экран захватывается и показывается поверх. Это добавляет задержку захвата, но без сгенерированных кадров и ожидания. Записи и скриншоты показывают экран без эффекта."
+  },
+  "Smooth.ScreenLabel": {
+    "en": "Capture:",
+    "de": "Erfassen:",
+    "ru": "Захват:"
+  },
+  "Smooth.ScreenPrimary": {
+    "en": "Screen {0} (main) · {1}×{2}",
+    "de": "Bildschirm {0} (Hauptbildschirm) · {1}×{2}",
+    "ru": "Экран {0} (основной) · {1}×{2}"
+  },
+  "Smooth.Screen": {
+    "en": "Screen {0} · {1}×{2}",
+    "de": "Bildschirm {0} · {1}×{2}",
+    "ru": "Экран {0} · {1}×{2}"
+  },
+  "Smooth.StrengthLabel": {
+    "en": "Strength",
+    "de": "Stärke",
+    "ru": "Сила"
+  },
+  "Smooth.Subtle": {
+    "en": "SUBTLE",
+    "de": "DEZENT",
+    "ru": "СЛАБО"
+  },
+  "Smooth.Strong": {
+    "en": "STRONG",
+    "de": "STARK",
+    "ru": "СИЛЬНО"
+  },
+  "Smooth.StrengthHint": {
+    "en": "Works live - move it while Smooth Motion is on. 50 % is the strength picked automatically for your movement, frame rate and refresh rate; the slider scales it down or up.",
+    "de": "Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist die Stärke, die automatisch zu deiner Bewegung, Bildrate und Hz-Zahl passt; der Regler schwächt sie ab oder verstärkt sie.",
+    "ru": "Работает сразу — двигайте, пока Smooth Motion включён. 50 % — сила, подобранная автоматически под движение, частоту кадров и герцовку; ползунок ослабляет или усиливает её."
+  },
+  "Smooth.WindowItem": {
+    "en": "Window: {0}  –  {1}",
+    "de": "Fenster: {0}  –  {1}",
+    "ru": "Окно: {0}  –  {1}"
+  },
+  "Smooth.WindowHint": {
+    "en": "Only this window gets the effect. Borderless / fullscreen-windowed is recommended - exclusive fullscreen does not always work.",
+    "de": "Nur dieses Fenster bekommt den Effekt. Randlos / Vollbild-Fenster wird empfohlen – exklusives Vollbild klappt nicht immer.",
+    "ru": "Эффект получает только это окно. Рекомендуется режим без рамки / полноэкранное окно — эксклюзивный полноэкранный режим работает не всегда."
+  },
+  "Smooth.ScreenHint": {
+    "en": "The whole monitor gets the effect - works with every game and every mode.",
+    "de": "Der ganze Bildschirm bekommt den Effekt – klappt mit jedem Spiel und jedem Modus.",
+    "ru": "Эффект получает весь монитор — работает с любой игрой и в любом режиме."
+  },
+  "Smooth.AloneWindow": {
+    "en": "GAME WINDOW · real frames only, no frame generation",
+    "de": "SPIELFENSTER · nur echte Bilder, keine Frame-Generierung",
+    "ru": "ОКНО ИГРЫ · только реальные кадры, без генерации"
+  },
+  "Smooth.WindowGone": {
+    "en": "That window is closed. The list has been read again - pick it once more.",
+    "de": "Das Fenster ist geschlossen. Die Liste wurde neu eingelesen – wähl es noch einmal aus.",
+    "ru": "Это окно закрыто. Список обновлён — выберите его ещё раз."
   }
 }

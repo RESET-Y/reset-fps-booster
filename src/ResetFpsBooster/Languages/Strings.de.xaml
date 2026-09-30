@@ -481,4 +481,33 @@
     <sys:String x:Key="Discord.BrowserDone" xml:space="preserve">Erledigt</sys:String>
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Das hat nicht geklappt</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.</sys:String>
+    <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Lässt alles auf dem Bildschirm flüssiger aussehen: Das Bild bekommt Bewegungsunschärfe entlang der echten Bewegung, wie in den „240 FPS“-Clips. Sie wirkt gleichmäßig auf den ganzen Bildschirm, HUD und Fadenkreuz eingeschlossen. Ein Ein/Aus-Knopf und ein Stärke-Regler – der Rest passt sich selbst an.</sys:String>
+    <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Smooth Motion einschalten</sys:String>
+    <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Smooth Motion ausschalten</sys:String>
+    <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION AKTIV</sys:String>
+    <sys:String x:Key="Smooth.Alone" xml:space="preserve">GANZER BILDSCHIRM · nur echte Bilder, keine Frame-Generierung</sys:String>
+    <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">MIT FRAMEBOOST · Unschärfe auf echten und erzeugten Bildern</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Die Stärke wird in jedem Bild aus deiner Bewegung, der Bildrate und der Hz-Zahl deines Monitors bestimmt.</sys:String>
+    <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost läuft – Smooth Motion nutzt dasselbe Spielfenster.</sys:String>
+    <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion ist eine Premium-Funktion</sys:String>
+    <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion ist eine Premium-Funktion.</sys:String>
+    <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion hat sich selbst beendet (die Engine wurde beendet). Es läuft nichts mehr im Hintergrund.</sys:String>
+    <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">So funktioniert es</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Adaptiv: Je schneller sich das Bild bewegt, desto länger die Unschärfe. Niedrige Bildraten bekommen mehr, hohe Hz-Zahlen weniger.</sys:String>
+    <sys:String x:Key="Smooth.How2" xml:space="preserve">Folgt der echten Bewegung jedes Bildbereichs und behandelt den ganzen Bildschirm gleich – keine scharfen Inseln neben verwischten Stellen.</sys:String>
+    <sys:String x:Key="Smooth.How3" xml:space="preserve">Ein Look, keine zusätzlichen FPS. Nichts Verwischtes wird als Bild gezählt.</sys:String>
+    <sys:String x:Key="Smooth.How4" xml:space="preserve">Ohne Eingriff in ein Spiel geht es nur auf dem Weg, den auch FrameBoost nutzt: Der Bildschirm wird aufgenommen und darüber erneut angezeigt. Dadurch kommt die Aufnahme-Verzögerung dazu, aber keine erzeugten Bilder und kein Warten. Aufnahmen und Screenshots zeigen den Bildschirm ohne den Effekt.</sys:String>
+    <sys:String x:Key="Smooth.ScreenLabel" xml:space="preserve">Erfassen:</sys:String>
+    <sys:String x:Key="Smooth.ScreenPrimary" xml:space="preserve">Bildschirm {0} (Hauptbildschirm) · {1}×{2}</sys:String>
+    <sys:String x:Key="Smooth.Screen" xml:space="preserve">Bildschirm {0} · {1}×{2}</sys:String>
+    <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Stärke</sys:String>
+    <sys:String x:Key="Smooth.Subtle" xml:space="preserve">DEZENT</sys:String>
+    <sys:String x:Key="Smooth.Strong" xml:space="preserve">STARK</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist die Stärke, die automatisch zu deiner Bewegung, Bildrate und Hz-Zahl passt; der Regler schwächt sie ab oder verstärkt sie.</sys:String>
+    <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Fenster: {0}  –  {1}</sys:String>
+    <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Nur dieses Fenster bekommt den Effekt. Randlos / Vollbild-Fenster wird empfohlen – exklusives Vollbild klappt nicht immer.</sys:String>
+    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Der ganze Bildschirm bekommt den Effekt – klappt mit jedem Spiel und jedem Modus.</sys:String>
+    <sys:String x:Key="Smooth.AloneWindow" xml:space="preserve">SPIELFENSTER · nur echte Bilder, keine Frame-Generierung</sys:String>
+    <sys:String x:Key="Smooth.WindowGone" xml:space="preserve">Das Fenster ist geschlossen. Die Liste wurde neu eingelesen – wähl es noch einmal aus.</sys:String>
 </ResourceDictionary>

@@ -1,0 +1,198 @@
+<UserControl x:Class="ResetFpsBooster.Views.SmoothMotionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
+             d:DataContext="{d:DesignInstance vm:SmoothMotionViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Brush.Accent}"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform"><Setter.Value><SkewTransform AngleX="-12"/></Setter.Value></Setter>
+        </Style>
+        <Style x:Key="BadgeText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Black"/>
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="Point" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+        </Style>
+        <!-- Racing slider: a thin track, the filled part in the accent, a slanted thumb -->
+        <Style x:Key="RacingSlider" TargetType="Slider">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Border Height="6" Background="{StaticResource Brush.SurfaceHover}" RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform><SkewTransform AngleX="-20"/></Border.RenderTransform>
+                            </Border>
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="6" Background="{DynamicResource Brush.Accent}" RenderTransformOrigin="0.5,0.5">
+                                                    <Border.RenderTransform><SkewTransform AngleX="-20"/></Border.RenderTransform>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="knob" Width="14" Height="24" Background="White" RenderTransformOrigin="0.5,0.5">
+                                                    <Border.RenderTransform><SkewTransform AngleX="-12"/></Border.RenderTransform>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="knob" Property="Background" Value="{DynamicResource Brush.AccentBright}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="36,32" MaxWidth="920" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="SMOOTH MOTION" Style="{StaticResource Text.Title}"/>
+                <Border Style="{StaticResource Badge}" Margin="16,6,0,0" VerticalAlignment="Top">
+                    <TextBlock Text="NEW" Style="{StaticResource BadgeText}"/>
+                </Border>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap" Text="{DynamicResource Smooth.Intro}"/>
+
+            <!-- Live -->
+            <Border Style="{StaticResource Card.Accented}" Margin="0,20,0,0" Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="12" Height="12" VerticalAlignment="Center">
+                            <Ellipse Fill="{StaticResource Brush.Success}" RenderTransformOrigin="0.5,0.5">
+                                <Ellipse.RenderTransform><ScaleTransform/></Ellipse.RenderTransform>
+                                <Ellipse.Triggers>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard RepeatBehavior="Forever">
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="1" To="2.4" Duration="0:0:1.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="1" To="2.4" Duration="0:0:1.2"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.7" To="0" Duration="0:0:1.2"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Ellipse.Triggers>
+                            </Ellipse>
+                            <Ellipse Fill="{StaticResource Brush.Success}" Width="10" Height="10"/>
+                        </Grid>
+                        <TextBlock Text="{DynamicResource Smooth.Active}" Style="{StaticResource Text.SectionTitle}" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ModeText}" Style="{StaticResource Text.Telemetry}" Margin="0,10,0,0"/>
+                    <TextBlock Text="{DynamicResource Smooth.AutoNote}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,20,0,16">
+                <StackPanel>
+                    <!-- Which monitor - only asked when there is more than one. With
+                         FrameBoost on, the engine follows FrameBoost's game window. -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8"
+                                IsEnabled="{Binding IsOn, Converter={StaticResource InverseBool}}">
+                        <TextBlock Text="{DynamicResource Smooth.ScreenLabel}" FontFamily="Segoe UI Black" FontStyle="Italic"
+                                   Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding Screens}" SelectedItem="{Binding SelectedScreen}" DisplayMemberPath="Label"
+                                  MinWidth="300" MaxWidth="560" Margin="12,0,0,0"/>
+                    </StackPanel>
+                    <TextBlock Text="{DynamicResource Smooth.WindowHint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,18"
+                               Visibility="{Binding WindowPicked, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="{DynamicResource Smooth.ScreenHint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,18"
+                               Visibility="{Binding ScreenPicked, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Text="{DynamicResource Smooth.FollowsFrameBoost}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,14"
+                               Visibility="{Binding FrameBoostRunning, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- Strength: live, scales the automatic strength -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{DynamicResource Smooth.StrengthLabel}" FontFamily="Segoe UI Black" FontStyle="Italic"
+                                   Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Strength}" IsSnapToTickEnabled="True" TickFrequency="5"
+                                Style="{StaticResource RacingSlider}" Margin="16,0,16,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding StrengthText}" Style="{StaticResource Text.Display}" FontSize="26" MinWidth="72"
+                                   TextAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource Brush.AccentBright}"/>
+                    </Grid>
+                    <Grid Margin="0,4,0,0">
+                        <TextBlock Text="{DynamicResource Smooth.Subtle}" Style="{StaticResource Text.Telemetry}" Margin="96,0,0,0"/>
+                        <TextBlock Text="{DynamicResource Smooth.Strong}" Style="{StaticResource Text.Telemetry}" HorizontalAlignment="Right" Margin="0,0,104,0"/>
+                    </Grid>
+                    <TextBlock Text="{DynamicResource Smooth.StrengthHint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+                    <!-- Premium lock, only once the server has said no -->
+                    <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="3,0,0,0"
+                            Padding="16,14" Margin="0,16,0,0" Visibility="{Binding IsLocked, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Style="{StaticResource Badge}"><TextBlock Text="PREMIUM" Style="{StaticResource BadgeText}"/></Border>
+                                <TextBlock Text="{DynamicResource Smooth.PremiumFeature}" FontFamily="Segoe UI Black" FontStyle="Italic" Margin="12,0,0,0"
+                                           VerticalAlignment="Center" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,8,0,0" Text="{DynamicResource FB.PremiumHint}"/>
+                            <Button Content="{DynamicResource FB.GoToAccount}" Style="{StaticResource Button.Primary}" HorizontalAlignment="Left"
+                                    Margin="0,14,0,0" Command="{Binding OpenAccountCommand}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ON / OFF -->
+                    <Grid Margin="0,18,0,0" Visibility="{Binding IsLocked, Converter={StaticResource InverseBoolToVis}}">
+                        <Button Content="{DynamicResource Smooth.TurnOn}" Style="{StaticResource Button.Primary}" Command="{Binding TurnOnCommand}"
+                                HorizontalAlignment="Left" Padding="34,14" FontSize="16"
+                                Visibility="{Binding IsOn, Converter={StaticResource InverseBoolToVis}}"/>
+                        <Button Content="{DynamicResource Smooth.TurnOff}" Style="{StaticResource Button.Secondary}" Command="{Binding TurnOffCommand}"
+                                HorizontalAlignment="Left" Padding="34,14" FontSize="16"
+                                Visibility="{Binding IsOn, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
+
+                    <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource Brush.Warning}" Visibility="{Binding StatusMessage, Converter={StaticResource NullToVis}}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- What it does and what it costs, said plainly -->
+            <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="{StaticResource Brush.Warning}" BorderThickness="3,0,0,0" Padding="16,14">
+                <StackPanel>
+                    <TextBlock Text="{DynamicResource Smooth.HowTitle}" FontFamily="Segoe UI Black" FontStyle="Italic" Foreground="{StaticResource Brush.TextPrimary}"/>
+                    <TextBlock Style="{StaticResource Point}" Text="{DynamicResource Smooth.How1}"/>
+                    <TextBlock Style="{StaticResource Point}" Text="{DynamicResource Smooth.How2}"/>
+                    <TextBlock Style="{StaticResource Point}" Text="{DynamicResource Smooth.How3}"/>
+                    <TextBlock Style="{StaticResource Point}" Text="{DynamicResource Smooth.How4}"/>
+                    <TextBlock Style="{StaticResource Point}" Foreground="{StaticResource Brush.Warning}" Text="{DynamicResource FB.FullscreenHint}"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

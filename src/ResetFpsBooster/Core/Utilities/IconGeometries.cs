@@ -20,6 +20,7 @@ public static class IconGeometries
         IconKind.BottleneckEngine => BottleneckEngineIcon(),
 #if RFB_BETA
         IconKind.FrameBoostBeta => FrameBoostBetaIcon(),
+        IconKind.SmoothMotion => SmoothMotionIcon(),
 #endif
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
@@ -99,6 +100,17 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(2.4, 2.4, 7.2, 5.2)));
         group.Children.Add(new RectangleGeometry(new Rect(5, 7, 10, 8), 1, 1));
         group.Children.Add(new RectangleGeometry(new Rect(6.4, 8.4, 7.2, 5.2)));
+        return group;
+    }
+
+    // A ball with three speed streaks behind it - motion, smoothed.
+    private static Geometry SmoothMotionIcon()
+    {
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(new EllipseGeometry(new Point(11.5, 8), 3.5, 3.5));
+        group.Children.Add(new RectangleGeometry(new Rect(1, 4.2, 6.5, 1.4), 0.7, 0.7));
+        group.Children.Add(new RectangleGeometry(new Rect(0, 7.3, 7, 1.4), 0.7, 0.7));
+        group.Children.Add(new RectangleGeometry(new Rect(1, 10.4, 6.5, 1.4), 0.7, 0.7));
         return group;
     }
 #endif

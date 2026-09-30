@@ -40,6 +40,10 @@
     <Compile Remove="**\*FrameBoostBeta*.cs" />
     <Page Remove="**\*FrameBoostBeta*.xaml" />
     <None Include="**\*FrameBoostBeta*.xaml" />
+    <!-- Smooth Motion runs on the FrameBoost engine, so it is Beta-only too. -->
+    <Compile Remove="**\*SmoothMotion*.cs" />
+    <Page Remove="**\*SmoothMotion*.xaml" />
+    <None Include="**\*SmoothMotion*.xaml" />
   </ItemGroup>
 
   <ItemGroup>

@@ -49,7 +49,16 @@ add_custom_command(
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/frame_fingerprint.hlsl"
     COMMENT "Compiling frame_fingerprint.hlsl")
 
+add_custom_command(
+    OUTPUT "${GEN_DIR}/motion_blur_cs.h"
+    COMMAND "${FXC_EXE}" /nologo /T cs_5_0 /E CSMain
+            /Fh "${GEN_DIR}/motion_blur_cs.h" /Vn g_MotionBlurCS
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/motion_blur.hlsl"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/motion_blur.hlsl"
+    COMMENT "Compiling motion_blur.hlsl")
+
 add_custom_target(CompileV2Shaders DEPENDS
+    "${GEN_DIR}/motion_blur_cs.h"
     "${GEN_DIR}/motion_estimation_cs.h"
     "${GEN_DIR}/motion_estimation_coarse_cs.h"
     "${GEN_DIR}/motion_estimation_coarsest_cs.h"
@@ -71,6 +80,7 @@ add_executable(FrameBoostBeta WIN32
     src/telemetry.cpp
     src/synthetic.cpp
     src/picker.cpp
+    src/motion_blur.cpp
     src/logger.cpp
     "${CORE_DIR}/src/motion_estimation.cpp"
     "${CORE_DIR}/src/interpolation.cpp"

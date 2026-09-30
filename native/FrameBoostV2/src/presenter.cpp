@@ -55,6 +55,17 @@ bool Presenter::CreateOverlayWindow(UINT width, UINT height) {
     // 254, never 255 - see the header. This one value decides whether the game
     // underneath keeps rendering at all.
     SetLayeredWindowAttributes(m_hwnd, 0, 254, LWA_ALPHA);
+
+    // Whole-screen capture would otherwise see this window too. Windows 10
+    // 2004 and later; on older builds it fails and the log says so, because a
+    // feedback loop is not something to run into silently.
+    if (m_screenMode && !SetWindowDisplayAffinity(m_hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+        Logger::Log("[FrameBoostV2] Presenter: could not exclude the overlay from capture - "
+                    "whole-screen mode cannot run on this Windows version.");
+        DestroyWindow(m_hwnd);
+        m_hwnd = nullptr;
+        return false;
+    }
     return true;
 }
 
@@ -90,7 +101,7 @@ bool Presenter::CreateSwapChain(ID3D11Device* device, UINT width, UINT height) {
     // collided and generated frames missed their deadline by 3-5 ms with only
     // 3.65 ms of slack. Three gives the queue room to absorb jitter without
     // the loop stalling inside Present.
-    desc.BufferCount = 3;
+    desc.BufferCount = m_shortQueue ? 2 : 3;
     desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
     if (m_tearingSupported) desc.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
@@ -101,7 +112,7 @@ bool Presenter::CreateSwapChain(ID3D11Device* device, UINT width, UINT height) {
     }
 
     if (auto sc2 = m_swapChain.try_as<IDXGISwapChain2>()) {
-        sc2->SetMaximumFrameLatency(2);
+        sc2->SetMaximumFrameLatency(m_shortQueue ? 1 : 2);
         m_frameLatencyWaitable = sc2->GetFrameLatencyWaitableObject();
     }
 
@@ -139,12 +150,19 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, HWND overl
 
     LogConfiguration();
     Logger::Log(std::string("[FrameBoostV2] Presenter: DirectComposition flip-model swapchain, ")
-                + "3 buffers, frame latency 2, tearing "
+                + (m_shortQueue ? "2 buffers, frame latency 1, tearing " : "3 buffers, frame latency 2, tearing ")
                 + (m_tearingSupported ? "supported" : "unavailable") + ".");
     return true;
 }
 
 void Presenter::TrackTarget() {
+    if (m_hwnd && m_screenMode) {
+        const RECT& r = m_screenRect;
+        int w = r.right - r.left;
+        if (m_halfWidth) w /= 2;
+        SetWindowPos(m_hwnd, HWND_TOPMOST, r.left, r.top, w, r.bottom - r.top, SWP_NOACTIVATE | SWP_NOREDRAW);
+        return;
+    }
     if (!m_hwnd || !m_target || !IsWindow(m_target)) return;
 
     RECT client{};

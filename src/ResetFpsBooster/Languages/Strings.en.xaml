@@ -481,4 +481,33 @@
     <sys:String x:Key="Discord.BrowserDone" xml:space="preserve">Done</sys:String>
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">That did not work</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">You can close this tab and go back to RESET FPS BOOSTER.</sys:String>
+    <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Makes everything on screen look more fluid: the picture gets motion blur along the real motion, like the &quot;240 FPS&quot; clips. It covers the whole screen evenly, HUD and crosshair included. An ON/OFF button and a strength slider - the rest adjusts itself.</sys:String>
+    <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Turn Smooth Motion on</sys:String>
+    <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Turn Smooth Motion off</sys:String>
+    <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION ACTIVE</sys:String>
+    <sys:String x:Key="Smooth.Alone" xml:space="preserve">WHOLE SCREEN · real frames only, no frame generation</sys:String>
+    <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">WITH FRAMEBOOST · blur on real and generated frames</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Strength is set every frame from your movement, the frame rate and your monitor's refresh rate.</sys:String>
+    <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost is running - Smooth Motion uses the same game window.</sys:String>
+    <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion is a Premium feature</sys:String>
+    <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion is a Premium feature.</sys:String>
+    <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion stopped on its own (the engine exited). Nothing was left running.</sys:String>
+    <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">How it works</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Adaptive: the faster the picture moves, the longer the blur. Lower frame rates get more, high refresh rates less.</sys:String>
+    <sys:String x:Key="Smooth.How2" xml:space="preserve">Follows the real motion of each part of the picture and treats the whole screen the same - no sharp islands next to blurred areas.</sys:String>
+    <sys:String x:Key="Smooth.How3" xml:space="preserve">A look, not extra FPS. Nothing blurred is counted as a frame.</sys:String>
+    <sys:String x:Key="Smooth.How4" xml:space="preserve">Without touching a game, the only way is the one FrameBoost uses: the screen is captured and shown again on top. That adds the capture delay, but no generated frames and no waiting. Recordings and screenshots show the screen without the effect.</sys:String>
+    <sys:String x:Key="Smooth.ScreenLabel" xml:space="preserve">Capture:</sys:String>
+    <sys:String x:Key="Smooth.ScreenPrimary" xml:space="preserve">Screen {0} (main) · {1}×{2}</sys:String>
+    <sys:String x:Key="Smooth.Screen" xml:space="preserve">Screen {0} · {1}×{2}</sys:String>
+    <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Strength</sys:String>
+    <sys:String x:Key="Smooth.Subtle" xml:space="preserve">SUBTLE</sys:String>
+    <sys:String x:Key="Smooth.Strong" xml:space="preserve">STRONG</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Works live - move it while Smooth Motion is on. 50 % is the strength picked automatically for your movement, frame rate and refresh rate; the slider scales it down or up.</sys:String>
+    <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Window: {0}  –  {1}</sys:String>
+    <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Only this window gets the effect. Borderless / fullscreen-windowed is recommended - exclusive fullscreen does not always work.</sys:String>
+    <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">The whole monitor gets the effect - works with every game and every mode.</sys:String>
+    <sys:String x:Key="Smooth.AloneWindow" xml:space="preserve">GAME WINDOW · real frames only, no frame generation</sys:String>
+    <sys:String x:Key="Smooth.WindowGone" xml:space="preserve">That window is closed. The list has been read again - pick it once more.</sys:String>
 </ResourceDictionary>

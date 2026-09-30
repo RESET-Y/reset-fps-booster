@@ -30,6 +30,7 @@ public sealed partial class MainViewModel : ObservableObject
             new(NavigationSection.BottleneckEngine, "Nav.BottleneckEngine", IconKind.BottleneckEngine),
 #if RFB_BETA
             new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta),
+            new(NavigationSection.SmoothMotion, "Nav.SmoothMotion", IconKind.SmoothMotion),
 #endif
             new(NavigationSection.System, "Nav.System", IconKind.System),
             new(NavigationSection.Backups, "Nav.Backups", IconKind.Backups),
@@ -146,6 +147,8 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.BottleneckEngine => new BottleneckEngineViewModel(_services.GameLibrary),
 #if RFB_BETA
+            NavigationSection.SmoothMotion => new SmoothMotionViewModel(_services.FrameBoostBeta, _services.Settings, _services.Auth,
+                () => NavigateTo(NavigationSection.Account)),
             NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
 #endif

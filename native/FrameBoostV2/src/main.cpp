@@ -45,6 +45,7 @@
 
 #include "motion_estimation.h"
 #include "interpolation.h"
+#include "motion_blur.h"
 
 #include <winrt/base.h>
 #include <d3d11.h>
@@ -122,6 +123,33 @@ double ArgValue(const std::vector<std::wstring>& args, const wchar_t* name, doub
         try { return std::stod(args[i + 1]); } catch (...) { return fallback; }
     }
     return fallback;
+}
+
+// Monitors in the order the app lists them: the primary first, then the rest
+// in the order Windows enumerates them. The app does the same, so "screen 1"
+// means the same monitor on both sides.
+HMONITOR MonitorByIndex(int index) {
+    std::vector<HMONITOR> all;
+    EnumDisplayMonitors(nullptr, nullptr, [](HMONITOR m, HDC, LPRECT, LPARAM p) -> BOOL {
+        reinterpret_cast<std::vector<HMONITOR>*>(p)->push_back(m);
+        return TRUE;
+    }, reinterpret_cast<LPARAM>(&all));
+    std::stable_partition(all.begin(), all.end(), [](HMONITOR m) {
+        MONITORINFO mi{}; mi.cbSize = sizeof(mi);
+        return GetMonitorInfoW(m, &mi) && (mi.dwFlags & MONITORINFOF_PRIMARY);
+    });
+    if (all.empty()) return MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY);
+    return all[static_cast<size_t>(std::clamp(index, 0, static_cast<int>(all.size()) - 1))];
+}
+
+double MonitorRefreshHzOf(HMONITOR mon) {
+    MONITORINFOEXW info{};
+    info.cbSize = sizeof(info);
+    if (!GetMonitorInfoW(mon, &info)) return 0.0;
+    DEVMODEW mode{};
+    mode.dmSize = sizeof(mode);
+    if (!EnumDisplaySettingsW(info.szDevice, ENUM_CURRENT_SETTINGS, &mode)) return 0.0;
+    return static_cast<double>(mode.dmDisplayFrequency);
 }
 
 double MonitorRefreshHz(HWND window) {
@@ -325,8 +353,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     //    ("kann nichts auswaehlen"), so it is kept and not the default.
     HWND target = nullptr;
 
+    // `screen <n>`: THE WHOLE MONITOR, no window at all. Smooth Motion on
+    // everything that is shown - game, video, desktop. The overlay covers the
+    // monitor and is excluded from capture (see Presenter::SetScreenRect).
+    const bool screenMode = HasArg(args, L"screen");
+    HMONITOR screenMon = nullptr;
+    RECT screenRect{};
+    if (screenMode) {
+        screenMon = MonitorByIndex(static_cast<int>(ArgValue(args, L"screen", 0.0)));
+        MONITORINFO mi{}; mi.cbSize = sizeof(mi);
+        GetMonitorInfoW(screenMon, &mi);
+        screenRect = mi.rcMonitor;
+        Logger::Log("[FrameBoostV2] SCREEN mode: whole monitor " + std::to_string(screenRect.right - screenRect.left)
+                    + "x" + std::to_string(screenRect.bottom - screenRect.top) + " at "
+                    + std::to_string(screenRect.left) + "," + std::to_string(screenRect.top));
+    }
+
     const double handleArg = ArgValue(args, L"hwnd", 0.0);
-    if (handleArg > 0.0) {
+    if (screenMode) {
+        // no window to pick
+    } else if (handleArg > 0.0) {
         target = reinterpret_cast<HWND>(static_cast<uintptr_t>(handleArg));
         if (!IsWindow(target)) {
             Logger::Log("[FrameBoostV2] The handle passed in is not a window - exiting.");
@@ -338,7 +384,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         target = WaitForGameWindow();
     }
 
-    if (!target) {
+    if (!target && !screenMode) {
         Logger::Log("[FrameBoostV2] No window selected - exiting rather than "
                     "capturing the wrong thing.");
         return 0;
@@ -360,12 +406,48 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         return 1;
     }
 
+    // GPU PRIORITY FOR SMOOTH MOTION ON ITS OWN. An uncapped game keeps the
+    // GPU at 100%, and our few milliseconds of work queued behind it: motion
+    // estimation measured 2.5 ms normally and 27 ms under an uncapped game.
+    // This raises the priority of THIS process's GPU work only - the game is
+    // not touched. It is the documented DXGI call; the log says whether
+    // Windows accepted it.
+    if (HasArg(args, L"nogen")) {
+        if (auto dxgiDevice = device.try_as<IDXGIDevice>()) {
+            const HRESULT hr = dxgiDevice->SetGPUThreadPriority(7);
+            Logger::Log(SUCCEEDED(hr) ? "[FrameBoostV2] GPU thread priority raised to 7."
+                                      : "[FrameBoostV2] GPU thread priority could not be raised; continuing at normal priority.");
+        }
+
+        // Priority 7 was accepted and still not enough. Measured 2026-09-30
+        // with a game loading the GPU: capture kept arriving at 140-160 a
+        // second, but each of our presents waited 10-15 ms behind the game and
+        // output fell to 63-90 fps. The thread priority only orders work
+        // inside one scheduling class; this moves the whole process up a
+        // class - the same call OBS makes so its capture does not stutter
+        // under a full GPU. Our own process only; exported by gdi32, loaded
+        // by name because the declaration lives in the driver kit. REALTIME
+        // needs admin rights (RFB has them); HIGH is the fallback.
+        using SetClassFn = LONG(APIENTRY*)(HANDLE, int);
+        constexpr int kClassHigh = 4, kClassRealtime = 5;
+        if (auto gdi = GetModuleHandleW(L"gdi32.dll") ? GetModuleHandleW(L"gdi32.dll") : LoadLibraryW(L"gdi32.dll")) {
+            if (auto setClass = reinterpret_cast<SetClassFn>(GetProcAddress(gdi, "D3DKMTSetProcessSchedulingPriorityClass"))) {
+                if (setClass(GetCurrentProcess(), kClassRealtime) == 0)
+                    Logger::Log("[FrameBoostV2] GPU scheduling class raised to REALTIME.");
+                else if (setClass(GetCurrentProcess(), kClassHigh) == 0)
+                    Logger::Log("[FrameBoostV2] GPU scheduling class raised to HIGH (REALTIME refused).");
+                else
+                    Logger::Log("[FrameBoostV2] GPU scheduling class could not be raised; staying at NORMAL.");
+            }
+        }
+    }
+
     // WHAT WE ARE ACTUALLY POINTED AT, spelled out.
     //
     // Every measurement so far assumed the window named in the log is the
     // window being captured and that its present timeline is the game's. That
     // has not been checked once. Ruling it out costs six lines.
-    {
+    if (!screenMode) {
         wchar_t title[256] = {};
         GetWindowTextW(target, title, 255);
         DWORD pid = 0;
@@ -403,7 +485,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         Logger::Log(id.str());
     }
 
-    const double displayHz = MonitorRefreshHz(target);
+    const double displayHz = screenMode ? MonitorRefreshHzOf(screenMon) : MonitorRefreshHz(target);
     Logger::Log("[FrameBoostV2] Display refresh: " + std::to_string(displayHz)
                 + " Hz. Noted for the record only - it does not gate the output rate.");
 
@@ -418,6 +500,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         const double fps = ArgValue(args, L"synthetic", 120.0);
         if (!synthetic.Init(device.get(), 1280, 720, fps, 400.0)) {
             Logger::Log("[FrameBoostV2] Synthetic source could not start - exiting.");
+            return 1;
+        }
+    } else if (screenMode) {
+        if (!capture.StartMonitor(screenMon, device.get(), static_cast<int>(displayHz))) {
+            Logger::Log("[FrameBoostV2] Screen capture could not start - exiting.");
             return 1;
         }
     } else if (HasArg(args, L"monitor")) {
@@ -442,7 +529,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     }
 
     RECT client{};
-    GetClientRect(target, &client);
+    if (screenMode) client = { 0, 0, screenRect.right - screenRect.left, screenRect.bottom - screenRect.top };
+    else GetClientRect(target, &client);
     const UINT initialW = std::max<UINT>(1, static_cast<UINT>(client.right - client.left));
     const UINT initialH = std::max<UINT>(1, static_cast<UINT>(client.bottom - client.top));
 
@@ -510,12 +598,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
     Presenter presenter;
     presenter.EnableHalfWidth(halfWidth);
+    presenter.EnableShortQueue(HasArg(args, L"nogen"));
     presenter.EnableVsync(HasArg(args, L"vsync"));
     if (measureOnly) {
         Logger::Log("[FrameBoostV2] MEASURE ONLY - capturing and timestamping, presenting "
                     "nothing. Nothing will appear on screen; this measures what the game "
                     "delivers when we are not in its way.");
-    } else if (!presenter.Create(device.get(), initialW, initialH, target)) {
+    } else if ((screenMode ? (presenter.SetScreenRect(screenRect), true) : true)
+               && !presenter.Create(device.get(), initialW, initialH, target)) {
         Logger::Log("[FrameBoostV2] Presenter could not start - exiting.");
         return 1;
     }
@@ -540,6 +630,84 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // samples are two copies, not a midpoint. If the screen turns blue, the
     // doubling is nominal and the eye is right to see no difference.
     if (HasArg(args, L"showblend")) interpolator.SetDebugTint(5);
+
+    // `blur [strength]` streaks every frame along its real motion - the look,
+    // not frames. Strength is the shutter as a fraction of one source
+    // interval, 0.5 by default. `blurdebug` paints the streak length instead:
+    // green = short, red = long, untouched = still.
+    //
+    // SMOOTH MOTION (`smooth`) is the same pass with the strength chosen
+    // automatically, every frame, from what is actually happening:
+    //   - the OUTPUT rate: 2x the measured source rate, capped by the display.
+    //     The shutter is set as a share of one output frame - 180 degrees at
+    //     60 fps, the film look, longer below that where the gaps between
+    //     frames are bigger, shorter above it where the frames already fill
+    //     them in and sharpness matters more. 0.5 * sqrt(60 / fps): 45 fps ->
+    //     0.58, 60 -> 0.50, 120 -> 0.35, 144 -> 0.32, 240 -> 0.25.
+    //   - the movement: nothing below a few pixels of streak, fading in above
+    //     it (in the shader), and the threshold rises with the refresh rate -
+    //     a 144 Hz picture needs faster motion before blur helps it.
+    // `hz <n>` is the refresh rate the user picked in the app; without it the
+    // game window's monitor is read.
+    MotionBlur motionBlur;
+    const bool smoothAuto = HasArg(args, L"smooth");
+    // `nogen`: SMOOTH MOTION ON ITS OWN. No generated frames at all - every
+    // real frame is shown once, blurred, and the loop never holds anything
+    // back, since with nothing to space out there is nothing to wait for.
+    const bool generate = !HasArg(args, L"nogen");
+    if (!generate) Logger::Log("[FrameBoostV2] Frame generation OFF (nogen): real frames only.");
+    const bool blurOn = smoothAuto || HasArg(args, L"blur");
+    const double outputHz = ArgValue(args, L"hz", displayHz > 0.0 ? displayHz : 60.0);
+    if (blurOn) {
+        if (!smoothAuto) motionBlur.SetStrength(static_cast<float>(ArgValue(args, L"blur", 0.5)));
+        // No speed threshold and no still-pixel exception any more: they made
+        // sharp islands next to blurred ones, which read as wrong. Everything
+        // that moves is blurred by how much it moves; what does not move has
+        // no streak because it has no motion.
+        motionBlur.SetMinLength(0.5f);
+        motionBlur.SetStillProtection(false);
+        if (HasArg(args, L"blurdebug")) motionBlur.SetDebug(1);
+        Logger::Log(std::string("[FrameBoostV2] ") + (smoothAuto ? "SMOOTH MOTION on (automatic strength)"
+                                                                  : "MOTION BLUR on, fixed strength " + std::to_string(motionBlur.Strength()))
+                    + ", display " + std::to_string(outputHz) + " Hz. A look, not frames: nothing blurred is counted as FPS.");
+    }
+    // Recomputed before every blurred present in automatic mode.
+    // THE USER'S SLIDER, on top of the automatic strength: a multiplier, 1 =
+    // as chosen automatically. Starts from `smooth <n>` and then follows the
+    // small file the app writes whenever the slider moves, read twice a
+    // second - so the slider works live, without restarting anything.
+    double smoothUser = std::clamp(ArgValue(args, L"smooth", 3.0), 0.0, 6.0);
+    double smoothFileCheckAt = 0.0;
+    std::wstring smoothFile;
+    {
+        wchar_t lad[MAX_PATH] = {};
+        if (GetEnvironmentVariableW(L"LOCALAPPDATA", lad, MAX_PATH))
+            smoothFile = std::wstring(lad) + L"\\ResetFpsBooster\\smooth_strength.txt";
+    }
+    auto readSmoothFile = [&]() {
+        if (smoothFile.empty() || NowMs() < smoothFileCheckAt) return;
+        smoothFileCheckAt = NowMs() + 500.0;
+        HANDLE f = CreateFileW(smoothFile.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               nullptr, OPEN_EXISTING, 0, nullptr);
+        if (f == INVALID_HANDLE_VALUE) return;
+        char buf[32] = {};
+        DWORD got = 0;
+        ReadFile(f, buf, sizeof(buf) - 1, &got, nullptr);
+        CloseHandle(f);
+        try { smoothUser = std::clamp(std::stod(std::string(buf, got)), 0.0, 6.0); } catch (...) {}
+    };
+    auto updateSmoothMotion = [&](double sourceIntervalMs, bool generating) {
+        if (!smoothAuto || sourceIntervalMs <= 0.0) return;
+        readSmoothFile();
+        const double sourceFps = 1000.0 / sourceIntervalMs;
+        const double outputFps = std::min(sourceFps * (generating ? 2.0 : 1.0), outputHz);
+        // Back to the first curve after the stronger one was tried and judged
+        // "viel zu stark, es sieht alles komisch aus": 0.5 * sqrt(60 / fps).
+        const double angle = std::clamp(0.5 * std::sqrt(60.0 / std::max(outputFps, 1.0)), 0.2, 0.75);
+        // The vectors span one SOURCE interval; one output frame is a share of it.
+        motionBlur.SetStrength(static_cast<float>(smoothUser * angle * sourceFps / std::max(outputFps, 1.0)));
+    };
+    double blurReportAt = 0.0;
 
     // `dump` writes prev / generated / curr once, a few seconds in so the
     // pipeline is settled, then keeps running untouched.
@@ -621,6 +789,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         if (PeekMessageW(&peek, nullptr, WM_QUIT, WM_QUIT, PM_NOREMOVE)) break;
 
         CapturedFrame frame{};
+        // Smooth Motion on its own shows every frame once, so an older frame
+        // waiting behind a newer one is only delay. Measured before this, with
+        // an uncapped game holding the GPU: queue 7-8 deep, frames shown 65 to
+        // 150 ms after they arrived, 255 ms at worst. Skip to the newest.
+        if (!generate && !syntheticMode) capture.SkipToNewest();
         const bool got = syntheticMode ? synthetic.Produce(context.get(), frame)
                                        : capture.Acquire(frame);
         if (!got) {
@@ -765,7 +938,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             else                     telemetry.NoteValidPair();
         }
 
-        if (pairUsable) {
+        if (pairUsable && generate) {
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
 
@@ -798,7 +971,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                 }
                 presentStartMs = NowMs();
                 queueAtPresent = syntheticMode ? 0 : capture.QueueDepth();
-                const bool okG = presenter.Present(context.get(), interpolator.GeneratedFrameTexture(), &pt,
+                ID3D11Texture2D* shownG = interpolator.GeneratedFrameTexture();
+                if (blurOn) {
+                    updateSmoothMotion(cadenceMs > 0.0 ? cadenceMs : pairIntervalMs, true);
+                    if (ID3D11Texture2D* b = motionBlur.Apply(device.get(), context.get(), shownG,
+                            estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                            desc.Width, desc.Height, Estimator::BlockSizePixels()))
+                        shownG = b;
+                }
+                const bool okG = presenter.Present(context.get(), shownG, &pt,
                                                   markFrames ? Presenter::Marker::Generated
                                                              : Presenter::Marker::None);
                 presentReturnMs = NowMs();
@@ -866,7 +1047,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // the hold never ran - measured as a 6.5 ms pipeline, below the 8.3 ms
         // a hold alone would cost.
         const bool behind = !syntheticMode && capture.QueueDepth() > 1;
-        if (pairUsable && holdHalfInterval && !behind) {
+        if (pairUsable && generate && holdHalfInterval && !behind) {
             const double holdFrom = NowMs();
             holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * 0.5;
             WaitUntil(holdFrom + holdRequestedMs, timer);
@@ -876,7 +1057,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         presentStartMs = NowMs();
         queueAtPresent = syntheticMode ? 0 : capture.QueueDepth();
         pt = Presenter::PresentTiming{};
-        const bool okN = presenter.Present(context.get(), frame.texture, &pt,
+        // The real frame gets the same streak when there is a fresh motion
+        // field for it. Read from the estimator's copy: the capture texture
+        // itself is not a shader input.
+        ID3D11Texture2D* shownN = frame.texture;
+        if (blurOn && haveMotion) {
+            updateSmoothMotion(cadenceMs > 0.0 ? cadenceMs : pairIntervalMs, pairUsable && generate);
+            D3D11_TEXTURE2D_DESC cd{};
+            estimator.CurrFrameTexture()->GetDesc(&cd);
+            if (ID3D11Texture2D* b = motionBlur.Apply(device.get(), context.get(), estimator.CurrFrameTexture(),
+                    estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
+                    cd.Width, cd.Height, Estimator::BlockSizePixels()))
+                shownN = b;
+            if (NowMs() > blurReportAt) {
+                blurReportAt = NowMs() + 5000.0;
+                Logger::Log("[FrameBoostV2] Smooth motion: strength " + std::to_string(motionBlur.Strength())
+                            + ", GPU " + std::to_string(motionBlur.LastGpuTimeMs()) + " ms per frame"
+                            + ", stale frames skipped so far " + std::to_string(syntheticMode ? 0 : capture.Skipped()));
+            }
+        }
+        const bool okN = presenter.Present(context.get(), shownN, &pt,
                                           markFrames ? Presenter::Marker::Native
                                                      : Presenter::Marker::None);
         presentReturnMs = NowMs();

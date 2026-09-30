@@ -42,6 +42,14 @@ public sealed class AppSettings
     /// window handle itself changes on every game start and is not kept.</summary>
     public string? FrameBoostLastProcess { get; set; }
 
+    /// <summary>Smooth Motion slider, 0..100. 50 = the strength the engine picks
+    /// on its own; the slider scales it from a quarter to three times.</summary>
+    public int SmoothMotionStrength { get; set; } = 50;
+
+    /// <summary>Which monitor Smooth Motion covers when it runs on its own:
+    /// 0 = the primary, then the others in Windows' order.</summary>
+    public int SmoothMotionScreen { get; set; }
+
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>
     public string? Language { get; set; }

@@ -21,9 +21,79 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public bool IsRunning => _process is { HasExited: false };
 
-    public string? Start(bool lowLatency = false, long gameWindow = 0)
+    // ONE ENGINE, TWO FEATURES. FrameBoost and Smooth Motion are separate
+    // switches for the user, but both need the same capture and overlay, and
+    // the engine allows one instance at a time. So this keeps what each switch
+    // wants and (re)starts the engine with the combination: generation on or
+    // off ("nogen"), blur on or off ("smooth"). Switching restarts it, which
+    // takes a moment; both features read their settings at launch anyway.
+    private bool _frameBoost;
+    private bool _smooth;
+    private bool _lowLatency;
+    private long _window;
+    private int _hz;
+    private int _screen;
+    private long _smoothWindow;
+    private int _strength = 50;
+
+    public bool FrameBoostOn => _frameBoost && IsRunning;
+    public bool SmoothMotionOn => _smooth && IsRunning;
+    public event EventHandler? StateChanged;
+
+    public string? StartFrameBoost(bool lowLatency, long gameWindow, int displayHz)
     {
-        Stop();
+        _frameBoost = true;
+        _lowLatency = lowLatency;
+        _window = gameWindow;
+        _hz = displayHz;
+        return Relaunch();
+    }
+
+    public void StopFrameBoost()
+    {
+        _frameBoost = false;
+        if (_smooth) Relaunch(); else StopProcess();
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public string? SetSmoothMotion(bool on, int screen, long window, int strength)
+    {
+        _smooth = on;
+        _screen = screen;
+        _smoothWindow = window;
+        _strength = strength;
+        SmoothMotionScreens.WriteStrength(strength);
+        if (on || _frameBoost) return Relaunch();
+        StopProcess();
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        return null;
+    }
+
+    public void Stop()
+    {
+        _frameBoost = false;
+        _smooth = false;
+        StopProcess();
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private string? Relaunch()
+    {
+        // With FrameBoost on, one engine does both on FrameBoost's game window;
+        // Smooth Motion alone uses its own choice - a monitor or a window.
+        var error = Launch(_frameBoost && _lowLatency, _frameBoost ? _window : _smoothWindow, _smooth, !_frameBoost,
+                           _frameBoost ? _hz : 0);
+        if (error is not null) { _frameBoost = false; _smooth = false; }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        return error;
+    }
+
+    private string? Launch(bool lowLatency, long gameWindow, bool smoothMotion, bool noGeneration, int displayHz)
+    {
+        // Smooth Motion on its own covers a whole monitor unless a game window
+        // was picked; either way the engine reads the refresh rate itself.
+        var screenOnly = smoothMotion && noGeneration && gameWindow == 0;
+        StopProcess();
 
         string exePath = Path.Combine(AppContext.BaseDirectory, "FrameBoostBeta", "FrameBoostBeta.exe");
         if (!File.Exists(exePath))
@@ -68,8 +138,18 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 // so the engine captures exactly that one. Without it (the
                 // "automatic" choice) the engine falls back to its five-second
                 // countdown and takes whatever is in front.
-                Arguments = (lowLatency ? "window slotwait lowlatency" : "window slotwait")
-                          + (gameWindow != 0 ? $" hwnd {gameWindow}" : ""),
+                //
+                // `smooth` turns on Smooth Motion, `nogen` runs it without
+                // FrameBoost's generated frames, and `hz` hands over the refresh
+                // rate picked in the app so the engine sizes the blur for the
+                // display the user actually plays on.
+                Arguments = screenOnly
+                    ? $"screen {_screen} slotwait smooth {SmoothMotionScreens.Multiplier(_strength).ToString("0.###", CultureInfo.InvariantCulture)} nogen"
+                    : (lowLatency ? "window slotwait lowlatency" : "window slotwait")
+                          + (gameWindow != 0 ? $" hwnd {gameWindow}" : "")
+                          + (smoothMotion ? $" smooth {SmoothMotionScreens.Multiplier(_strength).ToString("0.###", CultureInfo.InvariantCulture)}" : "")
+                          + (noGeneration ? " nogen" : "")
+                          + (displayHz > 0 ? $" hz {displayHz}" : ""),
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
@@ -82,7 +162,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
         }
     }
 
-    public void Stop()
+    private void StopProcess()
     {
         if (_process is { HasExited: false })
         {

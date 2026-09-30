@@ -9,4 +9,7 @@
     <DataTemplate DataType="{x:Type vm:FrameBoostBetaViewModel}">
         <views:FrameBoostBetaView/>
     </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SmoothMotionViewModel}">
+        <views:SmoothMotionView/>
+    </DataTemplate>
 </ResourceDictionary>

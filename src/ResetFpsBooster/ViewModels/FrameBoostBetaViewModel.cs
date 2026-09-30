@@ -224,7 +224,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             }
         }
 
-        var error = _service.Start(LowLatency, SelectedGameWindow?.Handle ?? 0);
+        var error = _service.StartFrameBoost(LowLatency, SelectedGameWindow?.Handle ?? 0, DisplayHz);
         if (error is not null)
         {
             StatusMessage = error;
@@ -240,7 +240,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         {
             Telemetry = _service.ReadLatestTelemetry();
             OnPropertyChanged(nameof(StatusNotice));
-            if (!_service.IsRunning)
+            if (!_service.FrameBoostOn)
             {
                 // The native engine exited on its own (failsafe path or a
                 // genuine failure) - reflect that honestly instead of
@@ -257,7 +257,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     {
         _telemetryTimer?.Stop();
         _telemetryTimer = null;
-        _service.Stop();
+        _service.StopFrameBoost();
         IsRunning = false;
         Telemetry = new FrameBoostBetaTelemetry();
     }

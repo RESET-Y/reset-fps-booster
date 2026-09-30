@@ -9,6 +9,7 @@ public enum IconKind
     BottleneckEngine,
 #if RFB_BETA
     FrameBoostBeta,
+    SmoothMotion,
 #endif
     System,
     Backups,

@@ -205,6 +205,7 @@
                         </StackPanel>
                         <TextBlock Style="{StaticResource Text.Caption}" Margin="54,4,0,0" TextWrapping="Wrap"
                                    Text="{DynamicResource FB.LowLatencyHint}"/>
+
                     </StackPanel>
 
                     <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Text.Caption}" Margin="0,10,0,0" TextWrapping="Wrap"

@@ -103,6 +103,12 @@ public:
     uint64_t FingerprintCount() const { return m_fpCount.load(std::memory_order_relaxed); }
     bool     FingerprintReady() const { return m_fpReady; }
     int      QueueDepth() const;
+
+    // NEWEST FRAME ONLY: drop everything waiting except the most recent.
+    // For Smooth Motion, where each frame is shown once and a stale one is
+    // pure delay; FrameBoost does not use it. Returns how many were dropped.
+    int      SkipToNewest();
+    uint64_t Skipped() const { return m_skipped.load(); }
     void     ResetCounters();
 
     // EVERY ARRIVAL, RAW, straight off the WGC callback.
@@ -175,6 +181,7 @@ private:
     std::atomic<bool> m_capturing{ false };
     std::atomic<UINT> m_width{ 0 }, m_height{ 0 };
     std::atomic<uint64_t> m_produced{ 0 }, m_consumed{ 0 }, m_overflows{ 0 };
+    std::atomic<uint64_t> m_skipped{ 0 };
     uint64_t m_nextFrameId = 1;
 
     UINT m_poolWidth = 0, m_poolHeight = 0;

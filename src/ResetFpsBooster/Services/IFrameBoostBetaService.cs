@@ -20,8 +20,28 @@ public interface IFrameBoostBetaService
     /// into that part and into those peaks. It cannot halve the number.</param>
     /// <param name="gameWindow">The window handle picked in the list, or 0 for
     /// the engine's own five-second countdown.</param>
-    string? Start(bool lowLatency = false, long gameWindow = 0);
+    /// <param name="displayHz">The refresh rate picked in the app.</param>
+    string? StartFrameBoost(bool lowLatency, long gameWindow, int displayHz);
 
+    /// Turns frame generation off. The engine keeps running if Smooth Motion
+    /// is still on, otherwise it stops.
+    void StopFrameBoost();
+
+    /// SMOOTH MOTION, its own feature on the same engine: motion-aware blur
+    /// during fast movement, strength chosen by the engine. On its own the
+    /// engine runs without generated frames; together with FrameBoost one
+    /// engine does both. On its own it covers the whole of monitor `screen`
+    /// (0 = primary); with FrameBoost it follows FrameBoost's game window.
+    /// `strength` is the slider, 0..100, 50 = the automatic strength.
+    string? SetSmoothMotion(bool on, int screen, long window, int strength);
+
+    bool FrameBoostOn { get; }
+    bool SmoothMotionOn { get; }
+
+    /// Raised whenever either feature is switched, so both pages can follow.
+    event EventHandler? StateChanged;
+
+    /// Stops the engine and both features, e.g. when the app closes.
     void Stop();
 
     /// Reads the native engine's own real-measurement log and returns the

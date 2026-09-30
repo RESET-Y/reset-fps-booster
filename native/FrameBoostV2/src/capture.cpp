@@ -567,6 +567,15 @@ void Capture::Release(const CapturedFrame& frame) {
     m_consumed.fetch_add(1, std::memory_order_relaxed);
 }
 
+int Capture::SkipToNewest() {
+    std::lock_guard<std::mutex> ring(m_ringMutex);
+    if (m_inUseSlot >= 0 || m_head - m_tail <= 1) return 0;
+    const int dropped = static_cast<int>(m_head - m_tail - 1);
+    m_tail = m_head - 1;
+    m_skipped.fetch_add(static_cast<uint64_t>(dropped));
+    return dropped;
+}
+
 int Capture::QueueDepth() const {
     std::lock_guard<std::mutex> ring(m_ringMutex);
     return static_cast<int>(m_head - m_tail);

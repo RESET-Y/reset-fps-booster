@@ -33,11 +33,23 @@ public:
 
     bool Create(ID3D11Device* device, UINT width, UINT height, HWND overlayTarget);
 
+    // WHOLE-SCREEN MODE: cover this monitor rectangle instead of following a
+    // window, and keep the overlay out of every screen capture - including
+    // our own, which would otherwise feed each blurred frame back in and
+    // smear it again, forever. Call before Create.
+    void SetScreenRect(const RECT& rect) { m_screenRect = rect; m_screenMode = true; }
+
     // SIDE BY SIDE WITH THE UNTOUCHED GAME. Asked for as a way to compare
     // without comparing memories: the overlay covers only the LEFT half of
     // the window, so the right half is the game as it renders itself, in the
     // same scene at the same instant. Diagnostic; off unless `half` is given.
     void EnableHalfWidth(bool on) { m_halfWidth = on; }
+
+    // SHORTEST QUEUE: two buffers and a frame latency of one. For Smooth
+    // Motion on its own, where every frame is shown once as soon as it exists
+    // and there is no generated frame to pace - the extra buffer and the
+    // second queued frame only add delay there. Call before Create.
+    void EnableShortQueue(bool on) { m_shortQueue = on; }
     void Destroy();
 
     // Follow the captured window if it moves or is resized.
@@ -170,6 +182,9 @@ private:
 
     double m_waitMsSum = 0.0, m_callMsSum = 0.0, m_callMsMax = 0.0;
     uint64_t m_presents = 0;
+    RECT m_screenRect{};
+    bool m_shortQueue = false;
+    bool m_screenMode = false;
 };
 
 } // namespace fbv2
