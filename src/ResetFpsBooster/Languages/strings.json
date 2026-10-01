@@ -2401,9 +2401,9 @@
     "ru": "Smooth Motion"
   },
   "Smooth.Intro": {
-    "en": "Makes the game look fluid: every frame is smeared along the real motion over the whole time until the next frame, like the \"240 FPS\" clips. Nothing is kept sharp on purpose. An ON/OFF button and a strength slider.",
-    "de": "Lässt das Spiel flüssig aussehen: Jedes Bild wird entlang der echten Bewegung über die ganze Zeit bis zum nächsten Bild verwischt, wie in den „240 FPS“-Clips. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.",
-    "ru": "Делает игру визуально плавной: каждый кадр размывается вдоль реального движения на всё время до следующего кадра, как в роликах «240 FPS». Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы."
+    "en": "Makes the game look like the \"240 FPS\" clips: every frame is smeared along the real motion as if filmed with a camera at 1/60 s. Nothing is kept sharp on purpose. An ON/OFF button and a strength slider.",
+    "de": "Lässt das Spiel aussehen wie in den „240 FPS“-Clips: Jedes Bild wird entlang der echten Bewegung verwischt, als wäre es mit einer Kamera bei 1/60 Sekunde gefilmt. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.",
+    "ru": "Игра выглядит как в роликах «240 FPS»: каждый кадр размывается вдоль реального движения, будто снят камерой с выдержкой 1/60 с. Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы."
   },
   "Smooth.TurnOn": {
     "en": "Turn Smooth Motion on",
@@ -2431,9 +2431,9 @@
     "ru": "С FRAMEBOOST · размытие на реальных и сгенерированных кадрах"
   },
   "Smooth.AutoNote": {
-    "en": "Each frame is smeared by exactly as much as the picture moved since the last one.",
-    "de": "Jedes Bild wird genau so weit verwischt, wie sich das Bild seit dem letzten bewegt hat.",
-    "ru": "Каждый кадр размывается ровно настолько, насколько изображение сдвинулось с прошлого кадра."
+    "en": "Each frame shows the motion of a fixed time span, the same at every frame rate.",
+    "de": "Jedes Bild zeigt die Bewegung einer festen Zeitspanne, bei jeder Bildrate gleich.",
+    "ru": "Каждый кадр показывает движение за фиксированный отрезок времени, одинаково при любой частоте кадров."
   },
   "Smooth.FollowsFrameBoost": {
     "en": "FrameBoost is running - Smooth Motion uses the same game window.",
@@ -2461,9 +2461,9 @@
     "ru": "Как это работает"
   },
   "Smooth.How1": {
-    "en": "Seamless: the streak of one frame ends where the next frame begins, at every frame rate, so movement reads as one continuous motion.",
-    "de": "Lückenlos: Die Schliere eines Bildes endet dort, wo das nächste beginnt, bei jeder Bildrate. So wirkt Bewegung wie ein durchgehender Fluss.",
-    "ru": "Без разрывов: шлейф одного кадра заканчивается там, где начинается следующий, при любой частоте кадров, поэтому движение выглядит непрерывным."
+    "en": "Like a camera: the streak covers a fixed exposure time, so a fast game gets the same long, fluid trails as a 60 fps video instead of short ones.",
+    "de": "Wie eine Kamera: Die Schliere deckt eine feste Belichtungszeit ab. So bekommt auch ein schnelles Spiel dieselben langen, flüssigen Schlieren wie ein 60-FPS-Video statt kurzer.",
+    "ru": "Как камера: шлейф охватывает фиксированное время выдержки, поэтому даже быстрая игра получает такие же длинные плавные шлейфы, как видео 60 FPS."
   },
   "Smooth.How2": {
     "en": "Follows the real motion of each part of the picture and treats the whole screen the same - no sharp islands next to blurred areas.",
@@ -2511,9 +2511,9 @@
     "ru": "СИЛЬНО"
   },
   "Smooth.StrengthHint": {
-    "en": "Works live - move it while Smooth Motion is on. 50 % smears each frame over exactly one frame of motion; lower is subtler, higher smears further.",
-    "de": "Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % verwischt jedes Bild über genau eine Bildbewegung; weniger ist dezenter, mehr verwischt weiter.",
-    "ru": "Работает сразу — двигайте, пока Smooth Motion включён. 50 % размывает каждый кадр ровно на одно движение кадра; меньше — мягче, больше — сильнее."
+    "en": "Works live - move it while Smooth Motion is on. 50 % is the video look (1/60 s), 100 % twice as long, lower is subtler.",
+    "de": "Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist der Video-Look (1/60 s), 100 % doppelt so lang, weniger ist dezenter.",
+    "ru": "Работает сразу — двигайте, пока Smooth Motion включён. 50 % — вид видео (1/60 с), 100 % — вдвое длиннее, меньше — мягче."
   },
   "Smooth.WindowItem": {
     "en": "Window: {0}  –  {1}",

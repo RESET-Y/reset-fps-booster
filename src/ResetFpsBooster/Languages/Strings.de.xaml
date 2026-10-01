@@ -482,19 +482,19 @@
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Das hat nicht geklappt</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Du kannst diesen Tab schließen und zu RESET FPS BOOSTER zurückkehren.</sys:String>
     <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
-    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Lässt das Spiel flüssig aussehen: Jedes Bild wird entlang der echten Bewegung über die ganze Zeit bis zum nächsten Bild verwischt, wie in den „240 FPS“-Clips. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Lässt das Spiel aussehen wie in den „240 FPS“-Clips: Jedes Bild wird entlang der echten Bewegung verwischt, als wäre es mit einer Kamera bei 1/60 Sekunde gefilmt. Nichts wird absichtlich scharf gehalten. Ein Ein/Aus-Knopf und ein Stärke-Regler.</sys:String>
     <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Smooth Motion einschalten</sys:String>
     <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Smooth Motion ausschalten</sys:String>
     <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION AKTIV</sys:String>
     <sys:String x:Key="Smooth.Alone" xml:space="preserve">GANZER BILDSCHIRM · nur echte Bilder, keine Frame-Generierung</sys:String>
     <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">MIT FRAMEBOOST · Unschärfe auf echten und erzeugten Bildern</sys:String>
-    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Jedes Bild wird genau so weit verwischt, wie sich das Bild seit dem letzten bewegt hat.</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Jedes Bild zeigt die Bewegung einer festen Zeitspanne, bei jeder Bildrate gleich.</sys:String>
     <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost läuft – Smooth Motion nutzt dasselbe Spielfenster.</sys:String>
     <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion ist eine Premium-Funktion</sys:String>
     <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion ist eine Premium-Funktion.</sys:String>
     <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion hat sich selbst beendet (die Engine wurde beendet). Es läuft nichts mehr im Hintergrund.</sys:String>
     <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">So funktioniert es</sys:String>
-    <sys:String x:Key="Smooth.How1" xml:space="preserve">Lückenlos: Die Schliere eines Bildes endet dort, wo das nächste beginnt, bei jeder Bildrate. So wirkt Bewegung wie ein durchgehender Fluss.</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Wie eine Kamera: Die Schliere deckt eine feste Belichtungszeit ab. So bekommt auch ein schnelles Spiel dieselben langen, flüssigen Schlieren wie ein 60-FPS-Video statt kurzer.</sys:String>
     <sys:String x:Key="Smooth.How2" xml:space="preserve">Folgt der echten Bewegung jedes Bildbereichs und behandelt den ganzen Bildschirm gleich – keine scharfen Inseln neben verwischten Stellen.</sys:String>
     <sys:String x:Key="Smooth.How3" xml:space="preserve">Ein Look, keine zusätzlichen FPS. Nichts Verwischtes wird als Bild gezählt.</sys:String>
     <sys:String x:Key="Smooth.How4" xml:space="preserve">Ohne Eingriff in ein Spiel geht es nur auf dem Weg, den auch FrameBoost nutzt: Der Bildschirm wird aufgenommen und darüber erneut angezeigt. Dadurch kommt die Aufnahme-Verzögerung dazu, aber keine erzeugten Bilder und kein Warten. Aufnahmen und Screenshots zeigen den Bildschirm ohne den Effekt.</sys:String>
@@ -504,7 +504,7 @@
     <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Stärke</sys:String>
     <sys:String x:Key="Smooth.Subtle" xml:space="preserve">DEZENT</sys:String>
     <sys:String x:Key="Smooth.Strong" xml:space="preserve">STARK</sys:String>
-    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % verwischt jedes Bild über genau eine Bildbewegung; weniger ist dezenter, mehr verwischt weiter.</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Wirkt sofort – verschieb ihn, während Smooth Motion läuft. 50 % ist der Video-Look (1/60 s), 100 % doppelt so lang, weniger ist dezenter.</sys:String>
     <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Fenster: {0}  –  {1}</sys:String>
     <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Nur dieses Fenster bekommt den Effekt. Randlos / Vollbild-Fenster wird empfohlen – exklusives Vollbild klappt nicht immer.</sys:String>
     <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Der ganze Bildschirm bekommt den Effekt. Flüssiger ist das Spielfenster: Beim ganzen Bildschirm werden Bilder doppelt gezeigt, wenn das Spiel langsamer läuft als der Monitor, und das wirkt wie Ruckeln.</sys:String>

@@ -681,6 +681,51 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     const bool generate = !HasArg(args, L"nogen");
     if (!generate) Logger::Log("[FrameBoostV2] Frame generation OFF (nogen): real frames only.");
     const bool blurOn = smoothAuto || HasArg(args, L"blur");
+
+    // SMOOTH MOTION ESTIMATES AT HALF SIZE. FrameBoost needs every pixel of
+    // precision - its vectors place the generated frame - but a streak only
+    // needs the direction and length of the motion. Measured 2026-10-01 in
+    // Apex: motion estimation was ~1.1 ms of every frame at up to 144 a
+    // second, at REALTIME priority, taken straight from the game. At half
+    // size it does a quarter of the work, and each 8-pixel block covers 16
+    // screen pixels, which also gives a calmer field. The GPU makes the small
+    // copy itself (one mip level); the blur still runs on the full frame.
+    // "fullme" estimates at full size again, for comparisons.
+    const bool halfEstimate = !generate && smoothAuto && !HasArg(args, L"fullme");
+    winrt::com_ptr<ID3D11Texture2D> meMipTex, meHalfTex;
+    winrt::com_ptr<ID3D11ShaderResourceView> meMipSRV;
+    UINT meW = 0, meH = 0;
+    auto feedEstimator = [&](ID3D11Texture2D* full) -> bool {
+        if (!halfEstimate) return estimator.ProcessFrame(device.get(), context.get(), full);
+        D3D11_TEXTURE2D_DESC fd{};
+        full->GetDesc(&fd);
+        if (!meMipTex || fd.Width != meW || fd.Height != meH) {
+            meMipTex = nullptr; meHalfTex = nullptr; meMipSRV = nullptr;
+            D3D11_TEXTURE2D_DESC md = fd;
+            md.MipLevels = 2; md.ArraySize = 1; md.SampleDesc = { 1, 0 };
+            md.Usage = D3D11_USAGE_DEFAULT; md.CPUAccessFlags = 0;
+            md.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+            md.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+            D3D11_TEXTURE2D_DESC hd = fd;
+            hd.Width = std::max(1u, fd.Width / 2); hd.Height = std::max(1u, fd.Height / 2);
+            hd.MipLevels = 1; hd.ArraySize = 1; hd.SampleDesc = { 1, 0 };
+            hd.Usage = D3D11_USAGE_DEFAULT; hd.CPUAccessFlags = 0;
+            hd.BindFlags = D3D11_BIND_SHADER_RESOURCE; hd.MiscFlags = 0;
+            if (FAILED(device->CreateTexture2D(&md, nullptr, meMipTex.put())) ||
+                FAILED(device->CreateShaderResourceView(meMipTex.get(), nullptr, meMipSRV.put())) ||
+                FAILED(device->CreateTexture2D(&hd, nullptr, meHalfTex.put()))) {
+                Logger::Log("[FrameBoostV2] Half-size motion estimation unavailable; estimating at full size.");
+                meMipTex = nullptr; meHalfTex = nullptr; meMipSRV = nullptr; meW = meH = 0;
+                return estimator.ProcessFrame(device.get(), context.get(), full);
+            }
+            meW = fd.Width; meH = fd.Height;
+            Logger::Log("[FrameBoostV2] Smooth motion estimates at half size: " + std::to_string(hd.Width) + "x" + std::to_string(hd.Height) + ".");
+        }
+        context->CopySubresourceRegion(meMipTex.get(), 0, 0, 0, 0, full, 0, nullptr);
+        context->GenerateMips(meMipSRV.get());
+        context->CopySubresourceRegion(meHalfTex.get(), 0, 0, 0, 0, meMipTex.get(), 1, nullptr);
+        return estimator.ProcessFrame(device.get(), context.get(), meHalfTex.get());
+    };
     const double outputHz = ArgValue(args, L"hz", displayHz > 0.0 ? displayHz : 60.0);
     if (blurOn) {
         if (!smoothAuto) motionBlur.SetStrength(static_cast<float>(ArgValue(args, L"blur", 0.5)));
@@ -725,11 +770,17 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         readSmoothFile();
         const double sourceFps = 1000.0 / sourceIntervalMs;
         const double outputFps = std::min(sourceFps * (generating ? 2.0 : 1.0), outputHz);
-        // Full shutter, the same at every frame rate. The app sends 3 for the
-        // slider's middle, so 3 -> 1.0 = one whole frame of motion. The
-        // vectors span one SOURCE interval; one output frame is a share of it.
-        const double shutter = smoothUser / 3.0;
-        motionBlur.SetStrength(static_cast<float>(shutter * sourceFps / std::max(outputFps, 1.0)));
+        // A FIXED EXPOSURE, like the "240 FPS" videos (2026-10-01, Lukas:
+        // "Effekt verstärken um wie auf Video auszusehen"). Those clips are
+        // 60 fps with every frame exposed for 1/60 s, so a streak shows 16.7 ms
+        // of motion. One frame of a 150 fps game is only 6.7 ms, which is why
+        // a full one-frame shutter still looked weak. The streak now covers a
+        // fixed time: the app sends 3 for the slider's middle -> 16.7 ms, the
+        // video look at any frame rate; 6 -> 33 ms; 0.75 -> 4 ms. The vectors
+        // span one source interval, so the shutter is exposure / interval.
+        (void)outputFps;
+        const double exposureMs = 1000.0 / 60.0 * (smoothUser / 3.0);
+        motionBlur.SetStrength(static_cast<float>(exposureMs / sourceIntervalMs));
     };
     double blurReportAt = 0.0;
 
@@ -891,7 +942,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
 
         // Push B into the estimator. It keeps prev/curr itself, so frames must
         // be fed strictly in order - which is exactly what the ring hands over.
-        const bool haveMotion = estimator.ProcessFrame(device.get(), context.get(), frame.texture);
+        const bool haveMotion = feedEstimator(frame.texture);
 
         const uint64_t currId = frame.frameId;
         const double currContentMs = frame.contentMs;
@@ -998,6 +1049,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                 ID3D11Texture2D* shownG = interpolator.GeneratedFrameTexture();
                 if (blurOn) {
                     updateSmoothMotion(cadenceMs > 0.0 ? cadenceMs : pairIntervalMs, true);
+                    motionBlur.SetMotionScale(1.0f);
+                    motionBlur.SetPixelSelect(false);  // a generated frame sits between the real ones
+                    motionBlur.SetUsePyramid(false);   // and is not the frame the mips were built from
                     if (ID3D11Texture2D* b = motionBlur.Apply(device.get(), context.get(), shownG,
                             estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
                             desc.Width, desc.Height, Estimator::BlockSizePixels()))
@@ -1087,11 +1141,22 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         ID3D11Texture2D* shownN = frame.texture;
         if (blurOn && haveMotion) {
             updateSmoothMotion(cadenceMs > 0.0 ? cadenceMs : pairIntervalMs, pairUsable && generate);
+            // The full frame from the capture ring is what gets blurred and
+            // shown; the estimator may only hold the half-size copy.
             D3D11_TEXTURE2D_DESC cd{};
-            estimator.CurrFrameTexture()->GetDesc(&cd);
-            if (ID3D11Texture2D* b = motionBlur.Apply(device.get(), context.get(), estimator.CurrFrameTexture(),
+            frame.texture->GetDesc(&cd);
+            const UINT scale = (halfEstimate && meW) ? 2u : 1u;
+            motionBlur.SetMotionScale(static_cast<float>(scale));
+            // Per-pixel vector choice: OFF. Tried 2026-10-01 and judged clearly
+            // worse ("ekelhaft" - "schlecht"). Kept behind "pixelselect" only to
+            // compare against; the block field with confidence is the default.
+            motionBlur.SetPixelSelect(HasArg(args, L"pixelselect"));
+            // Reading long streaks from the mip chain: OFF. Tried 2026-10-01 and
+            // rejected at once ("Nein zurück"). Behind "pyramid" for comparisons only.
+            motionBlur.SetUsePyramid(HasArg(args, L"pyramid"));
+            if (ID3D11Texture2D* b = motionBlur.Apply(device.get(), context.get(), frame.texture,
                     estimator.PrevFrameSRV(), estimator.CurrFrameSRV(), estimator.MotionVectorSRV(),
-                    cd.Width, cd.Height, Estimator::BlockSizePixels()))
+                    cd.Width, cd.Height, Estimator::BlockSizePixels() * scale))
                 shownN = b;
             if (NowMs() > blurReportAt) {
                 blurReportAt = NowMs() + 5000.0;

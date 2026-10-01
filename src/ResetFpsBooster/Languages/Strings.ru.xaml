@@ -482,19 +482,19 @@
     <sys:String x:Key="Discord.BrowserFailed" xml:space="preserve">Не получилось</sys:String>
     <sys:String x:Key="Discord.BrowserClose" xml:space="preserve">Можно закрыть эту вкладку и вернуться в RESET FPS BOOSTER.</sys:String>
     <sys:String x:Key="Nav.SmoothMotion" xml:space="preserve">Smooth Motion</sys:String>
-    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Делает игру визуально плавной: каждый кадр размывается вдоль реального движения на всё время до следующего кадра, как в роликах «240 FPS». Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы.</sys:String>
+    <sys:String x:Key="Smooth.Intro" xml:space="preserve">Игра выглядит как в роликах «240 FPS»: каждый кадр размывается вдоль реального движения, будто снят камерой с выдержкой 1/60 с. Ничто намеренно не остаётся чётким. Кнопка ВКЛ/ВЫКЛ и ползунок силы.</sys:String>
     <sys:String x:Key="Smooth.TurnOn" xml:space="preserve">Включить Smooth Motion</sys:String>
     <sys:String x:Key="Smooth.TurnOff" xml:space="preserve">Выключить Smooth Motion</sys:String>
     <sys:String x:Key="Smooth.Active" xml:space="preserve">SMOOTH MOTION АКТИВЕН</sys:String>
     <sys:String x:Key="Smooth.Alone" xml:space="preserve">ВЕСЬ ЭКРАН · только реальные кадры, без генерации</sys:String>
     <sys:String x:Key="Smooth.WithFrameBoost" xml:space="preserve">С FRAMEBOOST · размытие на реальных и сгенерированных кадрах</sys:String>
-    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Каждый кадр размывается ровно настолько, насколько изображение сдвинулось с прошлого кадра.</sys:String>
+    <sys:String x:Key="Smooth.AutoNote" xml:space="preserve">Каждый кадр показывает движение за фиксированный отрезок времени, одинаково при любой частоте кадров.</sys:String>
     <sys:String x:Key="Smooth.FollowsFrameBoost" xml:space="preserve">FrameBoost запущен — Smooth Motion использует то же окно игры.</sys:String>
     <sys:String x:Key="Smooth.PremiumFeature" xml:space="preserve">Smooth Motion — премиум-функция</sys:String>
     <sys:String x:Key="Smooth.PremiumDot" xml:space="preserve">Smooth Motion — премиум-функция.</sys:String>
     <sys:String x:Key="Smooth.Stopped" xml:space="preserve">Smooth Motion остановился сам (движок завершился). Ничего не осталось запущенным.</sys:String>
     <sys:String x:Key="Smooth.HowTitle" xml:space="preserve">Как это работает</sys:String>
-    <sys:String x:Key="Smooth.How1" xml:space="preserve">Без разрывов: шлейф одного кадра заканчивается там, где начинается следующий, при любой частоте кадров, поэтому движение выглядит непрерывным.</sys:String>
+    <sys:String x:Key="Smooth.How1" xml:space="preserve">Как камера: шлейф охватывает фиксированное время выдержки, поэтому даже быстрая игра получает такие же длинные плавные шлейфы, как видео 60 FPS.</sys:String>
     <sys:String x:Key="Smooth.How2" xml:space="preserve">Следует реальному движению каждой части изображения и обрабатывает весь экран одинаково — без чётких островков рядом с размытыми участками.</sys:String>
     <sys:String x:Key="Smooth.How3" xml:space="preserve">Это визуальный эффект, а не дополнительные FPS. Размытое не считается кадром.</sys:String>
     <sys:String x:Key="Smooth.How4" xml:space="preserve">Без вмешательства в игру это возможно только так же, как у FrameBoost: экран захватывается и показывается поверх. Это добавляет задержку захвата, но без сгенерированных кадров и ожидания. Записи и скриншоты показывают экран без эффекта.</sys:String>
@@ -504,7 +504,7 @@
     <sys:String x:Key="Smooth.StrengthLabel" xml:space="preserve">Сила</sys:String>
     <sys:String x:Key="Smooth.Subtle" xml:space="preserve">СЛАБО</sys:String>
     <sys:String x:Key="Smooth.Strong" xml:space="preserve">СИЛЬНО</sys:String>
-    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Работает сразу — двигайте, пока Smooth Motion включён. 50 % размывает каждый кадр ровно на одно движение кадра; меньше — мягче, больше — сильнее.</sys:String>
+    <sys:String x:Key="Smooth.StrengthHint" xml:space="preserve">Работает сразу — двигайте, пока Smooth Motion включён. 50 % — вид видео (1/60 с), 100 % — вдвое длиннее, меньше — мягче.</sys:String>
     <sys:String x:Key="Smooth.WindowItem" xml:space="preserve">Окно: {0}  –  {1}</sys:String>
     <sys:String x:Key="Smooth.WindowHint" xml:space="preserve">Эффект получает только это окно. Рекомендуется режим без рамки / полноэкранное окно — эксклюзивный полноэкранный режим работает не всегда.</sys:String>
     <sys:String x:Key="Smooth.ScreenHint" xml:space="preserve">Эффект получает весь монитор. Плавнее с окном игры: при захвате всего экрана кадры повторяются, если игра работает медленнее монитора, и это выглядит как рывки.</sys:String>

@@ -12,7 +12,9 @@ struct BlurParams {
     float shutter, maxLength, staticThreshold;
     UINT  debug;
     float minLength;
-    float pad[3];
+    float motionScale;
+    UINT  pixelSelect;
+    UINT  usePyramid;
 };
 static_assert(sizeof(BlurParams) % 16 == 0, "constant buffers are 16-byte multiples");
 
@@ -143,7 +145,7 @@ ID3D11Texture2D* MotionBlur::Apply(ID3D11Device* device, ID3D11DeviceContext* co
     // Up to 24 samples (one per ~5 px) along at most 128 pixels - 96 cut fast
     // flicks short. The cap keeps a wrong giant vector from smearing half the
     // screen. The shader no longer reads the still threshold.
-    BlurParams p{ width, height, blockSize, 24u, m_shutter, 128.0f, m_stillProtection ? 0.03f : 0.0f, m_debug, m_minLength, {} };
+    BlurParams p{ width, height, blockSize, 32u, m_shutter, 256.0f, m_stillProtection ? 0.03f : 0.0f, m_debug, m_minLength, m_motionScale, m_pixelSelect ? 1u : 0u, m_usePyramid ? 1u : 0u };
     memcpy(mapped.pData, &p, sizeof(p));
     context->Unmap(m_params, 0);
 

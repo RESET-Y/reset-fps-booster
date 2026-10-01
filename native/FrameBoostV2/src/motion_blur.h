@@ -13,12 +13,24 @@ public:
 
     // Strength = shutter as a fraction of one source interval's motion.
     // 0.5 is a 180-degree shutter at the source rate: clearly visible streaks.
-    void SetStrength(float s) { m_shutter = s < 0.05f ? 0.05f : (s > 1.5f ? 1.5f : s); }
+    // Up to 8 source intervals: a fixed 33 ms exposure at 240 fps is 8.
+    void SetStrength(float s) { m_shutter = s < 0.05f ? 0.05f : (s > 8.0f ? 8.0f : s); }
     void SetDebug(unsigned int mode) { m_debug = mode; }
     void SetMinLength(float px) { m_minLength = px < 0.5f ? 0.5f : px; }
     // Off = pixels that match in both real frames (HUD, crosshair) are blurred
     // like everything else instead of being kept sharp.
     void SetStillProtection(bool on) { m_stillProtection = on; }
+    // The motion field may come from a smaller copy of the frame (Smooth
+    // Motion estimates at half size): its vectors are then in that copy's
+    // pixels and get multiplied by this; blockSize in Apply is in FULL pixels.
+    void SetMotionScale(float s) { m_motionScale = s > 0.0f ? s : 1.0f; }
+    // Only when the frame being blurred IS the estimator's current frame: each
+    // pixel then checks which nearby vector really brought it here. Not for a
+    // generated frame, which sits between the two real ones.
+    void SetPixelSelect(bool on) { m_pixelSelect = on; }
+    // Same condition, separate switch: long streaks may read the estimator's
+    // mip chain of this very frame instead of the full frame.
+    void SetUsePyramid(bool on) { m_usePyramid = on; }
     float Strength() const { return m_shutter; }
 
     // Blurs `source` (the frame about to be presented) and returns the result,
@@ -47,7 +59,9 @@ private:
     // Views onto the textures handed in, cached by pointer: the interpolator's
     // output and the estimator's current frame are the same two textures
     // every frame, so one view each is created once.
-    static constexpr int kViewCache = 4;
+    // 12, not 4: Smooth Motion blurs the capture ring's own textures, and the
+    // ring has 8 slots - 4 views would be rebuilt every frame.
+    static constexpr int kViewCache = 12;
     ID3D11Texture2D* m_viewTex[kViewCache] = {};
     ID3D11ShaderResourceView* m_viewSRV[kViewCache] = {};
     int m_viewNext = 0;
@@ -63,6 +77,9 @@ private:
 
     float m_shutter = 0.5f;
     float m_minLength = 2.0f;
+    float m_motionScale = 1.0f;
+    bool m_pixelSelect = false;
+    bool m_usePyramid = false;
     bool m_stillProtection = true;
     unsigned int m_debug = 0;
     bool m_failed = false;
