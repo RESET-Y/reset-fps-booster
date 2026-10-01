@@ -4,6 +4,14 @@ project(FrameBoostV2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# THE C++ RUNTIME IS BUILT IN (/MT). Linked against the DLL runtime, the exe
+# needed MSVCP140.dll, VCRUNTIME140.dll and VCRUNTIME140_1.dll from the Visual
+# C++ Redistributable, which neither the installer nor the app folder ships.
+# On a PC without it Windows refuses to load the engine at all - no log line,
+# the app just reports that FrameBoost ended on its own (a friend of Lukas's,
+# 2026-10-01). Static linking leaves only DLLs every Windows has.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 # The proven GPU core, lifted out of the old engine and now a tree of its own.
 # See native/FrameBoostLegacy/README.md for why it was copied rather than
 # moved: the folder it came from also builds d3d11/dxgi proxy DLLs, which this
