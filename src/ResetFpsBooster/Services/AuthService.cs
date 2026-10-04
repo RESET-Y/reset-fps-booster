@@ -28,6 +28,12 @@ public sealed class AuthService : IAuthService
 
     private Session? _session;
 
+    // One refresh at a time. Supabase rotates the refresh token on every use,
+    // so two refreshes racing with the same token would leave one of them
+    // holding a dead token - and reusing a dead one revokes the whole session.
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private CancellationTokenSource? _retryCts;
+
     public string? CurrentEmail => _session?.User?.Email;
     public string? CurrentUserId => _session?.User?.Id;
     public bool IsSignedIn => _session is not null;
@@ -40,11 +46,27 @@ public sealed class AuthService : IAuthService
         if (stored?.RefreshToken is null) return;
 
         // Always refresh on start: the access token is short-lived and may have
-        // expired while the app was closed. A refresh that fails means the
-        // session was revoked or expired - signed out, and the stale file goes.
-        var refreshed = await RefreshAsync(stored.RefreshToken, ct);
-        if (refreshed is null) { DeleteSession(); return; }
-        SetSession(refreshed);
+        // expired while the app was closed.
+        //
+        // ONLY A CLEAR "NO" SIGNS OUT. This used to delete the saved session on
+        // ANY failed refresh - no network yet, a timeout, Supabase answering
+        // slowly. Right after an update, when the app restarts at once, that
+        // happened easily, and users reported having to sign in again after
+        // every update (2026-10-04). Now the session is kept and retried; it
+        // goes only when Supabase answers that the refresh token is invalid.
+        _session = stored;
+        SignInStateChanged?.Invoke(this, EventArgs.Empty);
+        // Under the same lock as every other refresh: calls made while this
+        // one is in flight wait for its new token instead of racing it.
+        await _refreshLock.WaitAsync(ct);
+        try
+        {
+            var (refreshed, rejected) = await RefreshAsync(stored.RefreshToken, ct);
+            if (refreshed is not null) SetSession(refreshed);
+            else if (rejected) { SignOutLocally(); return; }
+            else StartRetrying();
+        }
+        finally { _refreshLock.Release(); }
 
         // Premium may have started or ended while the app was closed.
         _ = SyncDiscordRoleAsync(ct);
@@ -96,9 +118,7 @@ public sealed class AuthService : IAuthService
     public async Task SignOutAsync(CancellationToken ct = default)
     {
         var token = _session?.AccessToken;
-        _session = null;
-        DeleteSession();
-        SignInStateChanged?.Invoke(this, EventArgs.Empty);
+        SignOutLocally();
 
         // Tell the server too, so the refresh token stops working everywhere.
         // Local sign-out has already happened; a failure here changes nothing.
@@ -138,9 +158,8 @@ public sealed class AuthService : IAuthService
         if (_session?.RefreshToken is null) return Loc.T("Discord.SignInFirst");
 
         // Linking needs a live access token; the stored one may be hours old.
-        var fresh = await RefreshAsync(_session.RefreshToken, ct);
-        if (fresh is null) return Loc.T("Discord.SignInFirst");
-        SetSession(fresh);
+        var freshToken = await AccessTokenAsync(ct, forceRefresh: true);
+        if (freshToken is null) return Loc.T("Discord.SignInFirst");
 
         var (verifier, challenge) = NewPkce();
         try
@@ -151,7 +170,7 @@ public sealed class AuthService : IAuthService
                 + $"&code_challenge={challenge}&code_challenge_method=s256"
                 + "&scopes=identify%20email&skip_http_redirect=true");
             req.Headers.Add("apikey", SupabaseConfig.AnonKey);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", fresh.AccessToken);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", freshToken);
             using var res = await Http.SendAsync(req, ct);
             var body = await res.Content.ReadAsStringAsync(ct);
             if (!res.IsSuccessStatusCode)
@@ -173,12 +192,12 @@ public sealed class AuthService : IAuthService
 
     public async Task<string?> LinkedDiscordNameAsync(CancellationToken ct = default)
     {
-        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return null;
+        if (!SupabaseConfig.IsConfigured || await AccessTokenAsync(ct) is not { } token) return null;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Get, $"{SupabaseConfig.Url.TrimEnd('/')}/auth/v1/user");
             req.Headers.Add("apikey", SupabaseConfig.AnonKey);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var res = await Http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode) return null;
             using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
@@ -205,7 +224,7 @@ public sealed class AuthService : IAuthService
 
     public async Task SyncDiscordRoleAsync(CancellationToken ct = default)
     {
-        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return;
+        if (!SupabaseConfig.IsConfigured || await AccessTokenAsync(ct) is not { } token) return;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post,
@@ -214,7 +233,7 @@ public sealed class AuthService : IAuthService
                 Content = new StringContent("{}", Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("apikey", SupabaseConfig.AnonKey);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var _ = await Http.SendAsync(req, ct);
         }
         catch { /* the hourly sync catches up */ }
@@ -287,7 +306,7 @@ public sealed class AuthService : IAuthService
 
     public async Task<bool> IsPremiumAsync(CancellationToken ct = default)
     {
-        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return false;
+        if (!SupabaseConfig.IsConfigured || await AccessTokenAsync(ct) is not { } token) return false;
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post,
@@ -296,7 +315,7 @@ public sealed class AuthService : IAuthService
                 Content = new StringContent("{}", Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("apikey", SupabaseConfig.AnonKey);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             using var res = await Http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode) return false;
@@ -370,7 +389,7 @@ public sealed class AuthService : IAuthService
     /// what lets the function know WHO is asking - auth.uid() on the server.
     private async Task<(bool Ok, string Body)> RpcAsync(string function, object args, CancellationToken ct)
     {
-        if (_session?.AccessToken is null || !SupabaseConfig.IsConfigured) return (false, "");
+        if (!SupabaseConfig.IsConfigured || await AccessTokenAsync(ct) is not { } token) return (false, "");
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post,
@@ -379,7 +398,7 @@ public sealed class AuthService : IAuthService
                 Content = new StringContent(JsonSerializer.Serialize(args), Encoding.UTF8, "application/json"),
             };
             req.Headers.Add("apikey", SupabaseConfig.AnonKey);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _session.AccessToken);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var res = await Http.SendAsync(req, ct);
             var body = await res.Content.ReadAsStringAsync(ct);
             return (res.IsSuccessStatusCode, body);
@@ -389,18 +408,81 @@ public sealed class AuthService : IAuthService
 
     // ---- internals -----------------------------------------------------------
 
-    private async Task<Session?> RefreshAsync(string refreshToken, CancellationToken ct)
+    /// Rejected = Supabase answered that this refresh token is no good (400 or
+    /// 401 - revoked, expired, already used). Anything else - no network, a
+    /// timeout, a 5xx - is a hiccup, and the session must survive it.
+    private async Task<(Session? Session, bool Rejected)> RefreshAsync(string refreshToken, CancellationToken ct)
     {
         try
         {
             using var res = await PostAuthAsync("token?grant_type=refresh_token",
                 new { refresh_token = refreshToken }, bearer: null, ct);
-            if (!res.IsSuccessStatusCode) return null;
+            if (!res.IsSuccessStatusCode)
+                return (null, (int)res.StatusCode is 400 or 401);
             var body = await res.Content.ReadAsStringAsync(ct);
             var session = JsonSerializer.Deserialize<Session>(body, Json);
-            return session?.AccessToken is null ? null : session;
+            return (session?.AccessToken is null ? null : session, false);
         }
-        catch { return null; }
+        catch { return (null, false); }
+    }
+
+    /// THE ACCESS TOKEN FOR A CALL, fresh. Supabase access tokens last an hour,
+    /// and the app only ever refreshed at start - so an hour in, every call was
+    /// refused, premium read as "not active" and codes would not redeem. Now a
+    /// token within two minutes of its end is renewed first. Null = signed out.
+    private async Task<string?> AccessTokenAsync(CancellationToken ct, bool forceRefresh = false)
+    {
+        var current = _session;
+        if (current?.AccessToken is null) return null;
+        if (!forceRefresh && !ExpiresSoon(current)) return current.AccessToken;
+
+        await _refreshLock.WaitAsync(ct);
+        try
+        {
+            // Another call may have refreshed while this one waited.
+            current = _session;
+            if (current?.RefreshToken is null) return current?.AccessToken;
+            if (!forceRefresh && !ExpiresSoon(current)) return current.AccessToken;
+
+            var (fresh, rejected) = await RefreshAsync(current.RefreshToken, ct);
+            if (fresh is not null) { SetSession(fresh); return fresh.AccessToken; }
+            if (rejected) { SignOutLocally(); return null; }
+            return current.AccessToken;   // a hiccup: try with what we have
+        }
+        finally { _refreshLock.Release(); }
+    }
+
+    private static bool ExpiresSoon(Session s) =>
+        s.ExpiresAt is not { } at || DateTimeOffset.FromUnixTimeSeconds(at) <= DateTimeOffset.UtcNow.AddMinutes(2);
+
+    /// A refresh at start failed for a reason that was not a rejection: keep
+    /// trying in the background - after 5 s, 15 s, 1 min, then every 5 min -
+    /// until it works or Supabase rejects the token.
+    private void StartRetrying()
+    {
+        _retryCts?.Cancel();
+        var cts = _retryCts = new CancellationTokenSource();
+        _ = Task.Run(async () =>
+        {
+            var delays = new[] { 5, 15, 60 };
+            for (var i = 0; !cts.IsCancellationRequested; i++)
+            {
+                try { await Task.Delay(TimeSpan.FromSeconds(i < delays.Length ? delays[i] : 300), cts.Token); }
+                catch (TaskCanceledException) { return; }
+                if (_session is null) return;
+                var token = await AccessTokenAsync(cts.Token, forceRefresh: true);
+                if (token is null) return;                                   // rejected: signed out
+                if (_session is { } s && !ExpiresSoon(s)) { SignInStateChanged?.Invoke(this, EventArgs.Empty); return; }
+            }
+        });
+    }
+
+    private void SignOutLocally()
+    {
+        _retryCts?.Cancel();
+        _session = null;
+        DeleteSession();
+        SignInStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private static Task<HttpResponseMessage> PostAuthAsync(string path, object payload,
@@ -419,6 +501,7 @@ public sealed class AuthService : IAuthService
     private void SetSession(Session session)
     {
         _session = session;
+        if (!ExpiresSoon(session)) _retryCts?.Cancel();
         SaveSession(session);
         SignInStateChanged?.Invoke(this, EventArgs.Empty);
     }

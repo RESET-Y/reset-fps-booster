@@ -203,13 +203,17 @@ function saveSession(s) { session = s; try { s ? localStorage.setItem(KEY, JSON.
 async function auth(path, body) {
   const r = await fetch(SUPABASE + "/auth/v1/" + path, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error_description || j.msg || "Anmeldung fehlgeschlagen");
+  if (!r.ok) throw Object.assign(new Error(j.error_description || j.msg || "Anmeldung fehlgeschlagen"), { status: r.status });
   return { access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (j.expires_in - 60) * 1000, email: j.user?.email };
 }
 async function token() {
   if (session && Date.now() > session.expires) {
     try { saveSession({ ...(await auth("token?grant_type=refresh_token", { refresh_token: session.refresh })), email: session.email }); }
-    catch { saveSession(null); showLogin("Sitzung abgelaufen. Bitte neu anmelden."); throw new Error("expired"); }
+    catch (e) {
+      // Only a clear "no" (400/401) ends the session; a network hiccup keeps it.
+      if (e && (e.status === 400 || e.status === 401)) { saveSession(null); showLogin("Sitzung abgelaufen. Bitte neu anmelden."); throw new Error("expired"); }
+      throw new Error("Keine Verbindung. Versuch es gleich noch mal.");
+    }
   }
   return session.access;
 }

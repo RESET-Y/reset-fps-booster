@@ -47,6 +47,7 @@ window.RFB = (function () {
       const msg = String(j.error_description || j.msg || j.error || "");
       const e = new Error(msg);
       e.kind = /not confirmed/i.test(msg) ? "unconfirmed" : /invalid/i.test(msg) ? "invalid" : "failed";
+      e.status = r.status;
       throw e;
     }
     return { access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (j.expires_in - 60) * 1000,
@@ -57,8 +58,13 @@ window.RFB = (function () {
   async function token() {
     if (!session) throw Object.assign(new Error("signed out"), { kind: "signedout" });
     if (Date.now() > session.expires) {
+      // Only a clear "no" from Supabase (400/401: revoked, expired, already
+      // used) signs out. A network hiccup keeps the session for the next try.
       try { const s = await auth("token?grant_type=refresh_token", { refresh_token: session.refresh }); save({ ...s, id: s.id || session.id, email: s.email || session.email }); }
-      catch { save(null); throw Object.assign(new Error("expired"), { kind: "signedout" }); }
+      catch (e) {
+        if (e && (e.status === 400 || e.status === 401)) { save(null); throw Object.assign(new Error("expired"), { kind: "signedout" }); }
+        throw Object.assign(new Error("offline"), { kind: "failed" });
+      }
     }
     return session.access;
   }
