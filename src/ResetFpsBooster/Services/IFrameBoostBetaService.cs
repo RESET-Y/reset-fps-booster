@@ -38,6 +38,11 @@ public interface IFrameBoostBetaService
     bool FrameBoostOn { get; }
     bool SmoothMotionOn { get; }
 
+    /// <summary>Why the engine went away on its own, in words a user can pass
+    /// on: its exit code and whether it ever wrote a log line. Null while it
+    /// runs or after it was stopped on purpose.</summary>
+    string? LastExitReason { get; }
+
     /// Raised whenever either feature is switched, so both pages can follow.
     event EventHandler? StateChanged;
 

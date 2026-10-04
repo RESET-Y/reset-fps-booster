@@ -101,7 +101,7 @@ public sealed partial class SmoothMotionViewModel : ViewModelBase
             if (IsOn && !_service.SmoothMotionOn)
             {
                 IsOn = false;
-                StatusMessage = Loc.T("Smooth.Stopped");
+                StatusMessage = Loc.T("Smooth.Stopped") + (_service.LastExitReason is { } why ? " (" + why + ")" : "");
             }
         };
         _watch.Start();

@@ -38,6 +38,46 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
 
     public bool FrameBoostOn => _frameBoost && IsRunning;
     public bool SmoothMotionOn => _smooth && IsRunning;
+
+    // WHY IT ENDED. "FrameBoost stopped on its own" told nobody anything: a
+    // friend of Lukas's hit it with no log file at all, and the cause could
+    // only be guessed. The exit code and whether the engine reached its first
+    // log line separate the cases - Windows refused to load it (DLL or entry
+    // point missing, blocked by Smart App Control or an antivirus) versus the
+    // engine starting and giving up for a reason it logged itself.
+    public string? LastExitReason
+    {
+        get
+        {
+            if (_process is not { HasExited: true } p) return null;
+            int code;
+            try { code = p.ExitCode; } catch { return null; }
+            var hex = unchecked((uint)code).ToString("X8");
+            var known = unchecked((uint)code) switch
+            {
+                0xC0000135 => "DLL missing",
+                0xC0000139 => "Windows too old (entry point missing)",
+                0xC0000022 => "access denied - blocked by Smart App Control or an antivirus?",
+                0xC0000409 or 0xC0000005 => "crashed",
+                _ => null
+            };
+            var logged = EngineLogTouchedSince(_startedAt) ? "log written" : "no log line - it never got to start";
+            return $"code 0x{hex}{(known is null ? "" : " = " + known)}, {logged}";
+        }
+    }
+
+    private DateTime _startedAt;
+
+    private static bool EngineLogTouchedSince(DateTime t)
+    {
+        try
+        {
+            var log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                   "ResetFpsBooster", "Logs", "framebooost_beta.log");
+            return File.Exists(log) && File.GetLastWriteTime(log) >= t.AddSeconds(-1);
+        }
+        catch { return false; }
+    }
     public event EventHandler? StateChanged;
 
     public string? StartFrameBoost(bool lowLatency, long gameWindow, int displayHz)
@@ -153,6 +193,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
+            _startedAt = DateTime.Now;
             _process = Process.Start(psi);
             return _process is null ? "Failed to start the FrameBoost engine process." : null;
         }

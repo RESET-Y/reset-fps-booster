@@ -246,7 +246,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
                 // genuine failure) - reflect that honestly instead of
                 // pretending it's still running.
                 StopCapture();
-                StatusMessage = Loc.T("FB.Stopped");
+                StatusMessage = Loc.T("FB.Stopped") + (_service.LastExitReason is { } why ? " (" + why + ")" : "");
             }
         };
         _telemetryTimer.Start();
