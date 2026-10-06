@@ -1560,7 +1560,7 @@ function renderLive() {
     any = true;
     const num = cell.querySelector(".num"), from = +(cell.dataset.v || 0);
     cell.dataset.v = v;
-    if (from === v || reduce || !strip.dataset.shown) { num.textContent = fmtNum(v); return; }
+    if (from === v || reduce || document.hidden || !strip.dataset.shown) { num.textContent = fmtNum(v); return; }
     if (v > from) { cell.classList.add("bump"); setTimeout(() => cell.classList.remove("bump"), 1400); }
     const t0 = performance.now();
     (function f(now) { const k = Math.min(1, (now - t0) / 900); num.textContent = fmtNum(Math.round(from + (v - from) * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(f); })(t0);
@@ -1575,13 +1575,13 @@ function renderAgo() {
   const s = Math.max(0, Math.round((Date.now() - live.at) / 1000));
   el.textContent = LANG === "de" ? (s < 5 ? "GERADE AKTUALISIERT" : `AKTUALISIERT VOR ${s} S`) : (s < 5 ? "UPDATED JUST NOW" : `UPDATED ${s}S AGO`);
 }
-function loadStats() {
-  if (document.hidden) return;
+function loadStats(first) {
+  if (document.hidden && !first) return;
   RFB.publicRpc("public_stats")
     .then(x => { if (!x) return; live.accounts = x.accounts; live.premium = x.premium; live.at = Date.now(); renderLive(); })
     .catch(() => {});
 }
-loadReleases(); loadStats();
+loadReleases(); loadStats(true);
 setInterval(loadStats, 30000);
 setInterval(() => { if (!document.hidden) loadReleases(); }, 600000);
 setInterval(renderAgo, 5000);
