@@ -6,17 +6,17 @@
 <title>RESET FPS BOOSTER</title>
 <meta name="description" content="Real Windows and NVIDIA optimization you can see and undo, a bottleneck engine that tells you why you lose FPS, and RESET FrameBoost frame generation. No placebo, no fake FPS.">
 <meta name="theme-color" content="#050505">
-<link rel="canonical" href="https://reset-booster.netlify.app/">
+<link rel="canonical" href="https://reset-booster.online/">
 <link rel="icon" href="assets/favicon.ico">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="RESET FPS BOOSTER">
 <meta property="og:title" content="RESET FPS BOOSTER · Real optimization. No placebo.">
 <meta property="og:description" content="Every change shown, logged and reversible. Bottleneck Engine and RESET FrameBoost for Windows 10/11.">
-<meta property="og:url" content="https://reset-booster.netlify.app/">
-<meta property="og:image" content="https://reset-booster.netlify.app/assets/logo_wide.png">
+<meta property="og:url" content="https://reset-booster.online/">
+<meta property="og:image" content="https://reset-booster.online/assets/logo_wide.png">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"RESET FPS BOOSTER","operatingSystem":"Windows 10, Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"1.3.3","url":"https://reset-booster.netlify.app/","downloadUrl":"https://github.com/RESET-Y/reset-fps-booster/releases/latest","author":{"@type":"Person","name":"Lukas Reschke"},"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"RESET FPS BOOSTER","operatingSystem":"Windows 10, Windows 11","applicationCategory":"UtilitiesApplication","softwareVersion":"1.3.3","url":"https://reset-booster.online/","downloadUrl":"https://github.com/RESET-Y/reset-fps-booster/releases/latest","author":{"@type":"Person","name":"Lukas Reschke"},"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
 </script>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
@@ -168,6 +168,18 @@ section { padding: 110px 0; border-bottom: 1px solid var(--border); position: re
 .stat:last-child { border-right: 0; }
 .stat .num { font-size: 60px; }
 .stat .num small { font-size: 26px; color: var(--accent); }
+
+/* ---------- live counter: real numbers only, refreshed while the page is open ---------- */
+.live-strip { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, rgba(61,214,140,.07), transparent 45%); }
+.live-strip[hidden], .live-cell[hidden] { display: none; }
+.live-head { flex: 0 0 auto; min-width: 190px; padding: 26px 24px; border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.live-head b { display: flex; align-items: center; gap: 12px; font: 900 italic 30px/1 var(--display); letter-spacing: .08em; color: var(--success); }
+.live-head .lbl { min-height: 1.2em; }
+.live-cell { flex: 1 1 0; min-width: 0; padding: 26px 24px; border-right: 1px solid var(--border); }
+.live-cell:last-child { border-right: 0; }
+.live-cell .num { font-size: 60px; transition: color .6s; }
+.live-cell.bump .num { color: var(--success); }
+.live-cell p { margin: 8px 0 0; font: 400 12px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
 .stat p { margin: 8px 0 0; font: 400 12px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; }
 
 /* ---------- cards ---------- */
@@ -454,6 +466,8 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   .step:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
   .plans, .dl-grid { grid-template-columns: minmax(0,1fr); }
   .stats, .req { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .live-head { flex-basis: 100%; flex-direction: row; align-items: center; justify-content: space-between; border-right: 0; border-bottom: 1px solid var(--border); padding: 16px 24px; }
+  .live-cell .num { font-size: 44px; }
   .stat:nth-child(2), .req div:nth-child(2) { border-right: 0; }
   .stat:nth-child(-n+2), .req div:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
   .nav .links { display: none; }
@@ -463,6 +477,9 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   .foot > div:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
+  .live-cell { padding: 18px 14px; }
+  .live-cell .num { font-size: 34px; }
+  .live-cell p { font-size: 10px; }
   .wrap { padding: 0 16px; }
   section { padding: 76px 0; }
   .hero { padding: 56px 0 80px; }
@@ -568,6 +585,12 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   </div>
 
   <div class="wrap">
+    <div class="live-strip" id="liveStrip" hidden aria-live="polite">
+      <div class="live-head"><b><span class="dot"></span>LIVE</b><span class="lbl dyn" id="liveAgo"></span></div>
+      <div class="live-cell" data-k="downloads" hidden><div class="num dyn">0</div><p>Downloads incl. updates</p></div>
+      <div class="live-cell" data-k="accounts" hidden><div class="num dyn">0</div><p>RESET accounts</p></div>
+      <div class="live-cell" data-k="premium" hidden><div class="num dyn">0</div><p>With Premium right now</p></div>
+    </div>
     <div class="stats">
       <div class="stat rv"><div class="num" data-count="13">13</div><p>Optimization modules</p></div>
       <div class="stat rv"><div class="num" data-count="7">7</div><p>Bottlenecks it can name</p></div>
@@ -1168,6 +1191,9 @@ const DE = {
  "No placebo": "Kein Placebo",
  "Every change logged": "Jede Änderung protokolliert",
  "No telemetry": "Keine Telemetrie",
+ "Downloads incl. updates": "Downloads inkl. Updates",
+ "RESET accounts": "RESET-Accounts",
+ "With Premium right now": "Gerade mit Premium",
  "Skip": "Überspringen"
 };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -1507,10 +1533,59 @@ function renderReleases() {
     return `<li><b>${esc(t)}</b><a href="${esc(x.html_url)}">${esc(name)}</a><time datetime="${esc(x.published_at)}">${esc(fmtDate(x.published_at))}</time></li>`;
   }).join("");
 }
-fetch("https://api.github.com/repos/RESET-Y/reset-fps-booster/releases?per_page=4", { headers: { Accept: "application/vnd.github+json" } })
-  .then(r => r.ok ? r.json() : null)
-  .then(list => { if (Array.isArray(list)) { releases = list.filter(x => !x.draft); renderReleases(); } })
-  .catch(() => {});
+function loadReleases() {
+  return fetch("https://api.github.com/repos/RESET-Y/reset-fps-booster/releases?per_page=100", { headers: { Accept: "application/vnd.github+json" } })
+    .then(r => r.ok ? r.json() : null)
+    .then(list => {
+      if (!Array.isArray(list)) return;
+      releases = list.filter(x => !x.draft);
+      renderReleases();
+      // every installer download of every release; the auto-updater fetches the same file, so updates count too
+      live.downloads = releases.reduce((n, x) => n + (x.assets || []).filter(a => /\.exe$/i.test(a.name)).reduce((m, a) => m + a.download_count, 0), 0);
+      renderLive();
+    })
+    .catch(() => {});
+}
+
+// ---------- live counter: real numbers only. Downloads from GitHub, accounts and Premium from the database ----------
+const live = { downloads: null, accounts: null, premium: null, at: 0 };
+const fmtNum = n => n.toLocaleString(LANG === "de" ? "de-DE" : "en-US");
+function renderLive() {
+  const strip = document.getElementById("liveStrip");
+  let any = false;
+  strip.querySelectorAll(".live-cell").forEach(cell => {
+    const v = live[cell.dataset.k];
+    cell.hidden = v == null;
+    if (v == null) return;
+    any = true;
+    const num = cell.querySelector(".num"), from = +(cell.dataset.v || 0);
+    cell.dataset.v = v;
+    if (from === v || reduce || !strip.dataset.shown) { num.textContent = fmtNum(v); return; }
+    if (v > from) { cell.classList.add("bump"); setTimeout(() => cell.classList.remove("bump"), 1400); }
+    const t0 = performance.now();
+    (function f(now) { const k = Math.min(1, (now - t0) / 900); num.textContent = fmtNum(Math.round(from + (v - from) * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(f); })(t0);
+  });
+  strip.hidden = !any;
+  if (any) strip.dataset.shown = "1";
+  renderAgo();
+}
+function renderAgo() {
+  const el = document.getElementById("liveAgo");
+  if (!live.at) { el.textContent = ""; return; }
+  const s = Math.max(0, Math.round((Date.now() - live.at) / 1000));
+  el.textContent = LANG === "de" ? (s < 5 ? "GERADE AKTUALISIERT" : `AKTUALISIERT VOR ${s} S`) : (s < 5 ? "UPDATED JUST NOW" : `UPDATED ${s}S AGO`);
+}
+function loadStats() {
+  if (document.hidden) return;
+  RFB.publicRpc("public_stats")
+    .then(x => { if (!x) return; live.accounts = x.accounts; live.premium = x.premium; live.at = Date.now(); renderLive(); })
+    .catch(() => {});
+}
+loadReleases(); loadStats();
+setInterval(loadStats, 30000);
+setInterval(() => { if (!document.hidden) loadReleases(); }, 600000);
+setInterval(renderAgo, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - live.at > 30000) loadStats(); });
 
 // ---------- account: signed in, a purchase goes straight to the account ----------
 function renderAcct() {
@@ -1538,6 +1613,7 @@ function renderAll() {
   renderBnTabs(); renderBn(false);
   renderFilm(); renderCap();
   renderReleases();
+  if (typeof renderLive === "function" && document.getElementById("liveStrip").dataset.shown) renderLive();
   document.querySelectorAll(".burger").forEach(b => b.setAttribute("aria-label", LANG === "de" ? "Menü" : "Menu"));
 }
 
