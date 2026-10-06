@@ -1,5 +1,14 @@
 # RESET FPS BOOSTER
 
+**Kostenloser FPS-Booster für Windows 10/11, ohne Placebo.** Jede Änderung wird angezeigt, gesichert und lässt sich rückgängig machen.
+
+[![Website](https://img.shields.io/badge/Website-reset--booster.online-e8121f?style=for-the-badge)](https://reset-booster.online)
+[![Download](https://img.shields.io/github/v/release/RESET-Y/reset-fps-booster?include_prereleases&label=Download&style=for-the-badge&color=111111)](https://github.com/RESET-Y/reset-fps-booster/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/RESET-Y/reset-fps-booster/total?style=for-the-badge&color=111111)](https://github.com/RESET-Y/reset-fps-booster/releases)
+[![Discord](https://img.shields.io/badge/Discord-RESET-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/a2Uz4vdCh9)
+
+👉 **Download und alle Infos: [reset-booster.online](https://reset-booster.online)**
+
 Ein Windows-Optimierungstool für PC-Gaming, gebaut mit WPF (.NET 8, MVVM). Der Fokus liegt auf **echten, überprüfbaren Optimierungen** — keine Placebo-Tweaks, keine erfundenen FPS-Werte.
 
 ## Features
