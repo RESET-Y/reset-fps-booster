@@ -431,8 +431,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // inside one scheduling class; this moves the whole process up a
         // class - the same call OBS makes so its capture does not stutter
         // under a full GPU. Our own process only; exported by gdi32, loaded
-        // by name because the declaration lives in the driver kit. REALTIME
-        // needs admin rights (RFB has them); HIGH is the fallback.
+        // by name because the declaration lives in the driver kit.
+        //
+        // REALTIME NEEDS ADMIN RIGHTS, AND RFB DOES NOT HAVE THEM: the app is
+        // asInvoker and the engine inherits that. The fallback used to be HIGH,
+        // which measured worst of all (pipeline 31 ms, spikes to 89, against
+        // 14.4 at NORMAL and 10.5 at REALTIME) - so every user without admin got
+        // the slowest engine. Refused now means NORMAL, with the thread priority
+        // put back to 0 as well: exactly the configuration measured at 14.4 ms.
+        // HIGH happens only when gpuclass.txt asks for it.
         //
         // Which class is on trial. FrameBoost in Apex with REALTIME: pipeline
         // latency 14.4 -> 10.5 ms, but capture delivered 90.8 frames a second
@@ -457,15 +464,26 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         }
         if (auto gdi = GetModuleHandleW(L"gdi32.dll") ? GetModuleHandleW(L"gdi32.dll") : LoadLibraryW(L"gdi32.dll")) {
             if (auto setClass = reinterpret_cast<SetClassFn>(GetProcAddress(gdi, "D3DKMTSetProcessSchedulingPriorityClass"))) {
-                if (wanted == kClassNormal)
+                bool atNormal = false;
+                if (wanted == kClassNormal) {
                     Logger::Log("[FrameBoostV2] GPU scheduling class left at NORMAL (gpuclass.txt).");
-                else if (wanted == kClassRealtime && setClass(GetCurrentProcess(), kClassRealtime) == 0)
-                    Logger::Log("[FrameBoostV2] GPU scheduling class raised to REALTIME.");
-                else if (setClass(GetCurrentProcess(), kClassHigh) == 0)
-                    Logger::Log(wanted == kClassHigh ? "[FrameBoostV2] GPU scheduling class raised to HIGH (gpuclass.txt)."
-                                                     : "[FrameBoostV2] GPU scheduling class raised to HIGH (REALTIME refused).");
-                else
+                    atNormal = true;
+                } else if (wanted == kClassRealtime) {
+                    if (setClass(GetCurrentProcess(), kClassRealtime) == 0) {
+                        Logger::Log("[FrameBoostV2] GPU scheduling class raised to REALTIME.");
+                    } else {
+                        Logger::Log("[FrameBoostV2] REALTIME refused (no admin rights); staying at NORMAL - HIGH measured worse than NORMAL.");
+                        atNormal = true;
+                    }
+                } else if (setClass(GetCurrentProcess(), kClassHigh) == 0) {
+                    Logger::Log("[FrameBoostV2] GPU scheduling class raised to HIGH (gpuclass.txt).");
+                } else {
                     Logger::Log("[FrameBoostV2] GPU scheduling class could not be raised; staying at NORMAL.");
+                    atNormal = true;
+                }
+                if (atNormal) {
+                    if (auto dxgiDevice = device.try_as<IDXGIDevice>()) dxgiDevice->SetGPUThreadPriority(0);
+                }
             }
         }
     }
