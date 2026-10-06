@@ -195,6 +195,12 @@ public sealed class BackupService : IBackupService
         var restored = new List<ChangeLogEntry>();
         failures = 0;
 
+        if (!NvidiaDriver.IsAvailable)
+        {
+            failures = entries.Count;
+            return restored;
+        }
+
         try
         {
             using var session = DriverSettingsSession.CreateAndLoad();

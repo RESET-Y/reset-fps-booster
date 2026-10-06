@@ -28,6 +28,9 @@ public sealed class NvidiaMaxPerformanceModule : IOptimizationModule
     {
         return Task.Run(() =>
         {
+            if (!NvidiaDriver.IsAvailable)
+                return new OptimizationStatus { IsAvailable = false, UnavailableReason = Loc.F("Mod.F.NoNvidia", "nvapi64.dll") };
+
             try
             {
                 using var session = DriverSettingsSession.CreateAndLoad();
@@ -57,6 +60,9 @@ public sealed class NvidiaMaxPerformanceModule : IOptimizationModule
     {
         return Task.Run(() =>
         {
+            if (!NvidiaDriver.IsAvailable)
+                return OptimizationApplyResult.Fail(Loc.F("Mod.F.NoNvidia", "nvapi64.dll"));
+
             try
             {
                 using var session = DriverSettingsSession.CreateAndLoad();
