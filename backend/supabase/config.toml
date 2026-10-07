@@ -14,3 +14,14 @@ verify_jwt = false
 # itself instead of requiring one - see functions/discord-sync/index.ts.
 [functions.discord-sync]
 verify_jwt = false
+
+# Called by the daily cron job without a token. It only acts at 12:00 Berlin
+# time and once per day; a manual test run needs the DIGEST_SECRET header.
+# See functions/discord-digest/index.ts.
+[functions.discord-digest]
+verify_jwt = false
+
+# Called by Discord, not by a user of ours. It verifies Discord's Ed25519
+# signature instead - see functions/discord-interactions/index.ts.
+[functions.discord-interactions]
+verify_jwt = false
