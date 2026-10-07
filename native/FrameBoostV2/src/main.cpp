@@ -52,6 +52,7 @@
 #include <dxgi1_6.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -162,6 +163,27 @@ double MonitorRefreshHz(HWND window) {
     mode.dmSize = sizeof(mode);
     if (!EnumDisplaySettingsW(info.szDevice, ENUM_CURRENT_SETTINGS, &mode)) return 0.0;
     return static_cast<double>(mode.dmDisplayFrequency);
+}
+
+// One line, with its own timestamp, appended to Logs\tuning.log. Opened and
+// closed per call: once a second is nothing, and nothing is left open.
+void AppendTuningFile(const char* line) {
+    wchar_t lad[MAX_PATH] = {};
+    if (!GetEnvironmentVariableW(L"LOCALAPPDATA", lad, MAX_PATH)) return;
+    const std::wstring path = std::wstring(lad) + L"\\ResetFpsBooster\\Logs\\tuning.log";
+    HANDLE f = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                           nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE) return;
+    SYSTEMTIME t{};
+    GetLocalTime(&t);
+    char stamp[32];
+    snprintf(stamp, sizeof(stamp), "%04u-%02u-%02u %02u:%02u:%02u  ",
+             t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    DWORD written = 0;
+    WriteFile(f, stamp, static_cast<DWORD>(strlen(stamp)), &written, nullptr);
+    WriteFile(f, line, static_cast<DWORD>(strlen(line)), &written, nullptr);
+    WriteFile(f, "\r\n", 2, &written, nullptr);
+    CloseHandle(f);
 }
 
 // SLEEP UNTIL JUST BEFORE, THEN SPIN.
@@ -634,7 +656,100 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // The hold is the larger single lever at roughly half a source interval,
     // so low latency turns it off as well.
     const bool lowLatency = HasArg(args, L"lowlatency");
-    const bool holdHalfInterval = !HasArg(args, L"nohold") && !lowLatency;
+
+    // THE HOLD AS A FRACTION of the source interval (2026-10-06, latency plan
+    // step 1). It was all or nothing: half an interval, or off with
+    // "nohold"/"lowlatency". The question is how little of it the pacing
+    // really needs, so it is now a number: "hold 0.25" on the command line,
+    // 0 to 0.5. %LOCALAPPDATA%\ResetFpsBooster\hold.txt overrides it LIVE,
+    // read twice a second, so one game session can walk through every value
+    // without a restart. The [tuning] log line says what each one costs.
+    double holdFraction = (HasArg(args, L"nohold") || lowLatency) ? 0.0
+                        : std::clamp(ArgValue(args, L"hold", 0.5), 0.0, 0.5);
+    std::wstring holdFile;
+    {
+        wchar_t lad[MAX_PATH] = {};
+        if (GetEnvironmentVariableW(L"LOCALAPPDATA", lad, MAX_PATH))
+            holdFile = std::wstring(lad) + L"\\ResetFpsBooster\\hold.txt";
+    }
+    double holdFileCheckAt = 0.0;
+    auto readHoldFile = [&]() {
+        if (holdFile.empty() || NowMs() < holdFileCheckAt) return;
+        holdFileCheckAt = NowMs() + 500.0;
+        HANDLE f = CreateFileW(holdFile.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               nullptr, OPEN_EXISTING, 0, nullptr);
+        if (f == INVALID_HANDLE_VALUE) return;
+        char buf[32] = {};
+        DWORD got = 0;
+        ReadFile(f, buf, sizeof(buf) - 1, &got, nullptr);
+        CloseHandle(f);
+        try {
+            const double v = std::clamp(std::stod(std::string(buf, got)), 0.0, 0.5);
+            if (v != holdFraction) {
+                holdFraction = v;
+                Logger::Log("[FrameBoostV2][tuning] hold set to " + std::to_string(v) + " of the source interval (hold.txt).");
+            }
+        } catch (...) {}
+    };
+
+    // THE [tuning] LINE, once a second, beside the telemetry line the app
+    // parses (that one must not change). Per hold setting it answers: what
+    // does the real frame cost (pipeline mean, p95), and what does the
+    // spacing look like - G to the real frame after it, the real frame to the
+    // next G, how many gaps are under 2 ms (a frame tearing presents may bury)
+    // and over 20 ms (a visible hitch), and how deep the queue got.
+    struct TuningStats {
+        std::vector<double> pipe, gToN, nToG;
+        int gaps = 0, under2 = 0, over20 = 0, queueMax = 0;
+        double holdWaitSum = 0.0; int holdCount = 0;
+        double lastShown = -1.0; bool lastWasG = false; double reportAt = 0.0;
+        void Present(bool isG, double at) {
+            if (lastShown > 0.0) {
+                const double d = at - lastShown;
+                ++gaps; if (d < 2.0) ++under2; if (d > 20.0) ++over20;
+                if (isG && !lastWasG) nToG.push_back(d);
+                else if (!isG && lastWasG) gToN.push_back(d);
+            }
+            lastShown = at; lastWasG = isG;
+        }
+        static double Pct(std::vector<double>& v, double q) {
+            if (v.empty()) return 0.0;
+            std::sort(v.begin(), v.end());
+            return v[std::min(v.size() - 1, static_cast<size_t>(q * v.size()))];
+        }
+        static double Mean(const std::vector<double>& v) {
+            if (v.empty()) return 0.0;
+            double t = 0.0; for (double x : v) t += x; return t / v.size();
+        }
+        void ReportIfDue(double holdFraction) {
+            if (NowMs() < reportAt) return;
+            const bool first = reportAt == 0.0;
+            reportAt = NowMs() + 1000.0;
+            if (first || gaps == 0) { Clear(); return; }
+            char line[512];
+            snprintf(line, sizeof(line),
+                "[FrameBoostV2][tuning] hold %.2f | pipeline mean %.2f p95 %.2f ms | hold wait %.2f ms"
+                " | G->N p5 %.2f p50 %.2f p95 %.2f | N->G p5 %.2f p50 %.2f p95 %.2f"
+                " | gaps <2ms %.1f%% >20ms %d of %d | queue max %d",
+                holdFraction, Mean(pipe), Pct(pipe, 0.95),
+                holdCount ? holdWaitSum / holdCount : 0.0,
+                Pct(gToN, 0.05), Pct(gToN, 0.5), Pct(gToN, 0.95),
+                Pct(nToG, 0.05), Pct(nToG, 0.5), Pct(nToG, 0.95),
+                100.0 * under2 / gaps, over20, gaps, queueMax);
+            Logger::Log(line);
+            // ALSO INTO ITS OWN FILE. The main log is capped at 4 MB with one
+            // old generation, and at ~120 fps the per-frame [seq] lines fill
+            // it in about a minute - a five-minute hold test lost its first
+            // four phases that way (2026-10-06). This file only gets one short
+            // line a second and is never rotated by the logger.
+            AppendTuningFile(line);
+            Clear();
+        }
+        void Clear() {
+            pipe.clear(); gToN.clear(); nToG.clear();
+            gaps = under2 = over20 = queueMax = 0; holdWaitSum = 0.0; holdCount = 0;
+        }
+    } tuning;
 
     // A red block on generated frames, green on real ones. Diagnostic only.
     const bool markFrames = HasArg(args, L"mark");
@@ -1081,6 +1196,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                 presentReturnMs = NowMs();
                 if (okG) {
                     const double shownAt = presentReturnMs;
+                    if (generate) tuning.Present(true, shownAt);
                     if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
                     lastPresentMs = shownAt;
                     telemetry.NoteGenerated(shownAt - frame.arrivalMs);
@@ -1112,7 +1228,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             }
         }
 
-        // THE HALF-INTERVAL HOLD IS OFF BY DEFAULT, and this is the trade.
+        // THE HOLD (half an interval by default, see holdFraction above), and
+        // this is the trade.
         //
         // It used to be unconditional: the real frame B was held back half a
         // source interval after its generated partner, so the two went out
@@ -1143,11 +1260,13 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // the hold never ran - measured as a 6.5 ms pipeline, below the 8.3 ms
         // a hold alone would cost.
         const bool behind = !syntheticMode && capture.QueueDepth() > 1;
-        if (pairUsable && generate && holdHalfInterval && !behind) {
+        if (generate) readHoldFile();
+        if (pairUsable && generate && holdFraction > 0.0 && !behind) {
             const double holdFrom = NowMs();
-            holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * 0.5;
+            holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * holdFraction;
             WaitUntil(holdFrom + holdRequestedMs, timer);
             holdWaitMs = NowMs() - holdFrom;
+            tuning.holdWaitSum += holdWaitMs; ++tuning.holdCount;
         }
 
         presentStartMs = NowMs();
@@ -1196,6 +1315,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             const double captureLatencyMs = rawOffset - epochOffsetMs;
             telemetry.NoteNative(captureLatencyMs, shownAt - frame.arrivalMs);
             telemetry.NotePipelineLatencyMs(shownAt - frame.arrivalMs + captureLatencyMs);
+            if (generate) {
+                tuning.Present(false, shownAt);
+                tuning.pipe.push_back(shownAt - frame.arrivalMs + captureLatencyMs);
+                tuning.queueMax = std::max(tuning.queueMax, queueDepthNow);
+                tuning.ReportIfDue(holdFraction);
+            }
             FrameRecord r{ nextOutputId++, false, currId, currId,
                            currArrivalMs, 0.0, shownAt,
                            currArrivalMs, currArrivalMs };
