@@ -310,7 +310,7 @@ $("refresh").addEventListener("click", load);
 // Creating one and switching it on/off also changes the promotion code in
 // Stripe, so those go through the affiliate-admin function (it holds the
 // Stripe key). Everything else is a plain manager-only database function.
-const SITE = "https://reset-booster.netlify.app";
+const SITE = "https://reset-booster.online";
 async function adminFn(body) {
   let r;
   try {
@@ -375,9 +375,16 @@ $("affForm").addEventListener("submit", async e => {
   } finally { btn.disabled = false; }
 });
 
-let affiliates = [], openAff = null;
+let affiliates = [], openAff = null, accounts = {};
 async function loadAffiliates() {
-  try { affiliates = await rpc("list_affiliates") || []; renderAffiliates(); }
+  try {
+    affiliates = await rpc("list_affiliates") || [];
+    // Which partner account is linked to which code. Optional: an older
+    // database without 0010 simply shows no links.
+    try { accounts = Object.fromEntries((await rpc("list_affiliate_accounts") || []).map(r => [r.affiliate_id, r.email])); }
+    catch { accounts = {}; }
+    renderAffiliates();
+  }
   catch { $("affList").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
 }
 function renderAffiliates() {
@@ -389,6 +396,7 @@ function renderAffiliates() {
         <div>
           <div class="code">${esc(a.code)}</div>
           <div class="name">${esc(a.name)}${a.contact ? " · " + esc(a.contact) : ""}</div>
+          <div class="meta">${accounts[a.id] ? "Partner-Login: " + esc(accounts[a.id]) : "Kein Partner-Login"}</div>
           <div class="meta">${a.discount_percent} % Rabatt${a.discount_forever ? " (jeden Monat)" : ""} · ${pct(a.commission_percent)} Provision${a.commission_recurring ? " (jeden Monat)" : " (nur 1. Zahlung)"}${a.active ? "" : " · AUS"}</div>
         </div>
         <div class="actions">
@@ -421,6 +429,11 @@ async function loadDetail(id) {
       <div><label for="payNote">Notiz</label><input id="payNote" type="text" placeholder="PayPal, Überweisung …"></div>
     </div>
     <button class="btn" type="button" id="payAdd">Auszahlung speichern</button>
+    <h3>Partner-Login</h3>
+    <label for="accEmail">E-Mail des RESET-Accounts</label>
+    <input id="accEmail" type="email" autocomplete="off" value="${esc(accounts[id] || "")}" placeholder="partner@beispiel.de">
+    <div class="hint">Mit diesem Account sieht der Partner unter ${esc(SITE.replace(/^https?:\/\//, ""))}/partner seine Verkäufe, Provision und Auszahlungen – keine Käuferdaten. Leer lassen und speichern entfernt den Zugang.</div>
+    <button class="btn" type="button" id="accSave">Partner-Login speichern</button>
     <h3>Provision ändern</h3>
     <div class="two">
       <div><label for="edCommission">Provision %</label><input id="edCommission" type="text" inputmode="decimal" value="${String(a.commission_percent).replace(".", ",")}"></div>
@@ -453,6 +466,14 @@ async function loadDetail(id) {
     if (!(cents > 0)) { toast("Betrag fehlt"); return; }
     try { await rpc("add_affiliate_payout", { p_affiliate: id, p_amount_cents: cents, p_note: $("payNote").value }); toast("Gespeichert"); loadAffiliates(); }
     catch { toast("Fehlgeschlagen"); }
+  };
+  $("accSave").onclick = async () => {
+    try {
+      const word = await rpc("set_affiliate_account", { p_id: id, p_email: $("accEmail").value });
+      toast(word === "ok" ? "Partner-Login verknüpft" : word === "cleared" ? "Partner-Login entfernt"
+          : word === "not_found" ? "Kein Account mit dieser E-Mail – der Partner muss sich zuerst registrieren" : "Fehlgeschlagen");
+      if (word === "ok" || word === "cleared") loadAffiliates();
+    } catch { toast("Fehlgeschlagen"); }
   };
   $("edSave").onclick = async () => {
     const p = Number($("edCommission").value.replace(",", "."));

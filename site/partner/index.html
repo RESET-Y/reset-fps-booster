@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partner · RESET FPS BOOSTER</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../assets/legal.css">
+<style>
+main.wrap { max-width: 900px; }
+.panel { margin-top: 20px; padding: 20px; border: 1px solid var(--border); background: var(--surface); }
+.panel h2 { margin-top: 0; }
+label { display: block; margin-top: 14px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px 14px; background: #000; border: 1px solid var(--border); color: var(--text); font: 400 16px var(--body); }
+input:focus { outline: none; border-color: var(--accent); }
+input.mono { font: 400 14px var(--mono); }
+.btn { display: inline-block; margin-top: 16px; padding: 11px 20px; background: var(--accent); color: #fff; border: 0; cursor: pointer; text-decoration: none;
+  transform: skewX(var(--skew)); font: 900 italic 16px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.btn > span { display: inline-block; transform: skewX(12deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: none; border: 1px solid var(--border-2); color: var(--text); }
+.btn.small { margin-top: 0; padding: 7px 13px; font-size: 14px; }
+.msg { margin-top: 12px; min-height: 1.4em; font-size: 15px; }
+.msg.bad { color: var(--accent-bright); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; justify-content: space-between; }
+.code { font: 900 italic 40px/1 var(--display); color: var(--text); text-transform: uppercase; }
+.code.off { color: var(--text-3); text-decoration: line-through; }
+.terms { font: 400 13px var(--mono); color: var(--text-3); margin-top: 6px; }
+.tag { font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border: 1px solid var(--border); color: var(--text-3); }
+.tag.on { border-color: #3dd68c; color: #3dd68c; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; margin-top: 18px; background: var(--border); border: 1px solid var(--border); }
+.cell { background: #080808; padding: 14px; }
+.cell b { display: block; font: 800 italic 28px/1.1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
+.cell b.due { color: var(--accent-bright); }
+.cell span { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.lines { list-style: none; padding: 0; margin: 0; }
+.lines li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 15px; }
+.lines li.rev { color: var(--text-3); text-decoration: line-through; }
+.lines small { display: block; font: 400 12px var(--mono); color: var(--text-3); }
+.lines .amt { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text); }
+.empty { color: var(--text-3); font-size: 15px; padding: 8px 0; }
+.links { display: flex; flex-wrap: wrap; gap: 10px 14px; margin-top: 16px; }
+.copied { color: #3dd68c; font: 500 12px var(--mono); }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="RESET FPS BOOSTER"><img src="../assets/logo_wide.png" alt="RESET FPS BOOSTER" width="113" height="26"></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="true"><span>DE</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="eyebrow" id="t-eyebrow">RESET Partner</div>
+  <div data-lang-block="de"><h1>Partner-Bereich</h1></div>
+  <div data-lang-block="en" hidden><h1>Partner area</h1></div>
+  <div id="out"><p>…</p></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/" data-t="Back to start">Zur Startseite</a>
+    <a href="../impressum.html" data-t="Legal notice">Impressum</a>
+    <a href="../datenschutz.html" data-t="Privacy">Datenschutz</a>
+    <a href="../agb.html" data-t="Terms">AGB</a>
+  </div>
+</footer>
+<div class="stripe"></div>
+<script src="../assets/legal.js"></script>
+<script src="../assets/account.js?v=5"></script>
+<script>
+(function () {
+  const SITE = "reset-booster.online";
+  const T = {
+    de: {
+      eyebrow: "RESET Partner",
+      intro: "Melde dich mit dem RESET-Account an, den das RESET-Team mit deinem Code verknüpft hat. Hier siehst du deine Verkäufe, deine Provision und deine Auszahlungen.",
+      email: "E-Mail", password: "Passwort", signIn: "Anmelden", signOut: "Abmelden",
+      noAccount: "Noch keinen RESET-Account? <a href=\"../konto.html\">Hier erstellen</a> und dem RESET-Team die E-Mail schicken.",
+      invalid: "E-Mail oder Passwort falsch.", unconfirmed: "Bestätige zuerst deine E-Mail-Adresse über den Link in der Mail.", failed: "Anmeldung fehlgeschlagen. Versuch es gleich noch mal.",
+      signedInAs: "Angemeldet als",
+      notLinked: "Dieser Account ist noch keinem Partner-Code zugeordnet. Schick dem RESET-Team (Discord oder lukas.reschke80@gmail.com) die E-Mail-Adresse dieses Accounts, dann wird er freigeschaltet.",
+      loadFail: "Deine Daten konnten nicht geladen werden. Lade die Seite neu.",
+      active: "Aktiv", off: "Aus",
+      terms: a => `${a.discount_percent} % Rabatt für Käufer${a.discount_forever ? " (jeden Monat)" : " (beim Abo im 1. Monat)"} · ${fmtPct(a.commission_percent)} Provision${a.commission_recurring ? " (jeden Monat)" : " (nur 1. Zahlung)"}`,
+      month: "Diesen Monat", total: "Gesamt",
+      sales: "Käufe", net: "Umsatz netto", commission: "Provision", paid: "Ausgezahlt", due: "Offen",
+      kit: "Streamer-Kit (Overlay & Panel)", copyLink: "Partner-Link kopieren", copied: "Kopiert",
+      salesTitle: "Verkäufe", payoutsTitle: "Auszahlungen", noSales: "Noch keine Verkäufe.", noPayouts: "Noch nichts ausgezahlt.",
+      monthly: "Monthly", lifetime: "Lifetime", renewal: "Verlängerung", refunded: "erstattet",
+      hint: "Beträge ohne MwSt. Erstattete Käufe zählen nicht. Auszahlungen trägt das RESET-Team ein, sobald überwiesen ist."
+    },
+    en: {
+      eyebrow: "RESET Partner",
+      intro: "Sign in with the RESET account the RESET team linked to your code. Here you see your sales, your commission and your payouts.",
+      email: "E-mail", password: "Password", signIn: "Sign in", signOut: "Sign out",
+      noAccount: "No RESET account yet? <a href=\"../konto.html\">Create one here</a> and send the e-mail to the RESET team.",
+      invalid: "Wrong e-mail or password.", unconfirmed: "Confirm your e-mail address first, using the link in the e-mail.", failed: "Sign-in failed. Try again in a moment.",
+      signedInAs: "Signed in as",
+      notLinked: "This account isn't linked to a partner code yet. Send the e-mail address of this account to the RESET team (Discord or lukas.reschke80@gmail.com) to get access.",
+      loadFail: "Your data couldn't be loaded. Reload the page.",
+      active: "Active", off: "Off",
+      terms: a => `${a.discount_percent}% off for buyers${a.discount_forever ? " (every month)" : " (first month on the monthly plan)"} · ${fmtPct(a.commission_percent)} commission${a.commission_recurring ? " (every month)" : " (first payment only)"}`,
+      month: "This month", total: "Total",
+      sales: "Sales", net: "Net revenue", commission: "Commission", paid: "Paid out", due: "Open",
+      kit: "Streamer kit (overlay & panel)", copyLink: "Copy partner link", copied: "Copied",
+      salesTitle: "Sales", payoutsTitle: "Payouts", noSales: "No sales yet.", noPayouts: "Nothing paid out yet.",
+      monthly: "Monthly", lifetime: "Lifetime", renewal: "renewal", refunded: "refunded",
+      hint: "Amounts exclude VAT. Refunded purchases don't count. The RESET team records payouts once they're transferred."
+    }
+  };
+  const out = document.getElementById("out");
+  const lang = () => document.documentElement.lang === "en" ? "en" : "de";
+  const t = () => T[lang()];
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const euro = c => (Number(c) / 100).toLocaleString(lang() === "de" ? "de-DE" : "en-IE", { style: "currency", currency: "EUR" });
+  function fmtPct(p) { return Number(p).toLocaleString(lang() === "de" ? "de-DE" : "en-GB", { maximumFractionDigits: 2 }) + (lang() === "de" ? " %" : "%"); }
+  const date = iso => new Date(iso).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+  let st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false };
+
+  function cells(list) {
+    return `<div class="grid">${list.map(([v, l, cls]) => `<div class="cell"><b class="${cls || ""}">${v}</b><span>${l}</span></div>`).join("")}</div>`;
+  }
+  function affHtml(a) {
+    const x = t(), due = Number(a.commission_cents) - Number(a.paid_cents), act = st.activity[a.id];
+    let h = `<section class="panel">
+      <div class="row"><div><div class="code ${a.active ? "" : "off"}">${esc(a.code)}</div><div class="terms">${esc(x.terms(a))}</div></div>
+        <span class="tag ${a.active ? "on" : ""}">${a.active ? x.active : x.off}</span></div>
+      <h3 class="sub">${x.month}</h3>
+      ${cells([[a.month_sales, x.sales], [euro(a.month_net_cents), x.net], [euro(a.month_commission_cents), x.commission]])}
+      <h3 class="sub">${x.total}</h3>
+      ${cells([[a.sales, x.sales], [euro(a.net_cents), x.net], [euro(a.commission_cents), x.commission], [euro(a.paid_cents), x.paid], [euro(due), x.due, due > 0 ? "due" : ""]])}
+      <div class="links">
+        <a class="btn" href="../stream/?code=${encodeURIComponent(a.code)}"><span>${x.kit}</span></a>
+        <button class="btn ghost" type="button" data-copy="https://${SITE}/r/${esc(a.code)}"><span>${x.copyLink}</span></button>
+        <span class="copied" data-copied="${esc(a.code)}"></span>
+      </div>`;
+    if (act) {
+      h += `<h3 class="sub">${x.salesTitle}</h3>` + (act.sales.length
+        ? `<ul class="lines">${act.sales.map(s => `<li class="${s.reversed ? "rev" : ""}"><div>${s.plan === "monthly" ? x.monthly : x.lifetime}${s.kind === "renewal" ? " · " + x.renewal : ""}<small>${esc(date(s.created_at))}${s.reversed ? " · " + x.refunded : ""}</small></div>
+              <div class="amt">${euro(s.commission_cents)}<small>${euro(s.net_cents)} ${x.net.toLowerCase()}</small></div></li>`).join("")}</ul>`
+        : `<div class="empty">${x.noSales}</div>`);
+      h += `<h3 class="sub">${x.payoutsTitle}</h3>` + (act.payouts.length
+        ? `<ul class="lines">${act.payouts.map(p => `<li><div>${p.note ? esc(p.note) : x.paid}<small>${esc(date(p.paid_at))}</small></div><div class="amt">${euro(p.amount_cents)}</div></li>`).join("")}</ul>`
+        : `<div class="empty">${x.noPayouts}</div>`);
+    }
+    return h + `</section>`;
+  }
+
+  function render() {
+    const x = t(), u = RFB.user;
+    document.getElementById("t-eyebrow").textContent = x.eyebrow;
+    let h = "";
+    if (!u) {
+      h = `<p>${x.intro}</p>
+        <form class="panel" id="signin" novalidate>
+          <label for="em">${x.email}</label><input id="em" type="email" autocomplete="email" required>
+          <label for="pw">${x.password}</label><input id="pw" type="password" autocomplete="current-password" required>
+          <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.signIn}</span></button>
+          <p class="msg bad" role="status">${esc(st.signInMsg)}</p>
+          <p style="font-size:15px">${x.noAccount}</p>
+        </form>`;
+    } else {
+      h = `<div class="row"><p style="margin:0">${x.signedInAs} <strong>${esc(u.email)}</strong></p>
+             <button class="btn ghost small" type="button" id="signout"><span>${x.signOut}</span></button></div>`;
+      if (st.loadFail) h += `<p class="msg bad">${x.loadFail}</p>`;
+      else if (st.mine == null) h += `<p>…</p>`;
+      else if (!st.mine.length) h += `<p class="panel">${x.notLinked}</p>`;
+      else h += st.mine.map(affHtml).join("") + `<p class="note">${x.hint}</p>`;
+    }
+    out.innerHTML = h;
+    wire();
+  }
+
+  async function load() {
+    if (!RFB.user) return render();
+    st.loadFail = false; render();
+    try {
+      st.mine = await RFB.rpc("my_affiliates") || [];
+      render();
+      for (const a of st.mine) {
+        st.activity[a.id] = await RFB.rpc("my_affiliate_activity", { p_affiliate: a.id });
+        render();
+      }
+    } catch (e) {
+      if (e.kind === "signedout") { st.mine = null; return render(); }
+      st.loadFail = true; render();
+    }
+  }
+
+  function wire() {
+    const si = document.getElementById("signin");
+    if (si) si.addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = document.getElementById("em").value.trim(), pw = document.getElementById("pw").value;
+      if (!email || !pw) return;
+      st.busy = true; st.signInMsg = ""; render(); document.getElementById("em").value = email;
+      try { await RFB.signIn(email, pw); st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false }; load(); }
+      catch (err) { st.busy = false; st.signInMsg = t()[err.kind] || t().failed; render(); document.getElementById("em").value = email; }
+    });
+    const so = document.getElementById("signout");
+    if (so) so.addEventListener("click", () => { RFB.signOut(); st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false }; render(); });
+    out.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); } catch {}
+      const code = b.dataset.copy.split("/r/")[1];
+      const mark = out.querySelector(`[data-copied="${code}"]`);
+      if (mark) { mark.textContent = t().copied; setTimeout(() => { mark.textContent = ""; }, 1600); }
+    }));
+  }
+
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  load();
+})();
+</script>
+</body>
+</html>
