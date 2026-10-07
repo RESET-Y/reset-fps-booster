@@ -1,0 +1,57 @@
+name: Netlify deploy after the credit reset
+
+# Netlify's free plan ran out of deploy credits on 2026-10-01: every push since
+# then was "Skipped", and a skipped deploy never reruns. The credits renew on
+# the 8th. On October 8th this looks at the live site every three hours and,
+# while it is still the old one, pushes an empty commit - a push is what makes
+# Netlify deploy. Once the site is current it does nothing. It runs on GitHub,
+# so no PC has to be on. Remove this file once it has done its job.
+
+on:
+  schedule:
+    - cron: "17 */3 8 10 *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only check, do not push"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency: netlify-redeploy
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy when the live site is still old
+        env:
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: |
+          set -eu
+          # The site is current when the live account page loads the same
+          # account.js version as the repo and the newest page exists.
+          want=$(grep -o 'account.js?v=[0-9]*' site/konto.html | head -1)
+          current() {
+            curl -fsS -H "Cache-Control: no-cache" https://reset-booster.online/konto.html | grep -qF "$want" &&
+            [ "$(curl -s -o /dev/null -w '%{http_code}' https://reset-booster.online/partner/)" = 200 ]
+          }
+          if current; then echo "Live site is current ($want) - nothing to do."; exit 0; fi
+          echo "Live site is old (the repo has $want)."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -q -m "Website: deploy again after the Netlify credit reset"
+          if [ "$DRY_RUN" = "true" ]; then
+            git push --dry-run origin HEAD:master
+            echo "Dry run: the push would be allowed; nothing was pushed."
+            exit 0
+          fi
+          git push origin HEAD:master
+          for i in $(seq 1 10); do
+            sleep 30
+            if current; then echo "Live after the push."; exit 0; fi
+          done
+          echo "::warning::Pushed, but the site is still old after 5 minutes - Netlify probably skipped it (credits not renewed yet). The next run tries again."
