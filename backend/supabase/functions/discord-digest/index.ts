@@ -76,9 +76,15 @@ async function findChannels(): Promise<{ kind: Kind; label: string; channel: Cha
       return ch ? [{ kind: k.kind, label: k.label, channel: ch }] : [];
     });
   }
+  // text (0), announcement (5) or forum (15)
+  const readable = all.filter((c) => [0, 5, 15].includes(c.type));
+  // Exact names first (emoji and separators ignored): "support" alone must not pick #premium-support.
+  const bare = (s: string) => norm(s).replace(/^-+|-+$/g, "");
+  const pick = (k: (typeof KINDS)[number]) =>
+    k.names.map((n) => readable.find((c) => bare(c.name) === norm(n))).find(Boolean) ??
+    k.names.map((n) => readable.find((c) => norm(c.name).includes(norm(n)))).find(Boolean);
   return KINDS.flatMap((k) => {
-    // text (0), announcement (5) or forum (15)
-    const ch = all.find((c) => [0, 5, 15].includes(c.type) && k.names.some((n) => norm(c.name).includes(norm(n))));
+    const ch = pick(k);
     return ch ? [{ kind: k.kind, label: k.label, channel: ch }] : [];
   });
 }
@@ -136,22 +142,29 @@ async function collect(since: number) {
   });
   const userMessage = (m: Msg) => m.type === 0 || m.type === 19 || m.type === 21;
 
+  // A channel or thread the bot may not read is named in the report instead of failing all of it.
+  const blocked = new Set<string>();
+  const read = async (id: string, name: string) => {
+    try { return await messagesSince(id, since); } catch (e) { console.log("DIGEST NO ACCESS", name, e); blocked.add(`#${name}`); return []; }
+  };
+
   for (const { kind, channel } of channels) {
     if (channel.type === 15) continue; // forum: only threads carry messages
-    for (const m of await messagesSince(channel.id, since)) if (userMessage(m)) items.push(toItem(m, kind, null));
+    for (const m of await read(channel.id, channel.name)) if (userMessage(m)) items.push(toItem(m, kind, null));
   }
   const threads = await threadsOf(new Set(kindOf.keys()),
     channels.filter((c) => c.channel.type === 15).map((c) => c.channel.id), since);
   for (const t of threads) {
     const kind = kindOf.get(t.parent_id ?? "");
     if (!kind) continue;
-    for (const m of await messagesSince(t.id, since)) if (userMessage(m)) items.push(toItem(m, kind, t.name));
+    for (const m of await read(t.id, t.name)) if (userMessage(m)) items.push(toItem(m, kind, t.name));
   }
   items.sort((a, b) => a.time - b.time);
   return {
     items,
-    found: channels.map((c) => `#${c.channel.name}`),
+    found: channels.map((c) => `#${c.channel.name}`).filter((n) => !blocked.has(n)),
     missing: KINDS.filter((k) => !channels.some((c) => c.kind === k.kind)).map((k) => `#${k.label}`),
+    blocked: [...blocked],
   };
 }
 
@@ -204,14 +217,21 @@ function analyze(items: Item[]): Report {
 }
 
 // ---------------------------------------------------------------- the DM
-function render(r: Report, total: number, day: string, found: string[], missing: string[]): string {
+function warnings(missing: string[], blocked: string[]): string[] {
+  const out: string[] = [];
+  if (missing.length) out.push(`⚠️ Nicht gefunden: ${missing.join(", ")}. Kanalnamen prüfen oder DISCORD_DIGEST_CHANNELS setzen.`);
+  if (blocked.length) out.push(`⚠️ Kein Zugriff: ${blocked.join(", ")}. Dem Bot dort „Kanal ansehen“ und „Nachrichtenverlauf lesen“ erlauben.`);
+  return out;
+}
+
+function render(r: Report, total: number, day: string, found: string[], missing: string[], blocked: string[]): string {
   const link = (m: Item) => `([Link](${messageLink(guildId, m.channel_id, m.id)}))`;
   const title = (m: Item) => m.thread ? `**${oneLine(m.thread, 80)}**: ${oneLine(m.text, 140)}` : oneLine(m.text);
   const more = (n: number) => n > MAX_LIST ? [`-# … und ${n - MAX_LIST} weitere`] : [];
   const lines: string[] = [];
   lines.push(`## RESET Discord · Bericht vom ${day}`);
   lines.push(`Letzte 24 Stunden · ${total} Nachrichten aus ${found.join(", ") || "keinem Kanal"}`);
-  if (missing.length) lines.push(`⚠️ Nicht gefunden: ${missing.join(", ")}. Kanalnamen prüfen oder DISCORD_DIGEST_CHANNELS setzen.`);
+  lines.push(...warnings(missing, blocked));
 
   const urgent = r.bugs.filter((b) => b.urgent).length;
   lines.push("", `### 🐞 Bugs${r.bugs.length ? ` · ${r.bugs.length} neu${urgent ? `, ${urgent} dringend` : ""}` : ""}`);
@@ -251,12 +271,13 @@ function render(r: Report, total: number, day: string, found: string[], missing:
 }
 
 async function run(day: string): Promise<void> {
-  const { items, found, missing } = await collect(Date.now() - WINDOW_MS);
+  const { items, found, missing, blocked } = await collect(Date.now() - WINDOW_MS);
   const dm = await dmChannel(ownerId);
   const text = items.length
-    ? render(analyze(items), items.length, day, found, missing)
-    : `## RESET Discord · Bericht vom ${day}\nIn den letzten 24 Stunden gab es keine neuen Nachrichten in ${found.join(", ") || "den Kanälen"}.` +
-      (missing.length ? `\n⚠️ Nicht gefunden: ${missing.join(", ")}.` : "");
+    ? render(analyze(items), items.length, day, found, missing, blocked)
+    : [`## RESET Discord · Bericht vom ${day}`,
+      `In den letzten 24 Stunden gab es keine neuen Nachrichten in ${found.join(", ") || "den Kanälen"}.`,
+      ...warnings(missing, blocked)].join("\n");
   for (const part of chunks(text)) {
     await discord("POST", `/channels/${dm}/messages`, { content: part, flags: 4 /* no link previews */ });
   }
