@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streamer-Kit · RESET FPS BOOSTER</title>
+<meta name="description" content="Overlay for OBS and a Twitch panel with your own RESET FPS BOOSTER code.">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../assets/legal.css">
+<style>
+main.wrap { max-width: 900px; }
+.panel { margin-top: 20px; padding: 20px; border: 1px solid var(--border); background: var(--surface); }
+label { display: block; margin-top: 14px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+input, select, textarea {
+  width: 100%; box-sizing: border-box; margin-top: 6px; padding: 11px 13px; background: #000; color: var(--text);
+  border: 1px solid var(--border); font: 400 16px var(--body);
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input.mono, textarea.mono { font: 400 14px var(--mono); }
+#code { text-transform: uppercase; letter-spacing: .06em; font: 400 18px var(--mono); }
+textarea { resize: vertical; min-height: 96px; line-height: 1.5; }
+.row { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; }
+.row > .grow { flex: 1 1 220px; }
+.row > .col { flex: 1 1 160px; }
+.btn {
+  display: inline-block; margin-top: 14px; padding: 11px 20px; background: var(--accent); color: #fff; border: 0; cursor: pointer;
+  transform: skewX(var(--skew)); text-decoration: none; font: 900 italic 16px var(--display); letter-spacing: .05em; text-transform: uppercase;
+}
+.btn > span { display: inline-block; transform: skewX(12deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn.ghost { background: none; border: 1px solid var(--border-2); color: var(--text); }
+.btn.ghost:hover { border-color: var(--text-3); }
+.msg { margin-top: 12px; min-height: 1.4em; font-size: 15px; }
+.msg.good { color: #3dd68c; } .msg.bad { color: var(--accent-bright); }
+.stage { position: relative; margin-top: 16px; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid var(--border); background: #0d1218; }
+.stage iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; pointer-events: none; }
+canvas { display: block; width: 100%; max-width: 640px; height: auto; margin-top: 16px; border: 1px solid var(--border); }
+.steps { margin-top: 12px; padding-left: 20px; font-size: 15px; }
+.copied { color: #3dd68c; font: 500 12px var(--mono); margin-left: 12px; }
+.num { color: var(--accent-bright); }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="RESET FPS BOOSTER"><img src="../assets/logo_wide.png" alt="RESET FPS BOOSTER" width="113" height="26"></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="true"><span>DE</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="eyebrow" id="t-eyebrow">Für Streamer</div>
+  <div data-lang-block="de"><h1>Streamer-Kit</h1></div>
+  <div data-lang-block="en" hidden><h1>Streamer kit</h1></div>
+  <p id="t-intro"></p>
+
+  <section class="panel">
+    <div class="row">
+      <div class="grow">
+        <label for="code" id="t-codeLabel"></label>
+        <input id="code" autocomplete="off" spellcheck="false" maxlength="20" placeholder="CODE">
+      </div>
+      <button class="btn" type="button" id="load"><span id="t-load"></span></button>
+    </div>
+    <p class="msg" id="codeMsg" role="status"></p>
+  </section>
+
+  <h2><span class="num">1</span> · <span id="t-ovTitle"></span></h2>
+  <p id="t-ovIntro"></p>
+  <div class="stage" id="stage"><iframe id="preview" title="Overlay preview" loading="lazy"></iframe></div>
+  <div class="row">
+    <div class="col"><label for="ovLang" id="t-lang"></label>
+      <select id="ovLang"><option value="de">Deutsch</option><option value="en">English</option></select></div>
+    <div class="col"><label for="ovPos" id="t-pos"></label><select id="ovPos"></select></div>
+    <div class="col"><label for="ovPause" id="t-pause"></label><select id="ovPause"></select></div>
+  </div>
+  <label for="ovUrl" id="t-ovUrl"></label>
+  <input id="ovUrl" class="mono" readonly>
+  <button class="btn" type="button" data-copy="ovUrl"><span id="t-copyLink"></span></button><span class="copied" id="ovUrlCopied"></span>
+  <ol class="steps" id="t-steps"></ol>
+
+  <h2><span class="num">2</span> · <span id="t-paTitle"></span></h2>
+  <p id="t-paIntro"></p>
+  <canvas id="panelCanvas" width="640" height="320" aria-label="Twitch panel"></canvas>
+  <div class="row">
+    <div class="col"><label for="paLang" id="t-lang2"></label>
+      <select id="paLang"><option value="de">Deutsch</option><option value="en">English</option></select></div>
+  </div>
+  <a class="btn" id="download" href="#" download="rfb-twitch-panel.png"><span id="t-download"></span></a>
+  <label for="paLink" id="t-paLink"></label>
+  <input id="paLink" class="mono" readonly>
+  <button class="btn ghost" type="button" data-copy="paLink"><span id="t-copyLink2"></span></button><span class="copied" id="paLinkCopied"></span>
+  <label for="paText" id="t-paText"></label>
+  <textarea id="paText" readonly></textarea>
+  <button class="btn ghost" type="button" data-copy="paText"><span id="t-copyText"></span></button><span class="copied" id="paTextCopied"></span>
+
+  <p class="note" id="t-note"></p>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/" data-t="Back to start">Zur Startseite</a>
+    <a href="../impressum.html" data-t="Legal notice">Impressum</a>
+    <a href="../datenschutz.html" data-t="Privacy">Datenschutz</a>
+    <a href="../agb.html" data-t="Terms">AGB</a>
+  </div>
+</footer>
+<div class="stripe"></div>
+<script src="../assets/legal.js"></script>
+<script src="../assets/account.js?v=5"></script>
+<script>
+(function () {
+  const SITE = "reset-booster.online";
+  const T = {
+    de: {
+      eyebrow: "Für Streamer",
+      intro: "Gib deinen Streamer-Code ein. Du bekommst dein animiertes Overlay für OBS und dein Twitch-Panel – mit deinem Code und deinem Rabatt.",
+      codeLabel: "Dein Code", load: "Laden",
+      ok: (c, p) => `Code ${c} gefunden: ${p} % Rabatt für deine Zuschauer.`,
+      unknown: c => `Den Code ${c} gibt es nicht oder er ist gerade aus. Frag beim RESET-Team nach deinem Code.`,
+      none: "Ohne Code bekommst du die allgemeine Version.",
+      offline: "Der Rabatt konnte gerade nicht geladen werden. Dein Code wird trotzdem eingesetzt.",
+      ovTitle: "Overlay für OBS", ovIntro: "Fährt regelmäßig unten ins Bild, zeigt RESET FPS BOOSTER, Smooth Motion, FrameBoost und deinen Code – und verschwindet wieder. Der Hintergrund ist im Stream durchsichtig.",
+      lang: "Sprache", pos: "Ecke", pause: "Wie oft",
+      posOpts: [["bl", "Unten links"], ["br", "Unten rechts"], ["tl", "Oben links"], ["tr", "Oben rechts"]],
+      pauseOpts: [["180", "Alle 3½ Minuten"], ["60", "Jede Minute"], ["300", "Alle 5½ Minuten"], ["0", "Immer sichtbar"]],
+      ovUrl: "Link für die Browserquelle", copyLink: "Link kopieren", copied: "Kopiert",
+      steps: ["In OBS bei <strong>Quellen</strong> auf <strong>+</strong> → <strong>Browser</strong>.", "Den Link oben bei <strong>URL</strong> einfügen.", "<strong>Breite 1920</strong>, <strong>Höhe 1080</strong> → OK. Fertig – in Streamlabs genauso."],
+      paTitle: "Twitch-Panel", paIntro: "Das Bild für deine Info-Panels unter dem Stream. Twitch zeigt es 320 Pixel breit – das Bild hat die doppelte Auflösung und bleibt scharf.",
+      download: "Panel herunterladen (PNG)", paLink: "Link fürs Panel", copyText: "Text kopieren", paText: "Beschreibung fürs Panel",
+      text: (c, p) => c
+        ? `Ich nutze RESET FPS BOOSTER für mehr FPS und ein flüssigeres Bild – mit FrameBoost, Smooth Motion und eigenem Crosshair. Gratis für Windows 10/11.\nMit meinem Code ${c} bekommst du ${p ? p + " % Rabatt" : "einen Rabatt"} auf Premium: ${SITE}/r/${c}`
+        : `Ich nutze RESET FPS BOOSTER für mehr FPS und ein flüssigeres Bild – mit FrameBoost, Smooth Motion und eigenem Crosshair. Gratis für Windows 10/11: ${SITE}`,
+      note: "Der Rabatt im Overlay wird live geladen: Ändert sich dein Code, ändert sich das Overlay von selbst. Fragen? Im RESET Discord."
+    },
+    en: {
+      eyebrow: "For streamers",
+      intro: "Enter your streamer code. You get your animated overlay for OBS and your Twitch panel – with your code and your discount.",
+      codeLabel: "Your code", load: "Load",
+      ok: (c, p) => `Code ${c} found: ${p}% off for your viewers.`,
+      unknown: c => `The code ${c} doesn't exist or is switched off. Ask the RESET team for your code.`,
+      none: "Without a code you get the general version.",
+      offline: "The discount couldn't be loaded right now. Your code is used anyway.",
+      ovTitle: "Overlay for OBS", ovIntro: "Slides in now and then, shows RESET FPS BOOSTER, Smooth Motion, FrameBoost and your code – and leaves again. Its background is transparent on stream.",
+      lang: "Language", pos: "Corner", pause: "How often",
+      posOpts: [["bl", "Bottom left"], ["br", "Bottom right"], ["tl", "Top left"], ["tr", "Top right"]],
+      pauseOpts: [["180", "Every 3½ minutes"], ["60", "Every minute"], ["300", "Every 5½ minutes"], ["0", "Always visible"]],
+      ovUrl: "Link for the browser source", copyLink: "Copy link", copied: "Copied",
+      steps: ["In OBS, under <strong>Sources</strong> click <strong>+</strong> → <strong>Browser</strong>.", "Paste the link above as the <strong>URL</strong>.", "<strong>Width 1920</strong>, <strong>height 1080</strong> → OK. Done – the same in Streamlabs."],
+      paTitle: "Twitch panel", paIntro: "The image for your info panels below the stream. Twitch shows it 320 pixels wide – the image is twice that and stays sharp.",
+      download: "Download panel (PNG)", paLink: "Link for the panel", copyText: "Copy text", paText: "Panel description",
+      text: (c, p) => c
+        ? `I use RESET FPS BOOSTER for more FPS and a smoother picture – with FrameBoost, Smooth Motion and a custom crosshair. Free for Windows 10/11.\nWith my code ${c} you get ${p ? p + "% off" : "a discount"} on Premium: ${SITE}/r/${c}`
+        : `I use RESET FPS BOOSTER for more FPS and a smoother picture – with FrameBoost, Smooth Motion and a custom crosshair. Free for Windows 10/11: ${SITE}`,
+      note: "The discount in the overlay is loaded live: if your code changes, the overlay follows on its own. Questions? In the RESET Discord."
+    }
+  };
+  const $ = id => document.getElementById(id);
+  const lang = () => document.documentElement.lang === "en" ? "en" : "de";
+  const t = () => T[lang()];
+  let state = { code: "", discount: null, msg: "", msgClass: "" };
+
+  // ---------- the Twitch panel, drawn on a canvas so it can be downloaded ----------
+  const logo = new Image();
+  logo.src = "../assets/logo_wide.png";
+
+  function skewTag(ctx, x, y, w, h, fill) {
+    const k = Math.tan(12 * Math.PI / 180) * h;
+    ctx.beginPath();
+    ctx.moveTo(x + k, y); ctx.lineTo(x + w + k, y); ctx.lineTo(x + w, y + h); ctx.lineTo(x, y + h); ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); } else { ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+  function stripes(ctx, y, h) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y, 640, h); ctx.clip();
+    ctx.fillStyle = "#e8121f"; ctx.fillRect(0, y, 640, h);
+    ctx.fillStyle = "#000";
+    const k = h * Math.tan(34 * Math.PI / 180);
+    for (let x = -40; x < 680; x += 24) {
+      ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + 12, y + h); ctx.lineTo(x + 12 + k, y); ctx.lineTo(x + k, y); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function floor(ctx) {
+    const H = 170, top = 320 - 14 - H;
+    const off = document.createElement("canvas"); off.width = 640; off.height = H;
+    const g = off.getContext("2d");
+    const vx = 320, vy = -320;
+    g.lineWidth = 1;
+    g.strokeStyle = "rgba(232,18,31,.24)";
+    for (let x = -1400; x <= 2040; x += 40) {
+      const x0 = vx + (x - vx) * (0 - vy) / (H - vy);
+      g.beginPath(); g.moveTo(x0, 0); g.lineTo(x, H); g.stroke();
+    }
+    g.strokeStyle = "rgba(232,18,31,.30)";
+    for (let i = 1; i <= 12; i++) { const y = H * Math.pow(i / 12, 1.7); g.beginPath(); g.moveTo(0, y); g.lineTo(640, y); g.stroke(); }
+    g.globalCompositeOperation = "destination-in";
+    const m = g.createLinearGradient(0, 0, 0, H); m.addColorStop(0, "rgba(0,0,0,0)"); m.addColorStop(0.7, "rgba(0,0,0,1)");
+    g.fillStyle = m; g.fillRect(0, 0, 640, H);
+    ctx.drawImage(off, 0, top);
+  }
+  function drawPanel(code, discount, en) {
+    const c = $("panelCanvas"), ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, 640, 320);
+    ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, 640, 320);
+    const rg = ctx.createRadialGradient(499, 352, 0, 499, 352, 400);
+    rg.addColorStop(0, "rgba(232,18,31,.28)"); rg.addColorStop(1, "rgba(232,18,31,0)");
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, 640, 320);
+    floor(ctx);
+    stripes(ctx, 0, 14); stripes(ctx, 306, 14);
+    if (logo.complete && logo.naturalWidth) ctx.drawImage(logo, 34, 40, 150, 150 * logo.naturalHeight / logo.naturalWidth);
+
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#a8a8a8"; ctx.font = '500 15px "JetBrains Mono", Consolas, monospace';
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "3px";
+    ctx.fillText((en ? "I play with" : "Ich spiele mit").toUpperCase(), 208, 58);
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+
+    ctx.font = 'italic 900 50px "Saira Condensed", "Arial Narrow", sans-serif';
+    ctx.fillStyle = "#fff"; ctx.fillText("RESET ", 208, 104);
+    const w = ctx.measureText("RESET ").width;
+    ctx.save(); ctx.shadowColor = "rgba(232,18,31,.45)"; ctx.shadowBlur = 22;
+    ctx.fillStyle = "#ff3242"; ctx.fillText("FPS BOOSTER", 208 + w, 104); ctx.restore();
+
+    ctx.font = '600 19px "Barlow", "Segoe UI", sans-serif';
+    let x = 34; const y = 167;
+    const parts = en ? [["More FPS", "#fff"], [", no placebo", "#d6d6d6"]] : [["Mehr FPS", "#fff"], [", kein Placebo", "#d6d6d6"]];
+    for (const name of ["FrameBoost", "Smooth Motion", "Crosshair"]) parts.push([" / ", "#ff3242"], [name, "#fff"]);
+    for (const [s, col] of parts) { ctx.fillStyle = col; ctx.fillText(s, x, y); x += ctx.measureText(s).width; }
+
+    const tight = !!code;
+    const size = tight ? 23 : 26;
+    ctx.font = `italic 800 ${size}px "Saira Condensed", "Arial Narrow", sans-serif`;
+    const label1 = (code
+      ? `Code ${code}${discount ? " · " + discount + (en ? "% off" : " % Rabatt") : ""}`
+      : (en ? "Free download" : "Gratis laden")).toUpperCase();
+    const label2 = SITE.toUpperCase();
+    const pad = 18, h = 40, top = 236;
+    const w1 = ctx.measureText(label1).width + pad * 2;
+    ctx.save(); ctx.shadowColor = "rgba(232,18,31,.45)"; ctx.shadowBlur = 24; skewTag(ctx, 34, top, w1, h, "#e8121f"); ctx.restore();
+    ctx.fillStyle = "#fff"; ctx.fillText(label1, 34 + pad + 4, top + h / 2 + size * 0.36);
+    const x2 = 34 + w1 + 14;
+    const w2 = ctx.measureText(label2).width + pad * 2;
+    skewTag(ctx, x2, top, w2, h, null);
+    ctx.fillStyle = "#fff"; ctx.fillText(label2, x2 + pad + 4, top + h / 2 + size * 0.36);
+
+    $("download").href = c.toDataURL("image/png");
+    $("download").download = code ? `rfb-twitch-panel-${code}.png` : "rfb-twitch-panel.png";
+  }
+
+  // ---------- everything that depends on code and options ----------
+  function overlayUrl(preview) {
+    const p = new URLSearchParams();
+    if (state.code) p.set("code", state.code);
+    if ($("ovLang").value === "en") p.set("lang", "en");
+    if ($("ovPos").value !== "bl") p.set("pos", $("ovPos").value);
+    if ($("ovPause").value !== "180") p.set("pause", $("ovPause").value);
+    if (preview) { p.set("preview", "1"); p.set("pause", "0"); }
+    const qs = p.toString();
+    return (preview ? "overlay.html" : `https://${SITE}/stream/overlay.html`) + (qs ? "?" + qs : "");
+  }
+  function fitStage() {
+    const s = $("stage").clientWidth / 1920;
+    $("preview").style.transform = `scale(${s})`;
+  }
+  function render() {
+    const x = t();
+    for (const k of ["eyebrow", "intro", "codeLabel", "load", "ovTitle", "ovIntro", "lang", "pos", "pause", "ovUrl", "copyLink", "paTitle", "paIntro", "download", "paLink", "copyText", "paText", "note"])
+      if ($("t-" + k)) $("t-" + k).textContent = x[k];
+    $("t-lang2").textContent = x.lang; $("t-copyLink2").textContent = x.copyLink;
+    $("t-steps").innerHTML = x.steps.map(s => `<li>${s}</li>`).join("");
+    for (const [id, opts] of [["ovPos", x.posOpts], ["ovPause", x.pauseOpts]]) {
+      const keep = $(id).value || opts[0][0];
+      $(id).innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+      $(id).value = keep;
+    }
+    $("codeMsg").textContent = state.msg; $("codeMsg").className = "msg " + state.msgClass;
+    $("ovUrl").value = overlayUrl(false);
+    const src = overlayUrl(true);
+    if ($("preview").dataset.src !== src) { $("preview").dataset.src = src; $("preview").src = src; }
+    fitStage();
+    $("paLink").value = state.code ? `https://${SITE}/r/${state.code}` : `https://${SITE}`;
+    $("paText").value = T[$("paLang").value].text(state.code, state.discount);
+    drawPanel(state.code, state.discount, $("paLang").value === "en");
+  }
+
+  async function loadCode() {
+    const code = $("code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+    $("code").value = code;
+    state = { code, discount: null, msg: "", msgClass: "" };
+    if (!code) { state.msg = t().none; render(); return; }
+    try {
+      const o = await RFB.publicRpc("affiliate_offer", { p_code: code });
+      if (o && o.discount_percent) { state.discount = o.discount_percent; state.msg = t().ok(code, o.discount_percent); state.msgClass = "good"; }
+      else { state.code = ""; state.msg = t().unknown(code); state.msgClass = "bad"; }
+    } catch { state.msg = t().offline; state.msgClass = "bad"; }
+    try { history.replaceState(null, "", state.code ? "?code=" + state.code : location.pathname); } catch {}
+    render();
+  }
+
+  document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+    const field = $(b.dataset.copy);
+    try { await navigator.clipboard.writeText(field.value); } catch { field.select(); document.execCommand("copy"); }
+    const mark = $(b.dataset.copy + "Copied"); mark.textContent = t().copied;
+    setTimeout(() => { mark.textContent = ""; }, 1600);
+  }));
+  $("load").addEventListener("click", loadCode);
+  $("code").addEventListener("keydown", e => { if (e.key === "Enter") loadCode(); });
+  ["ovLang", "ovPos", "ovPause", "paLang"].forEach(id => $(id).addEventListener("change", render));
+  window.addEventListener("resize", fitStage);
+  new MutationObserver(() => { $("ovLang").value = $("paLang").value = lang(); render(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+
+  $("ovLang").value = $("paLang").value = lang();
+  const fromUrl = new URLSearchParams(location.search).get("code");
+  Promise.all([
+    document.fonts ? Promise.all(['italic 900 50px "Saira Condensed"', 'italic 800 26px "Saira Condensed"', '500 15px "JetBrains Mono"', '600 19px "Barlow"'].map(f => document.fonts.load(f))) : null,
+    new Promise(r => { if (logo.complete) r(); else { logo.onload = r; logo.onerror = r; } })
+  ]).catch(() => {}).then(() => {
+    if (fromUrl) { $("code").value = fromUrl; loadCode(); } else { state.msg = t().none; render(); }
+  });
+})();
+</script>
+</body>
+</html>
