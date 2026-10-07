@@ -1,4 +1,4 @@
-// Small Discord REST helper shared by discord-digest and discord-interactions.
+// Small Discord REST helper for the edge functions.
 const api = "https://discord.com/api/v10";
 const botToken = (Deno.env.get("DISCORD_BOT_TOKEN") ?? "").trim();
 
@@ -46,16 +46,4 @@ export async function dmChannel(userId: string): Promise<string> {
 
 export function messageLink(guildId: string, channelId: string, messageId: string): string {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
-}
-
-/** Buttons under a draft in Lukas's DM. The draft id travels in custom_id. */
-export function draftButtons(draftId: number) {
-  return [{
-    type: 1,
-    components: [
-      { type: 2, style: 3, label: "Senden", custom_id: `draft:send:${draftId}` },
-      { type: 2, style: 1, label: "Bearbeiten", custom_id: `draft:edit:${draftId}` },
-      { type: 2, style: 4, label: "Verwerfen", custom_id: `draft:discard:${draftId}` },
-    ],
-  }];
 }

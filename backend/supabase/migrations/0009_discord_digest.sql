@@ -1,31 +1,13 @@
--- DISCORD DAILY DIGEST: a report for Lukas at 12:00 Berlin time, with reply drafts
--- he releases one by one.
+-- DISCORD DAILY DIGEST: a report for Lukas at 12:00 Berlin time.
 --
--- discord_drafts      one reply draft per open question. The bot never posts a
---                     draft on its own: only Lukas pressing "Senden" (or sending
---                     an edited version) in his DM does, see discord-interactions.
 -- discord_digest_runs one row per Berlin day, so the report goes out once a day
 --                     however often the function is called.
 --
 -- Row level security on, no policies: only the service role (the edge
--- functions) reads or writes these tables.
-create table if not exists public.discord_drafts (
-    id               bigint generated always as identity primary key,
-    created_at       timestamptz not null default now(),
-    channel_id       text not null,          -- where the question was asked
-    message_id       text not null,          -- the question; the reply references it
-    question_summary text not null,
-    draft            text not null,
-    status           text not null default 'pending' check (status in ('pending', 'sent', 'discarded')),
-    decided_at       timestamptz,
-    sent_message_id  text
-);
-alter table public.discord_drafts enable row level security;
-
+-- function) reads or writes this table.
 create table if not exists public.discord_digest_runs (
     day        date primary key,             -- the Berlin calendar day
-    created_at timestamptz not null default now(),
-    summary    jsonb                         -- the structured report, for later reference
+    created_at timestamptz not null default now()
 );
 alter table public.discord_digest_runs enable row level security;
 
