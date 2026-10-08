@@ -205,6 +205,13 @@ canvas { display: block; width: 100%; max-width: 640px; height: auto; margin-top
     g.fillStyle = m; g.fillRect(0, 0, 640, H);
     ctx.drawImage(off, 0, top);
   }
+  // The largest size up to "size" at which "text" is no wider than "room":
+  // a long code or a fallback font shrinks instead of running off the panel.
+  function fitSize(ctx, font, size, text, room) {
+    ctx.font = font(size);
+    const w = ctx.measureText(text).width;
+    return w > room ? Math.max(12, Math.floor(size * room / w)) : size;
+  }
   function drawPanel(code, discount, en) {
     const c = $("panelCanvas"), ctx = c.getContext("2d");
     ctx.clearRect(0, 0, 640, 320);
@@ -222,26 +229,30 @@ canvas { display: block; width: 100%; max-width: 640px; height: auto; margin-top
     ctx.fillText((en ? "I play with" : "Ich spiele mit").toUpperCase(), 208, 58);
     if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
 
-    ctx.font = 'italic 900 50px "Saira Condensed", "Arial Narrow", sans-serif';
+    const head = s => `italic 900 ${s}px "Saira Condensed", "Arial Narrow", sans-serif`;
+    ctx.font = head(fitSize(ctx, head, 50, "RESET FPS BOOSTER", 404));
     ctx.fillStyle = "#fff"; ctx.fillText("RESET ", 208, 104);
     const w = ctx.measureText("RESET ").width;
     ctx.save(); ctx.shadowColor = "rgba(232,18,31,.45)"; ctx.shadowBlur = 22;
     ctx.fillStyle = "#ff3242"; ctx.fillText("FPS BOOSTER", 208 + w, 104); ctx.restore();
 
-    ctx.font = '600 19px "Barlow", "Segoe UI", sans-serif';
     let x = 34; const y = 167;
     const parts = en ? [["More FPS", "#fff"], [", no placebo", "#d6d6d6"]] : [["Mehr FPS", "#fff"], [", kein Placebo", "#d6d6d6"]];
     for (const name of ["FrameBoost", "Smooth Motion", "Crosshair"]) parts.push([" / ", "#ff3242"], [name, "#fff"]);
+    const feat = s => `600 ${s}px "Barlow", "Segoe UI", sans-serif`;
+    ctx.font = feat(fitSize(ctx, feat, 19, parts.map(p => p[0]).join(""), 572));
     for (const [s, col] of parts) { ctx.fillStyle = col; ctx.fillText(s, x, y); x += ctx.measureText(s).width; }
 
-    const tight = !!code;
-    const size = tight ? 23 : 26;
-    ctx.font = `italic 800 ${size}px "Saira Condensed", "Arial Narrow", sans-serif`;
     const label1 = (code
       ? `Code ${code}${discount ? " · " + discount + (en ? "% off" : " % Rabatt") : ""}`
       : (en ? "Free download" : "Gratis laden")).toUpperCase();
     const label2 = SITE.toUpperCase();
     const pad = 18, h = 40, top = 236;
+    // Both tags side by side within the panel: the text gets the width left
+    // after the padding, the gap and the slant.
+    const tag = s => `italic 800 ${s}px "Saira Condensed", "Arial Narrow", sans-serif`;
+    const size = fitSize(ctx, tag, code ? 23 : 26, label1 + label2, 572 - pad * 4 - 14 - 10);
+    ctx.font = tag(size);
     const w1 = ctx.measureText(label1).width + pad * 2;
     ctx.save(); ctx.shadowColor = "rgba(232,18,31,.45)"; ctx.shadowBlur = 24; skewTag(ctx, 34, top, w1, h, "#e8121f"); ctx.restore();
     ctx.fillStyle = "#fff"; ctx.fillText(label1, 34 + pad + 4, top + h / 2 + size * 0.36);

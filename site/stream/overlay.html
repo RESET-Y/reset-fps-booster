@@ -73,7 +73,9 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
   animation: sweep 4.5s ease-in-out infinite;
 }
-.edge { position: absolute; left: -6px; top: 10px; bottom: 0; width: 6px; background: var(--accent); box-shadow: 0 0 18px var(--glow); }
+/* the red bar on the left edge: inside the plate, so it shares its slant and
+   arrives and leaves with it */
+.edge { position: absolute; left: 0; top: 10px; bottom: 0; width: 6px; background: var(--accent); box-shadow: 0 0 18px var(--glow); }
 .timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent-bright); }
 
 /* content is un-skewed so text stays upright */
@@ -133,8 +135,7 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
 </head>
 <body>
 <div id="ad" class="bl">
-  <div class="edge"></div>
-  <div class="plate"><div class="stripe"></div><div class="body"><div class="timer" id="timer"></div></div></div>
+  <div class="plate"><div class="stripe"></div><div class="body"><div class="timer" id="timer"></div></div><div class="edge"></div></div>
   <div class="content">
     <div class="logo"><img src="../assets/logo_wide.png" alt="RFB"></div>
     <div class="sep"></div>
@@ -194,6 +195,15 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
         : `<div class="title">${esc(m[1])} <span class="red">${esc(m[2])}</span></div>`);
     return el;
   }
+  // The plate is a fixed size and a title never wraps, so a long line - a
+  // long code, English, a fallback font when Saira did not load - is made
+  // smaller until it fits instead of running out of the plate. The margin
+  // covers the slant of the italic and of the code tag.
+  function fit(el) {
+    const t = el.querySelector(".title");
+    const room = box.clientWidth - 14, need = t.scrollWidth;
+    if (need > room) t.style.fontSize = Math.max(24, Math.floor(46 * room / need)) + "px";
+  }
 
   // The streamer's discount, live from the same public lookup the website uses.
   // Offline or unknown code: the code is still shown, without a percentage.
@@ -215,6 +225,7 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
       const isCode = !!code && (i === 1 || i === 2);
       const el = render(list[i], isCode);
       box.appendChild(el);
+      fit(el);
       void el.offsetWidth; el.classList.add("in");
       timer.style.animation = "none"; void timer.offsetWidth;
       timer.style.animation = `tick ${per}ms linear forwards`;
