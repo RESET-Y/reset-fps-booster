@@ -510,129 +510,6 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   .js .rv, .js .term .ln { opacity: 1; transform: none; }
   html { scroll-behavior: auto; }
 }
-
-/* ================= LOUDER, CLEARER (5 sections) ================= */
-/* the widgets above keep their own styling; this part sets the layout and the type */
-.hero { position: relative; overflow: hidden; padding: clamp(40px, 7vh, 90px) 0 0; min-height: 88vh; display: flex; flex-direction: column; justify-content: center; background:
-  radial-gradient(70% 60% at 85% 20%, rgba(232,18,31,.28), transparent 60%), #050505; }
-.hero-bg { position: absolute; right: -4vw; bottom: -6vw; font: 900 italic 42vw/0.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(232,18,31,.22); letter-spacing: -.04em; pointer-events: none; user-select: none; z-index: 0; white-space: nowrap; }
-.hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.15fr .85fr; gap: clamp(28px, 4vw, 64px); align-items: center; }
-.hero .status { font: 500 13px var(--mono); letter-spacing: .14em; color: var(--text-2); }
-.hero h1 { margin: 22px 0 26px; font: 900 italic clamp(60px, 10.6vw, 168px)/0.84 var(--display); text-transform: uppercase; letter-spacing: -.01em; }
-.hero h1 .l1, .hero h1 .l2 { display: block; }
-.hero h1 .l2 { color: var(--accent); text-shadow: 0 0 60px rgba(232,18,31,.35); }
-.hero .lead { font-size: clamp(18px, 1.5vw, 21px); line-height: 1.55; color: var(--text-2); max-width: 46ch; }
-.btn-xl { padding: 22px 40px; font-size: 24px; }
-.btn-xl > span { font-size: inherit; }
-.hero .ctas { margin-top: 30px; }
-.hero-stats { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: clamp(40px, 6vh, 70px); border-top: 1px solid var(--border); }
-.hero-stats .stat { padding: 26px 22px 28px 0; border-right: 1px solid var(--border); }
-.hero-stats .stat + .stat { padding-left: 22px; }
-.hero-stats .stat:last-child { border-right: 0; }
-.hero-stats .num { font: 900 italic clamp(56px, 7vw, 104px)/0.9 var(--display); color: #fff; }
-.hero-stats .num small { font-size: .5em; color: var(--accent); }
-.hero-stats p { margin: 10px 0 0; font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
-
-.ticker { background: var(--accent); border-block: 0; padding: 14px 0; transform: skewY(-1.2deg); margin-top: 0; }
-.ticker-row span { font: 900 italic clamp(22px, 2.6vw, 34px) var(--display); text-transform: uppercase; color: #fff; }
-.ticker-row b { color: #000; }
-
-/* sections */
-.sec { position: relative; padding: clamp(84px, 11vw, 150px) 0; }
-.sec.dark { background: #000; }
-.sec.fb { background: linear-gradient(180deg, #050505 0%, #0b0606 55%, #050505 100%); }
-.sec-head { max-width: 980px; margin-bottom: clamp(36px, 5vw, 60px); }
-.sec-head h2 { margin: 14px 0 0; font: 900 italic clamp(50px, 8.2vw, 124px)/0.9 var(--display); text-transform: uppercase; letter-spacing: -.005em; }
-.sec-head .lead { margin-top: 22px; max-width: 58ch; }
-.sec-head p:not(.lead) { color: var(--text-2); }
-.eyebrow { font: 600 14px var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--accent-bright); }
-
-/* 02 modules: the four steps as a bold strip */
-.steps { list-style: none; margin: 0 0 clamp(36px, 5vw, 56px); padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 4px solid var(--accent); }
-.steps li { padding: 24px 22px 26px 0; border-right: 1px solid var(--border); }
-.steps li + li { padding-left: 22px; }
-.steps li:last-child { border-right: 0; }
-.steps b { display: block; font: 900 italic 64px/1 var(--display); color: var(--accent); }
-.steps h3 { margin: 10px 0 6px; font: 900 italic 30px/1 var(--display); text-transform: uppercase; }
-.steps p { margin: 0; font-size: 15px; color: var(--text-2); }
-.side-note { margin-top: 30px; padding-left: 18px; border-left: 4px solid var(--accent); color: var(--text-2); font-size: 16px; max-width: 80ch; }
-.side-note b { color: #fff; }
-
-/* 03 proof */
-.vs { margin-top: 10px; }
-.vs-row { font-size: 16px; }
-.diag-wrap { margin-top: clamp(70px, 9vw, 120px); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(36px, 5vw, 72px); align-items: center; }
-.big-h { margin: 12px 0 0; font: 900 italic clamp(44px, 5.6vw, 84px)/0.92 var(--display); text-transform: uppercase; }
-.diag-wrap .lead { margin-top: 20px; }
-
-/* 04 frameboost + premium */
-.fb-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(28px, 4vw, 60px); align-items: start; margin-top: 10px; }
-.facts-mini { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
-.facts-mini li { padding: 20px 0; border-bottom: 1px solid var(--border); }
-.facts-mini b { display: block; font: 900 italic 30px/1 var(--display); text-transform: uppercase; color: #fff; }
-.facts-mini span { display: block; margin-top: 8px; font-size: 15px; color: var(--text-2); }
-.prem { margin-top: clamp(90px, 12vw, 160px); }
-.prem .sec-head { margin-bottom: 30px; }
-.plans { gap: 14px; }
-.plans .card { padding: 26px; }
-.plans .price { font: 900 italic 58px/1 var(--display); }
-.plans .featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 30px 80px -30px var(--accent-glow); }
-.plans-note { margin-top: 22px; font-size: 15px; color: var(--text-3); }
-
-/* 05 download + faq */
-.dl-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; }
-.dl-main { border-left: 4px solid var(--accent); padding: 34px; }
-.dl-main .ver { font: 900 italic clamp(56px, 6vw, 92px)/0.95 var(--display); color: #fff; margin: 14px 0 6px; }
-.dl-main .meta { font-size: 16px; color: var(--text-2); }
-.dl-main .ctas { margin-top: 26px; }
-.req { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--border); }
-.req > div { padding: 18px 16px 0 0; }
-.faq-wrap { margin-top: clamp(90px, 12vw, 160px); }
-.faq-wrap .sec-head { margin-bottom: 30px; }
-
-.card { transition: background .18s, border-color .18s, transform .18s; }
-.card:hover { background: var(--accent); border-color: var(--accent); transform: translateY(-3px); }
-.card:hover h3, .card:hover p, .card:hover li, .card:hover .price, .card:hover .tag { color: #fff; }
-.card:hover .tag { border-color: #fff; }
-.band { border-top: 0; }
-
-/* the old 13-section layout had its own spacing; keep the bottom band calm */
-.band-in { padding: clamp(60px, 8vw, 110px) 0; }
-
-@media (max-width: 980px) {
-  .hero-grid, .diag-wrap, .fb-grid, .dl-grid { grid-template-columns: 1fr; }
-  .hero-stats { grid-template-columns: repeat(2, 1fr); }
-  .hero-stats .stat:nth-child(2) { border-right: 0; }
-  .hero-stats .stat:nth-child(n+3) { border-top: 1px solid var(--border); }
-  .steps { grid-template-columns: repeat(2, 1fr); }
-  .steps li:nth-child(2) { border-right: 0; }
-  .steps li:nth-child(n+3) { border-top: 1px solid var(--border); }
-  .req { grid-template-columns: repeat(2, 1fr); }
-}
-@media (max-width: 560px) {
-  .hero h1 { font-size: clamp(52px, 17vw, 88px); }
-  .btn-xl { width: 100%; padding: 20px 24px; font-size: 20px; }
-  .hero .ctas { display: grid; gap: 12px; }
-  .hero-stats { grid-template-columns: 1fr 1fr; }
-  .hero-stats .stat { padding-right: 12px; }
-  .hero-stats .stat + .stat { padding-left: 14px; }
-  .steps { grid-template-columns: 1fr; }
-  .steps li, .steps li + li { padding: 22px 0; border-right: 0; border-top: 1px solid var(--border); }
-  .steps li:first-child { border-top: 0; }
-  .hero-bg { font-size: 70vw; }
-}
-
-/* no sideways overflow: the ticker is clipped, grid columns may shrink below their content */
-.ticker { overflow: hidden; }
-.hero-grid, .diag-wrap, .fb-grid, .dl-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.fb-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
-.hero-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
-.film, .strip-box, .facts-mini, .hero-copy, .diag-wrap > *, .fb-grid > *, .dl-grid > * { min-width: 0; }
-.film { overflow: hidden; }
-@media (max-width: 980px) {
-  .hero-grid, .diag-wrap, .fb-grid, .dl-grid { grid-template-columns: minmax(0, 1fr); }
-}
-.hero h1 { font-size: clamp(56px, 7.4vw, 138px); }
 </style>
 </head>
 <body>
@@ -643,7 +520,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
     <a href="#top" aria-label="RESET FPS BOOSTER home"><img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="112" height="28"></a>
     <nav class="links" aria-label="Sections">
       <a href="#modules">Modules</a>
-      <a href="#proof">Proof</a>
+      <a href="#bottleneck">Bottleneck</a>
       <a href="#frameboost">FrameBoost</a>
       <a href="#premium">Premium</a>
       <a href="#faq">FAQ</a>
@@ -659,7 +536,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   </div>
   <nav class="mnav wrap" id="mnav" aria-label="Menu">
     <a href="#modules">Modules</a>
-    <a href="#proof">Proof</a>
+    <a href="#bottleneck">Bottleneck</a>
     <a href="#frameboost">FrameBoost</a>
     <a href="#premium">Premium</a>
     <a href="#faq">FAQ</a>
@@ -671,20 +548,19 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
 </header>
 
 <main id="top">
-
-  <!-- 1 · HERO -->
+  <!-- ================= HERO ================= -->
   <div class="hero">
-    <div class="hero-bg" aria-hidden="true"><span>RFB</span></div>
+    <div class="track" aria-hidden="true"></div>
     <div class="wrap hero-grid">
-      <div class="hero-copy">
+      <div>
         <div class="status"><span class="dot"></span>SYSTEM ONLINE // PERFORMANCE ENGINE READY</div>
-        <h1><span class="l1">Real optimization.</span><span class="l2 accent">No placebo.</span></h1>
-        <p class="lead">RESET FPS BOOSTER reads your real hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows what changed. Every value before and after. Every change can be undone.</p>
+        <h1>Real optimization.<br><span class="accent">No placebo.</span></h1>
+        <p class="lead">RESET FPS BOOSTER reads your actual hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows you exactly what changed. Every value, before and after, and every setting can be undone.</p>
         <div class="ctas">
-          <a class="btn btn-primary btn-xl" href="#download"><span>Download for Windows</span></a>
-          <a class="btn btn-secondary btn-xl" href="#modules"><span>See the modules</span></a>
+          <a class="btn btn-primary" href="#download"><span>Download for Windows</span></a>
+          <a class="btn btn-secondary" href="#modules"><span>Build your setup</span></a>
         </div>
-        <p class="fine">Windows 10/11 x64 · Free core app · No telemetry · <b class="dyn" id="heroVer">v1.4.2-beta</b></p>
+        <p class="fine">Windows 10/11 x64 · Free core app · No telemetry · <b class="dyn" id="heroVer">v1.3.3</b></p>
       </div>
 
       <div class="panel rv" aria-label="Example FrameBoost readout">
@@ -702,13 +578,6 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
         <div class="panel-note">Example readout from Apex Legends on an RTX 3060, capped at 60.</div>
       </div>
     </div>
-
-    <div class="wrap hero-stats">
-      <div class="stat rv"><div class="num" data-count="13">13</div><p>Optimization modules</p></div>
-      <div class="stat rv"><div class="num" data-count="7">7</div><p>Bottlenecks it can name</p></div>
-      <div class="stat rv"><div class="num">0</div><p>Fabricated FPS claims</p></div>
-      <div class="stat rv"><div class="num">2<small>×</small></div><p>Frames with FrameBoost</p></div>
-    </div>
   </div>
 
   <div class="ticker" aria-hidden="true">
@@ -725,23 +594,23 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
       <div class="live-cell" data-k="accounts" hidden><div class="num dyn">0</div><p>RESET accounts</p></div>
       <div class="live-cell" data-k="premium" hidden><div class="num dyn">0</div><p>With Premium right now</p></div>
     </div>
+    <div class="stats">
+      <div class="stat rv"><div class="num" data-count="13">13</div><p>Optimization modules</p></div>
+      <div class="stat rv"><div class="num" data-count="7">7</div><p>Bottlenecks it can name</p></div>
+      <div class="stat rv"><div class="num">0</div><p>Fabricated FPS claims</p></div>
+      <div class="stat rv"><div class="num">2<small>×</small></div><p>Frames with FrameBoost</p></div>
+    </div>
   </div>
 
-  <!-- 2 · MODULES -->
-  <section id="modules" class="sec">
+  <!-- ================= MODULES ================= -->
+  <section id="modules">
     <div class="wrap">
-      <div class="sec-head rv">
-        <div class="eyebrow">02 · Setup</div>
+      <div class="head rv">
+        <div class="eyebrow">Modules</div>
         <h2>Build your setup. <span class="accent">See every write.</span></h2>
-        <p class="lead">Pick modules and check the change preview. Nothing is written until you approve it in the app.</p>
+        <p>Pick modules the way you would in the app. The pit board shows exactly what each one writes, whether it needs admin or a restart, and what gets backed up first. These are the real keys and values from the source code.</p>
       </div>
-      <ol class="steps rv">
-        <li><b>01</b><h3>Scan</h3><p>Reads your real hardware and the state of every module.</p></li>
-        <li><b>02</b><h3>Review</h3><p>Shows the exact setting, its risk, and whether it needs admin or a restart.</p></li>
-        <li><b>03</b><h3>Apply</h3><p>Writes only what you approved, through the registry, NVAPI or power-plan APIs.</p></li>
-        <li><b>04</b><h3>Backup</h3><p>The previous value is stored first, so every change can be reverted on its own.</p></li>
-      </ol>
-      <div class="builder rv">
+      <div class="builder">
         <div>
           <div class="bar-top">
             <div class="chips" id="filters" role="group" aria-label="Filter by category"></div>
@@ -760,65 +629,57 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
           <div class="pit-foot">Nothing here touches your PC. In the app, this list is what you approve before anything is written.</div>
         </aside>
       </div>
-      <p class="side-note rv"><b>Game Boost</b> drops background apps in CPU priority while a game runs. Streaming and voice apps stay untouched, and everything returns when you quit.</p>
     </div>
   </section>
 
-  <!-- 3 · PROOF -->
-  <section id="proof" class="sec dark">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <div class="eyebrow">03 · Proof</div>
-        <h2>Most boosters sell a number. <span class="accent">We show the work.</span></h2>
+  <!-- ================= BOTTLENECK ENGINE ================= -->
+  <section id="bottleneck" class="bn">
+    <div class="wrap bn-grid">
+      <div class="rv">
+        <div class="eyebrow">Bottleneck Engine</div>
+        <h2 style="margin-top:16px">Why are you <span class="accent">losing FPS?</span></h2>
+        <p class="lead">Instead of a list of tweaks, you get one explained diagnosis. The engine samples real telemetry every two seconds while you play and names what is actually holding the game back.</p>
+        <ol class="flow">
+          <li><div><b>Six collectors</b><span>CPU, GPU, VRAM, RAM, disk and processes, read from Windows and the driver.</span></div></li>
+          <li><div><b>Seven analyzers</b><span>Each one votes for a cause. No single signal decides anything alone.</span></div></li>
+          <li><div><b>Root cause first</b><span>If heat or the power limit explains a "GPU limited" reading, the symptom is turned down and the cause leads.</span></div></li>
+          <li><div><b>Confidence, not guesses</b><span>Only causes with real confidence are shown, at most three, each with the numbers behind it.</span></div></li>
+        </ol>
       </div>
-      <div class="vs rv">
-        <div class="vs-row th"><div></div><div>Typical "FPS booster"</div><div>RESET FPS BOOSTER</div></div>
-        <div class="vs-row"><div>FPS gains</div><div data-l="Typical"><span class="x">✕</span>Promises "+200% FPS" before it has seen your PC</div><div data-l="RESET"><span class="ck">✓</span>Never shows a number it didn't measure</div></div>
-        <div class="vs-row"><div>What changes</div><div data-l="Typical"><span class="x">✕</span>One button, hidden tweak list</div><div data-l="RESET"><span class="ck">✓</span>Every key, value and API call listed before you apply</div></div>
-        <div class="vs-row"><div>Undo</div><div data-l="Typical"><span class="x">✕</span>Hope, or reinstall Windows</div><div data-l="RESET"><span class="ck">✓</span>Backup per change, plus a Windows restore point</div></div>
-        <div class="vs-row"><div>Frame generation</div><div data-l="Typical"><span class="x">✕</span>Counts repeated frames as FPS</div><div data-l="RESET"><span class="ck">✓</span>Only new frames count, nothing injected</div></div>
-      </div>
-
-      <div class="diag-wrap">
-        <div class="rv">
-          <div class="eyebrow">Bottleneck Engine</div>
-          <h3 class="big-h">Why are you <span class="accent">losing FPS?</span></h3>
-          <p class="lead">Not a list of tweaks, but one explained diagnosis. The engine samples real telemetry every two seconds and names what holds the game back.</p>
-          <ol class="flow">
-            <li><div><b>Six collectors</b><span>CPU, GPU, VRAM, RAM, disk and processes.</span></div></li>
-            <li><div><b>Seven analyzers</b><span>Each one votes for a cause. No single signal decides alone.</span></div></li>
-            <li><div><b>Root cause first</b><span>Heat or the power limit can explain a GPU reading, so the cause leads.</span></div></li>
-          </ol>
+      <div class="panel diag rv" aria-label="Example Bottleneck Engine diagnosis">
+        <div class="panel-top">
+          <span class="live"><span class="dot"></span><span class="dyn" id="bGame">Apex Legends</span></span>
+          <span class="tag"><span>Example</span></span>
         </div>
-        <div class="panel diag rv" aria-label="Example Bottleneck Engine diagnosis">
-          <div class="panel-top">
-            <span class="live"><span class="dot"></span><span class="dyn" id="bGame">Apex Legends</span></span>
-            <span class="tag"><span>Example</span></span>
-          </div>
-          <div class="diag-body dyn" aria-live="polite">
-            <div class="lbl" id="bPrimLbl">Primary bottleneck</div>
-            <h3 class="verdict" id="bHead">THERMAL LIMITED</h3>
-            <p class="expl" id="bExpl"></p>
-            <div class="conf"><div class="segs" id="bSegs"></div><div class="num" id="bConf">0%</div></div>
-            <div class="evid" id="bEvid"></div>
-            <div class="factors" id="bFactors"></div>
-            <div class="suppr" id="bSup"></div>
-          </div>
-          <div class="diag-tabs chips dyn" id="bTabs" role="tablist" aria-label="Example scenarios"></div>
+        <div class="diag-body dyn" aria-live="polite">
+          <div class="lbl" id="bPrimLbl">Primary bottleneck</div>
+          <h3 class="verdict" id="bHead">THERMAL LIMITED</h3>
+          <p class="expl" id="bExpl"></p>
+          <div class="conf"><div class="segs" id="bSegs"></div><div class="num" id="bConf">0%</div></div>
+          <div class="evid" id="bEvid"></div>
+          <div class="factors" id="bFactors"></div>
+          <div class="suppr" id="bSup"></div>
         </div>
+        <div class="diag-tabs chips dyn" id="bTabs" role="tablist" aria-label="Example scenarios"></div>
       </div>
     </div>
   </section>
 
-  <!-- 4 · FRAMEBOOST + PREMIUM -->
-  <section id="frameboost" class="sec fb">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <div class="eyebrow">04 · RESET FrameBoost · Beta</div>
-        <h2>Twice the frames. <span class="accent">Nothing injected.</span></h2>
-        <p class="lead">FrameBoost captures your game window, generates a frame between two real ones, and runs next to the game, never inside it.</p>
+  <!-- ================= FRAMEBOOST ================= -->
+  <section id="frameboost" class="fb">
+    <div class="wrap fb-grid">
+      <div class="rv">
+        <div class="eyebrow">RESET FrameBoost · Beta</div>
+        <h2 style="margin-top:16px">Twice the frames.<br><span class="accent">Nothing injected.</span></h2>
+        <p class="lead">FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.</p>
+        <dl class="facts">
+          <div class="fact"><dt>No injection</dt><dd>No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.</dd></div>
+          <div class="fact"><dt>Honest count</dt><dd>A picture shown twice is one frame. Output FPS only counts frames that are actually new.</dd></div>
+          <div class="fact"><dt>Steps aside</dt><dd>If the game already uses the whole GPU, generating frames would slow it down. FrameBoost passes the game through untouched and starts again when there is room.</dd></div>
+          <div class="fact"><dt>Failsafe</dt><dd>If something goes wrong, it stops on its own and leaves nothing running.</dd></div>
+        </dl>
       </div>
-      <div class="fb-grid">
+      <div class="modes">
         <div class="strip-box rv">
           <div class="strip-top">
             <div class="lbl">What reaches your screen</div>
@@ -841,82 +702,246 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
             <span><i style="border:1px dashed var(--border-2)"></i>Same frame again</span>
           </div>
         </div>
-        <ul class="facts-mini rv">
-          <li><b>No injection</b><span>No DLL, no hooks, no game memory or files. It reads the window the way screen capture does.</span></li>
-          <li><b>Honest count</b><span>A picture shown twice is one frame. Output FPS counts only new frames.</span></li>
-          <li><b>Steps aside</b><span>If the GPU is already full, FrameBoost passes the game through and starts again when there is room.</span></li>
-          <li><b>Failsafe</b><span>If something goes wrong, it stops on its own and leaves nothing running.</span></li>
-        </ul>
-      </div>
-
-      <div id="premium" class="prem">
-        <div class="sec-head rv">
-          <div class="eyebrow">Premium</div>
-          <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
-          <p class="lead">Buying needs a free RESET account. Premium switches on for that account by itself, in the app and on every PC you sign in on.</p>
+        <div class="strip-box cap rv">
+          <div class="lbl">Your monitor</div>
+          <div class="chips" id="hzPick" role="group" aria-label="Monitor refresh rate" style="margin-top:12px"></div>
+          <div class="cap-out">
+            <div><div class="lbl">Cap game at</div><div class="num" id="capIn">72</div></div>
+            <div class="slash" style="font-size:48px">//</div>
+            <div><div class="lbl">On screen</div><div class="num" style="color:var(--accent-bright)" id="capOut">144</div></div>
+            <p id="capTxt"></p>
+          </div>
         </div>
-        <p class="acct dyn" id="acctBar"></p>
-        <div class="plans">
-          <article class="card plan rv">
-            <span class="tag"><span>Free</span></span>
-            <div class="price">0 €</div>
-            <ul>
-              <li>All optimization modules</li>
-              <li>Bottleneck Engine</li>
-              <li>Game Boost and game profiles</li>
-              <li>Backups, restore points, change log</li>
-            </ul>
-            <a class="btn btn-secondary" href="#download"><span>Download</span></a>
-          </article>
-          <article class="card plan featured rv">
-            <span class="tag red"><span>Lifetime</span></span>
-            <div class="price">19,99 € <small>once</small></div>
-            <ul>
-              <li>Everything in Free</li>
-              <li>RESET FrameBoost, for good</li>
-              <li>Smooth Motion: the “240 FPS” look</li>
-              <li>Custom crosshair</li>
-            </ul>
-            <a class="btn btn-primary" data-plan="lifetime" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
-          </article>
-          <article class="card plan rv">
-            <span class="tag"><span>Monthly</span></span>
-            <div class="price">2,99 € <small>/ month</small></div>
-            <ul>
-              <li>Everything in Free</li>
-              <li>RESET FrameBoost</li>
-              <li>Smooth Motion and custom crosshair</li>
-              <li>Cancel anytime</li>
-            </ul>
-            <a class="btn btn-secondary" data-plan="monthly" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
-          </article>
+        <div class="grid grid-2">
+          <div class="card mode rv">
+            <div class="tags"><span class="tag red"><span>Quality</span></span><span class="risk">Default</span></div>
+            <div class="num">60 <span class="accent">//</span> 120</div>
+            <p>Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.</p>
+          </div>
+          <div class="card mode alt rv">
+            <div class="tags"><span class="tag"><span>Low latency</span></span><span class="risk">One switch</span></div>
+            <div class="num">LOW <span class="accent">LAT</span></div>
+            <p>Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.</p>
+          </div>
         </div>
-        <p class="plans-note">Cancel the monthly plan anytime. A code from a streamer is filled in at checkout.</p>
       </div>
     </div>
   </section>
 
-  <!-- 5 · DOWNLOAD + FAQ -->
-  <section id="download" class="sec">
+  <!-- ================= PROCESS ================= -->
+  <section>
     <div class="wrap">
-      <div class="sec-head rv">
-        <div class="eyebrow">05 · Download</div>
+      <div class="head rv">
+        <div class="eyebrow">Process</div>
+        <h2>Four steps, <span class="accent">always in this order</span></h2>
+        <p>Nothing is applied before you've seen it.</p>
+      </div>
+      <div class="steps rv">
+        <div class="step"><div class="n">01</div><h3>Scan</h3><p>Reads your real CPU, GPU, RAM and storage and the current state of every module.</p></div>
+        <div class="step"><div class="n">02</div><h3>Review</h3><p>Shows the exact setting each module changes, its risk, and whether it needs admin or a restart.</p></div>
+        <div class="step"><div class="n">03</div><h3>Apply</h3><p>Writes only what you approved, through the registry, NVAPI or power-plan APIs.</p></div>
+        <div class="step"><div class="n">04</div><h3>Backup</h3><p>The previous value of every change is stored first, so each one can be reverted on its own.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLAY ================= -->
+  <section>
+    <div class="wrap">
+      <div class="split">
+        <div class="rv">
+          <div class="eyebrow">Game Boost</div>
+          <h2 style="margin-top:16px">Detects your game. <span class="accent">Clears the track.</span></h2>
+          <p class="lead">When a game starts, other background apps drop in CPU priority. Nothing is suspended or closed, and everything returns to normal the moment you quit.</p>
+          <ul class="ticks">
+            <li>Streaming software stays untouched: OBS, Streamlabs, XSplit, NVIDIA Broadcast</li>
+            <li>Voice chat stays smooth: Discord, Teams, TeamSpeak</li>
+            <li>Every activation lands in the change log</li>
+          </ul>
+        </div>
+        <div class="term rv" role="img" aria-label="Game Boost log example">
+          <div class="term-bar"><i></i><i></i><i></i><span>GAME BOOST · LOG</span></div>
+<pre><span class="ln"><span class="h">[GAME BOOST]</span> Counter-Strike 2 detected (PID 41208)</span>
+<span class="ln">&gt; deprioritized 14 background process(es)</span>
+<span class="ln">&gt; game process priority: AboveNormal</span>
+<span class="ln"><span class="ok">✓</span> OBS64.exe untouched</span>
+<span class="ln"><span class="ok">✓</span> Discord.exe untouched</span>
+<span class="ln">&gt; waiting for exit… <span class="caret"></span></span></pre>
+        </div>
+      </div>
+      <div class="split">
+        <div class="term rv" role="img" aria-label="Autoexec example">
+          <div class="term-bar"><i></i><i></i><i></i><span>AUTOEXEC.CFG</span></div>
+<pre><span class="ln"><span class="h">// Managed by RESET FPS BOOSTER</span></span>
+<span class="ln">fps_max              0</span>
+<span class="ln">r_shadows            0</span>
+<span class="ln">mat_bloomscale       0</span>
+<span class="ln">stream_drop_unused   1</span>
+<span class="ln"><span class="ok">✓</span> previous autoexec.cfg backed up</span></pre>
+        </div>
+        <div class="rv">
+          <div class="eyebrow">Game profiles</div>
+          <h2 style="margin-top:16px">Every Steam and Epic install. <span class="accent">No fixed list.</span></h2>
+          <p class="lead">Games are found from your real library metadata. Apex Legends and Counter-Strike 2 get a curated autoexec.cfg in one click, with your old file backed up.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HONEST ================= -->
+  <section>
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Honest by design</div>
+        <h2>Most boosters sell a number. <span class="accent">We show the work.</span></h2>
+      </div>
+      <div class="vs rv">
+        <div class="vs-row th"><div></div><div>Typical "FPS booster"</div><div>RESET FPS BOOSTER</div></div>
+        <div class="vs-row"><div>FPS gains</div><div data-l="Typical"><span class="x">✕</span>Promises "+200% FPS" before it has seen your PC</div><div data-l="RESET"><span class="ck">✓</span>Never shows a number it didn't measure</div></div>
+        <div class="vs-row"><div>What changes</div><div data-l="Typical"><span class="x">✕</span>One button, hidden tweak list</div><div data-l="RESET"><span class="ck">✓</span>Every key, value and API call listed before you apply</div></div>
+        <div class="vs-row"><div>Undo</div><div data-l="Typical"><span class="x">✕</span>Hope, or reinstall Windows</div><div data-l="RESET"><span class="ck">✓</span>Backup per change, plus a Windows restore point</div></div>
+        <div class="vs-row"><div>Diagnosis</div><div data-l="Typical"><span class="x">✕</span>The same tweaks for every PC</div><div data-l="RESET"><span class="ck">✓</span>Bottleneck Engine names what limits your game</div></div>
+        <div class="vs-row"><div>Frame generation</div><div data-l="Typical"><span class="x">✕</span>Counts repeated frames as FPS</div><div data-l="RESET"><span class="ck">✓</span>Only new frames count, nothing injected</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= UNDO ================= -->
+  <section id="undo">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Trust</div>
+        <h2>You can undo <span class="accent">anything</span></h2>
+        <p>Every setting the app changes can be reverted. The one thing that can't, deleting temp files, tells you so and shows the size before it runs.</p>
+      </div>
+      <div class="grid grid-4">
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></div><h3>Backup per change</h3><p>Every registry value, driver setting and file is snapshotted first. Restore one change or a whole session.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><h3>Plain-language log</h3><p>"Power Management: Adaptive → Prefer Maximum Performance." The actual old and new value, not a code.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg></div><h3>Windows restore points</h3><p>On top of its own snapshots, the app creates a real System Restore point in one click.</p></article>
+        <article class="card rv"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Admin-aware</h3><p>Modules that need elevation say so upfront, and the app offers to restart elevated instead of failing silently.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PREMIUM ================= -->
+  <section id="premium">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Premium</div>
+        <h2>The optimizer is free. <span class="accent">FrameBoost is Premium.</span></h2>
+        <p>Premium unlocks RESET FrameBoost on your RESET account. Signed in on this site or in the app, a purchase lands straight on your account. Without signing in you get a code right after paying, which you redeem in the app. Payment runs through Stripe.</p>
+      </div>
+      <p class="acct dyn" id="acctBar"></p>
+      <div class="plans">
+        <article class="card plan rv">
+          <span class="tag"><span>Free</span></span>
+          <div class="price">0 €</div>
+          <ul>
+            <li>All optimization modules</li>
+            <li>Bottleneck Engine</li>
+            <li>Game Boost and game profiles</li>
+            <li>Backups, restore points, change log</li>
+            <li>Performance monitor</li>
+          </ul>
+          <a class="btn btn-secondary" href="#download"><span>Download</span></a>
+        </article>
+        <article class="card plan featured rv">
+          <span class="tag red"><span>Lifetime</span></span>
+          <div class="price">19,99 € <small>once</small></div>
+          <ul>
+            <li>Everything in Free</li>
+            <li>RESET FrameBoost, for good</li>
+            <li>Smooth Motion: the “240 FPS” look</li>
+            <li>Custom crosshair</li>
+            <li>Future FrameBoost updates</li>
+          </ul>
+          <a class="btn btn-primary" data-plan="lifetime" href="https://buy.stripe.com/6oUdR95W872P2nHena8og01"><span>Buy now</span></a>
+        </article>
+        <article class="card plan rv">
+          <span class="tag"><span>Monthly</span></span>
+          <div class="price">2,99 € <small>/ month</small></div>
+          <ul>
+            <li>Everything in Free</li>
+            <li>RESET FrameBoost</li>
+            <li>Smooth Motion and custom crosshair</li>
+            <li>Cancel anytime</li>
+          </ul>
+          <a class="btn btn-secondary" data-plan="monthly" href="https://buy.stripe.com/aFa7sL3O0cn96DX4MA8og00"><span>Subscribe</span></a>
+        </article>
+      </div>
+      <p class="plans-note">Buying needs a free RESET account: sign in or create one, and Premium is switched on for that account by itself, in the app and on every PC you sign in on. No code to keep. The monthly plan can be cancelled anytime, details in the <a href="agb.html">terms</a>. Questions? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section id="faq">
+    <div class="wrap faq-grid">
+      <div class="head faq-head rv">
+        <div class="eyebrow">FAQ</div>
+        <h2>Straight <span class="accent">answers</span></h2>
+        <p>Something missing? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
+      </div>
+      <div class="faq rv">
+        <details>
+          <summary>How many FPS will I gain?</summary>
+          <div class="ans"><p>We don't know, and neither does anyone who promises a number before seeing your PC. The modules remove real overhead like background recording, power saving and network throttling. How much that is worth depends on what limits your game, and the Bottleneck Engine tells you exactly that.</p></div>
+        </details>
+        <details>
+          <summary>Is it safe? Can I go back?</summary>
+          <div class="ans"><p>Every module shows its risk level before you apply it, and the previous value is backed up first. You can restore a single change or a whole session, and create a Windows restore point on top. Temp file cleanup is the only action that can't be undone, and it says so.</p></div>
+        </details>
+        <details>
+          <summary>Can it get me banned by anti-cheat?</summary>
+          <div class="ans"><p>The optimizer changes Windows and driver settings, not games. FrameBoost doesn't inject a DLL, hook the game or read its memory; it reads the game window the way screen capture does. We can't speak for every anti-cheat, so if you're unsure, check your game's rules.</p></div>
+        </details>
+        <details>
+          <summary>Does it work with AMD or Intel graphics?</summary>
+          <div class="ans"><p>Yes. All Windows modules work on any GPU. The NVIDIA Max Performance module and the GPU temperature readout are NVIDIA-only, and the app hides what doesn't apply to your hardware.</p></div>
+        </details>
+        <details>
+          <summary>Why does it sometimes need admin rights?</summary>
+          <div class="ans"><p>Five modules write system-wide settings that Windows only lets administrators change. They are marked upfront, and the app offers to restart elevated instead of failing silently. Everything else runs without admin.</p></div>
+        </details>
+        <details>
+          <summary>How do I set up a game for FrameBoost?</summary>
+          <div class="ans"><p>Set the game to borderless window, because exclusive fullscreen doesn't always work. Cap it at half your monitor's refresh rate and leave the GPU some room. The app shows the exact cap for the monitor you pick.</p></div>
+        </details>
+        <details>
+          <summary>Does the app collect data?</summary>
+          <div class="ans"><p>No telemetry. An account is only needed for Premium and stores your e-mail address. The update check asks GitHub whether a newer release exists.</p></div>
+        </details>
+        <details>
+          <summary>Which languages does the app speak?</summary>
+          <div class="ans"><p>English, German and Russian. You can switch live in the settings, without a restart.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DOWNLOAD ================= -->
+  <section id="download">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow">Download</div>
         <h2>Get <span class="accent">RESET FPS BOOSTER</span></h2>
-        <p class="lead">Self-contained installer, no extra runtimes. The app updates itself.</p>
+        <p>Self-contained installer, no extra runtimes. The app updates itself.</p>
       </div>
       <div class="dl-grid">
-        <article class="card dl-card rv dl-main">
+        <article class="card dl-card rv" style="border-left:3px solid var(--accent)">
           <span class="tag red"><span>Latest</span></span>
-          <div class="ver dyn" id="dlVer">v1.4.2-beta</div>
+          <div class="ver dyn" id="dlVer">v1.3.3</div>
           <div class="meta"><span class="dyn" id="dlMeta"></span>Windows 10/11 x64 · Bottleneck Engine, RESET FrameBoost, accounts, English, German and Russian</div>
           <div class="ctas">
-            <a class="btn btn-primary btn-xl" id="dlBtn" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest"><span>Download for Windows</span></a>
+            <a class="btn btn-primary" id="dlBtn" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest"><span>Download for Windows</span></a>
           </div>
         </article>
         <article class="card dl-card rv">
           <span class="tag"><span>Recent releases</span></span>
           <ul class="rel dyn" id="rel">
-            <li><b>v1.4.2-beta</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Beta with a crash fix for PCs without NVIDIA driver</a><time>2026-10-06</time></li>
+            <li><b>v1.3.3</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Full translation and the Discord link</a><time>2026-09-28</time></li>
+            <li><b>v1.3.2</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">The app knows its own version</a><time>2026-09-28</time></li>
+            <li><b>v1.3.1</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Window picker and update pop-up</a><time>2026-09-28</time></li>
+            <li><b>v1.3.0</b><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Stable release with the racing redesign</a><time>2026-09-24</time></li>
           </ul>
           <p style="margin-top:16px"><a class="btn btn-secondary btn-small" href="https://github.com/RESET-Y/reset-fps-booster/releases"><span>All releases</span></a></p>
         </article>
@@ -927,43 +952,10 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
         <div><span class="lbl">Runtime</span><b>Included</b></div>
         <div><span class="lbl">Updates</span><b>Automatic</b></div>
       </div>
-
-      <div id="faq" class="faq-wrap">
-        <div class="sec-head rv">
-          <div class="eyebrow">FAQ</div>
-          <h2>Straight <span class="accent">answers</span></h2>
-          <p>Something missing? Ask in the <a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">RESET Discord</a>.</p>
-        </div>
-        <div class="faq rv">
-          <details>
-            <summary>How many FPS will I gain?</summary>
-            <div class="ans"><p>We don't know, and neither does anyone who promises a number before seeing your PC. The modules remove real overhead like background recording, power saving and network throttling. How much that is worth depends on your hardware and game.</p></div>
-          </details>
-          <details>
-            <summary>Is it safe? Can I go back?</summary>
-            <div class="ans"><p>Every module shows its risk level before you apply it, and the previous value is backed up first. You can restore a single change or a whole session, and create a Windows restore point on top. Temp file cleanup can't be undone, and the app shows the size before it runs.</p></div>
-          </details>
-          <details>
-            <summary>Can it get me banned by anti-cheat?</summary>
-            <div class="ans"><p>The optimizer changes Windows and driver settings, not games. FrameBoost doesn't inject a DLL, hook the game or read its memory; it reads the game window the way screen capture does. We can't speak for every anti-cheat vendor, so check their rules if you're unsure.</p></div>
-          </details>
-          <details>
-            <summary>Does it work with AMD or Intel graphics?</summary>
-            <div class="ans"><p>Yes. All Windows modules work on any GPU. The NVIDIA Max Performance module and the GPU temperature readout are NVIDIA-only, and the app hides what doesn't apply to your hardware.</p></div>
-          </details>
-          <details>
-            <summary>Why does it sometimes need admin rights?</summary>
-            <div class="ans"><p>Five modules write system-wide settings that Windows only lets administrators change. They are marked upfront, and the app offers to restart elevated instead of failing silently. Everything else runs without admin rights.</p></div>
-          </details>
-          <details>
-            <summary>Does the app collect data?</summary>
-            <div class="ans"><p>No telemetry. An account is only needed for Premium and stores your e-mail address. The update check asks GitHub whether a newer release exists.</p></div>
-          </details>
-        </div>
-      </div>
     </div>
   </section>
 
+  <!-- ================= DISCORD ================= -->
   <section class="band">
     <div class="band-in">
       <div class="wrap">
@@ -984,8 +976,8 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
         <img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="130" height="30" loading="lazy">
         <p style="margin:0;max-width:34ch">Real optimization you can see and undo. Made by Lukas Reschke.</p>
       </div>
-      <div><h4>Product</h4><nav aria-label="Product"><a href="#modules">Modules</a><a href="#proof">Proof</a><a href="#frameboost">FrameBoost</a><a href="#premium">Premium</a></nav></div>
-      <div><h4>Project</h4><nav aria-label="Project"><a href="https://github.com/RESET-Y/reset-fps-booster">Source</a><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a><a href="https://github.com/RESET-Y/reset-fps-booster/issues">Bug reports</a></nav></div>
+      <div><h4>Product</h4><nav aria-label="Product"><a href="#modules">Modules</a><a href="#bottleneck">Bottleneck</a><a href="#frameboost">FrameBoost</a><a href="#premium">Premium</a></nav></div>
+      <div><h4>Project</h4><nav aria-label="Project"><a href="https://github.com/RESET-Y/reset-fps-booster">Source</a><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a><a href="https://github.com/RESET-Y/reset-fps-booster/issues">Report a problem</a></nav></div>
       <div><h4>Community</h4><nav aria-label="Community"><a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a><a href="#faq">FAQ</a><a href="mailto:lukas.reschke80@gmail.com">E-mail</a></nav></div>
       <div><h4>Legal</h4><nav aria-label="Legal"><a href="impressum.html">Legal notice</a><a href="datenschutz.html">Privacy</a><a href="agb.html">Terms</a></nav></div>
     </div>
@@ -1004,46 +996,6 @@ const L = o => (typeof o === "string" ? o : (o[LANG] || o.en));
 
 // ---------- language: English in the markup, German swapped in text node by text node ----------
 const DE = {
- "02 · Setup": "02 · Einrichtung",
- "03 · Proof": "03 · Beweis",
- "04 · RESET FrameBoost · Beta": "04 · RESET FrameBoost · Beta",
- "05 · Download": "05 · Download",
- "A picture shown twice is one frame. Output FPS counts only new frames.": "Ein doppelt gezeigtes Bild ist ein Frame. Ausgabe-FPS zählen nur neue Frames.",
- "Bug reports": "Bug-Reports",
- "Buying needs a free RESET account. Premium switches on for that account by itself, in the app and on every PC you sign in on.": "Zum Kaufen brauchst du einen kostenlosen RESET-Account. Premium wird für diesen Account automatisch freigeschaltet, in der App und auf jedem PC, auf dem du dich anmeldest.",
- "CPU, GPU, VRAM, RAM, disk and processes.": "CPU, GPU, VRAM, RAM, Festplatte und Prozesse.",
- "Cancel the monthly plan anytime. A code from a streamer is filled in at checkout.": "Das Monatsabo kannst du jederzeit kündigen. Ein Code von einem Streamer wird beim Bezahlen eingetragen.",
- "Discord": "Discord",
- "Download": "Download",
- "Each one votes for a cause. No single signal decides alone.": "Jeder stimmt für eine Ursache. Kein einzelnes Signal entscheidet allein.",
- "Every module shows its risk level before you apply it, and the previous value is backed up first. You can restore a single change or a whole session, and create a Windows restore point on top. Temp file cleanup can't be undone, and the app shows the size before it runs.": "Jedes Modul zeigt sein Risiko, bevor du es anwendest, und der vorherige Wert wird vorher gesichert. Du kannst eine einzelne Änderung oder eine ganze Sitzung zurücknehmen und zusätzlich einen Windows-Wiederherstellungspunkt anlegen. Das Aufräumen von Temp-Dateien lässt sich nicht rückgängig machen, und die App zeigt die Größe, bevor es losgeht.",
- "FAQ": "FAQ",
- "Five modules write system-wide settings that Windows only lets administrators change. They are marked upfront, and the app offers to restart elevated instead of failing silently. Everything else runs without admin rights.": "Fünf Module schreiben systemweite Einstellungen, die Windows nur Administratoren ändern lässt. Sie sind vorab markiert, und die App bietet an, mit erhöhten Rechten neu zu starten, statt stillschweigend zu scheitern. Alles andere läuft ohne Admin-Rechte.",
- "FrameBoost": "FrameBoost",
- "FrameBoost captures your game window, generates a frame between two real ones, and runs next to the game, never inside it.": "FrameBoost erfasst dein Spielfenster, erzeugt ein Bild zwischen zwei echten und läuft neben dem Spiel, nie darin.",
- "Game Boost": "Game Boost",
- "Heat or the power limit can explain a GPU reading, so the cause leads.": "Hitze oder das Leistungslimit können einen GPU-Wert erklären, deshalb steht die Ursache vorn.",
- "If the GPU is already full, FrameBoost passes the game through and starts again when there is room.": "Ist die GPU schon voll, reicht FrameBoost das Spiel unverändert durch und startet wieder, sobald Platz ist.",
- "Lifetime": "Lebenslang",
- "No DLL, no hooks, no game memory or files. It reads the window the way screen capture does.": "Keine DLL, keine Hooks, kein Spielspeicher und keine Dateien. Es liest das Fenster so, wie es eine Bildschirmaufnahme tut.",
- "Not a list of tweaks, but one explained diagnosis. The engine samples real telemetry every two seconds and names what holds the game back.": "Keine Liste von Tweaks, sondern eine erklärte Diagnose. Die Engine misst alle zwei Sekunden echte Telemetrie und nennt, was das Spiel bremst.",
- "Pick modules and check the change preview. Nothing is written until you approve it in the app.": "Wähle Module und prüfe die Vorschau. Nichts wird geschrieben, bevor du es in der App freigibst.",
- "Premium": "Premium",
- "Proof": "Beweis",
- "RESET FPS BOOSTER reads your real hardware, applies documented Windows and NVIDIA settings through their real APIs, and shows what changed. Every value before and after. Every change can be undone.": "RESET FPS BOOSTER liest deine echte Hardware aus, setzt dokumentierte Windows- und NVIDIA-Einstellungen über ihre echten Schnittstellen und zeigt, was sich geändert hat. Jeder Wert vorher und nachher. Jede Änderung lässt sich rückgängig machen.",
- "Reads your real hardware and the state of every module.": "Liest deine echte Hardware und den Zustand jedes Moduls.",
- "See the modules": "Module ansehen",
- "Shows the exact setting, its risk, and whether it needs admin or a restart.": "Zeigt die genaue Einstellung, ihr Risiko und ob Admin-Rechte oder ein Neustart nötig sind.",
- "The optimizer changes Windows and driver settings, not games. FrameBoost doesn't inject a DLL, hook the game or read its memory; it reads the game window the way screen capture does. We can't speak for every anti-cheat vendor, so check their rules if you're unsure.": "Der Optimierer ändert Windows- und Treibereinstellungen, nicht die Spiele. FrameBoost injiziert keine DLL, hookt das Spiel nicht und liest seinen Speicher nicht; es liest das Spielfenster so, wie es eine Bildschirmaufnahme tut. Für jeden Anti-Cheat-Anbieter können wir nicht sprechen. Bei Unsicherheit schau in deren Regeln.",
- "The previous value is stored first, so every change can be reverted on its own.": "Der vorherige Wert wird zuerst gespeichert, sodass sich jede Änderung einzeln zurücknehmen lässt.",
- "We don't know, and neither does anyone who promises a number before seeing your PC. The modules remove real overhead like background recording, power saving and network throttling. How much that is worth depends on your hardware and game.": "Wir wissen es nicht, und wer eine Zahl verspricht, bevor er deinen PC gesehen hat, weiß es auch nicht. Die Module entfernen echten Ballast wie Hintergrundaufnahme, Energiesparen und Netzwerkdrosselung. Wie viel das bringt, hängt von deiner Hardware und deinem Spiel ab.",
- "Windows 10 / 11": "Windows 10 / 11",
- "x64": "x64",
- "© 2026 RESET": "© 2026 RESET",
- "drops background apps in CPU priority while a game runs. Streaming and voice apps stay untouched, and everything returns when you quit.": "senkt bei laufendem Spiel die CPU-Priorität von Hintergrund-Apps. Streaming- und Voice-Apps bleiben unberührt, und alles kehrt zurück, sobald du beendest.",
- "Reads your real hardware": "Liest deine echte Hardware",
- "RESET FrameBoost": "RESET FrameBoost",
- "RESET FPS BOOSTER": "RESET FPS BOOSTER",
  "Skip to content": "Zum Inhalt springen",
  "Modules": "Module",
  "Bottleneck": "Engpass",
@@ -1538,6 +1490,23 @@ document.getElementById("fbToggle").addEventListener("click", e => {
   const b = e.target.closest("[data-fb]"); if (!b) return;
   fbOn = b.dataset.fb === "on"; renderFilm();
 });
+const capTxt = {
+  en: (a, b) => `Cap the game at ${a} FPS. FrameBoost doubles it to ${b}, which your ${hz} Hz monitor can show.`,
+  de: (a, b) => `Begrenze das Spiel auf ${a} FPS. FrameBoost verdoppelt das auf ${b}, und das kann dein ${hz}-Hz-Monitor anzeigen.`
+};
+function renderCap() {
+  const pick = document.getElementById("hzPick");
+  pick.innerHTML = HZ.map(h => `<button type="button" class="chip" data-hz="${h}" aria-pressed="${h === hz}"><span>${h} Hz</span></button>`).join("");
+  const a = Math.floor(hz / 2), b = a * 2;
+  document.getElementById("capIn").textContent = a;
+  document.getElementById("capOut").textContent = b;
+  document.getElementById("capTxt").textContent = capTxt[LANG](a, b);
+}
+document.getElementById("hzPick").addEventListener("click", e => {
+  const b = e.target.closest("[data-hz]"); if (!b) return;
+  hz = +b.dataset.hz; renderCap();
+});
+
 // ================= RELEASES (live from GitHub, static fallback in the markup) =================
 let releases = null;
 const RELNOTES = {
@@ -1645,7 +1614,7 @@ function renderAll() {
   renderAcct();
   renderFilters(); renderMods(); renderLog();
   renderBnTabs(); renderBn(false);
-  renderFilm();
+  renderFilm(); renderCap();
   renderReleases();
   if (typeof renderLive === "function" && document.getElementById("liveStrip").dataset.shown) renderLive();
   document.querySelectorAll(".burger").forEach(b => b.setAttribute("aria-label", LANG === "de" ? "Menü" : "Menu"));
