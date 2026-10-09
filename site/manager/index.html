@@ -5,206 +5,310 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#050505">
-<title>RFB Manager</title>
+<title>RESET Manager</title>
 <link rel="icon" href="../assets/favicon.ico">
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <style>
-/* Manager on the phone. Same world as the site; built thumb-first. */
+/* Manager. Same world as the site: three areas, forms in dialogs, partner
+   details in a side panel. Works on a phone and on a desktop. */
 :root {
-  --bg: #050505; --surface: #0c0c0c; --surface-2: #141414; --hover: #1c1c1c; --border: #262626;
-  --text: #fff; --text-2: #a8a8a8; --text-3: #6a6a6a;
+  --bg: #050505; --surface: #0c0c0c; --surface-2: #141414; --hover: #171717; --border: #242424; --border-2: #3a3a3a;
+  --text: #fff; --text-2: #b4b4b4; --text-3: #7a7a7a;
   --accent: #e8121f; --accent-bright: #ff3242; --success: #3dd68c; --warning: #f5a623;
   --display: "Saira Condensed", "Arial Narrow", sans-serif;
   --body: "Barlow", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", Consolas, monospace;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--body); padding-bottom: env(safe-area-inset-bottom); }
-.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
-main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 22px; }
-h1 { margin: 0; font: 900 italic 38px/1 var(--display); text-transform: uppercase; }
-h1 .accent { color: var(--accent); }
-h2 { margin: 0 0 14px; font: 900 italic 22px/1 var(--display); text-transform: uppercase; }
-.who { font: 400 11px var(--mono); color: var(--text-3); word-break: break-all; }
-.card { background: var(--surface); border: 1px solid var(--border); padding: 18px; margin-bottom: 16px; }
-.card.accent { border-left: 3px solid var(--accent); }
-label { display: block; font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 6px; }
-input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font: 500 17px var(--body); padding: 13px 14px; border-radius: 0; }
-input:focus { outline: none; border-color: var(--accent); }
-.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.seg button, .stepper button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 900 italic 17px var(--display); padding: 12px 0; transform: skewX(-12deg); cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 6px; align-items: center; }
-.stepper output { text-align: center; font: 900 italic 30px var(--display); }
-.btn { display: block; width: 100%; margin-top: 18px; padding: 16px; border: 0; transform: skewX(-12deg); cursor: pointer;
-       font: 900 italic 19px var(--display); letter-spacing: .05em; text-transform: uppercase; background: var(--accent); color: #fff; }
-.btn:active { background: var(--accent-bright); }
-.btn[disabled] { opacity: .5; }
-.btn.ghost { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font-size: 14px; padding: 10px 16px; width: auto; margin: 0; display: inline-block; }
-.msg { margin-top: 12px; font-size: 14px; color: var(--warning); min-height: 1.2em; }
-.created { display: none; margin-top: 18px; padding: 16px; background: #000; border: 1px dashed var(--accent); text-align: center; }
-.created.show { display: block; animation: pop .35s cubic-bezier(.2,.8,.2,1); }
-@keyframes pop { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
-.created .code { font: 500 22px var(--mono); color: var(--accent-bright); letter-spacing: .04em; word-break: break-all; }
-.created .hint { font: 400 12px var(--mono); color: var(--success); margin-top: 6px; }
-.row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 14px 0; border-top: 1px solid var(--border); }
-.row:first-of-type { border-top: 0; }
-.row .code { font: 500 15px var(--mono); }
-.row .meta { font: 400 12px var(--mono); color: var(--text-3); margin-top: 2px; }
-.row .note { font-size: 13px; color: var(--text-2); margin-top: 2px; }
-.row.off .code { color: var(--text-3); text-decoration: line-through; }
-.actions { display: flex; gap: 6px; }
-.icon { width: 44px; height: 44px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); transform: skewX(-12deg); cursor: pointer; font: 900 italic 13px var(--display); }
-.icon.on { color: var(--success); }
-.empty { color: var(--text-3); font-size: 14px; }
-.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 250%) skewX(-12deg); opacity: 0; background: var(--success); color: #041; font: 900 italic 16px var(--display); text-transform: uppercase; padding: 10px 20px; transition: transform .25s, opacity .25s; }
-.toast.show { transform: translate(-50%, 0) skewX(-12deg); opacity: 1; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.seg.two-way { grid-template-columns: 1fr 1fr; }
-.seg.two-way button { font-size: 14px; padding: 11px 4px; }
-.hint { font-size: 13px; color: var(--text-3); margin-top: 6px; }
-.aff { padding: 14px 0; border-top: 1px solid var(--border); }
-.aff:first-of-type { border-top: 0; }
-.aff.off .code { color: var(--text-3); text-decoration: line-through; }
-.aff .top { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
-.aff .code { font: 500 16px var(--mono); }
-.aff .name { font-size: 14px; color: var(--text-2); }
-.aff .meta { font: 400 12px var(--mono); color: var(--text-3); margin-top: 4px; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-.stats div { background: var(--surface-2); padding: 8px; }
-.stats b { display: block; font: 900 italic 19px var(--display); }
-.stats b.due { color: var(--success); }
-.stats span { font: 400 10px var(--mono); color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; }
-.detail { margin-top: 12px; padding: 12px; background: #000; border: 1px solid var(--border); }
-.detail h3 { margin: 16px 0 8px; font: 900 italic 16px var(--display); text-transform: uppercase; }
-.detail h3:first-child { margin-top: 0; }
-.line { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
-.line:first-of-type { border-top: 0; }
-.line small { display: block; font: 400 11px var(--mono); color: var(--text-3); }
-.line.rev { color: var(--text-3); text-decoration: line-through; }
-.mini { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 900 italic 12px var(--display); padding: 7px 10px; transform: skewX(-12deg); cursor: pointer; text-transform: uppercase; }
-.detail .btn { font-size: 15px; padding: 12px; margin-top: 12px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 var(--body); min-height: 100vh; }
 [hidden] { display: none !important; }
+.stripe { height: 6px; background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, #000 5px 10px); }
+
+/* top bar */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); background: #000; flex-wrap: wrap; }
+.brand { font: 900 italic 24px/1 var(--display); text-transform: uppercase; letter-spacing: .02em; }
+.brand span { color: var(--accent); }
+.who { font: 400 12px var(--mono); color: var(--text-3); word-break: break-all; }
+.link { background: none; border: 0; color: var(--text-2); font: 500 14px var(--body); text-decoration: underline; cursor: pointer; padding: 6px 0; }
+
+/* areas */
+.tabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; color: var(--text-3); font: 900 italic 18px/1 var(--display); text-transform: uppercase; letter-spacing: .02em; padding: 16px 14px 13px; cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: #fff; border-bottom-color: var(--accent); }
+.tabs button:hover { color: var(--text-2); }
+.count { display: inline-block; margin-left: 8px; padding: 2px 7px; background: var(--accent); color: #fff; font: 500 12px var(--mono); letter-spacing: 0; vertical-align: middle; }
+main { max-width: 1180px; margin: 0 auto; padding: 22px 18px 64px; }
+.viewhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+h2 { margin: 0; font: 900 italic 28px/1 var(--display); text-transform: uppercase; }
+h3 { margin: 0 0 12px; font: 900 italic 17px/1 var(--display); text-transform: uppercase; }
+.actions-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.hint { font-size: 13px; color: var(--text-3); margin: 8px 0 0; }
+.empty { color: var(--text-3); font-size: 15px; padding: 26px 0; }
+
+/* filter chips */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chips button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 600 14px var(--body); padding: 7px 13px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card.off { opacity: .55; }
+.card.clickable { cursor: pointer; transition: border-color .15s, background .15s; }
+.card.clickable:hover, .card.clickable:focus-visible { border-color: var(--border-2); background: var(--hover); outline: none; }
+.card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.code { font: 500 19px/1.2 var(--mono); letter-spacing: .03em; word-break: break-all; }
+.name { font-size: 14px; color: var(--text-2); }
+.when { font: 400 12px var(--mono); color: var(--text-3); margin-top: 2px; }
+.terms { font: 400 12px/1.6 var(--mono); color: var(--text-3); }
+.login { font-size: 14px; color: var(--text-2); word-break: break-all; }
+.login.none { color: var(--text-3); font-style: italic; }
+.pill { flex: none; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 4px 8px; border: 1px solid var(--border-2); color: var(--text-3); white-space: nowrap; }
+.pill.ok, .pill.accepted { color: var(--success); border-color: var(--success); }
+.pill.new { color: var(--accent-bright); border-color: var(--accent); }
+.pill.rejected { color: var(--text-3); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.stats div { background: #080808; padding: 10px 10px 9px; min-width: 0; }
+.stats b { display: block; font: 800 italic 20px/1.1 var(--display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stats b.due { color: var(--success); }
+.stats span { display: block; margin-top: 3px; font: 400 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+
+.kv { display: grid; grid-template-columns: 96px 1fr; gap: 10px; font-size: 14px; align-items: baseline; }
+.kv > span { font: 400 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.kv a { color: #fff; word-break: break-all; }
+.msgtext { margin: 0; padding: 10px 12px; background: #000; border: 1px solid var(--border); font-size: 14px; color: var(--text-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+
+/* buttons, seg, inputs */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 18px; border: 0; background: var(--accent); color: #fff; font: 900 italic 16px/1 var(--display); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; transform: skewX(-10deg); }
+.btn > * { transform: skewX(10deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn[disabled] { opacity: .5; cursor: default; }
+.btn.sm { padding: 9px 13px; font-size: 14px; }
+.btn.ghost { background: var(--surface-2); border: 1px solid var(--border-2); color: var(--text-2); }
+.btn.ghost:hover { background: var(--hover); color: #fff; background-color: var(--hover); }
+.btn.block { width: 100%; margin-top: 14px; }
+.btn.good { background: var(--success); color: #03210f; }
+.btn.good:hover { background: #5be6a6; }
+.btn.warn { background: transparent; border: 1px solid var(--border-2); color: var(--text-2); }
+.iconbtn { background: none; border: 1px solid transparent; color: var(--text-3); font: 500 13px var(--mono); padding: 6px 4px; cursor: pointer; }
+.iconbtn:hover { color: #fff; }
+
+form label, .label { display: block; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 6px; }
+input[type="text"], input[type="email"], input[type="number"], input[type="password"], textarea {
+  width: 100%; background: #000; border: 1px solid var(--border-2); color: var(--text); font: 500 16px var(--body); padding: 11px 13px; border-radius: 0; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.seg.two-way { grid-template-columns: 1fr 1fr; }
+.seg button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); font: 900 italic 15px/1 var(--display); text-transform: uppercase; padding: 11px 4px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.stepper { display: grid; grid-template-columns: 52px 1fr 52px; gap: 6px; align-items: center; }
+.stepper button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font: 900 italic 22px/1 var(--display); padding: 11px 0; cursor: pointer; }
+.stepper output { text-align: center; font: 900 italic 28px/1 var(--display); }
+
+/* dialogs */
+dialog { background: var(--surface); color: var(--text); border: 1px solid var(--border-2); padding: 22px; width: min(560px, calc(100vw - 24px)); max-height: 90vh; overflow: auto; }
+dialog::backdrop { background: rgba(0, 0, 0, .72); }
+dialog .dhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.msg { min-height: 1.3em; margin-top: 12px; font-size: 14px; color: var(--warning); }
+.created { margin-top: 16px; padding: 16px; background: #000; border: 1px dashed var(--accent); text-align: center; }
+.created .code { color: var(--accent-bright); font-size: 22px; }
+.created .ok { font: 400 12px var(--mono); color: var(--success); margin-top: 6px; }
+.created .acts { justify-content: center; margin-top: 12px; }
+
+/* side panel for a partner */
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); z-index: 29; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(580px, 100vw); background: var(--surface); border-left: 1px solid var(--border-2); z-index: 30; overflow-y: auto; padding: 20px 20px 48px; }
+.drawer .dtitle { font: 500 24px/1.1 var(--mono); letter-spacing: .03em; word-break: break-all; }
+.drawer .dsub { font-size: 14px; color: var(--text-2); margin-top: 4px; }
+.block { border-top: 1px solid var(--border); padding: 18px 0; }
+.block:first-of-type { border-top: 0; }
+.line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 14px; }
+.line:first-of-type { border-top: 0; }
+.line small { display: block; font: 400 11px var(--mono); color: var(--text-3); margin-top: 2px; }
+.line.rev > div:first-child { color: var(--text-3); text-decoration: line-through; }
+.line .amt { font-variant-numeric: tabular-nums; }
+
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 200%); opacity: 0; background: var(--success); color: #03210f; font: 900 italic 16px var(--display); text-transform: uppercase; padding: 12px 20px; transition: transform .25s, opacity .25s; z-index: 50; pointer-events: none; }
+.toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+@media (max-width: 640px) {
+  .two { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: 1fr; }
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv > span { font-size: 10px; }
+}
 </style>
 </head>
 <body>
 <div class="stripe"></div>
-<main>
-  <header>
-    <h1>RFB <span class="accent">Manager</span></h1>
-    <button class="btn ghost" id="logout" hidden>Abmelden</button>
-  </header>
 
-  <!-- sign in: the same account as in the app -->
-  <section class="card accent" id="login">
-    <h2>Anmelden</h2>
+<header class="top">
+  <div class="brand">RESET <span>Manager</span></div>
+  <div class="who" id="who"></div>
+  <button class="link" id="logout" hidden>Abmelden</button>
+</header>
+
+<!-- sign in: the same account as in the app -->
+<main id="login" hidden style="max-width:420px">
+  <div class="card" style="margin-top:40px">
+    <h2 style="margin-bottom:6px">Anmelden</h2>
+    <p class="hint" style="margin:0 0 6px">Nur Manager-Konten können hier etwas ändern.</p>
     <form id="loginForm" autocomplete="on">
       <label for="email">E-Mail</label>
       <input id="email" type="email" autocomplete="username" required>
       <label for="password">Passwort</label>
       <input id="password" type="password" autocomplete="current-password" required>
-      <button class="btn" type="submit">Anmelden</button>
+      <button class="btn block" type="submit">Anmelden</button>
       <div class="msg" id="loginMsg"></div>
     </form>
-  </section>
-
-  <div id="app" hidden>
-    <div class="who" id="who"></div>
-
-    <section class="card accent" style="margin-top:14px">
-      <h2>Neuer Code</h2>
-      <label>Dauer</label>
-      <div class="seg" id="duration">
-        <button type="button" data-days="7">7 T</button>
-        <button type="button" data-days="30" aria-pressed="true">30 T</button>
-        <button type="button" data-days="90">90 T</button>
-        <button type="button" data-days="">∞</button>
-      </div>
-      <label>Einlösungen</label>
-      <div class="stepper">
-        <button type="button" id="minus" aria-label="Weniger">−</button>
-        <output id="uses">1</output>
-        <button type="button" id="plus" aria-label="Mehr">+</button>
-      </div>
-      <label for="note">Notiz (für wen?)</label>
-      <input id="note" type="text" placeholder="z. B. Max, Discord">
-      <button class="btn" id="create">Code erstellen</button>
-      <div class="msg" id="createMsg"></div>
-      <div class="created" id="created">
-        <div class="code" id="newCode"></div>
-        <div class="hint" id="copyHint">In die Zwischenablage kopiert</div>
-        <button class="btn" id="share" hidden>Teilen</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <h2 style="margin:0">Codes</h2>
-        <button class="btn ghost" id="refresh">Neu laden</button>
-      </div>
-      <div id="list"><div class="empty">Lädt…</div></div>
-    </section>
-
-    <section class="card accent">
-      <h2>Neuer Affiliate</h2>
-      <form id="affForm" novalidate>
-        <div class="two">
-          <div><label for="affName">Name</label><input id="affName" type="text" placeholder="z. B. Monte" required></div>
-          <div><label for="affCode">Code</label><input id="affCode" type="text" placeholder="MONTE10" maxlength="20" autocapitalize="characters" spellcheck="false" style="font-family:var(--mono);text-transform:uppercase" required></div>
-        </div>
-        <div class="hint">Code: 3–20 Buchstaben oder Ziffern. Den tippen Käufer beim Bezahlen ein.</div>
-        <div class="two">
-          <div><label for="affDiscount">Rabatt %</label><input id="affDiscount" type="number" min="1" max="100" step="1" value="10" inputmode="numeric"></div>
-          <div><label for="affCommission">Provision %</label><input id="affCommission" type="text" value="25" inputmode="decimal"></div>
-        </div>
-        <label>Rabatt beim Abo</label>
-        <div class="seg two-way" id="affDiscountMode">
-          <button type="button" data-v="once" aria-pressed="true">Nur 1. Monat</button>
-          <button type="button" data-v="forever">Jeden Monat</button>
-        </div>
-        <label>Provision beim Abo</label>
-        <div class="seg two-way" id="affCommissionMode">
-          <button type="button" data-v="first" aria-pressed="true">Nur 1. Monat</button>
-          <button type="button" data-v="recurring">Jeden Monat</button>
-        </div>
-        <label for="affContact">Kontakt (optional)</label>
-        <input id="affContact" type="text" placeholder="Twitch, Discord, E-Mail, PayPal …">
-        <div class="hint">Provision = Anteil vom bezahlten Betrag ohne MwSt. Der Rabatt ist danach fest, die Provision kannst du jederzeit ändern.</div>
-        <button class="btn" type="submit" id="affCreate">Affiliate anlegen</button>
-        <div class="msg" id="affMsg"></div>
-      </form>
-    </section>
-
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <h2 style="margin:0">Affiliates</h2>
-        <button class="btn ghost" id="affRefresh">Neu laden</button>
-      </div>
-      <div id="affList"><div class="empty">Lädt…</div></div>
-    </section>
-
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <h2 style="margin:0">Bewerbungen</h2>
-        <button class="btn ghost" id="appRefresh">Neu laden</button>
-      </div>
-      <div class="meta" style="margin-bottom:10px">Angenommen? Lege unter „Neuer Affiliate“ den Code an und verknüpfe danach den Partner-Login mit seiner E-Mail-Adresse. Der Partner muss den Partnervertrag im Partner-Bereich akzeptieren, bevor er seine Zahlen sieht.</div>
-      <div id="appList"><div class="empty">Lädt…</div></div>
-    </section>
   </div>
 </main>
-<div class="toast" id="toast">Kopiert</div>
+
+<div id="app" hidden>
+  <nav class="tabs" role="tablist" aria-label="Bereiche">
+    <button type="button" role="tab" data-view="apps" aria-selected="true">Bewerbungen<span class="count" id="appCount" hidden></span></button>
+    <button type="button" role="tab" data-view="partners" aria-selected="false">Partner</button>
+    <button type="button" role="tab" data-view="codes" aria-selected="false">Premium-Codes</button>
+  </nav>
+
+  <main>
+    <!-- Applications -->
+    <section id="v-apps">
+      <div class="viewhead">
+        <h2>Bewerbungen</h2>
+        <div class="actions-bar"><button class="btn ghost sm" id="appRefresh" type="button">Neu laden</button></div>
+      </div>
+      <div class="chips" id="appFilter" role="group" aria-label="Filter">
+        <button type="button" data-f="new" aria-pressed="true">Neu</button>
+        <button type="button" data-f="accepted" aria-pressed="false">Angenommen</button>
+        <button type="button" data-f="rejected" aria-pressed="false">Abgelehnt</button>
+        <button type="button" data-f="all" aria-pressed="false">Alle</button>
+      </div>
+      <div class="cards" id="appList"><div class="empty">Lädt…</div></div>
+      <p class="hint">Angenommen? Lege danach unter „Partner“ den Partner an und verknüpfe seinen RESET-Account. Der Partner sieht seine Zahlen erst, wenn er den Partnervertrag akzeptiert hat.</p>
+    </section>
+
+    <!-- Partners -->
+    <section id="v-partners" hidden>
+      <div class="viewhead">
+        <h2>Partner</h2>
+        <div class="actions-bar">
+          <button class="btn ghost sm" id="affRefresh" type="button">Neu laden</button>
+          <button class="btn sm" id="newPartner" type="button">+ Neuer Partner</button>
+        </div>
+      </div>
+      <div class="cards" id="affList"><div class="empty">Lädt…</div></div>
+    </section>
+
+    <!-- Premium codes -->
+    <section id="v-codes" hidden>
+      <div class="viewhead">
+        <h2>Premium-Codes</h2>
+        <div class="actions-bar">
+          <button class="btn ghost sm" id="refresh" type="button">Neu laden</button>
+          <button class="btn sm" id="newCode" type="button">+ Neuer Code</button>
+        </div>
+      </div>
+      <div class="cards" id="list"><div class="empty">Lädt…</div></div>
+    </section>
+  </main>
+</div>
+
+<!-- Dialog: new premium code -->
+<dialog id="dlgCode" aria-labelledby="dlgCodeTitle">
+  <div class="dhead"><h2 id="dlgCodeTitle">Neuer Code</h2><button class="iconbtn" type="button" data-close="dlgCode">Schließen</button></div>
+  <label>Dauer</label>
+  <div class="seg" id="duration">
+    <button type="button" data-days="7">7 T</button>
+    <button type="button" data-days="30" aria-pressed="true">30 T</button>
+    <button type="button" data-days="90">90 T</button>
+    <button type="button" data-days="">∞</button>
+  </div>
+  <label>Einlösungen</label>
+  <div class="stepper">
+    <button type="button" id="minus" aria-label="Weniger">−</button>
+    <output id="uses">1</output>
+    <button type="button" id="plus" aria-label="Mehr">+</button>
+  </div>
+  <label for="note">Notiz (für wen?)</label>
+  <input id="note" type="text" placeholder="z. B. Max, Discord">
+  <button class="btn block" id="create" type="button">Code erstellen</button>
+  <div class="msg" id="createMsg"></div>
+  <div class="created" id="created" hidden>
+    <div class="code" id="newCode2"></div>
+    <div class="ok" id="copyHint"></div>
+    <div class="acts"><button class="btn ghost sm" id="copyAgain" type="button">Kopieren</button><button class="btn ghost sm" id="share" type="button" hidden>Teilen</button></div>
+  </div>
+</dialog>
+
+<!-- Dialog: new partner -->
+<dialog id="dlgPartner" aria-labelledby="dlgPartnerTitle">
+  <div class="dhead"><h2 id="dlgPartnerTitle">Neuer Partner</h2><button class="iconbtn" type="button" data-close="dlgPartner">Schließen</button></div>
+  <form id="affForm" novalidate>
+    <div class="two">
+      <div><label for="affName">Name</label><input id="affName" type="text" placeholder="z. B. Monte" required></div>
+      <div><label for="affCode">Code</label><input id="affCode" type="text" placeholder="MONTE10" maxlength="20" autocapitalize="characters" spellcheck="false" style="font-family:var(--mono);text-transform:uppercase" required></div>
+    </div>
+    <div class="hint">Code: 3–20 Buchstaben oder Ziffern. Den tippen Käufer beim Bezahlen ein.</div>
+    <div class="two">
+      <div><label for="affDiscount">Rabatt %</label><input id="affDiscount" type="number" min="1" max="100" step="1" value="10" inputmode="numeric"></div>
+      <div><label for="affCommission">Provision %</label><input id="affCommission" type="text" value="25" inputmode="decimal"></div>
+    </div>
+    <label>Rabatt beim Abo</label>
+    <div class="seg two-way" id="affDiscountMode">
+      <button type="button" data-v="once" aria-pressed="true">Nur 1. Monat</button>
+      <button type="button" data-v="forever" aria-pressed="false">Jeden Monat</button>
+    </div>
+    <label>Provision beim Abo</label>
+    <div class="seg two-way" id="affCommissionMode">
+      <button type="button" data-v="first" aria-pressed="true">Nur 1. Monat</button>
+      <button type="button" data-v="recurring" aria-pressed="false">Jeden Monat</button>
+    </div>
+    <label for="affContact">Kontakt (optional)</label>
+    <input id="affContact" type="text" placeholder="Twitch, Discord, E-Mail, PayPal …">
+    <div class="hint">Provision = Anteil vom bezahlten Betrag ohne MwSt. Der Rabatt ist danach fest, die Provision kannst du jederzeit ändern.</div>
+    <button class="btn block" type="submit" id="affCreate">Partner anlegen</button>
+    <div class="msg" id="affMsg"></div>
+  </form>
+</dialog>
+
+<!-- Side panel: one partner -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-labelledby="dTitle">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+    <div style="min-width:0">
+      <div class="dtitle" id="dTitle"></div>
+      <div class="dsub" id="dSub"></div>
+    </div>
+    <button class="iconbtn" type="button" id="dClose">Schließen</button>
+  </div>
+  <div id="dBody" style="margin-top:14px"></div>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-// Same backend and same public key as the app. Every action below is a
-// database function that checks is_manager() for the signed-in user; this
-// page hides nothing that the server would otherwise allow.
+// Same backend and public key as the app. Every action is a database function
+// that checks is_manager() for the signed-in user; this page hides nothing the
+// server would otherwise allow.
 const SUPABASE = "https://sjwparnlbtuiyqmagyfg.supabase.co";
 const ANON = "sb_publishable_EP3WkfFmKLBznsC7kRncfA_bIrELJ8g";
 const KEY = "rfb-manager-session";
+const SITE = "https://reset-booster.online";
 
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const euro = c => (Number(c || 0) / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+const pct = n => Number(n).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
+const dt = (iso, o) => new Date(iso).toLocaleString("de-DE", o || { dateStyle: "short", timeStyle: "short" });
+// Only http(s) links become clickable: an applicant must not be able to put a
+// javascript: link into this page.
+const safeUrl = s => /^https?:\/\//i.test(s || "") ? esc(s) : "";
+
+// ---------- session ----------
 let session = null;
 try { session = JSON.parse(localStorage.getItem(KEY)); } catch {}
 function saveSession(s) { session = s; try { s ? localStorage.setItem(KEY, JSON.stringify(s)) : localStorage.removeItem(KEY); } catch {} }
@@ -233,102 +337,14 @@ async function rpc(fn, args = {}) {
   if (!r.ok) { const e = new Error(text); e.status = r.status; throw e; }
   return text ? JSON.parse(text) : null;
 }
-
-function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 1400); }
-async function copy(t) { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } }
-
-function showLogin(msg) { $("login").hidden = false; $("app").hidden = true; $("logout").hidden = true; $("loginMsg").textContent = msg || ""; }
-async function showApp() {
-  if (!(await rpc("is_manager").catch(() => false))) { saveSession(null); showLogin("Dieser Account ist kein Manager."); return; }
-  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
-  $("who").textContent = "ANGEMELDET: " + (session.email || "");
-  load();
-  loadAffiliates();
-  loadApplications();
-}
-
-$("loginForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  $("loginMsg").textContent = "";
-  try { saveSession(await auth("token?grant_type=password", { email: $("email").value.trim(), password: $("password").value })); $("password").value = ""; showApp(); }
-  catch (err) { $("loginMsg").textContent = err.message.includes("Invalid") ? "E-Mail oder Passwort falsch." : err.message; }
-});
-$("logout").addEventListener("click", () => { saveSession(null); showLogin(); });
-
-// ---- create ----
-let days = 30, uses = 1;
-$("duration").addEventListener("click", e => {
-  const b = e.target.closest("button"); if (!b) return;
-  [...$("duration").children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-  days = b.dataset.days ? +b.dataset.days : null;
-});
-$("minus").onclick = () => { uses = Math.max(1, uses - 1); $("uses").textContent = uses; };
-$("plus").onclick = () => { uses = Math.min(999, uses + 1); $("uses").textContent = uses; };
-if (navigator.share) $("share").hidden = false;
-
-$("create").addEventListener("click", async () => {
-  const btn = $("create"); btn.disabled = true; $("createMsg").textContent = "";
-  try {
-    const code = await rpc("create_premium_code", { p_duration_days: days, p_max_uses: uses, p_note: $("note").value.trim() || null });
-    $("newCode").textContent = code;
-    $("copyHint").textContent = (await copy(code)) ? "In die Zwischenablage kopiert" : "Zum Kopieren gedrückt halten";
-    const box = $("created"); box.classList.remove("show"); void box.offsetWidth; box.classList.add("show");
-    $("note").value = "";
-    load();
-  } catch (err) {
-    $("createMsg").textContent = err.status === 403 || /not allowed/.test(err.message) ? "Nicht erlaubt: kein Manager." : "Code konnte nicht erstellt werden.";
-  } finally { btn.disabled = false; }
-});
-$("share").addEventListener("click", () => {
-  const code = $("newCode").textContent;
-  navigator.share({ text: "Dein RESET FrameBoost Code: " + code + "\nEinlösen in der App unter Konto." }).catch(() => {});
-});
-
-// ---- list ----
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-async function load() {
-  const list = $("list");
-  try {
-    const codes = await rpc("list_premium_codes");
-    if (!codes.length) { list.innerHTML = '<div class="empty">Noch keine Codes.</div>'; return; }
-    list.innerHTML = codes.map(c => `
-      <div class="row ${c.active ? "" : "off"}">
-        <div>
-          <div class="code">${esc(c.code)}</div>
-          <div class="meta">${c.duration_days ? c.duration_days + " T" : "∞"} · ${c.uses}/${c.max_uses} eingelöst · ${new Date(c.created_at).toLocaleDateString("de-DE")}${c.active ? "" : " · AUS"}</div>
-          ${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}
-        </div>
-        <div class="actions">
-          <button class="icon" data-copy="${esc(c.code)}" aria-label="Kopieren">KOP</button>
-          <button class="icon ${c.active ? "on" : ""}" data-toggle="${esc(c.code)}" data-active="${c.active}" aria-label="${c.active ? "Deaktivieren" : "Aktivieren"}">${c.active ? "AN" : "AUS"}</button>
-        </div>
-      </div>`).join("");
-  } catch { list.innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
-}
-$("list").addEventListener("click", async e => {
-  const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.copy) { if (await copy(b.dataset.copy)) toast("Kopiert"); }
-  if (b.dataset.toggle) {
-    b.disabled = true;
-    try { await rpc("set_premium_code_active", { p_code: b.dataset.toggle, p_active: b.dataset.active !== "true" }); load(); }
-    catch { toast("Fehlgeschlagen"); b.disabled = false; }
-  }
-});
-$("refresh").addEventListener("click", load);
-
-// ================= affiliates =================
-// Creating one and switching it on/off also changes the promotion code in
-// Stripe, so those go through the affiliate-admin function (it holds the
-// Stripe key). Everything else is a plain manager-only database function.
-const SITE = "https://reset-booster.online";
+// Creating a partner and switching it on or off also changes the promotion code
+// in Stripe, so those go through the affiliate-admin function (it holds the key).
 async function adminFn(body) {
   let r;
   try {
     r = await fetch(SUPABASE + "/functions/v1/affiliate-admin", {
       method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
   } catch (e) {
-    // No readable answer at all: the function is missing, misnamed or
-    // crashing on start (Supabase then answers without CORS headers).
     if (e.message === "expired") throw e;
     throw new Error("unreachable");
   }
@@ -336,16 +352,164 @@ async function adminFn(body) {
   if (!r.ok) throw new Error(j.error || String(r.status));
   return j;
 }
-const euro = c => (Number(c || 0) / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
-const pct = n => Number(n).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %";
-function segValue(id) { return $(id).querySelector('[aria-pressed="true"]').dataset.v; }
-function segWire(id) {
-  $(id).addEventListener("click", e => {
-    const b = e.target.closest("button"); if (!b) return;
-    [...$(id).children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-  });
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1600); }
+async function copy(t) { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } }
+
+// ---------- sign in ----------
+function showLogin(msg) {
+  $("login").hidden = false; $("app").hidden = true; $("logout").hidden = true;
+  $("who").textContent = ""; $("loginMsg").textContent = msg || "";
 }
-segWire("affDiscountMode"); segWire("affCommissionMode");
+async function showApp() {
+  if (!(await rpc("is_manager").catch(() => false))) { saveSession(null); showLogin("Dieser Account ist kein Manager."); return; }
+  $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
+  $("who").textContent = session.email || "";
+  loadApps(); loadPartners(); loadCodes();
+}
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("loginMsg").textContent = "";
+  try { saveSession(await auth("token?grant_type=password", { email: $("email").value.trim(), password: $("password").value })); $("password").value = ""; showApp(); }
+  catch (err) { $("loginMsg").textContent = err.message.includes("Invalid") ? "E-Mail oder Passwort falsch." : err.message; }
+});
+$("logout").addEventListener("click", () => { saveSession(null); closeDrawer(); showLogin(); });
+
+// ---------- areas and shared controls ----------
+function setView(v) {
+  document.querySelectorAll(".tabs [data-view]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
+  ["apps", "partners", "codes"].forEach(n => { $("v-" + n).hidden = n !== v; });
+}
+document.querySelectorAll(".tabs [data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// Any segmented control (.seg) and filter chip group: exactly one button pressed.
+document.addEventListener("click", e => {
+  const b = e.target.closest(".seg > button, .chips > button");
+  if (!b) return;
+  [...b.parentElement.children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+});
+const segValue = id => $(id).querySelector('[aria-pressed="true"]').dataset.v;
+function resetSeg(id, first) {
+  [...$(id).children].forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === first)));
+}
+// Dialogs close with their "Schließen" button, and Escape works natively.
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => $(b.dataset.close).close()));
+
+// ---------- applications ----------
+const APP_STATUS = { new: "Neu", accepted: "Angenommen", rejected: "Abgelehnt" };
+let apps = [], appFilter = "new";
+function renderApps() {
+  const open = apps.filter(a => a.status === "new").length;
+  $("appCount").textContent = open;
+  $("appCount").hidden = !open;
+  const list = appFilter === "all" ? apps : apps.filter(a => a.status === appFilter);
+  $("appList").innerHTML = list.length ? list.map(a => {
+    const url = safeUrl(a.channel);
+    return `<article class="card">
+      <div class="card-top">
+        <div style="min-width:0"><div class="name" style="font-size:17px;color:#fff;font-weight:600">${esc(a.name)}</div><div class="when">${dt(a.created_at)}</div></div>
+        <span class="pill ${esc(a.status)}">${APP_STATUS[a.status] || esc(a.status)}</span>
+      </div>
+      <div class="kv"><span>Kanal</span>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>` : `<span style="color:#fff;text-transform:none;font-size:14px;letter-spacing:0">${esc(a.channel)}</span>`}</div>
+      <div class="kv"><span>Reichweite</span><span style="color:#fff;text-transform:none;font-size:14px;letter-spacing:0">${esc(a.audience || "–")}</span></div>
+      <div class="kv"><span>Kontakt</span><span style="color:#fff;text-transform:none;font-size:14px;letter-spacing:0">${esc(a.contact)}</span></div>
+      ${a.message ? `<p class="msgtext">${esc(a.message)}</p>` : ""}
+      <div class="acts">
+        ${a.status !== "accepted" ? `<button class="btn sm good" type="button" data-app="accepted" data-id="${a.id}">Annehmen</button>` : ""}
+        ${a.status !== "rejected" ? `<button class="btn sm ghost" type="button" data-app="rejected" data-id="${a.id}">Ablehnen</button>` : ""}
+        ${a.status !== "new" ? `<button class="btn sm ghost" type="button" data-app="new" data-id="${a.id}">Zurücksetzen</button>` : ""}
+      </div>
+    </article>`;
+  }).join("") : `<div class="empty">${appFilter === "new" ? "Keine neuen Bewerbungen. Gut so." : "Nichts in dieser Ansicht."}</div>`;
+}
+async function loadApps() {
+  try { apps = await rpc("list_partner_applications") || []; renderApps(); }
+  catch { $("appList").innerHTML = '<div class="empty">Bewerbungen konnten nicht geladen werden.</div>'; }
+}
+$("appFilter").addEventListener("click", e => {
+  const b = e.target.closest("button[data-f]"); if (!b) return;
+  appFilter = b.dataset.f; renderApps();
+});
+$("appRefresh").addEventListener("click", loadApps);
+$("appList").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-app]"); if (!b) return;
+  b.disabled = true;
+  try { await rpc("set_partner_application_status", { p_id: +b.dataset.id, p_status: b.dataset.app }); toast("Gespeichert"); loadApps(); }
+  catch { toast("Konnte nicht gespeichert werden"); b.disabled = false; }
+});
+
+// ---------- premium codes ----------
+let days = 30, uses = 1, lastCode = null;
+$("duration").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  days = b.dataset.days ? +b.dataset.days : null;
+});
+$("minus").onclick = () => { uses = Math.max(1, uses - 1); $("uses").textContent = uses; };
+$("plus").onclick = () => { uses = Math.min(999, uses + 1); $("uses").textContent = uses; };
+if (navigator.share) $("share").hidden = false;
+
+$("newCode").addEventListener("click", () => {
+  $("createMsg").textContent = ""; $("created").hidden = true; $("note").value = "";
+  $("dlgCode").showModal();
+});
+$("create").addEventListener("click", async () => {
+  const btn = $("create"); btn.disabled = true; $("createMsg").textContent = "";
+  try {
+    const code = await rpc("create_premium_code", { p_duration_days: days, p_max_uses: uses, p_note: $("note").value.trim() || null });
+    lastCode = code;
+    $("newCode2").textContent = code;
+    $("copyHint").textContent = (await copy(code)) ? "In die Zwischenablage kopiert" : "Zum Kopieren gedrückt halten";
+    $("created").hidden = false;
+    $("note").value = "";
+    loadCodes();
+  } catch (err) {
+    $("createMsg").textContent = err.status === 403 || /not allowed/.test(err.message) ? "Nicht erlaubt: kein Manager." : "Code konnte nicht erstellt werden.";
+  } finally { btn.disabled = false; }
+});
+$("copyAgain").addEventListener("click", async () => { if (lastCode && await copy(lastCode)) toast("Kopiert"); });
+$("share").addEventListener("click", () => {
+  if (!lastCode) return;
+  navigator.share({ text: "Dein RESET FrameBoost Code: " + lastCode + "\nEinlösen in der App unter Konto." }).catch(() => {});
+});
+
+async function loadCodes() {
+  try {
+    const codes = await rpc("list_premium_codes") || [];
+    $("list").innerHTML = codes.length ? codes.map(c => `
+      <article class="card ${c.active ? "" : "off"}">
+        <div class="card-top">
+          <div style="min-width:0"><div class="code">${esc(c.code)}</div>
+            <div class="when">${c.duration_days ? c.duration_days + " Tage" : "unbegrenzt"} · ${c.uses}/${c.max_uses} eingelöst · ${new Date(c.created_at).toLocaleDateString("de-DE")}</div></div>
+          <span class="pill ${c.active ? "ok" : ""}">${c.active ? "Aktiv" : "Aus"}</span>
+        </div>
+        ${c.note ? `<div class="name">${esc(c.note)}</div>` : ""}
+        <div class="acts">
+          <button class="btn sm ghost" type="button" data-copy="${esc(c.code)}">Kopieren</button>
+          <button class="btn sm ghost" type="button" data-toggle="${esc(c.code)}" data-active="${c.active}">${c.active ? "Deaktivieren" : "Aktivieren"}</button>
+        </div>
+      </article>`).join("") : '<div class="empty">Noch keine Codes. Lege den ersten mit „+ Neuer Code“ an.</div>';
+  } catch { $("list").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+}
+$("refresh").addEventListener("click", loadCodes);
+$("list").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.copy) { if (await copy(b.dataset.copy)) toast("Kopiert"); }
+  if (b.dataset.toggle) {
+    b.disabled = true;
+    try { await rpc("set_premium_code_active", { p_code: b.dataset.toggle, p_active: b.dataset.active !== "true" }); loadCodes(); }
+    catch { toast("Fehlgeschlagen"); b.disabled = false; }
+  }
+});
+
+// ---------- partners ----------
+let affiliates = [], accounts = {}, openId = null;
+$("newPartner").addEventListener("click", () => {
+  $("affMsg").textContent = "";
+  $("affForm").reset();
+  $("affDiscount").value = 10; $("affCommission").value = 25;
+  resetSeg("affDiscountMode", "once"); resetSeg("affCommissionMode", "first");
+  $("dlgPartner").showModal();
+});
 $("affCode").addEventListener("input", e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); });
 
 $("affForm").addEventListener("submit", async e => {
@@ -368,11 +532,9 @@ $("affForm").addEventListener("submit", async e => {
   btn.disabled = true;
   try {
     await adminFn(body);
-    const link = SITE + "/r/" + body.code;
-    toast((await copy(link)) ? "Link kopiert" : "Angelegt");
-    $("affForm").reset(); $("affDiscount").value = 10; $("affCommission").value = 25;
-    ["affDiscountMode", "affCommissionMode"].forEach(id => [...$(id).children].forEach((x, i) => x.setAttribute("aria-pressed", String(i === 0))));
-    loadAffiliates();
+    $("dlgPartner").close();
+    toast((await copy(SITE + "/r/" + body.code)) ? "Partner angelegt, Link kopiert" : "Partner angelegt");
+    loadPartners();
   } catch (err) {
     const m = err.message;
     $("affMsg").textContent = /already exists/.test(m) ? "Diesen Code gibt es schon."
@@ -385,172 +547,194 @@ $("affForm").addEventListener("submit", async e => {
   } finally { btn.disabled = false; }
 });
 
-let affiliates = [], openAff = null, accounts = {};
-// ---- applications from partner/bewerben.html ----
-const APP_STATUS = { new: "Neu", accepted: "Angenommen", rejected: "Abgelehnt" };
-// Only http(s) links become clickable: an applicant must not be able to
-// put a javascript: link into the manager page.
-const safeUrl = s => /^https?:\/\//i.test(s || "") ? esc(s) : "";
-async function loadApplications() {
-  try {
-    const apps = await rpc("list_partner_applications") || [];
-    $("appList").innerHTML = apps.length ? apps.map(a => {
-      const url = safeUrl(a.channel);
-      return `<div class="aff ${a.status === "rejected" ? "off" : ""}">
-        <div class="top"><div>
-          <div class="code" style="font-size:22px">${esc(a.name)}</div>
-          <div class="meta">${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>` : esc(a.channel)}</div>
-          <div class="meta">Reichweite: ${esc(a.audience || "–")} · Kontakt: ${esc(a.contact)}</div>
-          ${a.message ? `<div class="note">${esc(a.message)}</div>` : ""}
-          <div class="meta">${new Date(a.created_at).toLocaleString("de-DE")} · ${APP_STATUS[a.status] || esc(a.status)}</div>
-        </div>
-        <div class="actions">
-          ${a.status !== "accepted" ? `<button class="icon on" data-app-status="accepted" data-id="${a.id}" aria-label="Annehmen">OK</button>` : ""}
-          ${a.status !== "rejected" ? `<button class="icon" data-app-status="rejected" data-id="${a.id}" aria-label="Ablehnen">NEIN</button>` : ""}
-          ${a.status !== "new" ? `<button class="icon" data-app-status="new" data-id="${a.id}" aria-label="Zurücksetzen">NEU</button>` : ""}
-        </div></div>
-      </div>`;
-    }).join("") : '<div class="empty">Noch keine Bewerbungen.</div>';
-  } catch { $("appList").innerHTML = '<div class="empty">Bewerbungen konnten nicht geladen werden.</div>'; }
-}
-$("appRefresh").addEventListener("click", loadApplications);
-$("appList").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-app-status]"); if (!b) return;
-  b.disabled = true;
-  try { await rpc("set_partner_application_status", { p_id: +b.dataset.id, p_status: b.dataset.appStatus }); loadApplications(); }
-  catch { toast("Konnte nicht gespeichert werden"); b.disabled = false; }
-});
-
-async function loadAffiliates() {
+async function loadPartners() {
   try {
     affiliates = await rpc("list_affiliates") || [];
-    // Which partner account is linked to which code. Optional: an older
-    // database without 0010 simply shows no links.
+    // Which partner account is linked to which code. An older database without
+    // migration 0010 simply shows no links.
     try { accounts = Object.fromEntries((await rpc("list_affiliate_accounts") || []).map(r => [r.affiliate_id, r.email])); }
     catch { accounts = {}; }
-    renderAffiliates();
-  }
-  catch { $("affList").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+    renderPartners();
+    if (openId != null) drawerBody(openId);
+  } catch { $("affList").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
 }
-function renderAffiliates() {
-  if (!affiliates.length) { $("affList").innerHTML = '<div class="empty">Noch keine Affiliates.</div>'; return; }
+function renderPartners() {
+  if (!affiliates.length) { $("affList").innerHTML = '<div class="empty">Noch keine Partner. Lege den ersten mit „+ Neuer Partner“ an.</div>'; return; }
   $("affList").innerHTML = affiliates.map(a => {
     const due = Number(a.commission_cents) - Number(a.paid_cents);
-    return `<div class="aff ${a.active ? "" : "off"}" data-id="${a.id}">
-      <div class="top">
-        <div>
-          <div class="code">${esc(a.code)}</div>
-          <div class="name">${esc(a.name)}${a.contact ? " · " + esc(a.contact) : ""}</div>
-          <div class="meta">${accounts[a.id] ? "Partner-Login: " + esc(accounts[a.id]) : "Kein Partner-Login"}</div>
-          <div class="meta">${a.discount_percent} % Rabatt${a.discount_forever ? " (jeden Monat)" : ""} · ${pct(a.commission_percent)} Provision${a.commission_recurring ? " (jeden Monat)" : " (nur 1. Zahlung)"}${a.active ? "" : " · AUS"}</div>
-        </div>
-        <div class="actions">
-          <button class="icon" data-link="${esc(a.code)}" aria-label="Link kopieren">LINK</button>
-          <button class="icon ${a.active ? "on" : ""}" data-active-id="${a.id}" data-active="${a.active}" aria-label="${a.active ? "Deaktivieren" : "Aktivieren"}">${a.active ? "AN" : "AUS"}</button>
-        </div>
+    const login = accounts[a.id];
+    return `<article class="card clickable ${a.active ? "" : "off"}" data-open="${a.id}" tabindex="0" role="button" aria-label="Details zu ${esc(a.code)}">
+      <div class="card-top">
+        <div style="min-width:0"><div class="code">${esc(a.code)}</div><div class="name">${esc(a.name)}${a.contact ? " · " + esc(a.contact) : ""}</div></div>
+        <span class="pill ${a.active ? "ok" : ""}">${a.active ? "Aktiv" : "Aus"}</span>
       </div>
+      <div class="terms">${a.discount_percent} % Rabatt${a.discount_forever ? ", jeden Monat" : ", 1. Monat"} · ${pct(a.commission_percent)} Provision${a.commission_recurring ? ", jeden Monat" : ", 1. Zahlung"}</div>
+      <div class="login ${login ? "" : "none"}">${login ? esc(login) : "Kein Partner-Login verknüpft"}</div>
       <div class="stats">
         <div><b>${a.sales}</b><span>Käufe</span></div>
         <div><b>${euro(a.net_cents)}</b><span>Umsatz netto</span></div>
         <div><b class="${due > 0 ? "due" : ""}">${euro(due)}</b><span>Offen</span></div>
       </div>
-      <div class="meta" style="margin-top:6px">Provision gesamt ${euro(a.commission_cents)} · ausgezahlt ${euro(a.paid_cents)}</div>
-      <button class="btn ghost" style="margin-top:10px" data-detail="${a.id}">${openAff === a.id ? "Schließen" : "Details, Auszahlung, Provision"}</button>
-      ${openAff === a.id ? `<div class="detail" id="detail">Lädt…</div>` : ""}
-    </div>`;
+    </article>`;
   }).join("");
-  if (openAff != null) loadDetail(openAff);
 }
-async function loadDetail(id) {
-  const a = affiliates.find(x => x.id === id); const box = $("detail"); if (!a || !box) return;
+$("affList").addEventListener("click", e => {
+  const c = e.target.closest("[data-open]"); if (c) openDrawer(Number(c.dataset.open));
+});
+$("affList").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const c = e.target.closest("[data-open]"); if (!c) return;
+  e.preventDefault(); openDrawer(Number(c.dataset.open));
+});
+$("affRefresh").addEventListener("click", loadPartners);
+
+// ---------- partner side panel ----------
+function openDrawer(id) {
+  openId = id;
+  $("scrim").hidden = false; $("drawer").hidden = false;
+  $("dBody").innerHTML = '<div class="empty">Lädt…</div>';
+  drawerBody(id);
+  $("dClose").focus();
+}
+function closeDrawer() { openId = null; $("drawer").hidden = true; $("scrim").hidden = true; }
+$("dClose").addEventListener("click", closeDrawer);
+$("scrim").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && openId != null) closeDrawer(); });
+
+async function drawerBody(id) {
+  const a = affiliates.find(x => x.id === id); if (!a) return;
+  $("dTitle").textContent = a.code;
+  $("dSub").textContent = a.name + (a.contact ? " · " + a.contact : "");
   let act;
   try { act = await rpc("list_affiliate_activity", { p_affiliate: id }); }
-  catch { box.textContent = "Konnte nicht geladen werden."; return; }
+  catch { if (openId === id) $("dBody").textContent = "Konnte nicht geladen werden."; return; }
+  if (openId !== id) return; // another partner was opened meanwhile
   const due = Number(a.commission_cents) - Number(a.paid_cents);
-  box.innerHTML = `
-    <h3>Auszahlung eintragen</h3>
-    <div class="two">
-      <div><label for="payAmount">Betrag €</label><input id="payAmount" type="text" inputmode="decimal" value="${due > 0 ? (due / 100).toFixed(2).replace(".", ",") : ""}"></div>
-      <div><label for="payNote">Notiz</label><input id="payNote" type="text" placeholder="PayPal, Überweisung …"></div>
-    </div>
-    <button class="btn" type="button" id="payAdd">Auszahlung speichern</button>
-    <h3>Partner-Login</h3>
-    <label for="accEmail">E-Mail des RESET-Accounts</label>
-    <input id="accEmail" type="email" autocomplete="off" value="${esc(accounts[id] || "")}" placeholder="partner@beispiel.de">
-    <div class="hint">Mit diesem Account sieht der Partner unter ${esc(SITE.replace(/^https?:\/\//, ""))}/partner seine Verkäufe, Provision und Auszahlungen – keine Käuferdaten. Leer lassen und speichern entfernt den Zugang.</div>
-    <button class="btn" type="button" id="accSave">Partner-Login speichern</button>
-    <h3>Provision ändern</h3>
-    <div class="two">
-      <div><label for="edCommission">Provision %</label><input id="edCommission" type="text" inputmode="decimal" value="${String(a.commission_percent).replace(".", ",")}"></div>
-      <div><label for="edName">Name</label><input id="edName" type="text" value="${esc(a.name)}"></div>
-    </div>
-    <label for="edContact">Kontakt</label><input id="edContact" type="text" value="${esc(a.contact || "")}">
-    <label>Provision beim Abo</label>
-    <div class="seg two-way" id="edMode">
-      <button type="button" data-v="first" aria-pressed="${!a.commission_recurring}">Nur 1. Monat</button>
-      <button type="button" data-v="recurring" aria-pressed="${a.commission_recurring}">Jeden Monat</button>
-    </div>
-    <div class="hint">Gilt für neue Verkäufe. Bisherige bleiben, wie sie waren.</div>
-    <button class="btn" type="button" id="edSave">Speichern</button>
-    <h3>Verkäufe</h3>
-    ${act.sales.length ? act.sales.map(x => `<div class="line ${x.reversed ? "rev" : ""}">
-        <div>${x.plan === "monthly" ? "Monthly" : "Lifetime"}${x.kind === "renewal" ? " · Verlängerung" : ""} · ${euro(x.net_cents)} → ${euro(x.commission_cents)}
-          <small>${new Date(x.created_at).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}${x.reversed ? " · storniert" : ""}</small></div>
-        <button class="mini" data-reverse="${esc(x.id)}" data-reversed="${x.reversed}">${x.reversed ? "Zurück" : "Storno"}</button>
-      </div>`).join("") : '<div class="empty">Noch keine Verkäufe.</div>'}
-    <h3>Auszahlungen</h3>
-    ${act.payouts.length ? act.payouts.map(p => `<div class="line">
-        <div>${euro(p.amount_cents)}${p.note ? " · " + esc(p.note) : ""}<small>${new Date(p.paid_at).toLocaleDateString("de-DE")}</small></div>
-        <button class="mini" data-payout-del="${p.id}">Löschen</button>
-      </div>`).join("") : '<div class="empty">Noch nichts ausgezahlt.</div>'}`;
-  segWire("edMode");
-  $("payAdd").onclick = async () => {
+  $("dBody").innerHTML = `
+    <section class="block">
+      <div class="stats">
+        <div><b>${a.sales}</b><span>Käufe</span></div>
+        <div><b>${euro(a.net_cents)}</b><span>Umsatz netto</span></div>
+        <div><b>${euro(a.commission_cents)}</b><span>Provision gesamt</span></div>
+      </div>
+      <div class="stats" style="margin-top:6px">
+        <div><b>${euro(a.paid_cents)}</b><span>Ausgezahlt</span></div>
+        <div><b class="${due > 0 ? "due" : ""}">${euro(due)}</b><span>Offen</span></div>
+        <div><b>${a.active ? "Aktiv" : "Aus"}</b><span>Status</span></div>
+      </div>
+      <div class="acts" style="margin-top:12px">
+        <button class="btn sm ghost" type="button" id="dLink">Link kopieren</button>
+        <button class="btn sm ghost" type="button" id="dToggle">${a.active ? "Deaktivieren" : "Aktivieren"}</button>
+      </div>
+    </section>
+
+    <section class="block">
+      <h3>Auszahlung eintragen</h3>
+      <div class="two">
+        <div><label for="payAmount">Betrag €</label><input id="payAmount" type="text" inputmode="decimal" value="${due > 0 ? (due / 100).toFixed(2).replace(".", ",") : ""}"></div>
+        <div><label for="payNote">Notiz</label><input id="payNote" type="text" placeholder="PayPal, Überweisung …"></div>
+      </div>
+      <button class="btn block" type="button" id="payAdd">Auszahlung speichern</button>
+    </section>
+
+    <section class="block">
+      <h3>Partner-Login</h3>
+      <label for="accEmail">E-Mail des RESET-Accounts</label>
+      <input id="accEmail" type="email" autocomplete="off" value="${esc(accounts[id] || "")}" placeholder="partner@beispiel.de">
+      <div class="hint">Mit diesem Account sieht der Partner unter ${esc(SITE.replace(/^https?:\/\//, ""))}/partner seine Verkäufe, Provision und Auszahlungen, aber keine Käuferdaten. Leer lassen und speichern entfernt den Zugang.</div>
+      <button class="btn block" type="button" id="accSave">Partner-Login speichern</button>
+    </section>
+
+    <section class="block">
+      <h3>Konditionen</h3>
+      <div class="two">
+        <div><label for="edCommission">Provision %</label><input id="edCommission" type="text" inputmode="decimal" value="${String(a.commission_percent).replace(".", ",")}"></div>
+        <div><label for="edName">Name</label><input id="edName" type="text" value="${esc(a.name)}"></div>
+      </div>
+      <label for="edContact">Kontakt</label>
+      <input id="edContact" type="text" value="${esc(a.contact || "")}">
+      <label>Provision beim Abo</label>
+      <div class="seg two-way" id="edMode">
+        <button type="button" data-v="first" aria-pressed="${!a.commission_recurring}">Nur 1. Monat</button>
+        <button type="button" data-v="recurring" aria-pressed="${a.commission_recurring}">Jeden Monat</button>
+      </div>
+      <div class="hint">Gilt für neue Verkäufe. Bisherige bleiben, wie sie waren.</div>
+      <button class="btn block" type="button" id="edSave">Konditionen speichern</button>
+    </section>
+
+    <section class="block">
+      <h3>Verkäufe</h3>
+      ${act.sales.length ? act.sales.map(x => `<div class="line ${x.reversed ? "rev" : ""}">
+          <div>${x.plan === "monthly" ? "Monatlich" : "Lifetime"}${x.kind === "renewal" ? " · Verlängerung" : ""}
+            <small>${dt(x.created_at)}${x.reversed ? " · storniert" : ""}</small></div>
+          <div class="amt" style="text-align:right">${euro(x.commission_cents)}<small>von ${euro(x.net_cents)}</small></div>
+          <button class="btn sm ghost" type="button" data-reverse="${esc(x.id)}" data-reversed="${x.reversed}">${x.reversed ? "Zurück" : "Storno"}</button>
+        </div>`).join("") : '<div class="empty">Noch keine Verkäufe.</div>'}
+    </section>
+
+    <section class="block">
+      <h3>Auszahlungen</h3>
+      ${act.payouts.length ? act.payouts.map(p => `<div class="line">
+          <div>${euro(p.amount_cents)}${p.note ? " · " + esc(p.note) : ""}<small>${new Date(p.paid_at).toLocaleDateString("de-DE")}</small></div>
+          <button class="btn sm ghost" type="button" data-payout-del="${p.id}">Löschen</button>
+        </div>`).join("") : '<div class="empty">Noch nichts ausgezahlt.</div>'}
+    </section>`;
+}
+
+// One handler for everything in the side panel.
+$("dBody").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const id = openId; if (id == null) return;
+  const a = affiliates.find(x => x.id === id);
+  if (b.id === "dLink") { if (a && await copy(SITE + "/r/" + a.code)) toast("Link kopiert"); return; }
+  if (b.id === "dToggle") {
+    b.disabled = true;
+    try { await adminFn({ action: "set_active", id, active: !a.active }); toast(a.active ? "Deaktiviert" : "Aktiviert"); loadPartners(); }
+    catch (err) { toast(err.message === "unreachable" ? "Funktion nicht erreichbar" : "Fehlgeschlagen"); b.disabled = false; }
+    return;
+  }
+  if (b.id === "payAdd") {
     const raw = $("payAmount").value.trim();
     // "1.234,50" or "12,50" (German) as well as "12.50"
     const cents = Math.round(Number(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw) * 100);
     if (!(cents > 0)) { toast("Betrag fehlt"); return; }
-    try { await rpc("add_affiliate_payout", { p_affiliate: id, p_amount_cents: cents, p_note: $("payNote").value }); toast("Gespeichert"); loadAffiliates(); }
+    try { await rpc("add_affiliate_payout", { p_affiliate: id, p_amount_cents: cents, p_note: $("payNote").value }); toast("Auszahlung gespeichert"); loadPartners(); }
     catch { toast("Fehlgeschlagen"); }
-  };
-  $("accSave").onclick = async () => {
+    return;
+  }
+  if (b.id === "accSave") {
     try {
       const word = await rpc("set_affiliate_account", { p_id: id, p_email: $("accEmail").value });
       toast(word === "ok" ? "Partner-Login verknüpft" : word === "cleared" ? "Partner-Login entfernt"
-          : word === "not_found" ? "Kein Account mit dieser E-Mail – der Partner muss sich zuerst registrieren" : "Fehlgeschlagen");
-      if (word === "ok" || word === "cleared") loadAffiliates();
+          : word === "not_found" ? "Kein Account mit dieser E-Mail. Der Partner muss sich zuerst registrieren" : "Fehlgeschlagen");
+      if (word === "ok" || word === "cleared") loadPartners();
     } catch { toast("Fehlgeschlagen"); }
-  };
-  $("edSave").onclick = async () => {
+    return;
+  }
+  if (b.id === "edSave") {
     const p = Number($("edCommission").value.replace(",", "."));
-    if (!(p >= 0 && p <= 100)) { toast("Provision 0–100 %"); return; }
+    if (!(p >= 0 && p <= 100)) { toast("Provision 0 bis 100 %"); return; }
     try {
       await rpc("update_affiliate", { p_id: id, p_name: $("edName").value, p_contact: $("edContact").value,
                                       p_commission_percent: p, p_commission_recurring: segValue("edMode") === "recurring" });
-      toast("Gespeichert"); loadAffiliates();
+      toast("Gespeichert"); loadPartners();
     } catch { toast("Fehlgeschlagen"); }
-  };
-}
-$("affList").addEventListener("click", async e => {
-  const b = e.target.closest("button"); if (!b) return;
-  if (b.dataset.link) { if (await copy(SITE + "/r/" + b.dataset.link)) toast("Link kopiert"); }
-  if (b.dataset.activeId) {
-    b.disabled = true;
-    try { await adminFn({ action: "set_active", id: Number(b.dataset.activeId), active: b.dataset.active !== "true" }); loadAffiliates(); }
-    catch (err) { toast(err.message === "unreachable" ? "Funktion nicht erreichbar" : "Fehlgeschlagen"); b.disabled = false; }
+    return;
   }
-  if (b.dataset.detail) { const id = Number(b.dataset.detail); openAff = openAff === id ? null : id; renderAffiliates(); }
   if (b.dataset.reverse) {
-    try { await rpc("set_affiliate_sale_reversed", { p_sale: b.dataset.reverse, p_reversed: b.dataset.reversed !== "true" }); loadAffiliates(); }
+    try { await rpc("set_affiliate_sale_reversed", { p_sale: b.dataset.reverse, p_reversed: b.dataset.reversed !== "true" }); loadPartners(); }
     catch { toast("Fehlgeschlagen"); }
+    return;
   }
   if (b.dataset.payoutDel) {
     if (!confirm("Diese Auszahlung löschen?")) return;
-    try { await rpc("delete_affiliate_payout", { p_payout: Number(b.dataset.payoutDel) }); loadAffiliates(); }
+    try { await rpc("delete_affiliate_payout", { p_payout: Number(b.dataset.payoutDel) }); loadPartners(); }
     catch { toast("Fehlgeschlagen"); }
   }
 });
-$("affRefresh").addEventListener("click", loadAffiliates);
 
+// ---------- start ----------
+setView("apps");
 session ? showApp() : showLogin();
 </script>
 </body>
