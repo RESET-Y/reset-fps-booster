@@ -94,6 +94,9 @@ h3 { margin: 0 0 12px; font: 900 italic 17px/1 var(--display); text-transform: u
 .btn.warn { background: transparent; border: 1px solid var(--border-2); color: var(--text-2); }
 .iconbtn { background: none; border: 1px solid transparent; color: var(--text-3); font: 500 13px var(--mono); padding: 6px 4px; cursor: pointer; }
 .iconbtn:hover { color: #fff; }
+.btn.danger { background: transparent; border: 1px solid #6b1d22; color: #ff7a82; }
+.btn.danger:hover { background: #2a0b0e; }
+.btn.danger[disabled] { opacity: .45; }
 
 form label, .label { display: block; font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 6px; }
 input[type="text"], input[type="email"], input[type="number"], input[type="password"], textarea {
@@ -418,6 +421,7 @@ function renderApps() {
         ${a.status !== "accepted" ? `<button class="btn sm good" type="button" data-app="accepted" data-id="${a.id}">Annehmen</button>` : ""}
         ${a.status !== "rejected" ? `<button class="btn sm ghost" type="button" data-app="rejected" data-id="${a.id}">Ablehnen</button>` : ""}
         ${a.status !== "new" ? `<button class="btn sm ghost" type="button" data-app="new" data-id="${a.id}">Zurücksetzen</button>` : ""}
+        <button class="btn sm danger" type="button" data-app-del="${a.id}" data-name="${esc(a.name)}">Löschen</button>
       </div>
     </article>`;
   }).join("") : `<div class="empty">${appFilter === "new" ? "Keine neuen Bewerbungen. Gut so." : "Nichts in dieser Ansicht."}</div>`;
@@ -432,6 +436,14 @@ $("appFilter").addEventListener("click", e => {
 });
 $("appRefresh").addEventListener("click", loadApps);
 $("appList").addEventListener("click", async e => {
+  const d = e.target.closest("button[data-app-del]");
+  if (d) {
+    if (!confirm("Bewerbung von „" + d.dataset.name + "“ endgültig löschen?")) return;
+    d.disabled = true;
+    try { await rpc("delete_partner_application", { p_id: +d.dataset.appDel }); toast("Gelöscht"); loadApps(); }
+    catch { toast("Konnte nicht gelöscht werden"); d.disabled = false; }
+    return;
+  }
   const b = e.target.closest("button[data-app]"); if (!b) return;
   b.disabled = true;
   try { await rpc("set_partner_application_status", { p_id: +b.dataset.id, p_status: b.dataset.app }); toast("Gespeichert"); loadApps(); }
@@ -486,6 +498,7 @@ async function loadCodes() {
         <div class="acts">
           <button class="btn sm ghost" type="button" data-copy="${esc(c.code)}">Kopieren</button>
           <button class="btn sm ghost" type="button" data-toggle="${esc(c.code)}" data-active="${c.active}">${c.active ? "Deaktivieren" : "Aktivieren"}</button>
+          <button class="btn sm danger" type="button" data-del-code="${esc(c.code)}">Löschen</button>
         </div>
       </article>`).join("") : '<div class="empty">Noch keine Codes. Lege den ersten mit „+ Neuer Code“ an.</div>';
   } catch { $("list").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
@@ -493,6 +506,17 @@ async function loadCodes() {
 $("refresh").addEventListener("click", loadCodes);
 $("list").addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.delCode) {
+    if (!confirm("Code " + b.dataset.delCode + " endgültig löschen?")) return;
+    try {
+      const r = await rpc("delete_premium_code", { p_code: b.dataset.delCode });
+      if (r === "ok") toast("Gelöscht");
+      else if (r === "in_use") toast("Schon eingelöst oder gekauft. Deaktivieren statt löschen.");
+      else toast("Code nicht gefunden");
+      loadCodes();
+    } catch { toast("Konnte nicht gelöscht werden"); }
+    return;
+  }
   if (b.dataset.copy) { if (await copy(b.dataset.copy)) toast("Kopiert"); }
   if (b.dataset.toggle) {
     b.disabled = true;
@@ -610,6 +634,11 @@ async function drawerBody(id) {
   catch { if (openId === id) $("dBody").textContent = "Konnte nicht geladen werden."; return; }
   if (openId !== id) return; // another partner was opened meanwhile
   const due = Number(a.commission_cents) - Number(a.paid_cents);
+  // Same rules as delete_affiliate in the database; the database has the last word.
+  const delBlock = a.active ? "Zuerst deaktivieren, dann löschen."
+    : act.sales.length ? "Hat Verkäufe. Verkäufe sind Buchungsbelege und bleiben erhalten. Dieser Partner kann nur deaktiviert werden."
+    : act.payouts.length ? "Hat Auszahlungen. Die bleiben als Buchungsbelege erhalten."
+    : "";
   $("dBody").innerHTML = `
     <section class="block">
       <div class="stats">
@@ -678,6 +707,12 @@ async function drawerBody(id) {
           <div>${euro(p.amount_cents)}${p.note ? " · " + esc(p.note) : ""}<small>${new Date(p.paid_at).toLocaleDateString("de-DE")}</small></div>
           <button class="btn sm ghost" type="button" data-payout-del="${p.id}">Löschen</button>
         </div>`).join("") : '<div class="empty">Noch nichts ausgezahlt.</div>'}
+    </section>
+
+    <section class="block">
+      <h3>Partner löschen</h3>
+      <p class="hint" style="margin-top:0">${delBlock || "Entfernt den Partner endgültig. Der Code ist schon deaktiviert."}</p>
+      <button class="btn block danger" type="button" id="dDelete" ${delBlock ? "disabled" : ""}>Partner endgültig löschen</button>
     </section>`;
 }
 
@@ -687,6 +722,21 @@ $("dBody").addEventListener("click", async e => {
   const id = openId; if (id == null) return;
   const a = affiliates.find(x => x.id === id);
   if (b.id === "dLink") { if (a && await copy(SITE + "/r/" + a.code)) toast("Link kopiert"); return; }
+  if (b.id === "dDelete") {
+    // Typing the code is the extra step before a deletion that cannot be undone.
+    const typed = prompt("Zum Löschen den Code " + a.code + " eingeben:");
+    if (typed === null) return;
+    if (typed.trim().toUpperCase() !== a.code) { toast("Code stimmt nicht. Nicht gelöscht."); return; }
+    try {
+      const r = await rpc("delete_affiliate", { p_id: id });
+      const msg = { ok: "Partner gelöscht", active: "Zuerst deaktivieren", has_sales: "Hat Verkäufe, bleibt erhalten",
+                    has_payouts: "Hat Auszahlungen, bleibt erhalten", not_found: "Partner nicht gefunden" }[r] || "Fehlgeschlagen";
+      toast(msg);
+      if (r === "ok") closeDrawer();
+      loadPartners();
+    } catch { toast("Fehlgeschlagen"); }
+    return;
+  }
   if (b.id === "dToggle") {
     b.disabled = true;
     try { await adminFn({ action: "set_active", id, active: !a.active }); toast(a.active ? "Deaktiviert" : "Aktiviert"); loadPartners(); }
