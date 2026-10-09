@@ -54,11 +54,16 @@
          global driver settings the NVIDIA Control Panel itself exposes. LGPL-3.0 — usable in
          closed-source projects since we only consume the compiled package, not modify it. -->
     <PackageReference Include="NvAPIWrapper.Net" Version="0.8.1.101" />
+    <!-- The tray icon: minimizing the window hides it from the taskbar and
+         leaves the icon in the notification area instead. MIT. -->
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\logo_wide.png" />
     <Resource Include="Assets\logo_square.png" />
+    <!-- Saira Condensed (SIL OFL 1.1, see Assets\Fonts\OFL-SairaCondensed.txt): the brand face. -->
+    <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
   <!-- Beta-only: ship the native FrameBoost V2 engine (built separately via
@@ -84,16 +89,5 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- MediaElement plays from a real file on disk (it can't stream from an embedded pack
-         resource), so the intro video ships as a loose file next to the exe instead. -->
-    <Content Include="Assets\intro.mp4">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <!-- Single-file publish otherwise bundles this into the exe blob instead of leaving it as
-           a loose file — but MediaElement needs a real file path on disk to play from. -->
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </Content>
-  </ItemGroup>
 
 </Project>

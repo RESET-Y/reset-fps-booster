@@ -5,7 +5,9 @@ public sealed class AppSettings
     public AppTheme Theme { get; set; } = AppTheme.Dark;
     public bool StartWithWindows { get; set; }
     public bool ShowToastNotifications { get; set; } = true;
-    public bool MinimizeToTray { get; set; } = true;
+    /// <summary>Closing the window (X, Alt+F4) keeps the app in the tray; it
+    /// quits from the tray menu. Minimizing stays on the taskbar.</summary>
+    public bool CloseToTray { get; set; } = true;
     public bool AutoScanOnStartup { get; set; }
     public bool ConfirmBeforeApplyingChanges { get; set; } = true;
     public bool EnableExperimentalOptimizations { get; set; }

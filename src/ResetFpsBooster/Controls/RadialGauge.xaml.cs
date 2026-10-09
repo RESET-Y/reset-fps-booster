@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using ResetFpsBooster.Core.Utilities;
 
 namespace ResetFpsBooster.Controls;
 
@@ -109,14 +110,14 @@ public partial class RadialGauge : UserControl
     private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not RadialGauge gauge) return;
-        gauge.CenterText.Text = gauge.CenterLabel;
 
         var clamped = Math.Clamp(gauge.Value, 0, gauge.Maximum <= 0 ? 100 : gauge.Maximum);
         var animation = new DoubleAnimation
         {
             To = clamped,
-            Duration = TimeSpan.FromMilliseconds(900),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            // The first reading counts up from zero slowly, later updates ease over.
+            Duration = TimeSpan.FromMilliseconds(Motion.Enabled ? 1400 : 1),
+            EasingFunction = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 }
         };
         gauge.BeginAnimation(DisplayValueProperty, animation);
     }
@@ -132,6 +133,8 @@ public partial class RadialGauge : UserControl
     {
         if (!IsLoaded) return;
         CenterText.FontSize = CenterFontSize * 1.8;
+        // the number shows the animated value, so it counts with the bar
+        CenterText.Text = ((double)GetValue(DisplayValueProperty)).ToString(Decimals == 0 ? "0" : "0." + new string('#', Decimals));
 
         var max = Maximum <= 0 ? 100 : Maximum;
         var fraction = Math.Clamp((double)GetValue(DisplayValueProperty) / max, 0.0, 1.0);

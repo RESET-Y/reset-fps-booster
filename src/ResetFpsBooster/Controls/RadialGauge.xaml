@@ -6,9 +6,9 @@
          dash display. Still called RadialGauge so every page keeps working. -->
     <StackPanel HorizontalAlignment="Left">
         <StackPanel Orientation="Horizontal">
-            <TextBlock x:Name="CenterText" Text="{Binding CenterLabel, ElementName=Root}" FontFamily="Segoe UI Black" FontStyle="Italic"
+            <TextBlock x:Name="CenterText" Text="{Binding CenterLabel, ElementName=Root}" FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontStyle="Italic"
                        Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Bottom"/>
-            <TextBlock Text="{Binding Unit, ElementName=Root}" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="13"
+            <TextBlock Text="{Binding Unit, ElementName=Root}" FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontStyle="Italic" FontSize="13"
                        Foreground="{Binding AccentBrush, ElementName=Root}" VerticalAlignment="Bottom" Margin="4,0,0,6"
                        Visibility="{Binding ShowUnit, ElementName=Root, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>

@@ -90,56 +90,55 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                            <Border Width="24" Height="2" Background="{StaticResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBlock Text="RESET FPS BOOSTER" FontFamily="Segoe UI Semibold" FontSize="11" Foreground="{StaticResource Brush.TextTertiary}"/>
-                        </StackPanel>
-                        <TextBlock FontFamily="Segoe UI Semibold" FontSize="32" Foreground="{StaticResource Brush.TextPrimary}">
+                        <TextBlock FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontStyle="Italic" FontSize="42" Foreground="{StaticResource Brush.TextPrimary}">
                             <Run Text="{DynamicResource Dash.YourSystem}"/><Run Text="{Binding HeroSuffix, Mode=OneWay}" Foreground="{StaticResource Brush.AccentBright}"/>
                         </TextBlock>
                         <TextBlock Text="{DynamicResource Dash.Tagline}" Style="{StaticResource Text.Body}" Margin="0,4,0,0"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,8" Margin="0,0,10,0">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding WindowsLabel}" FontSize="11.5" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
-                                    <TextBlock Text="{DynamicResource Dash.Detected}" Style="{StaticResource Text.Caption}"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                        <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,8">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="{StaticResource Brush.TextTertiary}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsAdministrator}" Value="True">
-                                                    <Setter Property="Fill" Value="{StaticResource Brush.Success}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Dash.AdminRights}" FontSize="11.5" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
-                                    <TextBlock Text="{Binding IsAdministrator, Converter={StaticResource BoolToEnabledDisabled}}" Style="{StaticResource Text.Caption}"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
                 </Grid>
 
                 <!-- Customize: edit mode puts an × on every widget and lists the removed ones here -->
-                <Button HorizontalAlignment="Right" Style="{StaticResource Button.Secondary}" Margin="0,-10,0,16" Command="{Binding ToggleEditCommand}">
+                <Grid Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+            <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,8" Margin="0,0,10,0">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource Brush.Accent}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <StackPanel>
+                        <TextBlock Text="{Binding WindowsLabel}" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="{StaticResource Font.Display}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{DynamicResource Dash.Detected}" Style="{StaticResource Text.Caption}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+            <Border Background="{StaticResource Brush.SurfaceElevated}" CornerRadius="6" Padding="12,8">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource Brush.TextTertiary}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAdministrator}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource Brush.Success}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Dash.AdminRights}" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="{StaticResource Font.Display}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding IsAdministrator, Converter={StaticResource BoolToEnabledDisabled}}" Style="{StaticResource Text.Caption}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+                <Button HorizontalAlignment="Right" Style="{StaticResource Button.Secondary}" Command="{Binding ToggleEditCommand}">
                     <Grid>
                         <TextBlock Text="{DynamicResource Dashboard.Customize}" Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"/>
                         <TextBlock Text="{DynamicResource Dashboard.Done}" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"/>
                     </Grid>
                 </Button>
+                </Grid>
                 <Border Style="{StaticResource Card.Accented}" Margin="0,0,0,16" Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
                         <TextBlock Text="{DynamicResource Dashboard.AddWidgets}" Style="{StaticResource Text.SectionTitle}"/>
@@ -166,18 +165,18 @@
                     <UniformGrid Columns="4" Margin="0,0,0,16">
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
                             <StackPanel>
-                                <TextBlock Text="{Binding CpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding CpuCard.Title}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding CpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                                <controls:RadialGauge Value="{Binding CpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <controls:RadialGauge Value="{Binding CpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="24" HorizontalAlignment="Left" Margin="0,12,0,10"/>
                                 <TextBlock Text="{Binding CpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding CpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
                             <StackPanel>
-                                <TextBlock Text="{Binding GpuCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding GpuCard.Title}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                                <controls:RadialGauge Value="{Binding GpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <controls:RadialGauge Value="{Binding GpuCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="24" HorizontalAlignment="Left" Margin="0,12,0,10"/>
                                 <TextBlock Text="{Binding GpuCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding GpuCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding GpuCard.TemperatureLabel}" Foreground="{StaticResource Brush.AccentBright}" FontSize="11" HorizontalAlignment="Left" Margin="0,4,0,0"
@@ -186,18 +185,18 @@
                         </Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="16">
                             <StackPanel>
-                                <TextBlock Text="{Binding RamCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding RamCard.Title}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding RamCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                                <controls:RadialGauge Value="{Binding RamCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <controls:RadialGauge Value="{Binding RamCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="24" HorizontalAlignment="Left" Margin="0,12,0,10"/>
                                 <TextBlock Text="{Binding RamCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding RamCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource Card}" Padding="16">
                             <StackPanel>
-                                <TextBlock Text="{Binding StorageCard.Title}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{Binding StorageCard.Title}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding StorageCard.Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
-                                <controls:RadialGauge Value="{Binding StorageCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="18" HorizontalAlignment="Left" Margin="0,12,0,10"/>
+                                <controls:RadialGauge Value="{Binding StorageCard.UsagePercent}" Diameter="84" Thickness="7" CenterFontSize="24" HorizontalAlignment="Left" Margin="0,12,0,10"/>
                                 <TextBlock Text="{Binding StorageCard.StatLineOne}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding StorageCard.StatLineTwo}" Style="{StaticResource Text.Caption}" HorizontalAlignment="Left"/>
                             </StackPanel>
@@ -211,14 +210,18 @@
                 <UniformGrid Rows="1" Margin="0,0,0,16">
 
                     <Grid Style="{StaticResource WidgetHost}" Margin="0,0,8,0" Visibility="{Binding Widgets[score].IsVisible, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource Card}">
+                        <Border Style="{StaticResource Card}" Padding="0" BorderBrush="{StaticResource Brush.AccentMuted}">
                             <Grid>
+                                <!-- The stage: the horizon and the red light inside the card. -->
+                                <Rectangle RadiusX="6" RadiusY="6" Fill="{StaticResource Brush.StageFill}"/>
+                                <Rectangle RadiusX="6" RadiusY="6" Fill="{StaticResource Brush.HorizonGlow}"/>
+                            <Grid Margin="22,18,22,22">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <StackPanel Grid.Row="1" Margin="0,14,0,0">
-                                    <TextBlock Text="{DynamicResource Dash.PerfScore}" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Text="{DynamicResource Dash.PerfScore}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="20" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Text="{Binding ScoreVerdict}" Style="{StaticResource Text.Body}" Margin="0,2,0,10"/>
                                     <ItemsControl ItemsSource="{Binding ScoreChecklist}">
                                         <ItemsControl.ItemTemplate>
@@ -242,7 +245,12 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
-                                <controls:RadialGauge Grid.Row="0" Value="{Binding Score}" Diameter="150" Thickness="9" CenterFontSize="30" ShowUnit="False"/>
+                                <controls:RadialGauge Grid.Row="0" Value="{Binding Score}" Diameter="150" Thickness="9" CenterFontSize="56" ShowUnit="False">
+                                    <controls:RadialGauge.Effect>
+                                        <DropShadowEffect Color="{StaticResource Color.Accent}" BlurRadius="34" ShadowDepth="0" Opacity="0.7"/>
+                                    </controls:RadialGauge.Effect>
+                                </controls:RadialGauge>
+                            </Grid>
                             </Grid>
                         </Border>
                         <Rectangle Style="{StaticResource WidgetEditFrame}"/>
@@ -250,22 +258,50 @@
                     </Grid>
 
                     <Grid Style="{StaticResource WidgetHost}" Margin="8,0,0,0" Visibility="{Binding Widgets[boost].IsVisible, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel VerticalAlignment="Center">
+                        <Border Style="{StaticResource Card}" Padding="0" BorderBrush="{StaticResource Brush.AccentMuted}">
+                            <Grid>
+                                <!-- The stage: the horizon and the red light inside the card. -->
+                                <Rectangle RadiusX="6" RadiusY="6" Fill="{StaticResource Brush.StageFill}"/>
+                                <Rectangle RadiusX="6" RadiusY="6" Fill="{StaticResource Brush.HorizonGlow}"/>
+                            <StackPanel VerticalAlignment="Center" Margin="22,18,22,22">
                                 <StackPanel Orientation="Horizontal">
                                     <Path Data="M9,1 L3,9 L7,9 L6,15 L13,6 L9,6 Z" Fill="{StaticResource Brush.Accent}" Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{DynamicResource Dash.ReadyBoost}" FontFamily="Segoe UI Semibold" FontSize="15" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Dash.ReadyBoost}" FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontStyle="Italic" FontSize="28" Foreground="{StaticResource Brush.TextPrimary}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Style="{StaticResource Text.Body}" Margin="0,10,0,16">
-                                    <Run Text="{DynamicResource Dash.WeFound}"/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/><Run Text="{DynamicResource Dash.WeFoundTail}"/>
+                                    <Run Text="{DynamicResource Dash.WeFound}"/><Run Text="{Binding AvailableOptimizationsCount, Mode=OneWay}" Foreground="{StaticResource Brush.AccentBright}" FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontSize="22"/><Run Text="{DynamicResource Dash.WeFoundTail}"/>
                                 </TextBlock>
-                                <Button Content="{DynamicResource Dash.OptimizeNow}" Style="{StaticResource Button.Primary}" FontSize="15" Command="{Binding GoToOptimizerCommand}"/>
+                                <Grid>
+                                    <!-- The glow behind the action: it pulses by changing its opacity only. -->
+                                    <Border Margin="-34,-22" IsHitTestVisible="False" Opacity="0.35">
+                                        <Border.Background>
+                                            <RadialGradientBrush>
+                                                <GradientStop Color="{DynamicResource Color.Accent}" Offset="0"/>
+                                                <GradientStop Color="#00000000" Offset="1"/>
+                                            </RadialGradientBrush>
+                                        </Border.Background>
+                                        <Border.Triggers>
+                                            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.3" To="0.95" Duration="0:0:1.3"
+                                                                         AutoReverse="True" RepeatBehavior="Forever">
+                                                            <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                                                        </DoubleAnimation>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Border.Triggers>
+                                    </Border>
+                                    <Button Content="{DynamicResource Dash.OptimizeNow}" Style="{StaticResource Button.Primary}" FontSize="19" Padding="22,14" Command="{Binding GoToOptimizerCommand}"/>
+                                </Grid>
                                 <TextBlock Text="{DynamicResource Dash.ViewDetails}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand" HorizontalAlignment="Center" Margin="0,12,0,0">
                                     <TextBlock.InputBindings>
                                         <MouseBinding MouseAction="LeftClick" Command="{Binding GoToOptimizerCommand}"/>
                                     </TextBlock.InputBindings>
                                 </TextBlock>
                             </StackPanel>
+                            </Grid>
                         </Border>
                         <Rectangle Style="{StaticResource WidgetEditFrame}"/>
                         <Button Style="{StaticResource WidgetRemove}" CommandParameter="boost"/>
@@ -284,7 +320,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.SystemScan}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.SystemScan}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Grid.Column="1" Text="{DynamicResource Dash.Completed}" FontSize="10.5" Foreground="{StaticResource Brush.Success}"
                                                Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVis}}"/>
                                     <TextBlock Grid.Column="1" Text="{DynamicResource Dash.Scanning}" FontSize="10.5" Foreground="{StaticResource Brush.AccentBright}"
@@ -321,7 +357,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.Optimizations}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.Optimizations}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding CategorySummaries.Count, StringFormat='{}{0} categories'}" Style="{StaticResource Text.Caption}"/>
                                 </Grid>
                                 <ItemsControl ItemsSource="{Binding CategorySummaries}" Margin="0,10,0,0">
@@ -358,7 +394,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.RecentChanges}" FontFamily="Segoe UI Semibold" FontSize="13.5" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                    <TextBlock Grid.Column="0" Text="{DynamicResource Dash.RecentChanges}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                     <TextBlock Grid.Column="1" Text="{DynamicResource Dash.ViewAll}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
                                         <TextBlock.InputBindings>
                                             <MouseBinding MouseAction="LeftClick" Command="{Binding GoToLogsCommand}"/>
@@ -396,7 +432,7 @@
                 <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[sysinfo].IsVisible, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource SidebarCard}">
                         <StackPanel>
-                            <TextBlock Text="{DynamicResource Dash.SysInfo}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
+                            <TextBlock Text="{DynamicResource Dash.SysInfo}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,0,0,10"/>
                             <ItemsControl ItemsSource="{Binding SystemInfoRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -420,7 +456,7 @@
                 <Grid Style="{StaticResource WidgetHost}" Visibility="{Binding Widgets[driver].IsVisible, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource SidebarCard}">
                         <StackPanel>
-                            <TextBlock Text="{DynamicResource Dash.GpuDriver}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <TextBlock Text="{DynamicResource Dash.GpuDriver}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                             <TextBlock Text="{Binding GpuCard.Subtitle}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
                             <TextBlock Margin="0,4,0,0">
                                 <Run Text="{DynamicResource Dash.Version}" Foreground="{StaticResource Brush.TextTertiary}" FontSize="11"/><Run Text="{Binding GpuDriverVersion, Mode=OneWay}" Foreground="{StaticResource Brush.TextPrimary}" FontSize="11.5" FontFamily="Segoe UI Semibold"/>
@@ -439,7 +475,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="{DynamicResource Dash.PowerPlan}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Dash.PowerPlan}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Text="{Binding PowerPlanLabel}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0"/>
                             </StackPanel>
                             <Border Grid.Column="1" Style="{StaticResource StatusPill}" Background="{StaticResource Brush.SurfaceHover}" VerticalAlignment="Top">
@@ -472,7 +508,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="{DynamicResource Dash.GameMode}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Text="{DynamicResource Dash.GameMode}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Margin="0,6,0,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
@@ -516,7 +552,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{DynamicResource Nav.GameProfiles}" FontFamily="Segoe UI Semibold" FontSize="13" Foreground="{StaticResource Brush.TextPrimary}"/>
+                                <TextBlock Grid.Column="0" Text="{DynamicResource Nav.GameProfiles}" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource Brush.TextPrimary}"/>
                                 <TextBlock Grid.Column="1" Text="{DynamicResource Dash.ViewAll}" Style="{StaticResource Text.Caption}" Foreground="{StaticResource Brush.AccentBright}" Cursor="Hand">
                                     <TextBlock.InputBindings>
                                         <MouseBinding MouseAction="LeftClick" Command="{Binding GoToGamesCommand}"/>

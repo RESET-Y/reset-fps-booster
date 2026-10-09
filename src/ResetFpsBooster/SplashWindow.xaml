@@ -3,9 +3,170 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="True" Topmost="False"
-        Width="1280" Height="720" ResizeMode="NoResize">
-    <Grid x:Name="RootGrid" ClipToBounds="True" Background="Black">
-        <MediaElement x:Name="IntroPlayer" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop"
-                      MediaEnded="IntroPlayer_MediaEnded" MediaFailed="IntroPlayer_MediaFailed"/>
+        Width="1280" Height="720" ResizeMode="NoResize"
+        MouseDown="OnSkipMouse" KeyDown="OnSkipKey">
+    <Window.Resources>
+        <!-- One stage light: a soft white beam hanging from the rig. -->
+        <LinearGradientBrush x:Key="BeamBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#00FFFFFF" Offset="0"/>
+            <GradientStop Color="#26FFFFFF" Offset="0.5"/>
+            <GradientStop Color="#00FFFFFF" Offset="1"/>
+        </LinearGradientBrush>
+        <!-- The brand's slanted red-and-black hatching, as on the website and the stream overlay. -->
+        <DrawingBrush x:Key="StripeBrush" TileMode="Tile" Viewport="0,0,24,12" ViewportUnits="Absolute"
+                      Viewbox="0,0,24,12" ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#050505">
+                        <GeometryDrawing.Geometry>
+                            <RectangleGeometry Rect="0,0,24,12"/>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#E8121F">
+                        <GeometryDrawing.Geometry>
+                            <PathGeometry>
+                                <PathFigure StartPoint="0,12" IsClosed="True">
+                                    <LineSegment Point="12,0"/>
+                                    <LineSegment Point="18,0"/>
+                                    <LineSegment Point="6,12"/>
+                                </PathFigure>
+                            </PathGeometry>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </Window.Resources>
+    <Grid x:Name="RootGrid" Background="#050505" ClipToBounds="True">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="ShakeTransform"/>
+        </Grid.RenderTransform>
+        <Grid.Triggers>
+            <!-- The three lights sweep on their own timelines, off the UI thread. -->
+            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <DoubleAnimation Storyboard.TargetName="Beam1Angle" Storyboard.TargetProperty="Angle"
+                                         From="-16" To="14" Duration="0:0:3.2" AutoReverse="True" RepeatBehavior="Forever">
+                            <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                        <DoubleAnimation Storyboard.TargetName="Beam2Angle" Storyboard.TargetProperty="Angle"
+                                         From="12" To="-18" Duration="0:0:2.6" AutoReverse="True" RepeatBehavior="Forever">
+                            <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                        <DoubleAnimation Storyboard.TargetName="Beam3Angle" Storyboard.TargetProperty="Angle"
+                                         From="-10" To="18" Duration="0:0:3.8" AutoReverse="True" RepeatBehavior="Forever">
+                            <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Grid.Triggers>
+
+        <!-- The horizon: a low deep-red band that brightens with every value read. -->
+        <Rectangle x:Name="Horizon" VerticalAlignment="Bottom" Height="300" Opacity="0">
+            <Rectangle.Fill>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#007A0A10" Offset="0"/>
+                    <GradientStop Color="#B07A0A10" Offset="0.55"/>
+                    <GradientStop Color="#E0300306" Offset="1"/>
+                </LinearGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- Red light rising out of the horizon. The ellipse reaches past the rectangle,
+             so its edge never shows. -->
+        <Rectangle x:Name="Dawn" VerticalAlignment="Bottom" Height="460" Opacity="0">
+            <Rectangle.Fill>
+                <RadialGradientBrush Center="0.5,1" GradientOrigin="0.5,1" RadiusX="0.85" RadiusY="1.4">
+                    <GradientStop Color="#B3E8121F" Offset="0"/>
+                    <GradientStop Color="#00E8121F" Offset="0.7"/>
+                </RadialGradientBrush>
+            </Rectangle.Fill>
+        </Rectangle>
+
+        <!-- Three white stage lights from the rig, swinging slowly; stronger as more is read. -->
+        <Grid x:Name="Beams" IsHitTestVisible="False" Opacity="0.25">
+            <Rectangle Width="170" Height="980" HorizontalAlignment="Left" VerticalAlignment="Top"
+                       Margin="200,-40,0,0" Fill="{StaticResource BeamBrush}" RenderTransformOrigin="0.5,0">
+                <Rectangle.RenderTransform><RotateTransform x:Name="Beam1Angle" Angle="-16"/></Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Width="210" Height="1020" HorizontalAlignment="Left" VerticalAlignment="Top"
+                       Margin="640,-40,0,0" Fill="{StaticResource BeamBrush}" RenderTransformOrigin="0.5,0">
+                <Rectangle.RenderTransform><RotateTransform x:Name="Beam2Angle" Angle="12"/></Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Width="150" Height="960" HorizontalAlignment="Left" VerticalAlignment="Top"
+                       Margin="1010,-40,0,0" Fill="{StaticResource BeamBrush}" RenderTransformOrigin="0.5,0">
+                <Rectangle.RenderTransform><RotateTransform x:Name="Beam3Angle" Angle="-10"/></Rectangle.RenderTransform>
+            </Rectangle>
+        </Grid>
+
+        <!-- The brand hatching along the top and bottom edge. -->
+        <Rectangle VerticalAlignment="Top" Height="8" Fill="{StaticResource StripeBrush}"/>
+        <Rectangle VerticalAlignment="Bottom" Height="8" Fill="{StaticResource StripeBrush}"/>
+
+        <Image x:Name="LogoImage" Source="pack://application:,,,/Assets/logo_wide.png" Width="250" Opacity="0.35"
+               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="64,56,0,0"/>
+
+        <!-- The cue list: one hardware value per cue, each typed or counted in. -->
+        <Grid x:Name="CheckPanel" HorizontalAlignment="Left" VerticalAlignment="Top"
+              Margin="64,176,0,0" Width="700" Opacity="0">
+            <StackPanel x:Name="RowHost"/>
+        </Grid>
+
+        <!-- The boot log, writing itself out on the right. -->
+        <StackPanel x:Name="LogHost" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,180,64,0" Width="380" Opacity="0.6"/>
+
+        <!-- The live count, bottom right. -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,64,64">
+            <TextBlock x:Name="PercentText" Text="000" FontFamily="pack://application:,,,/Assets/Fonts/#Saira Condensed"
+                       FontWeight="Black" FontStyle="Italic" FontSize="150" Foreground="White">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#E8121F" BlurRadius="30" ShadowDepth="0" Opacity="0.75"/>
+                </TextBlock.Effect>
+            </TextBlock>
+            <TextBlock Text="%" FontFamily="pack://application:,,,/Assets/Fonts/#Saira Condensed"
+                       FontWeight="Black" FontStyle="Italic" FontSize="72" Foreground="#FF3242" VerticalAlignment="Top" Margin="6,18,0,0"/>
+        </StackPanel>
+
+        <!-- Progress along the bottom edge. -->
+        <Grid HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="64,0,0,40" Width="1152" Height="3">
+            <Rectangle Fill="#1A1A1A"/>
+            <Rectangle x:Name="ProgressFill" HorizontalAlignment="Left" Width="0" Fill="#E8121F"/>
+        </Grid>
+
+        <TextBlock Text="Klick oder Taste zum Überspringen" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                   Margin="64,0,0,56" FontFamily="pack://application:,,,/Assets/Fonts/#Saira Condensed"
+                   FontWeight="SemiBold" FontSize="15" Foreground="#8C8C8C"/>
+
+        <!-- The finish: the brand plate. A slanted red band, hatched at its edges, wider than the
+             window, that slams in from the left carrying BEREIT. -->
+        <Grid x:Name="ReadyPlate" VerticalAlignment="Center" Height="210" Margin="-320,0,-320,0"
+              RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
+            <Grid.RenderTransform>
+                <TransformGroup>
+                    <SkewTransform AngleX="-12"/>
+                    <TranslateTransform x:Name="PlateShift" X="-1900"/>
+                </TransformGroup>
+            </Grid.RenderTransform>
+            <Grid.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="40" ShadowDepth="10" Direction="270" Opacity="0.6"/>
+            </Grid.Effect>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="14"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="14"/>
+            </Grid.RowDefinitions>
+            <Rectangle Grid.Row="0" Fill="{StaticResource StripeBrush}"/>
+            <Rectangle Grid.Row="1" Fill="#E8121F"/>
+            <Rectangle Grid.Row="2" Fill="{StaticResource StripeBrush}"/>
+            <TextBlock Grid.Row="1" Text="BEREIT" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontFamily="pack://application:,,,/Assets/Fonts/#Saira Condensed" FontWeight="Black"
+                       FontSize="130" Foreground="White" Margin="0,-6,0,0"/>
+        </Grid>
+
+        <!-- The hit: a white flash over everything, only at the very end. -->
+        <Rectangle x:Name="WhiteFlash" Fill="White" Opacity="0" IsHitTestVisible="False"/>
     </Grid>
 </Window>

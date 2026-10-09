@@ -58,10 +58,13 @@
 
     <!-- A maximized borderless window reaches past the screen edge by the
          resize border; OnStateChanged pads it back in. -->
+    <Grid>
+    <Rectangle VerticalAlignment="Bottom" Height="360" Fill="{StaticResource Brush.Horizon}" IsHitTestVisible="False"/>
+    <Rectangle x:Name="HorizonGlowRect" VerticalAlignment="Bottom" Height="460" Fill="{StaticResource Brush.HorizonGlow}" IsHitTestVisible="False"/>
     <DockPanel x:Name="RootPanel">
         <!-- Title bar -->
         <Grid DockPanel.Dock="Top" Height="34" Background="{StaticResource Brush.Background}">
-            <TextBlock Text="RESET FPS BOOSTER //" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="11"
+            <TextBlock Text="RESET FPS BOOSTER" FontFamily="{StaticResource Font.Display}" FontWeight="SemiBold" FontSize="13"
                        Foreground="{StaticResource Brush.TextTertiary}" VerticalAlignment="Center" Margin="16,0,0,0"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Style="{StaticResource CaptionButton}" Click="OnMinimize" ToolTip="Minimize">
@@ -76,17 +79,30 @@
             </StackPanel>
         </Grid>
 
-        <!-- Racing stripe: red band with slanted black hatching -->
-        <Border DockPanel.Dock="Top" Height="6" Background="{DynamicResource Brush.Accent}">
+        <Grid DockPanel.Dock="Top" Height="2" ClipToBounds="True" IsHitTestVisible="False">
+        <!-- Horizon line: white into red and out again, fading at both ends -->
             <Rectangle>
                 <Rectangle.Fill>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="8,6" MappingMode="Absolute" SpreadMethod="Repeat">
-                        <GradientStop Color="#00000000" Offset="0"/><GradientStop Color="#00000000" Offset="0.5"/>
-                        <GradientStop Color="#FF000000" Offset="0.5"/><GradientStop Color="#FF000000" Offset="1"/>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#00FFFFFF" Offset="0"/>
+                        <GradientStop Color="#CCFFFFFF" Offset="0.3"/>
+                        <GradientStop Color="{StaticResource Color.Accent}" Offset="0.7"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
-        </Border>
+            <!-- the light that runs along it -->
+            <Rectangle x:Name="LineShimmer" Width="260" HorizontalAlignment="Left" Opacity="0.9">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#00FFFFFF" Offset="0"/>
+                        <GradientStop Color="#FFFFFFFF" Offset="0.5"/>
+                        <GradientStop Color="#00FFFFFF" Offset="1"/>
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+                <Rectangle.RenderTransform><TranslateTransform x:Name="LineShimmerShift" X="-300"/></Rectangle.RenderTransform>
+            </Rectangle>
+        </Grid>
 
         <Grid>
         <Grid.ColumnDefinitions>
@@ -95,7 +111,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar: black, closed off by a red edge -->
-        <Border Grid.Column="0" Background="{StaticResource Brush.Background}" BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="0,0,3,0" ClipToBounds="True">
+        <Border Grid.Column="0" Background="#B3050505" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,1,0" ClipToBounds="True">
           <Grid>
             <DockPanel LastChildFill="True" Margin="0,0,0,20">
 
@@ -103,18 +119,12 @@
                 <Border DockPanel.Dock="Top" Padding="24,26">
                     <StackPanel>
                         <Image Source="/Assets/logo_wide.png" Height="40" HorizontalAlignment="Left" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="RESET FPS BOOSTER //" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="10.5" Foreground="{StaticResource Brush.TextTertiary}"
-                                   Margin="2,8,0,0">
-                            <TextBlock.LayoutTransform>
-                                <ScaleTransform ScaleX="1.06"/>
-                            </TextBlock.LayoutTransform>
-                        </TextBlock>
                     </StackPanel>
                 </Border>
 
                 <!-- Footer / branding -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="24,12,24,0">
-                    <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="{StaticResource Brush.Warning}" BorderThickness="3,0,0,0" Padding="12,10" Margin="0,0,0,14"
+                    <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="#66F5A623" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,14"
                             Visibility="{Binding IsAdministrator, Converter={StaticResource InverseBoolToVis}}">
                         <StackPanel>
                             <TextBlock Text="{DynamicResource Shell.StandardMode}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold" FontSize="12"/>
@@ -130,12 +140,10 @@
                             <TextBlock Text="{DynamicResource Shell.JoinDiscord}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Border BorderBrush="{DynamicResource Brush.Accent}" BorderThickness="2,0,0,0" Padding="10,0,0,0">
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource Shell.MadeBy}" FontSize="11" Foreground="{StaticResource Brush.TextTertiary}"/>
-                            <TextBlock Text="Lukas Reschke" Foreground="White" FontFamily="Segoe UI Black" FontStyle="Italic" FontSize="12" Margin="0,1,0,0"/>
-                        </StackPanel>
-                    </Border>
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Shell.MadeBy}" FontSize="11" Foreground="{StaticResource Brush.TextTertiary}"/>
+                        <TextBlock Text="Lukas Reschke" Foreground="White" FontFamily="{StaticResource Font.Display}" FontWeight="Black" FontStyle="Italic" FontSize="16" Margin="0,1,0,0"/>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Navigation: scrolls when the window is too short for every page -->
@@ -154,7 +162,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Path Data="{Binding Icon, Converter={StaticResource IconToGeometry}}" Fill="White"
                                               Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                        <TextBlock Text="{Binding Label, Converter={StaticResource ToUpper}}" FontSize="13" FontFamily="Segoe UI Black" FontStyle="Italic" VerticalAlignment="Center"
+                                        <TextBlock Text="{Binding Label, Converter={StaticResource ToUpper}}" FontSize="18" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontStyle="Italic" VerticalAlignment="Center"
                                                    Foreground="White"/>
                                     </StackPanel>
                                 </RadioButton>
@@ -167,7 +175,10 @@
         </Border>
 
         <!-- Content -->
-        <ContentControl x:Name="ContentHost" Grid.Column="1" Content="{Binding CurrentViewModel}" Margin="0"/>
+        <Grid Grid.Column="1" ClipToBounds="True">
+            <ContentControl x:Name="ContentHost" Content="{Binding CurrentViewModel}" Margin="0"/>
+        </Grid>
         </Grid>
     </DockPanel>
+    </Grid>
 </Window>

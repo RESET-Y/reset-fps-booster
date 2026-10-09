@@ -68,7 +68,42 @@ public static class ThemeColorHelper
         heroGlow.GradientStops.Add(new GradientStop(Color.FromArgb(0x33, accent.R, accent.G, accent.B), 0));
         heroGlow.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0, 0, 0), 1));
         resources["Brush.HeroGlow"] = Freeze(heroGlow);
+
+        // The stage's lights follow the accent too (Colors.xaml has the same shapes in red).
+        var navActive = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+        navActive.GradientStops.Add(new GradientStop(WithAlpha(accent, 0x40), 0));
+        navActive.GradientStops.Add(new GradientStop(WithAlpha(accent, 0x00), 1));
+        resources["Brush.NavActive"] = Freeze(navActive);
+
+        var cardAccent = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        cardAccent.GradientStops.Add(new GradientStop(WithAlpha(accent, 0x33), 0));
+        cardAccent.GradientStops.Add(new GradientStop(Color.FromArgb(0xFF, 0x0C, 0x0C, 0x0C), 0.55));
+        resources["Brush.CardAccent"] = Freeze(cardAccent);
+
+        var horizonGlow = new RadialGradientBrush
+        {
+            Center = new Point(0.5, 1), GradientOrigin = new Point(0.5, 1), RadiusX = 0.8, RadiusY = 1.4,
+        };
+        horizonGlow.GradientStops.Add(new GradientStop(WithAlpha(accent, 0x55), 0));
+        horizonGlow.GradientStops.Add(new GradientStop(WithAlpha(accent, 0x00), 0.7));
+        resources["Brush.HorizonGlow"] = Freeze(horizonGlow);
+
+        // The horizon band and the stage inside the dashboard cards: the accent, deepened to near black.
+        var night = Blend(accent, Colors.Black, 0.8);
+        var horizon = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        horizon.GradientStops.Add(new GradientStop(WithAlpha(deep, 0x00), 0));
+        horizon.GradientStops.Add(new GradientStop(WithAlpha(deep, 0x44), 0.6));
+        horizon.GradientStops.Add(new GradientStop(WithAlpha(night, 0x99), 1));
+        resources["Brush.Horizon"] = Freeze(horizon);
+
+        var stage = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        stage.GradientStops.Add(new GradientStop(Color.FromArgb(0xF0, 0x0C, 0x0C, 0x0C), 0));
+        stage.GradientStops.Add(new GradientStop(Color.FromArgb(0xF0, 0x0C, 0x0C, 0x0C), 0.5));
+        stage.GradientStops.Add(new GradientStop(WithAlpha(night, 0xE0), 1));
+        resources["Brush.StageFill"] = Freeze(stage);
     }
+
+    private static Color WithAlpha(Color c, byte alpha) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
     private static Color Blend(Color from, Color to, double amount) => Color.FromRgb(
         (byte)(from.R + (to.R - from.R) * amount),

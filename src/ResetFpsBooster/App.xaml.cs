@@ -85,7 +85,7 @@ public partial class App : Application
         _services = new AppServices();
         var mainViewModel = new MainViewModel(_services);
 
-        var window = new MainWindow { DataContext = mainViewModel, Opacity = 0 };
+        var window = new MainWindow { DataContext = mainViewModel, Opacity = 0, Settings = _services.Settings };
         WindowBackdrop.ApplyDarkModeAndBackdrop(window);
         MainWindow = window;
         // The crosshair is a window of its own; left open it would keep the
