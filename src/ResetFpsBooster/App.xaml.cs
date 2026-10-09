@@ -86,6 +86,12 @@ public partial class App : Application
         var mainViewModel = new MainViewModel(_services);
 
         var window = new MainWindow { DataContext = mainViewModel, Opacity = 0, Settings = _services.Settings };
+#if RFB_BETA
+        // Closing the window hides it to the tray. The FrameBoost engine draws a full-screen
+        // overlay, so it must stop with the window - otherwise it stays over the game with no
+        // visible way left to switch it off (one-monitor setups could not get out).
+        window.StopOverlays = () => _services?.FrameBoostBeta.Stop();
+#endif
         WindowBackdrop.ApplyDarkModeAndBackdrop(window);
         MainWindow = window;
         // The crosshair is a window of its own; left open it would keep the

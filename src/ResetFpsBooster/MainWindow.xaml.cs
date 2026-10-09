@@ -22,6 +22,10 @@ public partial class MainWindow : Window
     /// closing the window keeps the app in the tray.</summary>
     public ISettingsService? Settings { get; set; }
 
+    /// <summary>Stops the FrameBoost and Smooth Motion engine. Called whenever the window
+    /// goes to the tray, so no full-screen overlay outlives the window that controls it.</summary>
+    public Action? StopOverlays { get; set; }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -109,6 +113,7 @@ public partial class MainWindow : Window
         if (!_exiting && Settings?.Current.CloseToTray == true)
         {
             e.Cancel = true;
+            StopOverlays?.Invoke();
             SendToTray();
             return;
         }
@@ -121,7 +126,7 @@ public partial class MainWindow : Window
         _tray ??= CreateTrayIcon();
         _tray.Visibility = Visibility.Visible;
         Hide();
-        _tray.ShowBalloonTip("RESET FPS BOOSTER", "Läuft weiter im Tray. Rechtsklick → Beenden.", BalloonIcon.Info);
+        _tray.ShowBalloonTip("RESET FPS BOOSTER", "Läuft im Tray weiter. FrameBoost und Smooth Motion sind aus. Rechtsklick → Beenden.", BalloonIcon.Info);
     }
 
     private void RestoreFromTray()

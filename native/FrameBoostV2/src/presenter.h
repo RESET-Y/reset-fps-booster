@@ -52,8 +52,12 @@ public:
     void EnableShortQueue(bool on) { m_shortQueue = on; }
     void Destroy();
 
-    // Follow the captured window if it moves or is resized.
+    // Follow the captured window if it moves or is resized. Also shows the overlay
+    // only while the game is the foreground window, and hides it otherwise.
     void TrackTarget();
+    // True when the game (or, in whole-screen mode, a window covering the monitor)
+    // has the focus. The overlay is topmost only then.
+    bool GameIsForeground() const;
     void Resize(UINT width, UINT height);
     void PumpMessages();
 

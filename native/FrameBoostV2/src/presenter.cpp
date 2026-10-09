@@ -174,15 +174,53 @@ bool Presenter::Create(ID3D11Device* device, UINT width, UINT height, HWND overl
     return true;
 }
 
+namespace {
+
+// The desktop and the taskbar cover the whole monitor too; they must never count as "the game".
+bool IsShellWindow(HWND h) {
+    wchar_t cls[64] = {};
+    GetClassNameW(h, cls, 64);
+    return wcscmp(cls, L"Progman") == 0 || wcscmp(cls, L"WorkerW") == 0 || wcscmp(cls, L"Shell_TrayWnd") == 0;
+}
+
+} // namespace
+
+bool Presenter::GameIsForeground() const {
+    const HWND fg = GetForegroundWindow();
+    if (!fg || IsShellWindow(fg)) return false;
+    if (m_screenMode) {
+        RECT f{};
+        if (!GetWindowRect(fg, &f)) return false;
+        return f.left <= m_screenRect.left && f.top <= m_screenRect.top &&
+               f.right >= m_screenRect.right && f.bottom >= m_screenRect.bottom;
+    }
+    if (!m_target) return true;
+    // Compare the top-level windows: the game may have a child window with the focus.
+    return GetAncestor(fg, GA_ROOT) == GetAncestor(m_target, GA_ROOT);
+}
+
 void Presenter::TrackTarget() {
-    if (m_hwnd && m_screenMode) {
+    // THE OVERLAY IS ONLY ON TOP WHILE THE GAME HAS THE FOCUS. It used to stay topmost
+    // all the time, which put it over Discord, the desktop and the taskbar: a player
+    // could not get back out to switch the feature off. Now it hides as soon as another
+    // window takes the focus, and shows again when the game does.
+    if (!m_hwnd) return;
+    const bool show = GameIsForeground();
+    if (show != (IsWindowVisible(m_hwnd) != FALSE)) {
+        ShowWindow(m_hwnd, show ? SW_SHOWNOACTIVATE : SW_HIDE);
+        if (show) Logger::Log("[FrameBoostV2] Overlay shown: the game has the focus.");
+        else Logger::Log("[FrameBoostV2] Overlay hidden: another window has the focus.");
+    }
+    if (!show) return;
+
+    if (m_screenMode) {
         const RECT& r = m_screenRect;
         int w = r.right - r.left;
         if (m_halfWidth) w /= 2;
         SetWindowPos(m_hwnd, ZAboveCrosshairOrTopmost(), r.left, r.top, w, r.bottom - r.top, SWP_NOACTIVATE | SWP_NOREDRAW);
         return;
     }
-    if (!m_hwnd || !m_target || !IsWindow(m_target)) return;
+    if (!m_target || !IsWindow(m_target)) return;
 
     RECT client{};
     if (!GetClientRect(m_target, &client)) return;
