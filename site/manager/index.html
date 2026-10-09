@@ -182,7 +182,8 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
     <section id="v-apps">
       <div class="viewhead">
         <h2>Bewerbungen</h2>
-        <div class="actions-bar"><button class="btn ghost sm" id="appRefresh" type="button">Neu laden</button></div>
+        <div class="actions-bar"><button class="btn ghost sm" id="archApps" type="button" aria-pressed="false">Archiv</button>
+          <button class="btn ghost sm" id="appRefresh" type="button">Neu laden</button></div>
       </div>
       <div class="chips" id="appFilter" role="group" aria-label="Filter">
         <button type="button" data-f="new" aria-pressed="true">Neu</button>
@@ -199,6 +200,7 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
       <div class="viewhead">
         <h2>Partner</h2>
         <div class="actions-bar">
+          <button class="btn ghost sm" id="archPartners" type="button" aria-pressed="false">Archiv</button>
           <button class="btn ghost sm" id="affRefresh" type="button">Neu laden</button>
           <button class="btn sm" id="newPartner" type="button">+ Neuer Partner</button>
         </div>
@@ -211,6 +213,7 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
       <div class="viewhead">
         <h2>Premium-Codes</h2>
         <div class="actions-bar">
+          <button class="btn ghost sm" id="archCodes" type="button" aria-pressed="false">Archiv</button>
           <button class="btn ghost sm" id="refresh" type="button">Neu laden</button>
           <button class="btn sm" id="newCode" type="button">+ Neuer Code</button>
         </div>
@@ -368,7 +371,7 @@ async function showApp() {
   if (!(await rpc("is_manager").catch(() => false))) { saveSession(null); showLogin("Dieser Account ist kein Manager."); return; }
   $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
   $("who").textContent = session.email || "";
-  loadApps(); loadPartners(); loadCodes();
+  loadArchive().then(() => { loadApps(); loadPartners(); loadCodes(); });
 }
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -398,14 +401,47 @@ function resetSeg(id, first) {
 // Dialogs close with their "Schließen" button, and Escape works natively.
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => $(b.dataset.close).close()));
 
+// ---------- archive ----------
+// Archived partners, codes and applications leave the lists but stay in the
+// database (bookkeeping, customer codes). Restoring brings them back.
+let archivedSet = new Set();
+let codesCache = [];
+const archKey = (kind, ref) => kind + ":" + String(ref);
+const isArchived = (kind, ref) => archivedSet.has(archKey(kind, ref));
+const archView = { apps: false, partners: false, codes: false };
+async function loadArchive() {
+  try { archivedSet = new Set((await rpc("list_archived") || []).map(r => archKey(r.kind, r.ref))); }
+  catch { archivedSet = new Set(); }
+}
+async function setArchived(kind, ref, on) {
+  await rpc("set_archived", { p_kind: kind, p_ref: String(ref), p_archived: on });
+  await loadArchive();
+}
+function updateArchToggles() {
+  const count = {
+    apps: apps.filter(a => isArchived("application", a.id)).length,
+    partners: affiliates.filter(a => isArchived("partner", a.id)).length,
+    codes: codesCache.filter(c => isArchived("code", c.code)).length
+  };
+  [["apps", "archApps"], ["partners", "archPartners"], ["codes", "archCodes"]].forEach(([area, id]) => {
+    $(id).textContent = (archView[area] ? "Aktive anzeigen" : "Archiv") + (count[area] ? " (" + count[area] + ")" : "");
+    $(id).setAttribute("aria-pressed", String(archView[area]));
+  });
+}
+function renderAll() { renderApps(); renderPartners(); renderCodes(); }
+[["apps", "archApps"], ["partners", "archPartners"], ["codes", "archCodes"]].forEach(([area, id]) => {
+  $(id).addEventListener("click", () => { archView[area] = !archView[area]; renderAll(); });
+});
+
 // ---------- applications ----------
 const APP_STATUS = { new: "Neu", accepted: "Angenommen", rejected: "Abgelehnt" };
 let apps = [], appFilter = "new";
 function renderApps() {
-  const open = apps.filter(a => a.status === "new").length;
+  const open = apps.filter(a => a.status === "new" && !isArchived("application", a.id)).length;
   $("appCount").textContent = open;
   $("appCount").hidden = !open;
-  const list = appFilter === "all" ? apps : apps.filter(a => a.status === appFilter);
+  const list = apps.filter(a => isArchived("application", a.id) === archView.apps
+    && (archView.apps || appFilter === "all" || a.status === appFilter));
   $("appList").innerHTML = list.length ? list.map(a => {
     const url = safeUrl(a.channel);
     return `<article class="card">
@@ -418,13 +454,15 @@ function renderApps() {
       <div class="kv"><span>Kontakt</span><span style="color:#fff;text-transform:none;font-size:14px;letter-spacing:0">${esc(a.contact)}</span></div>
       ${a.message ? `<p class="msgtext">${esc(a.message)}</p>` : ""}
       <div class="acts">
-        ${a.status !== "accepted" ? `<button class="btn sm good" type="button" data-app="accepted" data-id="${a.id}">Annehmen</button>` : ""}
-        ${a.status !== "rejected" ? `<button class="btn sm ghost" type="button" data-app="rejected" data-id="${a.id}">Ablehnen</button>` : ""}
-        ${a.status !== "new" ? `<button class="btn sm ghost" type="button" data-app="new" data-id="${a.id}">Zurücksetzen</button>` : ""}
+        ${!archView.apps && a.status !== "accepted" ? `<button class="btn sm good" type="button" data-app="accepted" data-id="${a.id}">Annehmen</button>` : ""}
+        ${!archView.apps && a.status !== "rejected" ? `<button class="btn sm ghost" type="button" data-app="rejected" data-id="${a.id}">Ablehnen</button>` : ""}
+        ${!archView.apps && a.status !== "new" ? `<button class="btn sm ghost" type="button" data-app="new" data-id="${a.id}">Zurücksetzen</button>` : ""}
+        <button class="btn sm ghost" type="button" data-arch-app="${archView.apps ? "restore" : "archive"}" data-id="${a.id}">${archView.apps ? "Wiederherstellen" : "Archivieren"}</button>
         <button class="btn sm danger" type="button" data-app-del="${a.id}" data-name="${esc(a.name)}">Löschen</button>
       </div>
     </article>`;
-  }).join("") : `<div class="empty">${appFilter === "new" ? "Keine neuen Bewerbungen. Gut so." : "Nichts in dieser Ansicht."}</div>`;
+  }).join("") : `<div class="empty">${archView.apps ? "Im Archiv ist nichts." : appFilter === "new" ? "Keine neuen Bewerbungen. Gut so." : "Nichts in dieser Ansicht."}</div>`;
+  updateArchToggles();
 }
 async function loadApps() {
   try { apps = await rpc("list_partner_applications") || []; renderApps(); }
@@ -436,6 +474,14 @@ $("appFilter").addEventListener("click", e => {
 });
 $("appRefresh").addEventListener("click", loadApps);
 $("appList").addEventListener("click", async e => {
+  const ar = e.target.closest("button[data-arch-app]");
+  if (ar) {
+    ar.disabled = true;
+    const on = ar.dataset.archApp === "archive";
+    try { await setArchived("application", ar.dataset.id, on); toast(on ? "Archiviert" : "Wiederhergestellt"); renderAll(); }
+    catch { toast("Fehlgeschlagen"); ar.disabled = false; }
+    return;
+  }
   const d = e.target.closest("button[data-app-del]");
   if (d) {
     if (!confirm("Bewerbung von „" + d.dataset.name + "“ endgültig löschen?")) return;
@@ -485,9 +531,12 @@ $("share").addEventListener("click", () => {
 });
 
 async function loadCodes() {
-  try {
-    const codes = await rpc("list_premium_codes") || [];
-    $("list").innerHTML = codes.length ? codes.map(c => `
+  try { codesCache = await rpc("list_premium_codes") || []; renderCodes(); }
+  catch { $("list").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+}
+function renderCodes() {
+  const list = codesCache.filter(c => isArchived("code", c.code) === archView.codes);
+  $("list").innerHTML = list.length ? list.map(c => `
       <article class="card ${c.active ? "" : "off"}">
         <div class="card-top">
           <div style="min-width:0"><div class="code">${esc(c.code)}</div>
@@ -497,15 +546,29 @@ async function loadCodes() {
         ${c.note ? `<div class="name">${esc(c.note)}</div>` : ""}
         <div class="acts">
           <button class="btn sm ghost" type="button" data-copy="${esc(c.code)}">Kopieren</button>
-          <button class="btn sm ghost" type="button" data-toggle="${esc(c.code)}" data-active="${c.active}">${c.active ? "Deaktivieren" : "Aktivieren"}</button>
+          ${archView.codes ? "" : `<button class="btn sm ghost" type="button" data-toggle="${esc(c.code)}" data-active="${c.active}">${c.active ? "Deaktivieren" : "Aktivieren"}</button>`}
+          <button class="btn sm ghost" type="button" data-arch="${archView.codes ? "restore" : "archive"}" data-code="${esc(c.code)}">${archView.codes ? "Wiederherstellen" : "Archivieren"}</button>
           <button class="btn sm danger" type="button" data-del-code="${esc(c.code)}">Löschen</button>
         </div>
-      </article>`).join("") : '<div class="empty">Noch keine Codes. Lege den ersten mit „+ Neuer Code“ an.</div>';
-  } catch { $("list").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
+      </article>`).join("") : `<div class="empty">${archView.codes ? "Im Archiv ist nichts." : "Noch keine Codes. Lege den ersten mit „+ Neuer Code“ an."}</div>`;
+  updateArchToggles();
 }
 $("refresh").addEventListener("click", loadCodes);
 $("list").addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.arch) {
+    // Archiving switches the code off first, so nobody can use it while it is hidden.
+    const on = b.dataset.arch === "archive";
+    b.disabled = true;
+    try {
+      const c = codesCache.find(x => x.code === b.dataset.code);
+      if (on && c && c.active) await rpc("set_premium_code_active", { p_code: c.code, p_active: false });
+      await setArchived("code", b.dataset.code, on);
+      toast(on ? "Archiviert" : "Wiederhergestellt");
+      loadCodes();
+    } catch { toast("Fehlgeschlagen"); b.disabled = false; }
+    return;
+  }
   if (b.dataset.delCode) {
     if (!confirm("Code " + b.dataset.delCode + " endgültig löschen?")) return;
     try {
@@ -583,8 +646,12 @@ async function loadPartners() {
   } catch { $("affList").innerHTML = '<div class="empty">Liste konnte nicht geladen werden.</div>'; }
 }
 function renderPartners() {
-  if (!affiliates.length) { $("affList").innerHTML = '<div class="empty">Noch keine Partner. Lege den ersten mit „+ Neuer Partner“ an.</div>'; return; }
-  $("affList").innerHTML = affiliates.map(a => {
+  const list = affiliates.filter(a => isArchived("partner", a.id) === archView.partners);
+  if (!list.length) {
+    $("affList").innerHTML = `<div class="empty">${archView.partners ? "Im Archiv ist nichts." : "Noch keine Partner. Lege den ersten mit „+ Neuer Partner“ an."}</div>`;
+    updateArchToggles(); return;
+  }
+  $("affList").innerHTML = list.map(a => {
     const due = Number(a.commission_cents) - Number(a.paid_cents);
     const login = accounts[a.id];
     return `<article class="card clickable ${a.active ? "" : "off"}" data-open="${a.id}" tabindex="0" role="button" aria-label="Details zu ${esc(a.code)}">
@@ -601,6 +668,7 @@ function renderPartners() {
       </div>
     </article>`;
   }).join("");
+  updateArchToggles();
 }
 $("affList").addEventListener("click", e => {
   const c = e.target.closest("[data-open]"); if (c) openDrawer(Number(c.dataset.open));
@@ -634,6 +702,7 @@ async function drawerBody(id) {
   catch { if (openId === id) $("dBody").textContent = "Konnte nicht geladen werden."; return; }
   if (openId !== id) return; // another partner was opened meanwhile
   const due = Number(a.commission_cents) - Number(a.paid_cents);
+  const archived = isArchived("partner", id);
   // Same rules as delete_affiliate in the database; the database has the last word.
   const delBlock = a.active ? "Zuerst deaktivieren, dann löschen."
     : act.sales.length ? "Hat Verkäufe. Verkäufe sind Buchungsbelege und bleiben erhalten. Dieser Partner kann nur deaktiviert werden."
@@ -710,6 +779,14 @@ async function drawerBody(id) {
     </section>
 
     <section class="block">
+      <h3>Archiv</h3>
+      <p class="hint" style="margin-top:0">${archived
+        ? "Im Archiv. Verkäufe und Auszahlungen bleiben erhalten. Wiederherstellen bringt den Partner zurück in die Liste, der Code bleibt aus, bis du ihn wieder aktivierst."
+        : "Blendet den Partner aus der Liste aus. Der Code wird dabei deaktiviert, Verkäufe und Auszahlungen bleiben erhalten."}</p>
+      <button class="btn block ghost" type="button" id="dArchive">${archived ? "Wiederherstellen" : "Archivieren"}</button>
+    </section>
+
+    <section class="block">
       <h3>Partner löschen</h3>
       <p class="hint" style="margin-top:0">${delBlock || "Entfernt den Partner endgültig. Der Code ist schon deaktiviert."}</p>
       <button class="btn block danger" type="button" id="dDelete" ${delBlock ? "disabled" : ""}>Partner endgültig löschen</button>
@@ -722,6 +799,18 @@ $("dBody").addEventListener("click", async e => {
   const id = openId; if (id == null) return;
   const a = affiliates.find(x => x.id === id);
   if (b.id === "dLink") { if (a && await copy(SITE + "/r/" + a.code)) toast("Link kopiert"); return; }
+  if (b.id === "dArchive") {
+    const on = !isArchived("partner", id);
+    b.disabled = true;
+    try {
+      if (on && a.active) await adminFn({ action: "set_active", id, active: false });
+      await setArchived("partner", id, on);
+      toast(on ? "Archiviert" : "Wiederhergestellt");
+      if (on) closeDrawer();
+      loadPartners();
+    } catch (err) { toast(err.message === "unreachable" ? "Funktion nicht erreichbar" : "Fehlgeschlagen"); b.disabled = false; }
+    return;
+  }
   if (b.id === "dDelete") {
     // Typing the code is the extra step before a deletion that cannot be undone.
     const typed = prompt("Zum Löschen den Code " + a.code + " eingeben:");
