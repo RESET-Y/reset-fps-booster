@@ -21,3 +21,7 @@ verify_jwt = false
 [functions.discord-digest]
 verify_jwt = false
 
+# Called by the database trigger on a new partner application, without a token.
+# It mails the owner once per application. See functions/partner-application-notify/index.ts.
+[functions.partner-application-notify]
+verify_jwt = false

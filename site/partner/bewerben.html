@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partner werden · RESET FPS BOOSTER</title>
+<meta name="description" content="Werde RESET-Partner: Streamer mit eigenem Code, Rabatt für Käufer und Provision.">
+<meta name="theme-color" content="#050505">
+<link rel="icon" href="../assets/favicon.ico">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../assets/legal.css">
+<style>
+main.wrap { max-width: 720px; }
+form { margin-top: 24px; }
+label { display: block; margin-top: 18px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+label .opt { text-transform: none; letter-spacing: 0; font: 400 13px var(--mono); }
+input, textarea { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px 14px; background: #000; border: 1px solid var(--border); color: var(--text); font: 400 16px var(--body); }
+textarea { min-height: 120px; resize: vertical; }
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.check { display: flex; gap: 12px; align-items: flex-start; margin-top: 22px; font-size: 15px; }
+.check input { width: auto; margin: 4px 0 0; }
+.btn { display: inline-block; margin-top: 22px; padding: 11px 20px; background: var(--accent); color: #fff; border: 0; cursor: pointer; text-decoration: none;
+  transform: skewX(var(--skew)); font: 900 italic 16px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.btn > span { display: inline-block; transform: skewX(12deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn:disabled { opacity: .5; cursor: default; }
+.msg { margin-top: 14px; min-height: 1.4em; font-size: 15px; }
+.msg.bad { color: var(--accent-bright); }
+.msg.good { color: #3dd68c; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="RESET FPS BOOSTER"><img src="../assets/logo_wide.png" alt="RESET FPS BOOSTER" width="113" height="26"></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="true"><span>DE</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="form-root"></div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/" data-t="Back to start">Zur Startseite</a>
+    <a href="../impressum.html" data-t="Legal notice">Impressum</a>
+    <a href="../datenschutz.html" data-t="Privacy">Datenschutz</a>
+    <a href="../agb.html" data-t="Terms">AGB</a>
+  </div>
+</footer>
+<div class="stripe"></div>
+<script src="../assets/legal.js"></script>
+<script src="../assets/account.js?v=5"></script>
+<script>
+(function () {
+  const T = {
+    de: {
+      eyebrow: "RESET Partner",
+      title: "Partner werden",
+      intro: "Du streamst oder machst Videos über Gaming und Performance? Dann kannst du RESET-Partner werden: Du bekommst einen eigenen Code, deine Zuschauer sparen beim Kauf, und du erhältst für jeden bezahlten Kauf eine Provision. Die Bedingungen stehen im <a href=\"vertrag.html\">Partnervertrag</a>.",
+      name: "Name", nameHint: "Wie du dich nennst, z. B. dein Kanalname",
+      channel: "Dein Kanal", channelHint: "Link zu Twitch, YouTube, TikTok o. Ä.",
+      audience: "Reichweite", audienceOpt: "(optional)", audienceHint: "z. B. ca. 300 Zuschauer im Schnitt, 5.000 Follower",
+      contact: "Kontakt", contactHint: "E-Mail oder Discord-Name, unter dem wir dich erreichen",
+      message: "Kurz zu dir", messageOpt: "(optional)", messageHint: "Was streamst du, und warum passt RESET zu dir?",
+      consent: "Ich habe den <a href=\"vertrag.html\">Partnervertrag</a> gelesen. Meine Angaben verarbeitet RESET, um meine Bewerbung zu prüfen (Datenschutzerklärung, Abschnitt 6).",
+      send: "Bewerbung abschicken",
+      sending: "Wird gesendet …",
+      ok: "Danke, deine Bewerbung ist angekommen. Ich melde mich bei dir über den Kontakt, den du angegeben hast.",
+      consentMissing: "Bitte bestätige, dass du den Partnervertrag gelesen hast.",
+      missing: "Bitte füll Name, Kanal und Kontakt aus.",
+      busy: "Gerade kommen sehr viele Bewerbungen an. Versuch es morgen noch mal.",
+      failed: "Das hat nicht geklappt. Versuch es gleich noch mal.",
+      login: "Du bist schon Partner? <a href=\"index.html\">Zum Partner-Bereich</a>"
+    },
+    en: {
+      eyebrow: "RESET Partner",
+      title: "Become a partner",
+      intro: "Do you stream or make videos about gaming and performance? You can become a RESET partner: you get your own code, your viewers save when they buy, and you earn a commission for every paid purchase. The terms are in the <a href=\"vertrag.html\">partner contract</a>.",
+      name: "Name", nameHint: "What you go by, e.g. your channel name",
+      channel: "Your channel", channelHint: "Link to Twitch, YouTube, TikTok or similar",
+      audience: "Reach", audienceOpt: "(optional)", audienceHint: "e.g. about 300 viewers on average, 5,000 followers",
+      contact: "Contact", contactHint: "E-mail or Discord name where we can reach you",
+      message: "A bit about you", messageOpt: "(optional)", messageHint: "What do you stream, and why does RESET fit you?",
+      consent: "I have read the <a href=\"vertrag.html\">partner contract</a>. RESET processes my details to review my application (privacy policy, section 6).",
+      send: "Send application",
+      sending: "Sending …",
+      ok: "Thanks, your application has arrived. I'll get back to you through the contact you gave.",
+      consentMissing: "Please confirm that you have read the partner contract.",
+      missing: "Please fill in name, channel and contact.",
+      busy: "Very many applications are coming in right now. Try again tomorrow.",
+      failed: "That didn't work. Try again in a moment.",
+      login: "Already a partner? <a href=\"index.html\">Go to the partner area</a>"
+    }
+  };
+  const root = document.getElementById("form-root");
+  const lang = () => document.documentElement.lang === "en" ? "en" : "de";
+  const t = () => T[lang()];
+  let st = { msg: "", bad: true, busy: false, done: false };
+
+  function render() {
+    const x = t();
+    if (st.done) {
+      root.innerHTML = `<h1>${x.title}</h1><p class="msg good" role="status">${x.ok}</p>`;
+      return;
+    }
+    root.innerHTML = `
+      <div class="eyebrow">${x.eyebrow}</div>
+      <h1>${x.title}</h1>
+      <p>${x.intro}</p>
+      <form id="apply" novalidate>
+        <label for="ap-name">${x.name}</label>
+        <input id="ap-name" name="name" type="text" maxlength="80" autocomplete="name" required>
+        <div class="msg" style="margin:4px 0 0;font-size:13px;color:var(--text-3)">${x.nameHint}</div>
+
+        <label for="ap-channel">${x.channel}</label>
+        <input id="ap-channel" name="channel" type="url" maxlength="300" placeholder="https://" required>
+        <div class="msg" style="margin:4px 0 0;font-size:13px;color:var(--text-3)">${x.channelHint}</div>
+
+        <label for="ap-audience">${x.audience} <span class="opt">${x.audienceOpt}</span></label>
+        <input id="ap-audience" name="audience" type="text" maxlength="120">
+        <div class="msg" style="margin:4px 0 0;font-size:13px;color:var(--text-3)">${x.audienceHint}</div>
+
+        <label for="ap-contact">${x.contact}</label>
+        <input id="ap-contact" name="contact" type="text" maxlength="200" required>
+        <div class="msg" style="margin:4px 0 0;font-size:13px;color:var(--text-3)">${x.contactHint}</div>
+
+        <label for="ap-message">${x.message} <span class="opt">${x.messageOpt}</span></label>
+        <textarea id="ap-message" name="message" maxlength="2000"></textarea>
+        <div class="msg" style="margin:4px 0 0;font-size:13px;color:var(--text-3)">${x.messageHint}</div>
+
+        <div class="hp" aria-hidden="true"><label for="ap-website">Website</label><input id="ap-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+
+        <label class="check"><input id="ap-consent" type="checkbox"><span>${x.consent}</span></label>
+
+        <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${st.busy ? x.sending : x.send}</span></button>
+        <p class="msg ${st.bad ? "bad" : "good"}" role="status">${st.msg}</p>
+        <p style="font-size:15px">${x.login}</p>
+      </form>`;
+    document.getElementById("apply").addEventListener("submit", submit);
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    const x = t();
+    const v = id => document.getElementById(id).value.trim();
+    const consent = document.getElementById("ap-consent").checked;
+    if (!consent) { st.msg = x.consentMissing; st.bad = true; return render(); }
+    st.busy = true; st.msg = ""; render();
+    try {
+      const res = await RFB.publicRpc("submit_partner_application", {
+        p_name: v("ap-name"), p_channel: v("ap-channel"), p_audience: v("ap-audience"),
+        p_contact: v("ap-contact"), p_message: v("ap-message"), p_consent: consent,
+        p_website: v("ap-website") });
+      st.busy = false;
+      if (res === "ok") { st.done = true; return render(); }
+      st.bad = true;
+      st.msg = res === "missing" ? x.missing : res === "busy" ? x.busy : res === "consent" ? x.consentMissing : x.failed;
+      render();
+    } catch {
+      st.busy = false; st.bad = true; st.msg = x.failed; render();
+    }
+  }
+
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  render();
+})();
+</script>
+</body>
+</html>

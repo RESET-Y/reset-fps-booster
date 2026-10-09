@@ -84,7 +84,7 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
     de: {
       title: "Konto",
       intro: "Melde dich mit deinem RESET-Account aus der App an. Dann landet ein Kauf direkt auf deinem Account, und hier findest du alle Codes, die du mit deiner E-Mail gekauft hast.",
-      email: "E-Mail", password: "Passwort", signIn: "Anmelden", signOut: "Abmelden",
+      email: "E-Mail", password: "Passwort", signIn: "Anmelden", signOut: "Abmelden", discord: "Mit Discord anmelden", discordOr: "oder",
       noAccount: "Noch keinen Account? Erstell ihn oben unter <strong>Account erstellen</strong>, oder in der App auf der Seite <strong>Konto</strong>.",
       tabIn: "Anmelden", tabUp: "Account erstellen",
       password2: "Passwort wiederholen", create: "Account erstellen",
@@ -116,7 +116,7 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
     en: {
       title: "Account",
       intro: "Sign in with the RESET account from the app. A purchase then goes straight to your account, and you find every code bought with your e-mail here.",
-      email: "E-mail", password: "Password", signIn: "Sign in", signOut: "Sign out",
+      email: "E-mail", password: "Password", signIn: "Sign in", signOut: "Sign out", discord: "Sign in with Discord", discordOr: "or",
       noAccount: "No account yet? Create one above under <strong>Create account</strong>, or in the app on the <strong>Account</strong> page.",
       tabIn: "Sign in", tabUp: "Create account",
       password2: "Repeat password", create: "Create account",
@@ -152,6 +152,10 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
   const date = iso => { try { return new Date(iso).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return ""; } };
 
   // what the page shows; render() is pure, so a language switch just redraws
+  // Discord sign-in: Supabase sends the user to Discord and back to this page.
+  const discordUrl = () => "https://sjwparnlbtuiyqmagyfg.supabase.co/auth/v1/authorize?provider=discord&redirect_to="
+    + encodeURIComponent(location.origin + "/konto.html");
+
   let st = { signInMsg: "", signInBad: true, status: null, codes: null, loadFail: false, redeemMsg: "", redeemGood: false, busy: false,
              mode: "in", upMsg: "", upBad: true, leaving: false };
 
@@ -200,6 +204,8 @@ input.mono { font-family: var(--mono); letter-spacing: .06em; text-transform: up
           <label for="em">${x.email}</label><input id="em" type="email" autocomplete="email" required>
           <label for="pw">${x.password}</label><input id="pw" type="password" autocomplete="current-password" required>
           <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.signIn}</span></button>
+          <p style="font-size:14px;color:var(--text-3);margin:14px 0 0">${x.discordOr}</p>
+          <a class="btn ghost" href="${esc(discordUrl())}"><span>${x.discord}</span></a>
           <p class="msg ${st.signInBad ? "bad" : ""}" role="status">${esc(st.signInMsg)}</p>
           <p style="font-size:15px">${x.noAccount}</p>
         </form>`;

@@ -98,7 +98,11 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
       kit: "Streamer-Kit (Overlay & Panel)", copyLink: "Partner-Link kopieren", copied: "Kopiert",
       salesTitle: "Verkäufe", payoutsTitle: "Auszahlungen", noSales: "Noch keine Verkäufe.", noPayouts: "Noch nichts ausgezahlt.",
       monthly: "Monthly", lifetime: "Lifetime", renewal: "Verlängerung", refunded: "erstattet",
-      hint: "Beträge ohne MwSt. Erstattete Käufe zählen nicht. Auszahlungen trägt das RESET-Team ein, sobald überwiesen ist."
+      hint: "Beträge ohne MwSt. Erstattete Käufe zählen nicht. Auszahlungen trägt das RESET-Team ein, sobald überwiesen ist.",
+      gateTitle: "Partnervertrag", gateIntro: "Bevor du deine Zahlen siehst, lies bitte den Partnervertrag. Er regelt Provision, Auszahlung, Werbekennzeichnung und Kündigung.",
+      gateRead: "Partnervertrag lesen", gateCheck: "Ich habe den Partnervertrag vollständig gelesen und akzeptiere ihn.", gateAccept: "Vertrag akzeptieren",
+      gateFail: "Das hat nicht geklappt. Versuch es noch mal.",
+      applyHint: "Noch kein Partner? <a href=\"bewerben.html\">Hier bewerben</a>."
     },
     en: {
       eyebrow: "RESET Partner",
@@ -116,7 +120,11 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
       kit: "Streamer kit (overlay & panel)", copyLink: "Copy partner link", copied: "Copied",
       salesTitle: "Sales", payoutsTitle: "Payouts", noSales: "No sales yet.", noPayouts: "Nothing paid out yet.",
       monthly: "Monthly", lifetime: "Lifetime", renewal: "renewal", refunded: "refunded",
-      hint: "Amounts exclude VAT. Refunded purchases don't count. The RESET team records payouts once they're transferred."
+      hint: "Amounts exclude VAT. Refunded purchases don't count. The RESET team records payouts once they're transferred.",
+      gateTitle: "Partner contract", gateIntro: "Before you see your numbers, please read the partner contract. It covers commission, payouts, advertising disclosure and termination.",
+      gateRead: "Read the partner contract", gateCheck: "I have read the partner contract in full and accept it.", gateAccept: "Accept contract",
+      gateFail: "That didn't work. Try again.",
+      applyHint: "Not a partner yet? <a href=\"bewerben.html\">Apply here</a>."
     }
   };
   const out = document.getElementById("out");
@@ -127,7 +135,7 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
   function fmtPct(p) { return Number(p).toLocaleString(lang() === "de" ? "de-DE" : "en-GB", { maximumFractionDigits: 2 }) + (lang() === "de" ? " %" : "%"); }
   const date = iso => new Date(iso).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-  let st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false };
+  let st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false, contract: null, gateMsg: "" };
 
   function cells(list) {
     return `<div class="grid">${list.map(([v, l, cls]) => `<div class="cell"><b class="${cls || ""}">${v}</b><span>${l}</span></div>`).join("")}</div>`;
@@ -158,6 +166,14 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
     return h + `</section>`;
   }
 
+  function gateHtml(x) {
+    return `<section class="panel"><h2>${x.gateTitle}</h2><p>${x.gateIntro}</p>
+      <p><a class="btn ghost" href="vertrag.html" target="_blank" rel="noopener"><span>${x.gateRead}</span></a></p>
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-top:18px;font-size:15px"><input id="ct" type="checkbox" style="width:auto;margin:4px 0 0"><span>${x.gateCheck}</span></div>
+      <button class="btn" type="button" id="accept" disabled><span>${x.gateAccept}</span></button>
+      <p class="msg bad" role="status">${esc(st.gateMsg)}</p></section>`;
+  }
+
   function render() {
     const x = t(), u = RFB.user;
     document.getElementById("t-eyebrow").textContent = x.eyebrow;
@@ -170,11 +186,13 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
           <button class="btn" type="submit" ${st.busy ? "disabled" : ""}><span>${x.signIn}</span></button>
           <p class="msg bad" role="status">${esc(st.signInMsg)}</p>
           <p style="font-size:15px">${x.noAccount}</p>
+          <p style="font-size:15px">${x.applyHint}</p>
         </form>`;
     } else {
       h = `<div class="row"><p style="margin:0">${x.signedInAs} <strong>${esc(u.email)}</strong></p>
              <button class="btn ghost small" type="button" id="signout"><span>${x.signOut}</span></button></div>`;
       if (st.loadFail) h += `<p class="msg bad">${x.loadFail}</p>`;
+      else if (st.contract && st.contract.linked && !st.contract.accepted) h += gateHtml(x);
       else if (st.mine == null) h += `<p>…</p>`;
       else if (!st.mine.length) h += `<p class="panel">${x.notLinked}</p>`;
       else h += st.mine.map(affHtml).join("") + `<p class="note">${x.hint}</p>`;
@@ -187,6 +205,8 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
     if (!RFB.user) return render();
     st.loadFail = false; render();
     try {
+      st.contract = await RFB.rpc("partner_contract_state");
+      if (st.contract && st.contract.linked && !st.contract.accepted) return render();
       st.mine = await RFB.rpc("my_affiliates") || [];
       render();
       for (const a of st.mine) {
@@ -211,6 +231,21 @@ h3.sub { margin: 24px 0 6px; font: 500 12px var(--mono); letter-spacing: .12em; 
     });
     const so = document.getElementById("signout");
     if (so) so.addEventListener("click", () => { RFB.signOut(); st = { mine: null, activity: {}, loadFail: false, signInMsg: "", busy: false }; render(); });
+    const ct = document.getElementById("ct"), ac = document.getElementById("accept");
+    if (ct && ac) {
+      ct.addEventListener("change", () => { ac.disabled = !ct.checked; });
+      ac.addEventListener("click", async () => {
+        ac.disabled = true; st.gateMsg = "";
+        try {
+          const ok = await RFB.rpc("accept_partner_contract", { p_version: st.contract.version });
+          if (!ok) throw new Error("old version");
+          st.contract.accepted = true; load();
+        } catch (e) {
+          if (e.kind === "signedout") { st.mine = null; return render(); }
+          st.gateMsg = t().gateFail; render();
+        }
+      });
+    }
     out.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); } catch {}
       const code = b.dataset.copy.split("/r/")[1];

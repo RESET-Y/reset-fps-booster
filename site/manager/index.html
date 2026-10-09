@@ -183,6 +183,15 @@ input:focus { outline: none; border-color: var(--accent); }
       </div>
       <div id="affList"><div class="empty">Lädt…</div></div>
     </section>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 style="margin:0">Bewerbungen</h2>
+        <button class="btn ghost" id="appRefresh">Neu laden</button>
+      </div>
+      <div class="meta" style="margin-bottom:10px">Angenommen? Lege unter „Neuer Affiliate“ den Code an und verknüpfe danach den Partner-Login mit seiner E-Mail-Adresse. Der Partner muss den Partnervertrag im Partner-Bereich akzeptieren, bevor er seine Zahlen sieht.</div>
+      <div id="appList"><div class="empty">Lädt…</div></div>
+    </section>
   </div>
 </main>
 <div class="toast" id="toast">Kopiert</div>
@@ -235,6 +244,7 @@ async function showApp() {
   $("who").textContent = "ANGEMELDET: " + (session.email || "");
   load();
   loadAffiliates();
+  loadApplications();
 }
 
 $("loginForm").addEventListener("submit", async e => {
@@ -376,6 +386,41 @@ $("affForm").addEventListener("submit", async e => {
 });
 
 let affiliates = [], openAff = null, accounts = {};
+// ---- applications from partner/bewerben.html ----
+const APP_STATUS = { new: "Neu", accepted: "Angenommen", rejected: "Abgelehnt" };
+// Only http(s) links become clickable: an applicant must not be able to
+// put a javascript: link into the manager page.
+const safeUrl = s => /^https?:\/\//i.test(s || "") ? esc(s) : "";
+async function loadApplications() {
+  try {
+    const apps = await rpc("list_partner_applications") || [];
+    $("appList").innerHTML = apps.length ? apps.map(a => {
+      const url = safeUrl(a.channel);
+      return `<div class="aff ${a.status === "rejected" ? "off" : ""}">
+        <div class="top"><div>
+          <div class="code" style="font-size:22px">${esc(a.name)}</div>
+          <div class="meta">${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>` : esc(a.channel)}</div>
+          <div class="meta">Reichweite: ${esc(a.audience || "–")} · Kontakt: ${esc(a.contact)}</div>
+          ${a.message ? `<div class="note">${esc(a.message)}</div>` : ""}
+          <div class="meta">${new Date(a.created_at).toLocaleString("de-DE")} · ${APP_STATUS[a.status] || esc(a.status)}</div>
+        </div>
+        <div class="actions">
+          ${a.status !== "accepted" ? `<button class="icon on" data-app-status="accepted" data-id="${a.id}" aria-label="Annehmen">OK</button>` : ""}
+          ${a.status !== "rejected" ? `<button class="icon" data-app-status="rejected" data-id="${a.id}" aria-label="Ablehnen">NEIN</button>` : ""}
+          ${a.status !== "new" ? `<button class="icon" data-app-status="new" data-id="${a.id}" aria-label="Zurücksetzen">NEU</button>` : ""}
+        </div></div>
+      </div>`;
+    }).join("") : '<div class="empty">Noch keine Bewerbungen.</div>';
+  } catch { $("appList").innerHTML = '<div class="empty">Bewerbungen konnten nicht geladen werden.</div>'; }
+}
+$("appRefresh").addEventListener("click", loadApplications);
+$("appList").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-app-status]"); if (!b) return;
+  b.disabled = true;
+  try { await rpc("set_partner_application_status", { p_id: +b.dataset.id, p_status: b.dataset.appStatus }); loadApplications(); }
+  catch { toast("Konnte nicht gespeichert werden"); b.disabled = false; }
+});
+
 async function loadAffiliates() {
   try {
     affiliates = await rpc("list_affiliates") || [];
