@@ -175,6 +175,7 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
     <button type="button" role="tab" data-view="apps" aria-selected="true">Bewerbungen<span class="count" id="appCount" hidden></span></button>
     <button type="button" role="tab" data-view="partners" aria-selected="false">Partner</button>
     <button type="button" role="tab" data-view="codes" aria-selected="false">Premium-Codes</button>
+    <button type="button" role="tab" data-view="reviews" aria-selected="false">Bewertungen<span class="count" id="revCount" hidden></span></button>
   </nav>
 
   <main>
@@ -219,6 +220,21 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
         </div>
       </div>
       <div class="cards" id="list"><div class="empty">Lädt…</div></div>
+    </section>
+    <!-- Reviews -->
+    <section id="v-reviews" hidden>
+      <div class="viewhead">
+        <h2>Bewertungen</h2>
+        <div class="actions-bar"><button class="btn ghost sm" id="revRefresh" type="button">Neu laden</button></div>
+      </div>
+      <div class="chips" id="revFilter" role="group" aria-label="Filter">
+        <button type="button" data-rf="new" aria-pressed="true">Neu</button>
+        <button type="button" data-rf="approved" aria-pressed="false">Freigegeben</button>
+        <button type="button" data-rf="rejected" aria-pressed="false">Abgelehnt</button>
+        <button type="button" data-rf="all" aria-pressed="false">Alle</button>
+      </div>
+      <div class="cards" id="revList"><div class="empty">Lädt…</div></div>
+      <p class="hint">Nur freigegebene Bewertungen erscheinen auf der Startseite. Der Kontakt wird nie veröffentlicht.</p>
     </section>
   </main>
 </div>
@@ -371,7 +387,7 @@ async function showApp() {
   if (!(await rpc("is_manager").catch(() => false))) { saveSession(null); showLogin("Dieser Account ist kein Manager."); return; }
   $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
   $("who").textContent = session.email || "";
-  loadArchive().then(() => { loadApps(); loadPartners(); loadCodes(); });
+  loadArchive().then(() => { loadApps(); loadPartners(); loadCodes(); loadReviews(); });
 }
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -384,7 +400,7 @@ $("logout").addEventListener("click", () => { saveSession(null); closeDrawer(); 
 // ---------- areas and shared controls ----------
 function setView(v) {
   document.querySelectorAll(".tabs [data-view]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
-  ["apps", "partners", "codes"].forEach(n => { $("v-" + n).hidden = n !== v; });
+  ["apps", "partners", "codes", "reviews"].forEach(n => { $("v-" + n).hidden = n !== v; });
 }
 document.querySelectorAll(".tabs [data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
 
@@ -870,6 +886,58 @@ $("dBody").addEventListener("click", async e => {
     try { await rpc("delete_affiliate_payout", { p_payout: Number(b.dataset.payoutDel) }); loadPartners(); }
     catch { toast("Fehlgeschlagen"); }
   }
+});
+
+// ---------- reviews from the homepage ----------
+// New reviews wait here. Only an approved one is shown on the homepage.
+let reviews = [], revFilter = "new";
+const REV_STATUS = { new: "Neu", approved: "Freigegeben", rejected: "Abgelehnt" };
+function renderReviews() {
+  const open = reviews.filter(r => r.status === "new").length;
+  $("revCount").textContent = open;
+  $("revCount").hidden = !open;
+  const list = reviews.filter(r => revFilter === "all" || r.status === revFilter);
+  $("revList").innerHTML = list.length ? list.map(r => {
+    const stars = r.stars ? " · " + "★".repeat(r.stars) : "";
+    const contact = r.contact ? " · Kontakt: " + esc(r.contact) : "";
+    const pillClass = r.status === "approved" ? "accepted" : r.status;
+    return `<article class="card">
+      <div class="card-top">
+        <div style="min-width:0"><div class="name" style="font-size:17px;color:#fff;font-weight:600">${esc(r.display_name)}${esc(stars)}</div><div class="when">${dt(r.created_at)}${contact}</div></div>
+        <span class="pill ${pillClass}">${REV_STATUS[r.status] || esc(r.status)}</span>
+      </div>
+      <p class="msgtext">${esc(r.body)}</p>
+      <div class="acts">
+        ${r.status !== "approved" ? `<button class="btn sm good" type="button" data-rev="approved" data-id="${r.id}">Freigeben</button>` : ""}
+        ${r.status !== "rejected" ? `<button class="btn sm ghost" type="button" data-rev="rejected" data-id="${r.id}">Ablehnen</button>` : ""}
+        ${r.status !== "new" ? `<button class="btn sm ghost" type="button" data-rev="new" data-id="${r.id}">Zurücksetzen</button>` : ""}
+        <button class="btn sm danger" type="button" data-rev-del="${r.id}" data-name="${esc(r.display_name)}">Löschen</button>
+      </div>
+    </article>`;
+  }).join("") : '<div class="empty">Keine Bewertungen in dieser Ansicht.</div>';
+}
+async function loadReviews() {
+  try { reviews = await rpc("list_reviews") || []; renderReviews(); }
+  catch { $("revList").innerHTML = '<div class="empty">Bewertungen konnten nicht geladen werden.</div>'; }
+}
+$("revRefresh").addEventListener("click", loadReviews);
+$("revFilter").addEventListener("click", e => {
+  const b = e.target.closest("button[data-rf]"); if (!b) return;
+  revFilter = b.dataset.rf; renderReviews();
+});
+$("revList").addEventListener("click", async e => {
+  const d = e.target.closest("button[data-rev-del]");
+  if (d) {
+    if (!confirm("Bewertung von „" + d.dataset.name + "“ endgültig löschen?")) return;
+    d.disabled = true;
+    try { await rpc("delete_review", { p_id: +d.dataset.revDel }); toast("Gelöscht"); loadReviews(); }
+    catch { toast("Konnte nicht gelöscht werden"); d.disabled = false; }
+    return;
+  }
+  const b = e.target.closest("button[data-rev]"); if (!b) return;
+  b.disabled = true;
+  try { await rpc("set_review_status", { p_id: +b.dataset.id, p_status: b.dataset.rev }); toast("Gespeichert"); loadReviews(); }
+  catch { toast("Konnte nicht gespeichert werden"); b.disabled = false; }
 });
 
 // ---------- start ----------

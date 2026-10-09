@@ -510,6 +510,26 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
   .js .rv, .js .term .ln { opacity: 1; transform: none; }
   html { scroll-behavior: auto; }
 }
+/* reviews section */
+.rv-sec { padding: clamp(60px, 8vw, 110px) 0; border-top: 1px solid var(--border); }
+.rv-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 0 0 36px; }
+.rv-card { margin: 0; padding: 22px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); display: flex; flex-direction: column; gap: 12px; }
+.rv-stars { color: var(--accent-bright); letter-spacing: .12em; font-size: 15px; }
+.rv-card blockquote { margin: 0; color: var(--text); font-size: 16px; line-height: 1.55; }
+.rv-card figcaption { font: 500 13px var(--mono); color: var(--text-2); }
+.rv-card figcaption span { color: var(--text-3); }
+.rv-form { max-width: 720px; padding: 26px; background: var(--surface); border: 1px solid var(--border); }
+.rv-form label { display: block; margin: 16px 0 6px; font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.rv-form input, .rv-form textarea, .rv-form select { width: 100%; box-sizing: border-box; background: #000; border: 1px solid var(--border-2); color: var(--text); font: 400 16px var(--body); padding: 11px 13px; border-radius: 0; }
+.rv-form input:focus, .rv-form textarea:focus, .rv-form select:focus { outline: none; border-color: var(--accent); }
+.rv-form textarea { resize: vertical; min-height: 110px; }
+.rv-row { display: grid; grid-template-columns: 1fr 180px; gap: 12px; }
+.rv-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.rv-check { display: flex !important; gap: 12px; align-items: flex-start; margin-top: 20px !important; font: 400 15px var(--body) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--text-2) !important; }
+.rv-check input { width: auto !important; margin: 4px 0 0; }
+.rv-form .btn { margin-top: 22px; }
+.rv-msg { min-height: 1.4em; margin: 14px 0 0; font-size: 15px; }
+@media (max-width: 560px) { .rv-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -952,6 +972,37 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
         <div><span class="lbl">Runtime</span><b>Included</b></div>
         <div><span class="lbl">Updates</span><b>Automatic</b></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ================= REVIEWS ================= -->
+  <section id="reviews" class="rv-sec">
+    <div class="wrap">
+      <div class="head rv">
+        <div class="eyebrow" id="rvEyebrow">Reviews</div>
+        <h2 id="rvTitle">What players <span class="accent">say</span></h2>
+        <p id="rvLead">Share your experience. Reviews appear here after a check, with your name or a pseudonym. Your contact is never shown.</p>
+      </div>
+      <div class="rv-list" id="rvList" hidden></div>
+      <form class="rv-form rv" id="rvForm" novalidate>
+        <div class="rv-row">
+          <div><label for="rvName" id="rvNameL">Name or pseudonym</label><input id="rvName" type="text" maxlength="40" autocomplete="nickname" required></div>
+          <div><label for="rvStars" id="rvStarsL">Stars</label>
+            <select id="rvStars">
+              <option value="" id="rvStar0">No rating</option>
+              <option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option><option value="2">★★</option><option value="1">★</option>
+            </select>
+          </div>
+        </div>
+        <label for="rvBody" id="rvBodyL">Your review</label>
+        <textarea id="rvBody" maxlength="600" rows="4" required></textarea>
+        <label for="rvContact" id="rvContactL">Contact (optional, not published)</label>
+        <input id="rvContact" type="text" maxlength="200" autocomplete="off">
+        <div class="rv-hp" aria-hidden="true"><label for="rvWebsite">Website</label><input id="rvWebsite" type="text" tabindex="-1" autocomplete="off"></div>
+        <label class="rv-check"><input id="rvConsent" type="checkbox"><span id="rvConsentT">I agree that my review is published with my name or pseudonym once it is approved. My contact stays private.</span></label>
+        <button class="btn btn-primary" type="submit" id="rvSend"><span>Send review</span></button>
+        <p class="rv-msg" id="rvMsg" role="status"></p>
+      </form>
     </div>
   </section>
 
@@ -1712,6 +1763,103 @@ else {
     }, 900);
   }
 }
+</script>
+<script>
+// Reviews: approved ones are listed, new ones are sent for approval (see the manager).
+(function () {
+  const TX = {
+    de: {
+      eyebrow: "Bewertungen", title: "Was Spieler <span class=\"accent\">sagen</span>",
+      lead: "Schreib, wie es bei dir läuft. Bewertungen erscheinen hier nach einer Prüfung, mit Namen oder Pseudonym. Dein Kontakt wird nie gezeigt.",
+      name: "Name oder Pseudonym", stars: "Sterne", star0: "Keine Angabe", body: "Deine Bewertung", contact: "Kontakt (optional, wird nicht veröffentlicht)",
+      consent: "Ich bin einverstanden, dass meine Bewertung mit Namen oder Pseudonym veröffentlicht wird, sobald sie freigegeben ist. Mein Kontakt bleibt privat.",
+      send: "Bewertung senden", sending: "Wird gesendet …",
+      ok: "Danke! Deine Bewertung wird geprüft, bevor sie erscheint.",
+      consentMissing: "Bitte bestätige, dass deine Bewertung veröffentlicht werden darf.",
+      missing: "Bitte gib einen Namen und mindestens 10 Zeichen Text ein.",
+      busy: "Heute sind schon viele Bewertungen eingegangen. Versuch es morgen noch einmal.",
+      failed: "Das hat nicht geklappt. Versuch es gleich noch einmal."
+    },
+    en: {
+      eyebrow: "Reviews", title: "What players <span class=\"accent\">say</span>",
+      lead: "Share your experience. Reviews appear here after a check, with your name or a pseudonym. Your contact is never shown.",
+      name: "Name or pseudonym", stars: "Stars", star0: "No rating", body: "Your review", contact: "Contact (optional, not published)",
+      consent: "I agree that my review is published with my name or pseudonym once it is approved. My contact stays private.",
+      send: "Send review", sending: "Sending …",
+      ok: "Thanks! Your review is checked before it appears.",
+      consentMissing: "Please confirm that your review may be published.",
+      missing: "Please enter a name and at least 10 characters of text.",
+      busy: "A lot of reviews came in today. Try again tomorrow.",
+      failed: "That didn't work. Try again in a moment."
+    }
+  };
+  const lang = () => document.documentElement.lang === "de" ? "de" : "en";
+  const t = () => TX[lang()];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let msgKey = "", msgBad = true, busy = false, list = [];
+
+  function paintText() {
+    const x = t();
+    $("rvEyebrow").textContent = x.eyebrow;
+    $("rvTitle").innerHTML = x.title;
+    $("rvLead").textContent = x.lead;
+    $("rvNameL").textContent = x.name;
+    $("rvStarsL").textContent = x.stars;
+    $("rvStar0").textContent = x.star0;
+    $("rvBodyL").textContent = x.body;
+    $("rvContactL").textContent = x.contact;
+    $("rvConsentT").textContent = x.consent;
+    $("rvSend").querySelector("span").textContent = busy ? x.sending : x.send;
+    $("rvSend").disabled = busy;
+    $("rvMsg").textContent = msgKey ? x[msgKey] : "";
+    $("rvMsg").style.color = msgBad ? "var(--accent-bright)" : "var(--success)";
+    renderList();
+  }
+
+  function renderList() {
+    const box = $("rvList");
+    box.hidden = !list.length;
+    box.innerHTML = list.map(r => {
+      const stars = r.stars ? "★".repeat(r.stars) + "☆".repeat(5 - r.stars) : "";
+      const when = new Date(r.created_at).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+      return `<figure class="rv-card"><div class="rv-stars">${stars}</div><blockquote>${esc(r.body)}</blockquote><figcaption>${esc(r.display_name)} <span>· ${esc(when)}</span></figcaption></figure>`;
+    }).join("");
+  }
+
+  async function loadList() {
+    try { list = (await RFB.publicRpc("public_reviews")) || []; renderList(); } catch { list = []; }
+  }
+
+  $("rvForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const x = t();
+    const consent = $("rvConsent").checked;
+    if (!consent) { msgKey = "consentMissing"; msgBad = true; return paintText(); }
+    const stars = $("rvStars").value ? Number($("rvStars").value) : null;
+    busy = true; msgKey = ""; paintText();
+    try {
+      const res = await RFB.publicRpc("submit_review", {
+        p_name: $("rvName").value.trim(), p_body: $("rvBody").value.trim(), p_stars: stars,
+        p_contact: $("rvContact").value.trim(), p_consent: consent, p_website: $("rvWebsite").value });
+      busy = false;
+      if (res === "ok") {
+        msgKey = "ok"; msgBad = false;
+        $("rvForm").reset();
+      } else {
+        msgKey = res === "missing" ? "missing" : res === "busy" ? "busy" : res === "consent" ? "consentMissing" : "failed";
+        msgBad = true;
+      }
+    } catch {
+      busy = false; msgKey = "failed"; msgBad = true;
+    }
+    paintText();
+  });
+
+  new MutationObserver(paintText).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  paintText();
+  loadList();
+})();
 </script>
 </body>
 </html>
