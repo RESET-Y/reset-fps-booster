@@ -102,9 +102,23 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
   const root = document.getElementById("form-root");
   const lang = () => document.documentElement.lang === "en" ? "en" : "de";
   const t = () => T[lang()];
-  let st = { msg: "", bad: true, busy: false, done: false };
+  let st = { msg: "", bad: true, busy: false, done: false, vals: {}, consent: false };
+  const FIELDS = ["ap-name", "ap-channel", "ap-audience", "ap-contact", "ap-message", "ap-website"];
+
+  // render() rebuilds the whole form, which empties every field. So whatever is typed
+  // is taken from the page first and put back afterwards - on a language switch, while
+  // sending, and after an error alike.
+  function keepFields() {
+    for (const id of FIELDS) { const el = document.getElementById(id); if (el) st.vals[id] = el.value; }
+    const c = document.getElementById("ap-consent"); if (c) st.consent = c.checked;
+  }
+  function restoreFields() {
+    for (const id of FIELDS) { const el = document.getElementById(id); if (el && st.vals[id] != null) el.value = st.vals[id]; }
+    const c = document.getElementById("ap-consent"); if (c) c.checked = st.consent;
+  }
 
   function render() {
+    keepFields();
     const x = t();
     if (st.done) {
       root.innerHTML = `<h1>${x.title}</h1><p class="msg good" role="status">${x.ok}</p>`;
@@ -144,20 +158,23 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
         <p style="font-size:15px">${x.login}</p>
       </form>`;
     document.getElementById("apply").addEventListener("submit", submit);
+    restoreFields();
   }
 
   async function submit(e) {
     e.preventDefault();
     const x = t();
+    // read everything BEFORE anything is re-rendered
     const v = id => document.getElementById(id).value.trim();
     const consent = document.getElementById("ap-consent").checked;
+    const data = {
+      p_name: v("ap-name"), p_channel: v("ap-channel"), p_audience: v("ap-audience"),
+      p_contact: v("ap-contact"), p_message: v("ap-message"), p_consent: consent,
+      p_website: v("ap-website") };
     if (!consent) { st.msg = x.consentMissing; st.bad = true; return render(); }
     st.busy = true; st.msg = ""; render();
     try {
-      const res = await RFB.publicRpc("submit_partner_application", {
-        p_name: v("ap-name"), p_channel: v("ap-channel"), p_audience: v("ap-audience"),
-        p_contact: v("ap-contact"), p_message: v("ap-message"), p_consent: consent,
-        p_website: v("ap-website") });
+      const res = await RFB.publicRpc("submit_partner_application", data);
       st.busy = false;
       if (res === "ok") { st.done = true; return render(); }
       st.bad = true;
