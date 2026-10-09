@@ -11,6 +11,25 @@ namespace {
 
 constexpr wchar_t kClassName[] = L"ResetFrameBoostV2Overlay";
 
+// THE CROSSHAIR STAYS ON TOP. RESET FPS BOOSTER's crosshair is a window of its
+// own, always on top, and it re-raises itself once a second. The presenter
+// re-raises itself on every frame, so it covered the crosshair and the
+// crosshair vanished while Smooth Motion ran. The presenter therefore goes
+// directly BELOW the crosshair window (SetWindowPos with the crosshair as
+// insert-after) instead of to the top of the topmost band. Found by title
+// every half second; without a crosshair it is plain HWND_TOPMOST as before.
+HWND ZAboveCrosshairOrTopmost() {
+    static HWND crosshair = nullptr;
+    static ULONGLONG nextLookup = 0;
+    const ULONGLONG now = GetTickCount64();
+    if (now >= nextLookup || !crosshair || !IsWindow(crosshair)) {
+        nextLookup = now + 500;
+        crosshair = FindWindowW(nullptr, L"RESET Crosshair");
+        if (crosshair && !IsWindowVisible(crosshair)) crosshair = nullptr;
+    }
+    return crosshair ? crosshair : HWND_TOPMOST;
+}
+
 LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     // WM_CLOSE matters to the contract: the C# side calls CloseMainWindow()
     // and only resorts to Kill() two seconds later. Answering it is what makes
@@ -160,7 +179,7 @@ void Presenter::TrackTarget() {
         const RECT& r = m_screenRect;
         int w = r.right - r.left;
         if (m_halfWidth) w /= 2;
-        SetWindowPos(m_hwnd, HWND_TOPMOST, r.left, r.top, w, r.bottom - r.top, SWP_NOACTIVATE | SWP_NOREDRAW);
+        SetWindowPos(m_hwnd, ZAboveCrosshairOrTopmost(), r.left, r.top, w, r.bottom - r.top, SWP_NOACTIVATE | SWP_NOREDRAW);
         return;
     }
     if (!m_hwnd || !m_target || !IsWindow(m_target)) return;
@@ -179,7 +198,7 @@ void Presenter::TrackTarget() {
     // No inset. A one-pixel offset was tried in V1 and reported within ten
     // minutes as "das Spielmenue verschiebt sich immer links rechts links
     // rechts" - the overlay and the game disagreeing about where a pixel is.
-    SetWindowPos(m_hwnd, HWND_TOPMOST, topLeft.x, topLeft.y, w, h,
+    SetWindowPos(m_hwnd, ZAboveCrosshairOrTopmost(), topLeft.x, topLeft.y, w, h,
                  SWP_NOACTIVATE | SWP_NOREDRAW);
 }
 
