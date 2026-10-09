@@ -530,6 +530,33 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
 .rv-form .btn { margin-top: 22px; }
 .rv-msg { min-height: 1.4em; margin: 14px 0 0; font-size: 15px; }
 @media (max-width: 560px) { .rv-row { grid-template-columns: 1fr; } }
+/* review band under the hero */
+.rv-band { background: #000; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); position: relative; }
+.rv-band-in { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 28px; align-items: center; padding-top: 26px; padding-bottom: 24px; min-height: 130px; }
+.rv-band-label { font: 900 italic 15px/1 var(--display); text-transform: uppercase; letter-spacing: .08em; background: var(--accent); color: #fff; padding: 9px 14px; transform: skewX(-12deg); align-self: start; white-space: nowrap; }
+.rv-band-label > * { display: inline-block; transform: skewX(12deg); }
+.rv-band-quote { margin: 0; min-width: 0; animation: rvBandIn .6s cubic-bezier(.2,.8,.2,1); }
+.rv-band-stars { color: var(--accent-bright); letter-spacing: .12em; font-size: 15px; margin-bottom: 6px; }
+.rv-band-quote blockquote { margin: 0; font: 500 clamp(18px, 2vw, 24px)/1.4 var(--body); color: var(--text); }
+.rv-band-quote figcaption { margin-top: 8px; font: 500 13px var(--mono); color: var(--text-2); }
+.rv-band-quote figcaption span { color: var(--text-3); }
+.rv-band-dots { display: flex; flex-direction: column; gap: 6px; }
+.rv-band-dots button { width: 10px; height: 10px; border: 1px solid var(--border-2); background: transparent; cursor: pointer; padding: 0; transform: skewX(-12deg); }
+.rv-band-dots button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+.rv-band-bar { height: 3px; background: var(--border); overflow: hidden; }
+.rv-band-bar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: left center; }
+.rv-band-bar i.run { animation: rvBandBar 6s linear forwards; }
+.rv-band-bar.paused i.run { animation-play-state: paused; }
+@keyframes rvBandIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes rvBandBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 640px) {
+  .rv-band-in { grid-template-columns: 1fr; gap: 14px; min-height: 0; }
+  .rv-band-dots { flex-direction: row; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv-band-quote { animation: none; }
+  .rv-band-bar i.run { animation: none; }
+}
 </style>
 </head>
 <body>
@@ -598,6 +625,16 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
         <div class="panel-note">Example readout from Apex Legends on an RTX 3060, capped at 60.</div>
       </div>
     </div>
+  </div>
+
+  <!-- ================= REVIEW BAND (under the hero, approved reviews only) ================= -->
+  <div class="rv-band" id="rvBand" hidden aria-live="polite">
+    <div class="wrap rv-band-in">
+      <div class="rv-band-label" id="rvBandLbl">Bewertungen</div>
+      <figure class="rv-band-quote" id="rvBandQuote"></figure>
+      <div class="rv-band-dots" id="rvBandDots"></div>
+    </div>
+    <div class="rv-band-bar"><i id="rvBandBar"></i></div>
   </div>
 
   <div class="ticker" aria-hidden="true">
@@ -1859,6 +1896,66 @@ else {
   new MutationObserver(paintText).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
   paintText();
   loadList();
+})();
+</script>
+<script>
+// Review band under the hero: shows approved reviews one after another.
+(function () {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const LBL = { de: "Bewertungen", en: "Reviews" };
+  const SECONDS = 6;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let list = [], i = 0, timer = null, hovering = false;
+  const lang = () => document.documentElement.lang === "de" ? "de" : "en";
+
+  function show() {
+    const band = $("rvBand");
+    if (!list.length) { band.hidden = true; return; }
+    band.hidden = false;
+    $("rvBandLbl").textContent = LBL[lang()];
+    if (i >= list.length) i = 0;
+    const r = list[i];
+    const stars = r.stars ? "★".repeat(r.stars) : "";
+    const when = new Date(r.created_at).toLocaleDateString(lang() === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+    $("rvBandQuote").innerHTML = `<div class="rv-band-stars">${stars}</div>`
+      + `<blockquote>„${esc(r.body)}“</blockquote>`
+      + `<figcaption>${esc(r.display_name)} <span>· ${esc(when)}</span></figcaption>`;
+    $("rvBandDots").innerHTML = list.map((_, n) =>
+      `<button type="button" aria-label="${n + 1}" aria-pressed="${n === i}" data-n="${n}"></button>`).join("");
+    // restart the progress bar for this review
+    const bar = $("rvBandBar");
+    bar.classList.remove("run");
+    void bar.offsetWidth;
+    if (!reduce && list.length > 1) bar.classList.add("run");
+  }
+
+  function next() {
+    if (hovering || list.length < 2) return;
+    i = (i + 1) % list.length;
+    show();
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    if (reduce || list.length < 2) return;
+    timer = setInterval(next, SECONDS * 1000);
+  }
+
+  $("rvBandDots").addEventListener("click", e => {
+    const b = e.target.closest("button[data-n]"); if (!b) return;
+    i = +b.dataset.n; show(); startTimer();
+  });
+  const band = $("rvBand");
+  band.addEventListener("mouseenter", () => { hovering = true; $("rvBandBar").classList.add("paused"); });
+  band.addEventListener("mouseleave", () => { hovering = false; $("rvBandBar").classList.remove("paused"); });
+  new MutationObserver(show).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+
+  async function load() {
+    try { list = (await RFB.publicRpc("public_reviews")) || []; } catch { list = []; }
+    show(); startTimer();
+  }
+  load();
 })();
 </script>
 </body>
