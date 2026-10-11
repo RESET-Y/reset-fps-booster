@@ -12,6 +12,8 @@ public enum IconKind
     SmoothMotion,
 #endif
     Crosshair,
+    SensFinder,
+    ApexConfig,
     System,
     Backups,
     Logs,

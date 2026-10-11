@@ -2714,5 +2714,665 @@
     "en": "Needs borderless or windowed mode - over exclusive fullscreen Windows shows no other window. Some tournaments do not allow crosshair overlays.",
     "de": "Braucht Randlos- oder Fenstermodus – über exklusivem Vollbild zeigt Windows kein anderes Fenster. Manche Turniere erlauben keine Crosshair-Overlays.",
     "ru": "Нужен режим без рамки или оконный — поверх эксклюзивного полноэкранного режима Windows не показывает другие окна. Некоторые турниры не разрешают оверлеи прицела."
+  },
+  "Nav.SensFinder": {
+    "en": "Sens Finder",
+    "de": "Sens-Finder",
+    "ru": "Подбор сенсы"
+  },
+  "Sens.Title": {
+    "en": "SENS FINDER",
+    "de": "SENS-FINDER",
+    "ru": "ПОДБОР СЕНСЫ"
+  },
+  "Sens.Intro": {
+    "en": "Finds the sensitivity you hit and track best with. You play a short aim test at several speeds, the app scores the rounds and converts the result for your game. Nothing is read from the game itself.",
+    "de": "Findet die Empfindlichkeit, mit der du am besten triffst und ein bewegtes Ziel verfolgst. Du spielst einen kurzen Aim-Test mit mehreren Geschwindigkeiten, die App wertet die Runden aus und rechnet das Ergebnis für dein Spiel um. Aus dem Spiel selbst wird nichts gelesen.",
+    "ru": "Находит чувствительность, с которой вы лучше всего попадаете и ведёте движущуюся цель. Вы проходите короткий аим-тест на нескольких скоростях, приложение оценивает раунды и пересчитывает результат для вашей игры. Из самой игры ничего не считывается."
+  },
+  "Sens.GameLabel": {
+    "en": "Game",
+    "de": "Spiel",
+    "ru": "Игра"
+  },
+  "Sens.DpiLabel": {
+    "en": "Mouse DPI",
+    "de": "Maus-DPI",
+    "ru": "DPI мыши"
+  },
+  "Sens.DpiHint": {
+    "en": "Shown in your mouse software, often 800 or 1600.",
+    "de": "Steht in der Software deiner Maus, oft 800 oder 1600.",
+    "ru": "Указан в программе вашей мыши, часто 800 или 1600."
+  },
+  "Sens.SensLabel": {
+    "en": "Your sens in game",
+    "de": "Deine Sens im Spiel",
+    "ru": "Ваша сенса в игре"
+  },
+  "Sens.EqualsLabel": {
+    "en": "That equals",
+    "de": "Das entspricht",
+    "ru": "Это соответствует"
+  },
+  "Sens.Cm360": {
+    "en": "{0} cm for a full turn (360°)",
+    "de": "{0} cm für eine ganze Drehung (360°)",
+    "ru": "{0} см на полный оборот (360°)"
+  },
+  "Sens.StartTest": {
+    "en": "START TEST",
+    "de": "TEST STARTEN",
+    "ru": "НАЧАТЬ ТЕСТ"
+  },
+  "Sens.InvalidDpi": {
+    "en": "Enter a DPI between 100 and 32000.",
+    "de": "Gib eine DPI zwischen 100 und 32000 ein.",
+    "ru": "Введите DPI от 100 до 32000."
+  },
+  "Sens.InvalidSens": {
+    "en": "Enter your current sensitivity in the game, for example 1.2.",
+    "de": "Gib deine aktuelle Sens im Spiel ein, zum Beispiel 1.2.",
+    "ru": "Введите вашу текущую чувствительность в игре, например 1.2."
+  },
+  "Sens.Aborted": {
+    "en": "Test cancelled - nothing was scored and nothing was saved.",
+    "de": "Test abgebrochen – es wurde nichts ausgewertet und nichts gespeichert.",
+    "ru": "Тест прерван — ничего не оценено и не сохранено."
+  },
+  "Sens.HowTitle": {
+    "en": "How the test runs",
+    "de": "So läuft der Test",
+    "ru": "Как проходит тест"
+  },
+  "Sens.How1": {
+    "en": "About three minutes: a warm-up round first, then six rounds - each at a different sensitivity, in random order.",
+    "de": "Etwa drei Minuten: erst eine Aufwärmrunde, dann sechs Runden – jede mit einer anderen Empfindlichkeit, in zufälliger Reihenfolge.",
+    "ru": "Около трёх минут: сначала разминка, затем шесть раундов — каждый с другой чувствительностью, в случайном порядке."
+  },
+  "Sens.How2": {
+    "en": "Each round, you hit ten targets as fast as you can, then follow a moving target for eight seconds.",
+    "de": "In jeder Runde triffst du zehn Ziele so schnell wie möglich und verfolgst danach acht Sekunden lang ein Ziel, das sich bewegt.",
+    "ru": "В каждом раунде вы как можно быстрее попадаете в десять целей, а затем восемь секунд ведёте движущуюся цель."
+  },
+  "Sens.How3": {
+    "en": "Only mouse movement and clicks inside the test window are measured. Nothing in the game is read, changed or drawn over.",
+    "de": "Gemessen werden nur Mausbewegung und Klicks in diesem Testfenster. Im Spiel wird nichts gelesen, verändert oder eingeblendet.",
+    "ru": "Измеряются только движения мыши и клики в окне теста. В игре ничего не считывается, не изменяется и не рисуется."
+  },
+  "Sens.How4": {
+    "en": "For an honest result: on your usual mousepad, rested, mouse acceleration off. Esc cancels.",
+    "de": "Für ein ehrliches Ergebnis: auf deinem gewohnten Mauspad, ausgeruht, Mausbeschleunigung aus. Mit Esc brichst du ab.",
+    "ru": "Для честного результата: на привычном коврике, отдохнувшим, с отключённым ускорением мыши. Esc — отмена."
+  },
+  "Sens.Result.Title": {
+    "en": "RESULT",
+    "de": "ERGEBNIS",
+    "ru": "РЕЗУЛЬТАТ"
+  },
+  "Sens.Result.Recommend": {
+    "en": "Recommended sens",
+    "de": "Empfohlene Sens",
+    "ru": "Рекомендуемая сенса"
+  },
+  "Sens.Result.Range": {
+    "en": "Anything between {0} and {1} did about equally well.",
+    "de": "Alles zwischen {0} und {1} war ungefähr gleich gut.",
+    "ru": "Всё от {0} до {1} сработало примерно одинаково."
+  },
+  "Sens.Result.Faster": {
+    "en": "{0} % faster than your current one",
+    "de": "{0} % schneller als deine jetzige",
+    "ru": "на {0} % быстрее текущей"
+  },
+  "Sens.Result.Slower": {
+    "en": "{0} % slower than your current one",
+    "de": "{0} % langsamer als deine jetzige",
+    "ru": "на {0} % медленнее текущей"
+  },
+  "Sens.Result.Same": {
+    "en": "Practically your current sens",
+    "de": "Praktisch deine jetzige Sens",
+    "ru": "Практически ваша текущая сенса"
+  },
+  "Sens.Conf.High": {
+    "en": "CONFIDENCE HIGH",
+    "de": "SICHERHEIT HOCH",
+    "ru": "УВЕРЕННОСТЬ ВЫСОКАЯ"
+  },
+  "Sens.Conf.Medium": {
+    "en": "CONFIDENCE MEDIUM",
+    "de": "SICHERHEIT MITTEL",
+    "ru": "УВЕРЕННОСТЬ СРЕДНЯЯ"
+  },
+  "Sens.Conf.Low": {
+    "en": "CONFIDENCE LOW",
+    "de": "SICHERHEIT NIEDRIG",
+    "ru": "УВЕРЕННОСТЬ НИЗКАЯ"
+  },
+  "Sens.Conf.None": {
+    "en": "NO DIFFERENCE",
+    "de": "KEIN UNTERSCHIED",
+    "ru": "РАЗНИЦЫ НЕТ"
+  },
+  "Sens.Result.NoDiff": {
+    "en": "All rounds did almost equally well - your current sens fits. Keep it.",
+    "de": "Alle Runden waren fast gleich gut – deine jetzige Sens passt. Bleib dabei.",
+    "ru": "Все раунды прошли почти одинаково — ваша текущая сенса подходит. Оставьте её."
+  },
+  "Sens.Result.Edge": {
+    "en": "The best round was at the edge of the tested range, so the real optimum may lie further out. Adopt the value and run the test again.",
+    "de": "Die beste Runde lag am Rand des Testbereichs, der echte Bestwert liegt vielleicht noch weiter draußen. Übernimm den Wert und mach den Test noch einmal.",
+    "ru": "Лучший раунд оказался на краю проверенного диапазона, поэтому настоящий оптимум может лежать дальше. Примите значение и пройдите тест ещё раз."
+  },
+  "Sens.Result.Unsure": {
+    "en": "The rounds vary a lot, so the result is only a hint. Run the test again when rested and compare.",
+    "de": "Die Runden schwanken stark, das Ergebnis ist nur ein Hinweis. Mach den Test ausgeruht noch einmal und vergleiche.",
+    "ru": "Раунды сильно различаются, поэтому результат — лишь подсказка. Пройдите тест ещё раз отдохнувшим и сравните."
+  },
+  "Sens.Result.UseButton": {
+    "en": "USE AS STARTING VALUE",
+    "de": "ALS AUSGANGSWERT ÜBERNEHMEN",
+    "ru": "ВЗЯТЬ КАК НАЧАЛЬНОЕ ЗНАЧЕНИЕ"
+  },
+  "Sens.Result.Used": {
+    "en": "Adopted - the next test starts at this sens.",
+    "de": "Übernommen – der nächste Test startet bei dieser Sens.",
+    "ru": "Принято — следующий тест начнётся с этой сенсы."
+  },
+  "Sens.Result.Rounds": {
+    "en": "The rounds one by one",
+    "de": "Die Runden im Einzelnen",
+    "ru": "Раунды по отдельности"
+  },
+  "Sens.Col.Sens": {
+    "en": "Sens",
+    "de": "Sens",
+    "ru": "Сенса"
+  },
+  "Sens.Col.Score": {
+    "en": "Score",
+    "de": "Wertung",
+    "ru": "Оценка"
+  },
+  "Sens.Col.Hits": {
+    "en": "Hits",
+    "de": "Treffer",
+    "ru": "Попадания"
+  },
+  "Sens.Col.Time": {
+    "en": "Time per hit",
+    "de": "Zeit je Treffer",
+    "ru": "Время на цель"
+  },
+  "Sens.Col.Track": {
+    "en": "Tracking",
+    "de": "Tracking",
+    "ru": "Трекинг"
+  },
+  "Sens.Row.Hits": {
+    "en": "{0} of {1}",
+    "de": "{0} von {1}",
+    "ru": "{0} из {1}"
+  },
+  "Sens.Row.Time": {
+    "en": "{0} ms",
+    "de": "{0} ms",
+    "ru": "{0} мс"
+  },
+  "Sens.Row.Track": {
+    "en": "{0} %",
+    "de": "{0} %",
+    "ru": "{0} %"
+  },
+  "Sens.Result.AllGames": {
+    "en": "The same turn in the other games",
+    "de": "Dieselbe Drehung in den anderen Spielen",
+    "ru": "Тот же оборот в других играх"
+  },
+  "Sens.Note.Apex": {
+    "en": "Apex: applies to the normal view, not to aiming down sights - that has a factor of its own.",
+    "de": "Apex: gilt für die normale Sicht, nicht für das Zielen über Kimme und Korn – das hat einen eigenen Faktor.",
+    "ru": "Apex: относится к обычному обзору, не к прицеливанию через прицел — у него свой множитель."
+  },
+  "Sens.Note.Fortnite": {
+    "en": "Fortnite: the X-axis percentage; the conversion is accurate to about one percent.",
+    "de": "Fortnite: Prozentwert der X-Achse; die Umrechnung stimmt auf etwa ein Prozent genau.",
+    "ru": "Fortnite: процент по оси X; пересчёт точен примерно до одного процента."
+  },
+  "Sens.Result.Honest": {
+    "en": "A short test is a good starting point, not the truth. Play the new sens for a few days before you decide.",
+    "de": "Ein kurzer Test ist ein guter Startpunkt, aber keine Wahrheit. Spiel die neue Sens ein paar Tage, bevor du dich entscheidest.",
+    "ru": "Короткий тест — хорошая отправная точка, но не истина. Поиграйте с новой сенсой несколько дней, прежде чем решать."
+  },
+  "Sens.Test.Warmup": {
+    "en": "WARM-UP",
+    "de": "AUFWÄRMEN",
+    "ru": "РАЗМИНКА"
+  },
+  "Sens.Test.Round": {
+    "en": "ROUND {0} / {1}",
+    "de": "RUNDE {0} / {1}",
+    "ru": "РАУНД {0} / {1}"
+  },
+  "Sens.Test.Hits": {
+    "en": "HITS {0}",
+    "de": "TREFFER {0}",
+    "ru": "ПОПАДАНИЙ {0}"
+  },
+  "Sens.Test.Flick": {
+    "en": "Hit the targets  ·  {0} left",
+    "de": "Triff die Ziele  ·  noch {0}",
+    "ru": "Попадайте в цели  ·  осталось {0}"
+  },
+  "Sens.Test.Track": {
+    "en": "Stay on the white target  ·  {0} s",
+    "de": "Bleib auf dem weißen Ziel  ·  {0} s",
+    "ru": "Держитесь на белой цели  ·  {0} с"
+  },
+  "Sens.Test.Esc": {
+    "en": "Esc to cancel",
+    "de": "Esc zum Abbrechen",
+    "ru": "Esc — отмена"
+  },
+  "Sens.Test.Ready": {
+    "en": "READY?",
+    "de": "BEREIT?",
+    "ru": "ГОТОВЫ?"
+  },
+  "Sens.Test.IntroHint": {
+    "en": "Left click = shoot. Every round has a different sensitivity.",
+    "de": "Linksklick = schießen. Jede Runde hat eine andere Empfindlichkeit.",
+    "ru": "Левая кнопка — выстрел. В каждом раунде своя чувствительность."
+  },
+  "Sens.Test.WarmupDone": {
+    "en": "WARM-UP DONE",
+    "de": "AUFWÄRMEN GESCHAFFT",
+    "ru": "РАЗМИНКА ПРОЙДЕНА"
+  },
+  "Sens.Test.RoundDone": {
+    "en": "ROUND {0} OF {1} DONE",
+    "de": "RUNDE {0} VON {1} GESCHAFFT",
+    "ru": "РАУНД {0} ИЗ {1} ПРОЙДЕН"
+  },
+  "Sens.Test.Changes": {
+    "en": "The sensitivity changes in a moment.",
+    "de": "Gleich ändert sich die Empfindlichkeit.",
+    "ru": "Сейчас чувствительность изменится."
+  },
+  "Sens.Test.Done": {
+    "en": "DONE",
+    "de": "FERTIG",
+    "ru": "ГОТОВО"
+  },
+  "Sens.FovLabel": {
+    "en": "Field of view",
+    "de": "Sichtfeld (FOV)",
+    "ru": "Поле зрения (FOV)"
+  },
+  "Sens.FovHint.ApexLegends": {
+    "en": "Your FOV slider in the game (70 to 110), horizontal.",
+    "de": "Dein FOV-Regler im Spiel (70 bis 110), horizontal.",
+    "ru": "Ваш ползунок FOV в игре (от 70 до 110), по горизонтали."
+  },
+  "Sens.FovHint.CounterStrike2": {
+    "en": "Fixed: 106 at 16:9, 90 at 4:3 (horizontal).",
+    "de": "Fest: 106 bei 16:9, 90 bei 4:3 (horizontal).",
+    "ru": "Фиксированное: 106 при 16:9, 90 при 4:3 (по горизонтали)."
+  },
+  "Sens.FovHint.Valorant": {
+    "en": "Fixed: 103 (horizontal).",
+    "de": "Fest: 103 (horizontal).",
+    "ru": "Фиксированное: 103 (по горизонтали)."
+  },
+  "Sens.FovHint.Fortnite": {
+    "en": "Your FOV slider in the game (80 to 120), horizontal.",
+    "de": "Dein FOV-Regler im Spiel (80 bis 120), horizontal.",
+    "ru": "Ваш ползунок FOV в игре (от 80 до 120), по горизонтали."
+  },
+  "Sens.ResLabel": {
+    "en": "Resolution",
+    "de": "Auflösung",
+    "ru": "Разрешение"
+  },
+  "Sens.ResHint": {
+    "en": "The resolution you play at, for example 1920 × 1080.",
+    "de": "Die Auflösung, in der du spielst, z. B. 1920 × 1080.",
+    "ru": "Разрешение, в котором вы играете, например 1920 × 1080."
+  },
+  "Sens.StretchLabel": {
+    "en": "Stretched",
+    "de": "Gestreckt",
+    "ru": "Растянуто"
+  },
+  "Sens.StretchHint": {
+    "en": "The picture fills the whole monitor even if its shape differs, e.g. 4:3 on a wide screen.",
+    "de": "Das Bild füllt den ganzen Monitor, auch wenn die Form abweicht, z. B. 4:3 auf einem Breitbild.",
+    "ru": "Изображение заполняет весь монитор, даже если пропорции отличаются, например 4:3 на широком экране."
+  },
+  "Sens.InvalidFov": {
+    "en": "Enter a field of view between 40 and 160 degrees.",
+    "de": "Gib ein Sichtfeld zwischen 40 und 160 Grad ein.",
+    "ru": "Введите поле зрения от 40 до 160 градусов."
+  },
+  "Sens.InvalidRes": {
+    "en": "Enter your resolution as width and height, for example 1920 and 1080.",
+    "de": "Gib deine Auflösung als Breite und Höhe ein, z. B. 1920 und 1080.",
+    "ru": "Введите разрешение как ширину и высоту, например 1920 и 1080."
+  },
+  "Nav.Group.Tuning": {
+    "en": "Tuning",
+    "de": "Tuning",
+    "ru": "Тюнинг"
+  },
+  "Nav.Group.Analysis": {
+    "en": "Analysis",
+    "de": "Analyse",
+    "ru": "Анализ"
+  },
+  "Nav.Group.Gaming": {
+    "en": "Gaming",
+    "de": "Gaming",
+    "ru": "Гейминг"
+  },
+  "Nav.Apex": {
+    "en": "Apex Config",
+    "de": "Apex Config",
+    "ru": "Настройки Apex"
+  },
+  "Apex.Title": {
+    "en": "APEX LEGENDS",
+    "de": "APEX LEGENDS",
+    "ru": "APEX LEGENDS"
+  },
+  "Apex.Intro": {
+    "en": "Set up Apex straight from the app: shadows and other things that cost frames off, the field of view the way you like it. The settings are saved in Apex's own settings files or in your autoexec, never in the game itself, and the app makes a backup before every change.",
+    "de": "Stell Apex direkt aus der App ein: Schatten und anderes, das FPS kostet, aus, das Sichtfeld so, wie du es magst. Gespeichert wird in den Einstellungsdateien von Apex oder in deiner Autoexec, nie im Spiel selbst, und vor jeder Änderung legt die App eine Sicherung an.",
+    "ru": "Настройте Apex прямо из приложения: тени и другое, что отнимает кадры, выключено, поле зрения как вам нравится. Сохраняется в файлах настроек Apex или в вашем autoexec, никогда в самой игре, и перед каждым изменением приложение делает резервную копию."
+  },
+  "Apex.NotFound": {
+    "en": "No Apex settings found. Start Apex once and close it again, then the files exist.",
+    "de": "Keine Apex-Einstellungen gefunden. Starte Apex einmal und beende es wieder, dann sind die Dateien da.",
+    "ru": "Настройки Apex не найдены. Запустите Apex один раз и закройте его, тогда файлы появятся."
+  },
+  "Apex.GameRunning": {
+    "en": "Apex is running. Close the game first, otherwise it writes its own values over the changes.",
+    "de": "Apex läuft gerade. Beende das Spiel zuerst, sonst überschreibt es die Änderungen mit seinen eigenen Werten.",
+    "ru": "Apex запущен. Сначала закройте игру, иначе она перезапишет изменения своими значениями."
+  },
+  "Apex.GraphicsTitle": {
+    "en": "Graphics",
+    "de": "Grafik",
+    "ru": "Графика"
+  },
+  "Apex.Already": {
+    "en": "ALREADY ON",
+    "de": "SCHON AKTIV",
+    "ru": "УЖЕ ВКЛЮЧЕНО"
+  },
+  "Apex.Shadows": {
+    "en": "Shadows off",
+    "de": "Schatten aus",
+    "ru": "Тени выключены"
+  },
+  "Apex.ShadowsHint": {
+    "en": "The biggest gain in frames. Without shadows you also no longer see an enemy's shadow before the enemy.",
+    "de": "Der größte Gewinn an FPS. Ohne Schatten siehst du allerdings auch den Schatten eines Gegners nicht mehr, bevor du ihn selbst siehst.",
+    "ru": "Самый большой прирост кадров. Без теней вы также не увидите тень врага раньше самого врага."
+  },
+  "Apex.Ssao": {
+    "en": "Ambient occlusion off",
+    "de": "Umgebungsverdunklung aus",
+    "ru": "Затенение окружения выключено"
+  },
+  "Apex.SsaoHint": {
+    "en": "Darkens corners and edges (SSAO). Costs frames, adds little.",
+    "de": "Dunkelt Ecken und Kanten ab (SSAO). Kostet FPS, bringt wenig.",
+    "ru": "Затемняет углы и края (SSAO). Отнимает кадры, даёт мало."
+  },
+  "Apex.Volumetrics": {
+    "en": "Volumetric light and fog off",
+    "de": "Volumetrisches Licht und Nebel aus",
+    "ru": "Объёмный свет и туман выключены"
+  },
+  "Apex.VolumetricsHint": {
+    "en": "Light beams and fog in rooms and outdoors.",
+    "de": "Lichtstrahlen und Nebel in Räumen und draußen.",
+    "ru": "Лучи света и туман в помещениях и на улице."
+  },
+  "Apex.Ragdolls": {
+    "en": "Ragdolls off",
+    "de": "Ragdolls aus",
+    "ru": "Рэгдолл выключен"
+  },
+  "Apex.RagdollsHint": {
+    "en": "Fallen enemies are no longer simulated physically.",
+    "de": "Gefallene Gegner werden nicht mehr physikalisch simuliert.",
+    "ru": "Павшие враги больше не симулируются физикой."
+  },
+  "Apex.Decals": {
+    "en": "Bullet holes and decals off",
+    "de": "Einschusslöcher und Decals aus",
+    "ru": "Следы от пуль и декали выключены"
+  },
+  "Apex.DecalsHint": {
+    "en": "Marks on walls and floors.",
+    "de": "Spuren auf Wänden und Böden.",
+    "ru": "Следы на стенах и полу."
+  },
+  "Apex.FovTitle": {
+    "en": "Field of view",
+    "de": "Sichtfeld (FOV)",
+    "ru": "Поле зрения (FOV)"
+  },
+  "Apex.FovHint": {
+    "en": "Saved in your profile. The menu in the game goes up to 110.",
+    "de": "Wird in deinem Profil gespeichert. Das Menü im Spiel geht bis 110.",
+    "ru": "Сохраняется в вашем профиле. Меню в игре доходит до 110."
+  },
+  "Apex.FovValue": {
+    "en": "FOV {0}  ·  cl_fovScale {1}",
+    "de": "FOV {0}  ·  cl_fovScale {1}",
+    "ru": "FOV {0}  ·  cl_fovScale {1}"
+  },
+  "Apex.FovNow": {
+    "en": "In your file now: {0}",
+    "de": "In deiner Datei jetzt: {0}",
+    "ru": "Сейчас в вашем файле: {0}"
+  },
+  "Apex.FovNowNone": {
+    "en": "No field of view in your profile yet.",
+    "de": "In deinem Profil steht noch kein Sichtfeld.",
+    "ru": "В вашем профиле пока нет поля зрения."
+  },
+  "Apex.FovWarning": {
+    "en": "Above 110 is unofficial: the menu in the game does not allow it, EA and Respawn have not approved it, many tournaments forbid it, and the game may cap the value. Your own risk.",
+    "de": "Über 110 ist inoffiziell: Das Menü im Spiel erlaubt es nicht, EA und Respawn haben es nicht freigegeben, viele Turniere verbieten es, und das Spiel kann den Wert begrenzen. Auf eigenes Risiko.",
+    "ru": "Больше 110 — неофициально: меню игры этого не позволяет, EA и Respawn это не одобряли, многие турниры запрещают это, а игра может ограничить значение. На ваш риск."
+  },
+  "Apex.Lock": {
+    "en": "Write protection (optional)",
+    "de": "Schreibschutz (optional)",
+    "ru": "Защита от записи (по желанию)"
+  },
+  "Apex.LockHint": {
+    "en": "Makes videoconfig.txt read-only so the game cannot reset it. Then graphics changes made in the game are no longer saved. Usually not needed. Starts from what your file has now.",
+    "de": "Setzt die videoconfig.txt auf schreibgeschützt, damit das Spiel sie nicht zurücksetzt. Dann werden Grafikänderungen im Spiel nicht mehr gespeichert. Meist nicht nötig. Der Schalter zeigt, was deine Datei jetzt hat.",
+    "ru": "Делает videoconfig.txt доступным только для чтения, чтобы игра не сбрасывала его. Тогда изменения графики в игре не сохраняются. Обычно не нужно. Переключатель показывает текущее состояние вашего файла."
+  },
+  "Apex.ApplyButton": {
+    "en": "APPLY",
+    "de": "ANWENDEN",
+    "ru": "ПРИМЕНИТЬ"
+  },
+  "Apex.RestoreButton": {
+    "en": "RESTORE THE PREVIOUS STATE",
+    "de": "VORHERIGEN STAND WIEDERHERSTELLEN",
+    "ru": "ВЕРНУТЬ ПРЕДЫДУЩЕЕ СОСТОЯНИЕ"
+  },
+  "Apex.Applied": {
+    "en": "Done. Start Apex again for the changes to count. A backup was made.",
+    "de": "Fertig. Starte Apex neu, damit die Änderungen gelten. Eine Sicherung wurde angelegt.",
+    "ru": "Готово. Перезапустите Apex, чтобы изменения вступили в силу. Резервная копия создана."
+  },
+  "Apex.Unchanged": {
+    "en": "Nothing to change: the files already have these values.",
+    "de": "Nichts zu ändern: Die Dateien haben schon diese Werte.",
+    "ru": "Нечего менять: в файлах уже такие значения."
+  },
+  "Apex.Restored": {
+    "en": "Back to the state before the last change.",
+    "de": "Zurückgesetzt auf den Stand vor der letzten Änderung.",
+    "ru": "Возвращено состояние до последнего изменения."
+  },
+  "Apex.RestoreFailed": {
+    "en": "Could not restore: {0}",
+    "de": "Wiederherstellen ging nicht: {0}",
+    "ru": "Не удалось восстановить: {0}"
+  },
+  "Apex.WriteFailed": {
+    "en": "The file could not be written: {0}",
+    "de": "Die Datei konnte nicht geschrieben werden: {0}",
+    "ru": "Не удалось записать файл: {0}"
+  },
+  "Apex.HowTitle": {
+    "en": "How it works",
+    "de": "So funktioniert es",
+    "ru": "Как это работает"
+  },
+  "Apex.How1": {
+    "en": "Only two text files are changed: videoconfig.txt (graphics) and profile.cfg (field of view) in Saved Games\\Respawn\\Apex. The game, its files and its memory are not touched.",
+    "de": "Geändert werden nur zwei Textdateien: videoconfig.txt (Grafik) und profile.cfg (Sichtfeld) in Gespeicherte Spiele\\Respawn\\Apex. Das Spiel, seine Dateien und sein Speicher werden nicht angefasst.",
+    "ru": "Меняются только два текстовых файла: videoconfig.txt (графика) и profile.cfg (поле зрения) в Saved Games\\Respawn\\Apex. Игра, её файлы и её память не затрагиваются."
+  },
+  "Apex.How2": {
+    "en": "Before every change the app makes a backup, also listed under Backups. Restore brings everything back, write protection included.",
+    "de": "Vor jeder Änderung legt die App eine Sicherung an, auch unter Sicherungen zu finden. Wiederherstellen bringt alles zurück, auch einen Schreibschutz.",
+    "ru": "Перед каждым изменением приложение делает резервную копию, она есть и в разделе «Резервные копии». Восстановление возвращает всё, включая защиту от записи."
+  },
+  "Apex.How3": {
+    "en": "The game must be closed, otherwise it writes its own values over the changes when it closes.",
+    "de": "Das Spiel muss beendet sein, sonst schreibt es beim Schließen seine eigenen Werte darüber.",
+    "ru": "Игра должна быть закрыта, иначе при выходе она перезапишет изменения своими значениями."
+  },
+  "Apex.How4": {
+    "en": "Editing these files is common among Apex players but not an official feature. Check a tournament's rules before you use it.",
+    "de": "Diese Dateien zu ändern ist unter Apex-Spielern üblich, aber keine offizielle Funktion. Prüf die Regeln eines Turniers, bevor du es nutzt.",
+    "ru": "Правка этих файлов распространена среди игроков Apex, но не является официальной функцией. Проверьте правила турнира, прежде чем использовать."
+  },
+  "Apex.TargetLabel": {
+    "en": "Save to",
+    "de": "Speichern in",
+    "ru": "Сохранить в"
+  },
+  "Apex.TargetFiles": {
+    "en": "Settings files (videoconfig.txt, profile.cfg)",
+    "de": "Einstellungsdateien (videoconfig.txt, profile.cfg)",
+    "ru": "Файлы настроек (videoconfig.txt, profile.cfg)"
+  },
+  "Apex.TargetAutoexec": {
+    "en": "Autoexec (cfg\\autoexec.cfg)",
+    "de": "Autoexec (cfg\\autoexec.cfg)",
+    "ru": "Autoexec (cfg\\autoexec.cfg)"
+  },
+  "Apex.AutoexecPath": {
+    "en": "File: {0}",
+    "de": "Datei: {0}",
+    "ru": "Файл: {0}"
+  },
+  "Apex.AutoexecNote": {
+    "en": "The settings go as one marked block to the end of your autoexec.cfg. videoconfig.txt and profile.cfg stay untouched, and the game cannot overwrite the block. Apex only runs the autoexec with the Steam launch option +exec autoexec. The change counts after a restart of Apex, or with exec autoexec in the console. Some graphics values are loaded before the autoexec, so check in the game that each one holds.",
+    "de": "Die Einstellungen kommen als markierter Block ans Ende deiner autoexec.cfg. videoconfig.txt und profile.cfg bleiben unberührt, und das Spiel kann den Block nicht überschreiben. Apex führt die Autoexec nur mit der Steam-Startoption +exec autoexec aus. Die Änderung gilt nach einem Neustart von Apex oder mit exec autoexec in der Konsole. Manche Grafikwerte lädt das Spiel vor der Autoexec, prüf also im Spiel, ob jeder hält.",
+    "ru": "Настройки записываются отдельным помеченным блоком в конец вашего autoexec.cfg. videoconfig.txt и profile.cfg не затрагиваются, и игра не может перезаписать блок. Apex выполняет autoexec только с параметром запуска Steam +exec autoexec. Изменение вступает в силу после перезапуска Apex или командой exec autoexec в консоли. Некоторые значения графики загружаются раньше autoexec, поэтому проверьте в игре, что каждое держится."
+  },
+  "Apex.NotFoundAutoexec": {
+    "en": "The Apex folder was not found. Read in your games again under Game Profiles.",
+    "de": "Der Apex-Ordner wurde nicht gefunden. Lies unter Spielprofile deine Spiele neu ein.",
+    "ru": "Папка Apex не найдена. Заново просканируйте игры в разделе «Профили игр»."
+  },
+  "Apex.AppliedAutoexec": {
+    "en": "Done. The settings are in your autoexec.cfg. Restart Apex, or type exec autoexec in the console. A backup was made.",
+    "de": "Fertig. Die Einstellungen stehen in deiner autoexec.cfg. Starte Apex neu oder gib in der Konsole exec autoexec ein. Eine Sicherung wurde angelegt.",
+    "ru": "Готово. Настройки записаны в ваш autoexec.cfg. Перезапустите Apex или введите в консоли exec autoexec. Резервная копия создана."
+  },
+  "Apex.FovHintAutoexec": {
+    "en": "Goes into the autoexec block as cl_fovScale once you move the slider. The menu in the game goes up to 110.",
+    "de": "Kommt als cl_fovScale in den Autoexec-Block, sobald du den Regler bewegst. Das Menü im Spiel geht bis 110.",
+    "ru": "Попадает в блок autoexec как cl_fovScale, как только вы сдвинете ползунок. Меню в игре доходит до 110."
+  },
+  "Apex.AutoHow1": {
+    "en": "Only one marked block at the end of cfg\\autoexec.cfg in the Apex folder is changed. The game, its program files and its memory are not touched.",
+    "de": "Geändert wird nur ein markierter Block am Ende der cfg\\autoexec.cfg im Apex-Ordner. Das Spiel, seine Programmdateien und sein Speicher werden nicht angefasst.",
+    "ru": "Меняется только один помеченный блок в конце cfg\\autoexec.cfg в папке Apex. Игра, её программные файлы и её память не затрагиваются."
+  },
+  "Apex.AutoHow3": {
+    "en": "The game does not have to be closed. Reload with exec autoexec in the console, or restart Apex.",
+    "de": "Das Spiel muss nicht beendet sein. Neu laden geht mit exec autoexec in der Konsole oder mit einem Neustart von Apex.",
+    "ru": "Игру закрывать не нужно. Перезагрузить можно командой exec autoexec в консоли или перезапуском Apex."
+  },
+  "Apex.StreamTitle": {
+    "en": "Texture streaming",
+    "de": "Textur-Streaming",
+    "ru": "Потоковая загрузка текстур"
+  },
+  "Apex.StreamHint": {
+    "en": "How much graphics memory Apex may use for sharp textures. Too low: everything looks blurry. Too high: it can stutter or crash. The numbers behind the steps come from the community, not from Respawn.",
+    "de": "Wie viel Grafikspeicher Apex für scharfe Texturen nutzen darf. Zu niedrig: alles wirkt verwaschen. Zu hoch: kann ruckeln oder abstürzen. Die Zahlen hinter den Stufen stammen aus der Community, nicht von Respawn.",
+    "ru": "Сколько видеопамяти Apex может использовать для чётких текстур. Слишком мало: всё выглядит размытым. Слишком много: возможны лаги и вылеты. Числа за ступенями взяты из сообщества, а не от Respawn."
+  },
+  "Apex.StreamKeep": {
+    "en": "Leave as is",
+    "de": "Nicht ändern",
+    "ru": "Не менять"
+  },
+  "Apex.StreamVeryLow": {
+    "en": "Very low (about 2 GB)",
+    "de": "Sehr niedrig (ca. 2 GB)",
+    "ru": "Очень низкий (около 2 ГБ)"
+  },
+  "Apex.StreamLow": {
+    "en": "Low (2-3 GB)",
+    "de": "Niedrig (2-3 GB)",
+    "ru": "Низкий (2-3 ГБ)"
+  },
+  "Apex.StreamMedium": {
+    "en": "Medium (3 GB)",
+    "de": "Mittel (3 GB)",
+    "ru": "Средний (3 ГБ)"
+  },
+  "Apex.StreamHigh": {
+    "en": "High (4 GB)",
+    "de": "Hoch (4 GB)",
+    "ru": "Высокий (4 ГБ)"
+  },
+  "Apex.StreamVeryHigh": {
+    "en": "Very high (6 GB)",
+    "de": "Sehr hoch (6 GB)",
+    "ru": "Очень высокий (6 ГБ)"
+  },
+  "Apex.StreamExtreme": {
+    "en": "Extreme (8 GB)",
+    "de": "Extrem (8 GB)",
+    "ru": "Максимальный (8 ГБ)"
+  },
+  "Apex.StreamNow": {
+    "en": "Currently set: {0}",
+    "de": "Aktuell eingestellt: {0}",
+    "ru": "Сейчас задано: {0}"
+  },
+  "Apex.StreamNowNone": {
+    "en": "No value set yet.",
+    "de": "Noch kein Wert gesetzt.",
+    "ru": "Значение пока не задано."
+  },
+  "Apex.StreamWarnLow": {
+    "en": "The texture budget is {0}. That is below the smallest step in the game: Apex then loads hardly any sharp textures and everything looks blurry. Pick a step.",
+    "de": "Das Textur-Budget steht auf {0}. Das ist weniger als die kleinste Stufe im Spiel: Apex lädt dann kaum scharfe Texturen, alles wirkt verwaschen. Wähl eine Stufe.",
+    "ru": "Бюджет текстур равен {0}. Это меньше самой маленькой ступени в игре: Apex почти не загружает чёткие текстуры, и всё выглядит размытым. Выберите ступень."
+  },
+  "Apex.StreamWarnOverride": {
+    "en": "Your autoexec.cfg sets the texture budget to {0} and overrides the settings file at every start. Save to Autoexec instead.",
+    "de": "Deine autoexec.cfg setzt das Textur-Budget auf {0} und überschreibt die Einstellungsdatei bei jedem Start. Speichere stattdessen in Autoexec.",
+    "ru": "Ваш autoexec.cfg задаёт бюджет текстур {0} и при каждом запуске перекрывает файл настроек. Сохраняйте вместо этого в Autoexec."
   }
 }

@@ -54,6 +54,39 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- A sidebar page: shared by the groups and the pinned pages at the bottom. -->
+        <DataTemplate x:Key="NavItemTemplate" DataType="{x:Type vm:NavigationItem}">
+            <RadioButton GroupName="Nav" Style="{StaticResource NavItem}" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                         Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                         CommandParameter="{Binding Section}" Margin="0,1">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="{Binding Icon, Converter={StaticResource IconToGeometry}}" Fill="White"
+                          Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock Text="{Binding Label, Converter={StaticResource ToUpper}}" FontSize="15" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontStyle="Italic" VerticalAlignment="Center"
+                               Foreground="White"/>
+                </StackPanel>
+            </RadioButton>
+        </DataTemplate>
+
+        <!-- A group heading: a small label with a hairline, a chevron that turns when it is folded. -->
+        <Style x:Key="NavGroupHeader" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent" Height="28" Margin="10,6,10,0" Padding="18,0,10,0">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource Brush.SurfaceHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- A maximized borderless window reaches past the screen edge by the
@@ -113,10 +146,10 @@
         <!-- Sidebar: black, closed off by a red edge -->
         <Border Grid.Column="0" Background="#B3050505" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,0,1,0" ClipToBounds="True">
           <Grid>
-            <DockPanel LastChildFill="True" Margin="0,0,0,20">
+            <DockPanel LastChildFill="True" Margin="0,0,0,10">
 
                 <!-- Brand -->
-                <Border DockPanel.Dock="Top" Padding="24,26">
+                <Border DockPanel.Dock="Top" Padding="24,18,24,8">
                     <StackPanel>
                         <Image Source="/Assets/logo_wide.png" Height="40" HorizontalAlignment="Left" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
                     </StackPanel>
@@ -124,7 +157,7 @@
 
                 <!-- Footer / branding -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="24,12,24,0">
-                    <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="#66F5A623" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,14"
+                    <Border Background="{StaticResource Brush.SurfaceElevated}" BorderBrush="#66F5A623" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,10"
                             Visibility="{Binding IsAdministrator, Converter={StaticResource InverseBoolToVis}}">
                         <StackPanel>
                             <TextBlock Text="{DynamicResource Shell.StandardMode}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold" FontSize="12"/>
@@ -132,7 +165,7 @@
                         </StackPanel>
                     </Border>
                     <!-- Community: the RESET Discord, one click from every page -->
-                    <Button Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch" Margin="0,0,0,14"
+                    <Button Style="{StaticResource Button.Secondary}" HorizontalAlignment="Stretch" Margin="0,0,0,10"
                             Padding="12,9" Click="OnJoinDiscord" ToolTip="discord.gg/a2Uz4vdCh9">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.3 18.3 0 0 0-5.5 0L8.7 3a19.7 19.7 0 0 0-4.9 1.5C.7 9.1-.2 13.7.3 18.2a19.9 19.9 0 0 0 6 3l1.3-2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a12.8 12.8 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.8-3.8-13.8ZM8.5 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm7 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"
@@ -146,26 +179,52 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Navigation: scrolls when the window is too short for every page -->
+                <!-- Account, manager page, Settings: pinned above the footer, never folded or scrolled away -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,4,0,8">
+                    <Rectangle Height="1" Fill="{StaticResource Brush.Border}" Margin="24,0,24,6"/>
+                    <ItemsControl ItemsSource="{Binding PinnedItems}" ItemTemplate="{StaticResource NavItemTemplate}"/>
+                </StackPanel>
+
+                <!-- Navigation: the Dashboard, then foldable groups. Scrolls when the window is too short. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding NavigationItems}" Margin="0,14,0,0">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
+                    <ItemsControl ItemsSource="{Binding NavigationGroups}" Margin="0,2,0,0">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:NavigationItem}">
-                                <RadioButton GroupName="Nav" Style="{StaticResource NavItem}" IsChecked="{Binding IsSelected, Mode=OneWay}"
-                                             Command="{Binding DataContext.NavigateToCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                             CommandParameter="{Binding Section}" Margin="0,2">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{Binding Icon, Converter={StaticResource IconToGeometry}}" Fill="White"
-                                              Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                        <TextBlock Text="{Binding Label, Converter={StaticResource ToUpper}}" FontSize="18" FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontStyle="Italic" VerticalAlignment="Center"
-                                                   Foreground="White"/>
-                                    </StackPanel>
-                                </RadioButton>
+                            <DataTemplate DataType="{x:Type vm:NavigationGroup}">
+                                <StackPanel>
+                                    <Button Style="{StaticResource NavGroupHeader}"
+                                            Visibility="{Binding HasHeader, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Path x:Name="Chevron" Data="M0,0 L4,4 L8,0" Stroke="{StaticResource Brush.TextTertiary}" StrokeThickness="1.8"
+                                                  Width="8" Height="5" VerticalAlignment="Center" Margin="0,0,10,0" RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform><RotateTransform Angle="0"/></Path.RenderTransform>
+                                            </Path>
+                                            <TextBlock x:Name="Heading" Grid.Column="1" Text="{Binding Label, Converter={StaticResource ToUpper}}"
+                                                       FontFamily="{StaticResource Font.Display}" FontWeight="Bold" FontStyle="Italic" FontSize="13"
+                                                       Foreground="{StaticResource Brush.TextTertiary}" VerticalAlignment="Center"/>
+                                            <Rectangle Grid.Column="2" Height="1" Fill="{StaticResource Brush.BorderSubtle}" Margin="12,2,0,0" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
+                                    <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource NavItemTemplate}"
+                                                  Visibility="{Binding ShowItems, Converter={StaticResource BoolToVis}}"/>
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsExpanded}" Value="False">
+                                        <Setter TargetName="Chevron" Property="RenderTransform">
+                                            <Setter.Value><RotateTransform Angle="-90"/></Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsActiveHeader}" Value="True">
+                                        <Setter TargetName="Heading" Property="Foreground" Value="{DynamicResource Brush.AccentBright}"/>
+                                        <Setter TargetName="Chevron" Property="Stroke" Value="{DynamicResource Brush.AccentBright}"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

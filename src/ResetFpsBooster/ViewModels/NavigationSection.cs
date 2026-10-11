@@ -12,6 +12,8 @@ public enum NavigationSection
     SmoothMotion,
 #endif
     Crosshair,
+    SensFinder,
+    ApexConfig,
     System,
     Backups,
     Logs,

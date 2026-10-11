@@ -23,6 +23,8 @@ public static class IconGeometries
         IconKind.SmoothMotion => SmoothMotionIcon(),
 #endif
         IconKind.Crosshair => CrosshairIcon(),
+        IconKind.SensFinder => SensFinderIcon(),
+        IconKind.ApexConfig => ApexConfigIcon(),
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
@@ -130,6 +132,32 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(0, 7.3, 4.5, 1.4)));
         group.Children.Add(new RectangleGeometry(new Rect(11.5, 7.3, 4.5, 1.4)));
         group.Children.Add(new EllipseGeometry(new Point(8, 8), 1.1, 1.1));
+        return group;
+    }
+
+    // Three sliders: a rail each, with a knob that cuts a gap into it.
+    private static Geometry ApexConfigIcon()
+    {
+        var group = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        group.Children.Add(new RectangleGeometry(new Rect(1, 2.6, 14, 1.4)));
+        group.Children.Add(new EllipseGeometry(new Point(10.5, 3.3), 2.3, 2.3));
+        group.Children.Add(new RectangleGeometry(new Rect(1, 7.3, 14, 1.4)));
+        group.Children.Add(new EllipseGeometry(new Point(5, 8), 2.3, 2.3));
+        group.Children.Add(new RectangleGeometry(new Rect(1, 12, 14, 1.4)));
+        group.Children.Add(new EllipseGeometry(new Point(11, 12.7), 2.3, 2.3));
+        return group;
+    }
+
+    // A mouse: the body as an outline, the wheel filled.
+    private static Geometry SensFinderIcon()
+    {
+        var body = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        body.Children.Add(new RectangleGeometry(new Rect(3.6, 0.8, 8.8, 14.4), 4.4, 4.4));
+        body.Children.Add(new RectangleGeometry(new Rect(5, 2.2, 6, 11.6), 3, 3));
+
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(body);
+        group.Children.Add(new RectangleGeometry(new Rect(7.3, 3.8, 1.4, 3.2), 0.7, 0.7));
         return group;
     }
 

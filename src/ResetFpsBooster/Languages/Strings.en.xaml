@@ -545,4 +545,136 @@
     <sys:String x:Key="Cross.How2" xml:space="preserve">Nothing in the game is read or changed. Changes to the look apply immediately, even while it is on.</sys:String>
     <sys:String x:Key="Cross.How3" xml:space="preserve">It stays out of recordings and screenshots - and out of Smooth Motion, so it is never blurred.</sys:String>
     <sys:String x:Key="Cross.How4" xml:space="preserve">Needs borderless or windowed mode - over exclusive fullscreen Windows shows no other window. Some tournaments do not allow crosshair overlays.</sys:String>
+    <sys:String x:Key="Nav.SensFinder" xml:space="preserve">Sens Finder</sys:String>
+    <sys:String x:Key="Sens.Title" xml:space="preserve">SENS FINDER</sys:String>
+    <sys:String x:Key="Sens.Intro" xml:space="preserve">Finds the sensitivity you hit and track best with. You play a short aim test at several speeds, the app scores the rounds and converts the result for your game. Nothing is read from the game itself.</sys:String>
+    <sys:String x:Key="Sens.GameLabel" xml:space="preserve">Game</sys:String>
+    <sys:String x:Key="Sens.DpiLabel" xml:space="preserve">Mouse DPI</sys:String>
+    <sys:String x:Key="Sens.DpiHint" xml:space="preserve">Shown in your mouse software, often 800 or 1600.</sys:String>
+    <sys:String x:Key="Sens.SensLabel" xml:space="preserve">Your sens in game</sys:String>
+    <sys:String x:Key="Sens.EqualsLabel" xml:space="preserve">That equals</sys:String>
+    <sys:String x:Key="Sens.Cm360" xml:space="preserve">{0} cm for a full turn (360°)</sys:String>
+    <sys:String x:Key="Sens.StartTest" xml:space="preserve">START TEST</sys:String>
+    <sys:String x:Key="Sens.InvalidDpi" xml:space="preserve">Enter a DPI between 100 and 32000.</sys:String>
+    <sys:String x:Key="Sens.InvalidSens" xml:space="preserve">Enter your current sensitivity in the game, for example 1.2.</sys:String>
+    <sys:String x:Key="Sens.Aborted" xml:space="preserve">Test cancelled - nothing was scored and nothing was saved.</sys:String>
+    <sys:String x:Key="Sens.HowTitle" xml:space="preserve">How the test runs</sys:String>
+    <sys:String x:Key="Sens.How1" xml:space="preserve">About three minutes: a warm-up round first, then six rounds - each at a different sensitivity, in random order.</sys:String>
+    <sys:String x:Key="Sens.How2" xml:space="preserve">Each round, you hit ten targets as fast as you can, then follow a moving target for eight seconds.</sys:String>
+    <sys:String x:Key="Sens.How3" xml:space="preserve">Only mouse movement and clicks inside the test window are measured. Nothing in the game is read, changed or drawn over.</sys:String>
+    <sys:String x:Key="Sens.How4" xml:space="preserve">For an honest result: on your usual mousepad, rested, mouse acceleration off. Esc cancels.</sys:String>
+    <sys:String x:Key="Sens.Result.Title" xml:space="preserve">RESULT</sys:String>
+    <sys:String x:Key="Sens.Result.Recommend" xml:space="preserve">Recommended sens</sys:String>
+    <sys:String x:Key="Sens.Result.Range" xml:space="preserve">Anything between {0} and {1} did about equally well.</sys:String>
+    <sys:String x:Key="Sens.Result.Faster" xml:space="preserve">{0} % faster than your current one</sys:String>
+    <sys:String x:Key="Sens.Result.Slower" xml:space="preserve">{0} % slower than your current one</sys:String>
+    <sys:String x:Key="Sens.Result.Same" xml:space="preserve">Practically your current sens</sys:String>
+    <sys:String x:Key="Sens.Conf.High" xml:space="preserve">CONFIDENCE HIGH</sys:String>
+    <sys:String x:Key="Sens.Conf.Medium" xml:space="preserve">CONFIDENCE MEDIUM</sys:String>
+    <sys:String x:Key="Sens.Conf.Low" xml:space="preserve">CONFIDENCE LOW</sys:String>
+    <sys:String x:Key="Sens.Conf.None" xml:space="preserve">NO DIFFERENCE</sys:String>
+    <sys:String x:Key="Sens.Result.NoDiff" xml:space="preserve">All rounds did almost equally well - your current sens fits. Keep it.</sys:String>
+    <sys:String x:Key="Sens.Result.Edge" xml:space="preserve">The best round was at the edge of the tested range, so the real optimum may lie further out. Adopt the value and run the test again.</sys:String>
+    <sys:String x:Key="Sens.Result.Unsure" xml:space="preserve">The rounds vary a lot, so the result is only a hint. Run the test again when rested and compare.</sys:String>
+    <sys:String x:Key="Sens.Result.UseButton" xml:space="preserve">USE AS STARTING VALUE</sys:String>
+    <sys:String x:Key="Sens.Result.Used" xml:space="preserve">Adopted - the next test starts at this sens.</sys:String>
+    <sys:String x:Key="Sens.Result.Rounds" xml:space="preserve">The rounds one by one</sys:String>
+    <sys:String x:Key="Sens.Col.Sens" xml:space="preserve">Sens</sys:String>
+    <sys:String x:Key="Sens.Col.Score" xml:space="preserve">Score</sys:String>
+    <sys:String x:Key="Sens.Col.Hits" xml:space="preserve">Hits</sys:String>
+    <sys:String x:Key="Sens.Col.Time" xml:space="preserve">Time per hit</sys:String>
+    <sys:String x:Key="Sens.Col.Track" xml:space="preserve">Tracking</sys:String>
+    <sys:String x:Key="Sens.Row.Hits" xml:space="preserve">{0} of {1}</sys:String>
+    <sys:String x:Key="Sens.Row.Time" xml:space="preserve">{0} ms</sys:String>
+    <sys:String x:Key="Sens.Row.Track" xml:space="preserve">{0} %</sys:String>
+    <sys:String x:Key="Sens.Result.AllGames" xml:space="preserve">The same turn in the other games</sys:String>
+    <sys:String x:Key="Sens.Note.Apex" xml:space="preserve">Apex: applies to the normal view, not to aiming down sights - that has a factor of its own.</sys:String>
+    <sys:String x:Key="Sens.Note.Fortnite" xml:space="preserve">Fortnite: the X-axis percentage; the conversion is accurate to about one percent.</sys:String>
+    <sys:String x:Key="Sens.Result.Honest" xml:space="preserve">A short test is a good starting point, not the truth. Play the new sens for a few days before you decide.</sys:String>
+    <sys:String x:Key="Sens.Test.Warmup" xml:space="preserve">WARM-UP</sys:String>
+    <sys:String x:Key="Sens.Test.Round" xml:space="preserve">ROUND {0} / {1}</sys:String>
+    <sys:String x:Key="Sens.Test.Hits" xml:space="preserve">HITS {0}</sys:String>
+    <sys:String x:Key="Sens.Test.Flick" xml:space="preserve">Hit the targets  ·  {0} left</sys:String>
+    <sys:String x:Key="Sens.Test.Track" xml:space="preserve">Stay on the white target  ·  {0} s</sys:String>
+    <sys:String x:Key="Sens.Test.Esc" xml:space="preserve">Esc to cancel</sys:String>
+    <sys:String x:Key="Sens.Test.Ready" xml:space="preserve">READY?</sys:String>
+    <sys:String x:Key="Sens.Test.IntroHint" xml:space="preserve">Left click = shoot. Every round has a different sensitivity.</sys:String>
+    <sys:String x:Key="Sens.Test.WarmupDone" xml:space="preserve">WARM-UP DONE</sys:String>
+    <sys:String x:Key="Sens.Test.RoundDone" xml:space="preserve">ROUND {0} OF {1} DONE</sys:String>
+    <sys:String x:Key="Sens.Test.Changes" xml:space="preserve">The sensitivity changes in a moment.</sys:String>
+    <sys:String x:Key="Sens.Test.Done" xml:space="preserve">DONE</sys:String>
+    <sys:String x:Key="Sens.FovLabel" xml:space="preserve">Field of view</sys:String>
+    <sys:String x:Key="Sens.FovHint.ApexLegends" xml:space="preserve">Your FOV slider in the game (70 to 110), horizontal.</sys:String>
+    <sys:String x:Key="Sens.FovHint.CounterStrike2" xml:space="preserve">Fixed: 106 at 16:9, 90 at 4:3 (horizontal).</sys:String>
+    <sys:String x:Key="Sens.FovHint.Valorant" xml:space="preserve">Fixed: 103 (horizontal).</sys:String>
+    <sys:String x:Key="Sens.FovHint.Fortnite" xml:space="preserve">Your FOV slider in the game (80 to 120), horizontal.</sys:String>
+    <sys:String x:Key="Sens.ResLabel" xml:space="preserve">Resolution</sys:String>
+    <sys:String x:Key="Sens.ResHint" xml:space="preserve">The resolution you play at, for example 1920 × 1080.</sys:String>
+    <sys:String x:Key="Sens.StretchLabel" xml:space="preserve">Stretched</sys:String>
+    <sys:String x:Key="Sens.StretchHint" xml:space="preserve">The picture fills the whole monitor even if its shape differs, e.g. 4:3 on a wide screen.</sys:String>
+    <sys:String x:Key="Sens.InvalidFov" xml:space="preserve">Enter a field of view between 40 and 160 degrees.</sys:String>
+    <sys:String x:Key="Sens.InvalidRes" xml:space="preserve">Enter your resolution as width and height, for example 1920 and 1080.</sys:String>
+    <sys:String x:Key="Nav.Group.Tuning" xml:space="preserve">Tuning</sys:String>
+    <sys:String x:Key="Nav.Group.Analysis" xml:space="preserve">Analysis</sys:String>
+    <sys:String x:Key="Nav.Group.Gaming" xml:space="preserve">Gaming</sys:String>
+    <sys:String x:Key="Nav.Apex" xml:space="preserve">Apex Config</sys:String>
+    <sys:String x:Key="Apex.Title" xml:space="preserve">APEX LEGENDS</sys:String>
+    <sys:String x:Key="Apex.Intro" xml:space="preserve">Set up Apex straight from the app: shadows and other things that cost frames off, the field of view the way you like it. The settings are saved in Apex's own settings files or in your autoexec, never in the game itself, and the app makes a backup before every change.</sys:String>
+    <sys:String x:Key="Apex.NotFound" xml:space="preserve">No Apex settings found. Start Apex once and close it again, then the files exist.</sys:String>
+    <sys:String x:Key="Apex.GameRunning" xml:space="preserve">Apex is running. Close the game first, otherwise it writes its own values over the changes.</sys:String>
+    <sys:String x:Key="Apex.GraphicsTitle" xml:space="preserve">Graphics</sys:String>
+    <sys:String x:Key="Apex.Already" xml:space="preserve">ALREADY ON</sys:String>
+    <sys:String x:Key="Apex.Shadows" xml:space="preserve">Shadows off</sys:String>
+    <sys:String x:Key="Apex.ShadowsHint" xml:space="preserve">The biggest gain in frames. Without shadows you also no longer see an enemy's shadow before the enemy.</sys:String>
+    <sys:String x:Key="Apex.Ssao" xml:space="preserve">Ambient occlusion off</sys:String>
+    <sys:String x:Key="Apex.SsaoHint" xml:space="preserve">Darkens corners and edges (SSAO). Costs frames, adds little.</sys:String>
+    <sys:String x:Key="Apex.Volumetrics" xml:space="preserve">Volumetric light and fog off</sys:String>
+    <sys:String x:Key="Apex.VolumetricsHint" xml:space="preserve">Light beams and fog in rooms and outdoors.</sys:String>
+    <sys:String x:Key="Apex.Ragdolls" xml:space="preserve">Ragdolls off</sys:String>
+    <sys:String x:Key="Apex.RagdollsHint" xml:space="preserve">Fallen enemies are no longer simulated physically.</sys:String>
+    <sys:String x:Key="Apex.Decals" xml:space="preserve">Bullet holes and decals off</sys:String>
+    <sys:String x:Key="Apex.DecalsHint" xml:space="preserve">Marks on walls and floors.</sys:String>
+    <sys:String x:Key="Apex.FovTitle" xml:space="preserve">Field of view</sys:String>
+    <sys:String x:Key="Apex.FovHint" xml:space="preserve">Saved in your profile. The menu in the game goes up to 110.</sys:String>
+    <sys:String x:Key="Apex.FovValue" xml:space="preserve">FOV {0}  ·  cl_fovScale {1}</sys:String>
+    <sys:String x:Key="Apex.FovNow" xml:space="preserve">In your file now: {0}</sys:String>
+    <sys:String x:Key="Apex.FovNowNone" xml:space="preserve">No field of view in your profile yet.</sys:String>
+    <sys:String x:Key="Apex.FovWarning" xml:space="preserve">Above 110 is unofficial: the menu in the game does not allow it, EA and Respawn have not approved it, many tournaments forbid it, and the game may cap the value. Your own risk.</sys:String>
+    <sys:String x:Key="Apex.Lock" xml:space="preserve">Write protection (optional)</sys:String>
+    <sys:String x:Key="Apex.LockHint" xml:space="preserve">Makes videoconfig.txt read-only so the game cannot reset it. Then graphics changes made in the game are no longer saved. Usually not needed. Starts from what your file has now.</sys:String>
+    <sys:String x:Key="Apex.ApplyButton" xml:space="preserve">APPLY</sys:String>
+    <sys:String x:Key="Apex.RestoreButton" xml:space="preserve">RESTORE THE PREVIOUS STATE</sys:String>
+    <sys:String x:Key="Apex.Applied" xml:space="preserve">Done. Start Apex again for the changes to count. A backup was made.</sys:String>
+    <sys:String x:Key="Apex.Unchanged" xml:space="preserve">Nothing to change: the files already have these values.</sys:String>
+    <sys:String x:Key="Apex.Restored" xml:space="preserve">Back to the state before the last change.</sys:String>
+    <sys:String x:Key="Apex.RestoreFailed" xml:space="preserve">Could not restore: {0}</sys:String>
+    <sys:String x:Key="Apex.WriteFailed" xml:space="preserve">The file could not be written: {0}</sys:String>
+    <sys:String x:Key="Apex.HowTitle" xml:space="preserve">How it works</sys:String>
+    <sys:String x:Key="Apex.How1" xml:space="preserve">Only two text files are changed: videoconfig.txt (graphics) and profile.cfg (field of view) in Saved Games\Respawn\Apex. The game, its files and its memory are not touched.</sys:String>
+    <sys:String x:Key="Apex.How2" xml:space="preserve">Before every change the app makes a backup, also listed under Backups. Restore brings everything back, write protection included.</sys:String>
+    <sys:String x:Key="Apex.How3" xml:space="preserve">The game must be closed, otherwise it writes its own values over the changes when it closes.</sys:String>
+    <sys:String x:Key="Apex.How4" xml:space="preserve">Editing these files is common among Apex players but not an official feature. Check a tournament's rules before you use it.</sys:String>
+    <sys:String x:Key="Apex.TargetLabel" xml:space="preserve">Save to</sys:String>
+    <sys:String x:Key="Apex.TargetFiles" xml:space="preserve">Settings files (videoconfig.txt, profile.cfg)</sys:String>
+    <sys:String x:Key="Apex.TargetAutoexec" xml:space="preserve">Autoexec (cfg\autoexec.cfg)</sys:String>
+    <sys:String x:Key="Apex.AutoexecPath" xml:space="preserve">File: {0}</sys:String>
+    <sys:String x:Key="Apex.AutoexecNote" xml:space="preserve">The settings go as one marked block to the end of your autoexec.cfg. videoconfig.txt and profile.cfg stay untouched, and the game cannot overwrite the block. Apex only runs the autoexec with the Steam launch option +exec autoexec. The change counts after a restart of Apex, or with exec autoexec in the console. Some graphics values are loaded before the autoexec, so check in the game that each one holds.</sys:String>
+    <sys:String x:Key="Apex.NotFoundAutoexec" xml:space="preserve">The Apex folder was not found. Read in your games again under Game Profiles.</sys:String>
+    <sys:String x:Key="Apex.AppliedAutoexec" xml:space="preserve">Done. The settings are in your autoexec.cfg. Restart Apex, or type exec autoexec in the console. A backup was made.</sys:String>
+    <sys:String x:Key="Apex.FovHintAutoexec" xml:space="preserve">Goes into the autoexec block as cl_fovScale once you move the slider. The menu in the game goes up to 110.</sys:String>
+    <sys:String x:Key="Apex.AutoHow1" xml:space="preserve">Only one marked block at the end of cfg\autoexec.cfg in the Apex folder is changed. The game, its program files and its memory are not touched.</sys:String>
+    <sys:String x:Key="Apex.AutoHow3" xml:space="preserve">The game does not have to be closed. Reload with exec autoexec in the console, or restart Apex.</sys:String>
+    <sys:String x:Key="Apex.StreamTitle" xml:space="preserve">Texture streaming</sys:String>
+    <sys:String x:Key="Apex.StreamHint" xml:space="preserve">How much graphics memory Apex may use for sharp textures. Too low: everything looks blurry. Too high: it can stutter or crash. The numbers behind the steps come from the community, not from Respawn.</sys:String>
+    <sys:String x:Key="Apex.StreamKeep" xml:space="preserve">Leave as is</sys:String>
+    <sys:String x:Key="Apex.StreamVeryLow" xml:space="preserve">Very low (about 2 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamLow" xml:space="preserve">Low (2-3 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamMedium" xml:space="preserve">Medium (3 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamHigh" xml:space="preserve">High (4 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamVeryHigh" xml:space="preserve">Very high (6 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamExtreme" xml:space="preserve">Extreme (8 GB)</sys:String>
+    <sys:String x:Key="Apex.StreamNow" xml:space="preserve">Currently set: {0}</sys:String>
+    <sys:String x:Key="Apex.StreamNowNone" xml:space="preserve">No value set yet.</sys:String>
+    <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">The texture budget is {0}. That is below the smallest step in the game: Apex then loads hardly any sharp textures and everything looks blurry. Pick a step.</sys:String>
+    <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Your autoexec.cfg sets the texture budget to {0} and overrides the settings file at every start. Save to Autoexec instead.</sys:String>
 </ResourceDictionary>

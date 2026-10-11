@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ResetFpsBooster.Core;
 using ResetFpsBooster.Core.Utilities;
+using ResetFpsBooster.Services;
 
 namespace ResetFpsBooster.ViewModels;
 
@@ -11,7 +13,13 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly AppServices _services;
     private readonly Dictionary<NavigationSection, ViewModelBase> _cache = new();
 
-    public ObservableCollection<NavigationItem> NavigationItems { get; }
+    /// <summary>The sidebar: the Dashboard alone, then the pages in foldable groups.</summary>
+    public ObservableCollection<NavigationGroup> NavigationGroups { get; }
+
+    /// <summary>Account, the manager page and Settings: always in reach at the bottom, never folded.</summary>
+    public ObservableCollection<NavigationItem> PinnedItems { get; }
+
+    private IEnumerable<NavigationItem> AllItems => NavigationGroups.SelectMany(g => g.Items).Concat(PinnedItems);
 
     [ObservableProperty] private ViewModelBase? _currentViewModel;
     [ObservableProperty] private NavigationSection _currentSection = NavigationSection.Dashboard;
@@ -21,21 +29,45 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _services = services;
 
-        NavigationItems = new ObservableCollection<NavigationItem>
-        {
-            new(NavigationSection.Dashboard, "Nav.Dashboard", IconKind.Dashboard),
-            new(NavigationSection.Optimizer, "Nav.Optimizer", IconKind.Optimizer),
-            new(NavigationSection.GameProfiles, "Nav.GameProfiles", IconKind.Games),
-            new(NavigationSection.Performance, "Nav.Performance", IconKind.Performance),
-            new(NavigationSection.BottleneckEngine, "Nav.BottleneckEngine", IconKind.BottleneckEngine),
+        // What belongs together sits together: tuning the PC, looking at how it runs, and the
+        // tools for playing. Analysis starts folded (see AppSettings.NavCollapsedGroups).
+        var gaming = new List<NavigationItem>();
 #if RFB_BETA
-            new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta),
-            new(NavigationSection.SmoothMotion, "Nav.SmoothMotion", IconKind.SmoothMotion),
+        gaming.Add(new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta));
+        gaming.Add(new(NavigationSection.SmoothMotion, "Nav.SmoothMotion", IconKind.SmoothMotion));
 #endif
-            new(NavigationSection.Crosshair, "Nav.Crosshair", IconKind.Crosshair),
-            new(NavigationSection.System, "Nav.System", IconKind.System),
-            new(NavigationSection.Backups, "Nav.Backups", IconKind.Backups),
-            new(NavigationSection.Logs, "Nav.Logs", IconKind.Logs),
+        gaming.Add(new(NavigationSection.Crosshair, "Nav.Crosshair", IconKind.Crosshair));
+        gaming.Add(new(NavigationSection.SensFinder, "Nav.SensFinder", IconKind.SensFinder));
+        gaming.Add(new(NavigationSection.ApexConfig, "Nav.Apex", IconKind.ApexConfig));
+
+        NavigationGroups = new ObservableCollection<NavigationGroup>
+        {
+            new("main", null, new NavigationItem[]
+            {
+                new(NavigationSection.Dashboard, "Nav.Dashboard", IconKind.Dashboard),
+            }),
+            new("tuning", "Nav.Group.Tuning", new NavigationItem[]
+            {
+                new(NavigationSection.Optimizer, "Nav.Optimizer", IconKind.Optimizer),
+                new(NavigationSection.GameProfiles, "Nav.GameProfiles", IconKind.Games),
+                new(NavigationSection.Backups, "Nav.Backups", IconKind.Backups),
+            }),
+            new("analysis", "Nav.Group.Analysis", new NavigationItem[]
+            {
+                new(NavigationSection.Performance, "Nav.Performance", IconKind.Performance),
+                new(NavigationSection.BottleneckEngine, "Nav.BottleneckEngine", IconKind.BottleneckEngine),
+                new(NavigationSection.System, "Nav.System", IconKind.System),
+                new(NavigationSection.Logs, "Nav.Logs", IconKind.Logs),
+            }),
+            new("gaming", "Nav.Group.Gaming", gaming),
+        };
+
+        var folded = _services.Settings.Current.NavCollapsedGroups;
+        foreach (var group in NavigationGroups)
+            group.IsExpanded = !folded.Contains(group.Id);
+
+        PinnedItems = new ObservableCollection<NavigationItem>
+        {
             new(NavigationSection.Account, "Nav.Account", IconKind.Account),
             new(NavigationSection.Settings, "Nav.Settings", IconKind.Settings),
         };
@@ -99,7 +131,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task UpdateManagerEntryAsync()
     {
         var isManager = await _services.Auth.IsManagerAsync();
-        var existing = NavigationItems.FirstOrDefault(i => i.Section == NavigationSection.Manager);
+        var existing = PinnedItems.FirstOrDefault(i => i.Section == NavigationSection.Manager);
 
         // Back on the UI thread for the collection change: the sign-in event
         // can arrive from the background restore at start-up.
@@ -107,13 +139,13 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (isManager && existing is null)
             {
-                var account = NavigationItems.FirstOrDefault(i => i.Section == NavigationSection.Account);
-                var index = account is null ? NavigationItems.Count : NavigationItems.IndexOf(account) + 1;
-                NavigationItems.Insert(index, new NavigationItem(NavigationSection.Manager, "Nav.Manager", IconKind.Manager));
+                var account = PinnedItems.FirstOrDefault(i => i.Section == NavigationSection.Account);
+                var index = account is null ? PinnedItems.Count : PinnedItems.IndexOf(account) + 1;
+                PinnedItems.Insert(index, new NavigationItem(NavigationSection.Manager, "Nav.Manager", IconKind.Manager));
             }
             else if (!isManager && existing is not null)
             {
-                NavigationItems.Remove(existing);
+                PinnedItems.Remove(existing);
                 if (CurrentSection == NavigationSection.Manager) NavigateTo(NavigationSection.Dashboard);
             }
         });
@@ -129,8 +161,15 @@ public sealed partial class MainViewModel : ObservableObject
         if (CurrentViewModel is DashboardViewModel leavingDashboard && CurrentSection != section)
             leavingDashboard.StopLiveUpdates();
 
-        foreach (var item in NavigationItems)
+        foreach (var item in AllItems)
             item.IsSelected = item.Section == section;
+
+        // A page reached by any road (a Dashboard button, a link) opens its group, so it is seen in the list.
+        foreach (var group in NavigationGroups)
+        {
+            group.RefreshSelection();
+            if (group.HasHeader && group.HasSelection && !group.IsExpanded) group.IsExpanded = true;
+        }
 
         CurrentSection = section;
         CurrentViewModel = GetOrCreate(section);
@@ -163,6 +202,9 @@ public sealed partial class MainViewModel : ObservableObject
 #endif
             NavigationSection.Crosshair => new CrosshairViewModel(_services.Crosshair, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
+            NavigationSection.SensFinder => new SensFinderViewModel(_services.Settings),
+            NavigationSection.ApexConfig => new ApexConfigViewModel(
+                new ApexSettingsService(_services.Backup, ApexInstallFolder), _services.Settings),
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
             NavigationSection.Backups => new BackupsViewModel(_services.Backup, _services.SystemRestore),
             NavigationSection.Logs => new LogsViewModel(_services.ChangeLog),
@@ -175,6 +217,23 @@ public sealed partial class MainViewModel : ObservableObject
         _cache[section] = vm;
         return vm;
     }
+
+    /// <summary>Folds or opens a group by its heading, and remembers it for the next start.</summary>
+    [RelayCommand]
+    private void ToggleGroup(NavigationGroup group)
+    {
+        group.IsExpanded = !group.IsExpanded;
+        var folded = _services.Settings.Current.NavCollapsedGroups;
+        folded.Remove(group.Id);
+        if (!group.IsExpanded) folded.Add(group.Id);
+        _services.Settings.Save();
+    }
+
+    // Where the game library found Apex Legends (for its autoexec.cfg); null if it has not.
+    private string? ApexInstallFolder() => _services.GameLibrary.GetGames()
+        .FirstOrDefault(g => g.Name.Contains("Apex Legends", StringComparison.OrdinalIgnoreCase) ||
+                             Path.GetFileName(g.ExecutablePath ?? "").StartsWith("r5apex", StringComparison.OrdinalIgnoreCase))
+        ?.InstallPath;
 
     private async Task RunEntryCommandAsync(NavigationSection section)
     {
@@ -197,6 +256,9 @@ public sealed partial class MainViewModel : ObservableObject
                 break;
             case LogsViewModel logs:
                 logs.LoadCommand.Execute(null);
+                break;
+            case ApexConfigViewModel apex:
+                apex.Refresh();
                 break;
         }
     }

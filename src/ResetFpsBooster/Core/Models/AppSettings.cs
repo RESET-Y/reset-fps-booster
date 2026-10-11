@@ -66,6 +66,26 @@ public sealed class AppSettings
     /// back on at the next start once premium is confirmed.</summary>
     public bool CrosshairEnabled { get; set; }
 
+    /// <summary>Sens-Finder: the game last chosen, the mouse's DPI, and each game's own sensitivity,
+    /// field of view and resolution (by game name), so the next test starts from the same values.</summary>
+    public ResetFpsBooster.Core.Sensitivity.SensGame SensGame { get; set; } = ResetFpsBooster.Core.Sensitivity.SensGame.CounterStrike2;
+    public int SensDpi { get; set; } = 800;
+    public Dictionary<string, SensGameProfile> SensProfiles { get; set; } = new();
+
+    /// <summary>The backup made before the last change to Apex Legends' settings files, so
+    /// "restore" on the Apex Config page can undo exactly that change. Null once restored.</summary>
+    public string? ApexSnapshotId { get; set; }
+
+    /// <summary>The same for a change made to autoexec.cfg.</summary>
+    public string? ApexAutoexecSnapshotId { get; set; }
+
+    /// <summary>Where the Apex Config page keeps the settings: the game's settings files or autoexec.cfg.</summary>
+    public ResetFpsBooster.Core.Apex.ApexTarget ApexTarget { get; set; } = ResetFpsBooster.Core.Apex.ApexTarget.SettingsFiles;
+
+    /// <summary>Sidebar groups the user folded, by id. Analysis starts folded: it is looked at
+    /// now and then, the tools above it are used every day.</summary>
+    public List<string> NavCollapsedGroups { get; set; } = new() { "analysis" };
+
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>
     public string? Language { get; set; }

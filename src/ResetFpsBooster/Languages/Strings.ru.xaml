@@ -545,4 +545,136 @@
     <sys:String x:Key="Cross.How2" xml:space="preserve">В игре ничего не считывается и не изменяется. Изменения внешнего вида применяются сразу, даже когда прицел включён.</sys:String>
     <sys:String x:Key="Cross.How3" xml:space="preserve">Он не попадает в записи и скриншоты — и в Smooth Motion тоже, поэтому никогда не размывается.</sys:String>
     <sys:String x:Key="Cross.How4" xml:space="preserve">Нужен режим без рамки или оконный — поверх эксклюзивного полноэкранного режима Windows не показывает другие окна. Некоторые турниры не разрешают оверлеи прицела.</sys:String>
+    <sys:String x:Key="Nav.SensFinder" xml:space="preserve">Подбор сенсы</sys:String>
+    <sys:String x:Key="Sens.Title" xml:space="preserve">ПОДБОР СЕНСЫ</sys:String>
+    <sys:String x:Key="Sens.Intro" xml:space="preserve">Находит чувствительность, с которой вы лучше всего попадаете и ведёте движущуюся цель. Вы проходите короткий аим-тест на нескольких скоростях, приложение оценивает раунды и пересчитывает результат для вашей игры. Из самой игры ничего не считывается.</sys:String>
+    <sys:String x:Key="Sens.GameLabel" xml:space="preserve">Игра</sys:String>
+    <sys:String x:Key="Sens.DpiLabel" xml:space="preserve">DPI мыши</sys:String>
+    <sys:String x:Key="Sens.DpiHint" xml:space="preserve">Указан в программе вашей мыши, часто 800 или 1600.</sys:String>
+    <sys:String x:Key="Sens.SensLabel" xml:space="preserve">Ваша сенса в игре</sys:String>
+    <sys:String x:Key="Sens.EqualsLabel" xml:space="preserve">Это соответствует</sys:String>
+    <sys:String x:Key="Sens.Cm360" xml:space="preserve">{0} см на полный оборот (360°)</sys:String>
+    <sys:String x:Key="Sens.StartTest" xml:space="preserve">НАЧАТЬ ТЕСТ</sys:String>
+    <sys:String x:Key="Sens.InvalidDpi" xml:space="preserve">Введите DPI от 100 до 32000.</sys:String>
+    <sys:String x:Key="Sens.InvalidSens" xml:space="preserve">Введите вашу текущую чувствительность в игре, например 1.2.</sys:String>
+    <sys:String x:Key="Sens.Aborted" xml:space="preserve">Тест прерван — ничего не оценено и не сохранено.</sys:String>
+    <sys:String x:Key="Sens.HowTitle" xml:space="preserve">Как проходит тест</sys:String>
+    <sys:String x:Key="Sens.How1" xml:space="preserve">Около трёх минут: сначала разминка, затем шесть раундов — каждый с другой чувствительностью, в случайном порядке.</sys:String>
+    <sys:String x:Key="Sens.How2" xml:space="preserve">В каждом раунде вы как можно быстрее попадаете в десять целей, а затем восемь секунд ведёте движущуюся цель.</sys:String>
+    <sys:String x:Key="Sens.How3" xml:space="preserve">Измеряются только движения мыши и клики в окне теста. В игре ничего не считывается, не изменяется и не рисуется.</sys:String>
+    <sys:String x:Key="Sens.How4" xml:space="preserve">Для честного результата: на привычном коврике, отдохнувшим, с отключённым ускорением мыши. Esc — отмена.</sys:String>
+    <sys:String x:Key="Sens.Result.Title" xml:space="preserve">РЕЗУЛЬТАТ</sys:String>
+    <sys:String x:Key="Sens.Result.Recommend" xml:space="preserve">Рекомендуемая сенса</sys:String>
+    <sys:String x:Key="Sens.Result.Range" xml:space="preserve">Всё от {0} до {1} сработало примерно одинаково.</sys:String>
+    <sys:String x:Key="Sens.Result.Faster" xml:space="preserve">на {0} % быстрее текущей</sys:String>
+    <sys:String x:Key="Sens.Result.Slower" xml:space="preserve">на {0} % медленнее текущей</sys:String>
+    <sys:String x:Key="Sens.Result.Same" xml:space="preserve">Практически ваша текущая сенса</sys:String>
+    <sys:String x:Key="Sens.Conf.High" xml:space="preserve">УВЕРЕННОСТЬ ВЫСОКАЯ</sys:String>
+    <sys:String x:Key="Sens.Conf.Medium" xml:space="preserve">УВЕРЕННОСТЬ СРЕДНЯЯ</sys:String>
+    <sys:String x:Key="Sens.Conf.Low" xml:space="preserve">УВЕРЕННОСТЬ НИЗКАЯ</sys:String>
+    <sys:String x:Key="Sens.Conf.None" xml:space="preserve">РАЗНИЦЫ НЕТ</sys:String>
+    <sys:String x:Key="Sens.Result.NoDiff" xml:space="preserve">Все раунды прошли почти одинаково — ваша текущая сенса подходит. Оставьте её.</sys:String>
+    <sys:String x:Key="Sens.Result.Edge" xml:space="preserve">Лучший раунд оказался на краю проверенного диапазона, поэтому настоящий оптимум может лежать дальше. Примите значение и пройдите тест ещё раз.</sys:String>
+    <sys:String x:Key="Sens.Result.Unsure" xml:space="preserve">Раунды сильно различаются, поэтому результат — лишь подсказка. Пройдите тест ещё раз отдохнувшим и сравните.</sys:String>
+    <sys:String x:Key="Sens.Result.UseButton" xml:space="preserve">ВЗЯТЬ КАК НАЧАЛЬНОЕ ЗНАЧЕНИЕ</sys:String>
+    <sys:String x:Key="Sens.Result.Used" xml:space="preserve">Принято — следующий тест начнётся с этой сенсы.</sys:String>
+    <sys:String x:Key="Sens.Result.Rounds" xml:space="preserve">Раунды по отдельности</sys:String>
+    <sys:String x:Key="Sens.Col.Sens" xml:space="preserve">Сенса</sys:String>
+    <sys:String x:Key="Sens.Col.Score" xml:space="preserve">Оценка</sys:String>
+    <sys:String x:Key="Sens.Col.Hits" xml:space="preserve">Попадания</sys:String>
+    <sys:String x:Key="Sens.Col.Time" xml:space="preserve">Время на цель</sys:String>
+    <sys:String x:Key="Sens.Col.Track" xml:space="preserve">Трекинг</sys:String>
+    <sys:String x:Key="Sens.Row.Hits" xml:space="preserve">{0} из {1}</sys:String>
+    <sys:String x:Key="Sens.Row.Time" xml:space="preserve">{0} мс</sys:String>
+    <sys:String x:Key="Sens.Row.Track" xml:space="preserve">{0} %</sys:String>
+    <sys:String x:Key="Sens.Result.AllGames" xml:space="preserve">Тот же оборот в других играх</sys:String>
+    <sys:String x:Key="Sens.Note.Apex" xml:space="preserve">Apex: относится к обычному обзору, не к прицеливанию через прицел — у него свой множитель.</sys:String>
+    <sys:String x:Key="Sens.Note.Fortnite" xml:space="preserve">Fortnite: процент по оси X; пересчёт точен примерно до одного процента.</sys:String>
+    <sys:String x:Key="Sens.Result.Honest" xml:space="preserve">Короткий тест — хорошая отправная точка, но не истина. Поиграйте с новой сенсой несколько дней, прежде чем решать.</sys:String>
+    <sys:String x:Key="Sens.Test.Warmup" xml:space="preserve">РАЗМИНКА</sys:String>
+    <sys:String x:Key="Sens.Test.Round" xml:space="preserve">РАУНД {0} / {1}</sys:String>
+    <sys:String x:Key="Sens.Test.Hits" xml:space="preserve">ПОПАДАНИЙ {0}</sys:String>
+    <sys:String x:Key="Sens.Test.Flick" xml:space="preserve">Попадайте в цели  ·  осталось {0}</sys:String>
+    <sys:String x:Key="Sens.Test.Track" xml:space="preserve">Держитесь на белой цели  ·  {0} с</sys:String>
+    <sys:String x:Key="Sens.Test.Esc" xml:space="preserve">Esc — отмена</sys:String>
+    <sys:String x:Key="Sens.Test.Ready" xml:space="preserve">ГОТОВЫ?</sys:String>
+    <sys:String x:Key="Sens.Test.IntroHint" xml:space="preserve">Левая кнопка — выстрел. В каждом раунде своя чувствительность.</sys:String>
+    <sys:String x:Key="Sens.Test.WarmupDone" xml:space="preserve">РАЗМИНКА ПРОЙДЕНА</sys:String>
+    <sys:String x:Key="Sens.Test.RoundDone" xml:space="preserve">РАУНД {0} ИЗ {1} ПРОЙДЕН</sys:String>
+    <sys:String x:Key="Sens.Test.Changes" xml:space="preserve">Сейчас чувствительность изменится.</sys:String>
+    <sys:String x:Key="Sens.Test.Done" xml:space="preserve">ГОТОВО</sys:String>
+    <sys:String x:Key="Sens.FovLabel" xml:space="preserve">Поле зрения (FOV)</sys:String>
+    <sys:String x:Key="Sens.FovHint.ApexLegends" xml:space="preserve">Ваш ползунок FOV в игре (от 70 до 110), по горизонтали.</sys:String>
+    <sys:String x:Key="Sens.FovHint.CounterStrike2" xml:space="preserve">Фиксированное: 106 при 16:9, 90 при 4:3 (по горизонтали).</sys:String>
+    <sys:String x:Key="Sens.FovHint.Valorant" xml:space="preserve">Фиксированное: 103 (по горизонтали).</sys:String>
+    <sys:String x:Key="Sens.FovHint.Fortnite" xml:space="preserve">Ваш ползунок FOV в игре (от 80 до 120), по горизонтали.</sys:String>
+    <sys:String x:Key="Sens.ResLabel" xml:space="preserve">Разрешение</sys:String>
+    <sys:String x:Key="Sens.ResHint" xml:space="preserve">Разрешение, в котором вы играете, например 1920 × 1080.</sys:String>
+    <sys:String x:Key="Sens.StretchLabel" xml:space="preserve">Растянуто</sys:String>
+    <sys:String x:Key="Sens.StretchHint" xml:space="preserve">Изображение заполняет весь монитор, даже если пропорции отличаются, например 4:3 на широком экране.</sys:String>
+    <sys:String x:Key="Sens.InvalidFov" xml:space="preserve">Введите поле зрения от 40 до 160 градусов.</sys:String>
+    <sys:String x:Key="Sens.InvalidRes" xml:space="preserve">Введите разрешение как ширину и высоту, например 1920 и 1080.</sys:String>
+    <sys:String x:Key="Nav.Group.Tuning" xml:space="preserve">Тюнинг</sys:String>
+    <sys:String x:Key="Nav.Group.Analysis" xml:space="preserve">Анализ</sys:String>
+    <sys:String x:Key="Nav.Group.Gaming" xml:space="preserve">Гейминг</sys:String>
+    <sys:String x:Key="Nav.Apex" xml:space="preserve">Настройки Apex</sys:String>
+    <sys:String x:Key="Apex.Title" xml:space="preserve">APEX LEGENDS</sys:String>
+    <sys:String x:Key="Apex.Intro" xml:space="preserve">Настройте Apex прямо из приложения: тени и другое, что отнимает кадры, выключено, поле зрения как вам нравится. Сохраняется в файлах настроек Apex или в вашем autoexec, никогда в самой игре, и перед каждым изменением приложение делает резервную копию.</sys:String>
+    <sys:String x:Key="Apex.NotFound" xml:space="preserve">Настройки Apex не найдены. Запустите Apex один раз и закройте его, тогда файлы появятся.</sys:String>
+    <sys:String x:Key="Apex.GameRunning" xml:space="preserve">Apex запущен. Сначала закройте игру, иначе она перезапишет изменения своими значениями.</sys:String>
+    <sys:String x:Key="Apex.GraphicsTitle" xml:space="preserve">Графика</sys:String>
+    <sys:String x:Key="Apex.Already" xml:space="preserve">УЖЕ ВКЛЮЧЕНО</sys:String>
+    <sys:String x:Key="Apex.Shadows" xml:space="preserve">Тени выключены</sys:String>
+    <sys:String x:Key="Apex.ShadowsHint" xml:space="preserve">Самый большой прирост кадров. Без теней вы также не увидите тень врага раньше самого врага.</sys:String>
+    <sys:String x:Key="Apex.Ssao" xml:space="preserve">Затенение окружения выключено</sys:String>
+    <sys:String x:Key="Apex.SsaoHint" xml:space="preserve">Затемняет углы и края (SSAO). Отнимает кадры, даёт мало.</sys:String>
+    <sys:String x:Key="Apex.Volumetrics" xml:space="preserve">Объёмный свет и туман выключены</sys:String>
+    <sys:String x:Key="Apex.VolumetricsHint" xml:space="preserve">Лучи света и туман в помещениях и на улице.</sys:String>
+    <sys:String x:Key="Apex.Ragdolls" xml:space="preserve">Рэгдолл выключен</sys:String>
+    <sys:String x:Key="Apex.RagdollsHint" xml:space="preserve">Павшие враги больше не симулируются физикой.</sys:String>
+    <sys:String x:Key="Apex.Decals" xml:space="preserve">Следы от пуль и декали выключены</sys:String>
+    <sys:String x:Key="Apex.DecalsHint" xml:space="preserve">Следы на стенах и полу.</sys:String>
+    <sys:String x:Key="Apex.FovTitle" xml:space="preserve">Поле зрения (FOV)</sys:String>
+    <sys:String x:Key="Apex.FovHint" xml:space="preserve">Сохраняется в вашем профиле. Меню в игре доходит до 110.</sys:String>
+    <sys:String x:Key="Apex.FovValue" xml:space="preserve">FOV {0}  ·  cl_fovScale {1}</sys:String>
+    <sys:String x:Key="Apex.FovNow" xml:space="preserve">Сейчас в вашем файле: {0}</sys:String>
+    <sys:String x:Key="Apex.FovNowNone" xml:space="preserve">В вашем профиле пока нет поля зрения.</sys:String>
+    <sys:String x:Key="Apex.FovWarning" xml:space="preserve">Больше 110 — неофициально: меню игры этого не позволяет, EA и Respawn это не одобряли, многие турниры запрещают это, а игра может ограничить значение. На ваш риск.</sys:String>
+    <sys:String x:Key="Apex.Lock" xml:space="preserve">Защита от записи (по желанию)</sys:String>
+    <sys:String x:Key="Apex.LockHint" xml:space="preserve">Делает videoconfig.txt доступным только для чтения, чтобы игра не сбрасывала его. Тогда изменения графики в игре не сохраняются. Обычно не нужно. Переключатель показывает текущее состояние вашего файла.</sys:String>
+    <sys:String x:Key="Apex.ApplyButton" xml:space="preserve">ПРИМЕНИТЬ</sys:String>
+    <sys:String x:Key="Apex.RestoreButton" xml:space="preserve">ВЕРНУТЬ ПРЕДЫДУЩЕЕ СОСТОЯНИЕ</sys:String>
+    <sys:String x:Key="Apex.Applied" xml:space="preserve">Готово. Перезапустите Apex, чтобы изменения вступили в силу. Резервная копия создана.</sys:String>
+    <sys:String x:Key="Apex.Unchanged" xml:space="preserve">Нечего менять: в файлах уже такие значения.</sys:String>
+    <sys:String x:Key="Apex.Restored" xml:space="preserve">Возвращено состояние до последнего изменения.</sys:String>
+    <sys:String x:Key="Apex.RestoreFailed" xml:space="preserve">Не удалось восстановить: {0}</sys:String>
+    <sys:String x:Key="Apex.WriteFailed" xml:space="preserve">Не удалось записать файл: {0}</sys:String>
+    <sys:String x:Key="Apex.HowTitle" xml:space="preserve">Как это работает</sys:String>
+    <sys:String x:Key="Apex.How1" xml:space="preserve">Меняются только два текстовых файла: videoconfig.txt (графика) и profile.cfg (поле зрения) в Saved Games\Respawn\Apex. Игра, её файлы и её память не затрагиваются.</sys:String>
+    <sys:String x:Key="Apex.How2" xml:space="preserve">Перед каждым изменением приложение делает резервную копию, она есть и в разделе «Резервные копии». Восстановление возвращает всё, включая защиту от записи.</sys:String>
+    <sys:String x:Key="Apex.How3" xml:space="preserve">Игра должна быть закрыта, иначе при выходе она перезапишет изменения своими значениями.</sys:String>
+    <sys:String x:Key="Apex.How4" xml:space="preserve">Правка этих файлов распространена среди игроков Apex, но не является официальной функцией. Проверьте правила турнира, прежде чем использовать.</sys:String>
+    <sys:String x:Key="Apex.TargetLabel" xml:space="preserve">Сохранить в</sys:String>
+    <sys:String x:Key="Apex.TargetFiles" xml:space="preserve">Файлы настроек (videoconfig.txt, profile.cfg)</sys:String>
+    <sys:String x:Key="Apex.TargetAutoexec" xml:space="preserve">Autoexec (cfg\autoexec.cfg)</sys:String>
+    <sys:String x:Key="Apex.AutoexecPath" xml:space="preserve">Файл: {0}</sys:String>
+    <sys:String x:Key="Apex.AutoexecNote" xml:space="preserve">Настройки записываются отдельным помеченным блоком в конец вашего autoexec.cfg. videoconfig.txt и profile.cfg не затрагиваются, и игра не может перезаписать блок. Apex выполняет autoexec только с параметром запуска Steam +exec autoexec. Изменение вступает в силу после перезапуска Apex или командой exec autoexec в консоли. Некоторые значения графики загружаются раньше autoexec, поэтому проверьте в игре, что каждое держится.</sys:String>
+    <sys:String x:Key="Apex.NotFoundAutoexec" xml:space="preserve">Папка Apex не найдена. Заново просканируйте игры в разделе «Профили игр».</sys:String>
+    <sys:String x:Key="Apex.AppliedAutoexec" xml:space="preserve">Готово. Настройки записаны в ваш autoexec.cfg. Перезапустите Apex или введите в консоли exec autoexec. Резервная копия создана.</sys:String>
+    <sys:String x:Key="Apex.FovHintAutoexec" xml:space="preserve">Попадает в блок autoexec как cl_fovScale, как только вы сдвинете ползунок. Меню в игре доходит до 110.</sys:String>
+    <sys:String x:Key="Apex.AutoHow1" xml:space="preserve">Меняется только один помеченный блок в конце cfg\autoexec.cfg в папке Apex. Игра, её программные файлы и её память не затрагиваются.</sys:String>
+    <sys:String x:Key="Apex.AutoHow3" xml:space="preserve">Игру закрывать не нужно. Перезагрузить можно командой exec autoexec в консоли или перезапуском Apex.</sys:String>
+    <sys:String x:Key="Apex.StreamTitle" xml:space="preserve">Потоковая загрузка текстур</sys:String>
+    <sys:String x:Key="Apex.StreamHint" xml:space="preserve">Сколько видеопамяти Apex может использовать для чётких текстур. Слишком мало: всё выглядит размытым. Слишком много: возможны лаги и вылеты. Числа за ступенями взяты из сообщества, а не от Respawn.</sys:String>
+    <sys:String x:Key="Apex.StreamKeep" xml:space="preserve">Не менять</sys:String>
+    <sys:String x:Key="Apex.StreamVeryLow" xml:space="preserve">Очень низкий (около 2 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamLow" xml:space="preserve">Низкий (2-3 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamMedium" xml:space="preserve">Средний (3 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamHigh" xml:space="preserve">Высокий (4 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamVeryHigh" xml:space="preserve">Очень высокий (6 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamExtreme" xml:space="preserve">Максимальный (8 ГБ)</sys:String>
+    <sys:String x:Key="Apex.StreamNow" xml:space="preserve">Сейчас задано: {0}</sys:String>
+    <sys:String x:Key="Apex.StreamNowNone" xml:space="preserve">Значение пока не задано.</sys:String>
+    <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">Бюджет текстур равен {0}. Это меньше самой маленькой ступени в игре: Apex почти не загружает чёткие текстуры, и всё выглядит размытым. Выберите ступень.</sys:String>
+    <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Ваш autoexec.cfg задаёт бюджет текстур {0} и при каждом запуске перекрывает файл настроек. Сохраняйте вместо этого в Autoexec.</sys:String>
 </ResourceDictionary>
