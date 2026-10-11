@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>RFB Stream: BRB</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<!--
+  RESET FPS BOOSTER - BE RIGHT BACK SCENE for OBS / Streamlabs (Browser Source,
+  1920 x 1080). Everything is set in the address:
+
+    ?minutes=5          optional: shows "back in 05:00" top right and counts down
+    &lang=en            English (default German)
+    &msg=Text1|Text2    your own rotating lines under the band, separated by |
+    &title=Pause        your own words on the band (short: it is 190 px type)
+
+  Animation uses transform and opacity only, so it costs OBS next to nothing.
+-->
+<style>
+:root {
+  --red: #e8121f; --red-hot: #ff3242; --ink: #050505;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+}
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+body { position: relative; }   /* the stage is measured against the 1920 x 1080 page, not the window */
+.stage { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+
+.glow { position: absolute; left: -10%; right: -10%; bottom: -30%; height: 90%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(232,18,31,.5), rgba(232,18,31,.16) 45%, transparent 70%);
+  animation: breathe 5s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+
+.beam { position: absolute; top: -90px; width: 260px; height: 1500px; transform-origin: 50% 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent); }
+.beam.b1 { left: 380px;  animation: swing 9s ease-in-out infinite alternate; }
+.beam.b2 { left: 1280px; animation: swing 10s ease-in-out -4s infinite alternate-reverse; }
+@keyframes swing { from { transform: rotate(-13deg); } to { transform: rotate(13deg); } }
+
+.stripe { position: absolute; left: 0; right: 0; height: 16px; overflow: hidden; background: var(--ink); }
+.stripe.top { top: 0; } .stripe.bottom { bottom: 0; }
+.stripe i { position: absolute; left: -80px; right: -80px; top: 0; bottom: 0; transform: skewX(-32deg);
+  background: repeating-linear-gradient(90deg, var(--red) 0 14px, var(--ink) 14px 28px);
+  animation: slide 1s linear infinite; }
+@keyframes slide { to { transform: skewX(-32deg) translateX(-28px); } }
+
+.logo { position: absolute; left: 96px; top: 72px; width: 300px; }
+.back { position: absolute; right: 96px; top: 84px; text-align: right; font: 800 40px/1 var(--display); letter-spacing: .16em; text-transform: uppercase; color: #fff; opacity: 0; transition: opacity .6s; }
+.back.on { opacity: 1; }
+.back b { display: inline-block; margin-left: 18px; padding: 8px 22px 6px; background: var(--red); font-weight: 900; font-style: italic; letter-spacing: .06em; transform: skewX(-12deg); }
+.back b span { display: inline-block; transform: skewX(12deg); }
+
+/* THE BAND: wider than the screen, slanted, hatched at both edges, slides in and then breathes */
+.band { position: absolute; left: -400px; right: -400px; top: 50%; height: 340px; margin-top: -250px; transform: skewX(-12deg) translateX(2400px);
+  animation: bandIn .9s .2s cubic-bezier(.16,1,.3,1) forwards; box-shadow: 0 30px 90px rgba(0,0,0,.65), 0 0 90px rgba(232,18,31,.35);
+  display: grid; grid-template-rows: 16px 1fr 16px; background: var(--red); overflow: hidden; }
+@keyframes bandIn { 70% { transform: skewX(-12deg) translateX(-26px); } to { transform: skewX(-12deg) translateX(0); } }
+.band .hatch { background: repeating-linear-gradient(90deg, var(--red) 0 14px, var(--ink) 14px 28px); animation: bandSlide 1s linear infinite; background-size: 28px 100%; }
+@keyframes bandSlide { to { background-position: -28px 0; } }
+/* a white sheen that crosses the band every few seconds */
+.band::after { content: ""; position: absolute; top: 0; bottom: 0; width: 220px; left: -260px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-8deg);
+  animation: sheen 6s 2s ease-in-out infinite; }
+@keyframes sheen { 0% { transform: translateX(0) skewX(-8deg); } 35%, 100% { transform: translateX(2900px) skewX(-8deg); } }
+.band h1 { margin: 0; align-self: center; text-align: center; transform: skewX(12deg); font: italic 900 196px/0.95 var(--display); text-transform: uppercase; color: #fff; white-space: nowrap;
+  text-shadow: 0 8px 0 rgba(0,0,0,.22); letter-spacing: .005em; }
+
+/* the line under the band changes every few seconds */
+.line { position: absolute; left: 0; right: 0; top: 50%; margin-top: 150px; height: 70px; text-align: center; }
+.line span { position: absolute; left: 0; right: 0; font: 800 54px/1 var(--display); letter-spacing: .2em; text-transform: uppercase; color: #fff; opacity: 0; transform: translateY(26px); transition: opacity .5s, transform .6s cubic-bezier(.2,.9,.25,1); }
+.line span.on { opacity: 1; transform: translateY(0); }
+.line span.off { opacity: 0; transform: translateY(-26px); }
+
+/* three dots that pulse one after the other: "still here, just waiting" */
+.dots { position: absolute; left: 0; right: 0; top: 50%; margin-top: 252px; display: flex; justify-content: center; gap: 26px; }
+.dots i { width: 18px; height: 18px; background: var(--red-hot); transform: skewX(-12deg); animation: dot 1.4s ease-in-out infinite; box-shadow: 0 0 24px var(--red); }
+.dots i:nth-child(2) { animation-delay: .2s; } .dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%, 100% { opacity: .2; transform: skewX(-12deg) scale(.7); } 40% { opacity: 1; transform: skewX(-12deg) scale(1.15); } }
+
+.ticker { position: absolute; left: 0; right: 0; bottom: 16px; height: 76px; overflow: hidden; background: rgba(0,0,0,.82); border-top: 2px solid var(--red); }
+.track { display: flex; width: max-content; height: 100%; align-items: center; animation: scroll 60s linear infinite; }
+.track span { font: 700 34px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: #fff; white-space: nowrap; padding: 0 34px; }
+.track span.sep { color: var(--red-hot); padding: 0; font-style: italic; font-weight: 900; }
+@keyframes scroll { to { transform: translateX(-50%); } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="glow"></div>
+  <div class="beam b1"></div><div class="beam b2"></div>
+  <div class="stripe top"><i></i></div>
+  <div class="stripe bottom"><i></i></div>
+
+  <img class="logo" src="../assets/logo_wide.png" alt="RFB">
+  <div class="back" id="back"><span id="backLabel"></span><b><span id="backTime">00:00</span></b></div>
+
+  <div class="band"><div class="hatch"></div><h1 id="title"></h1><div class="hatch"></div></div>
+  <div class="line" id="line"></div>
+  <div class="dots"><i></i><i></i><i></i></div>
+
+  <div class="ticker"><div class="track" id="track"></div></div>
+</div>
+
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const lang = (q.get("lang") || "de").toLowerCase() === "en" ? "en" : "de";
+  const T = {
+    de: { title: "Bin gleich zurück", back: "Zurück in", soon: "Gleich",
+          lines: ["Kurze Pause", "Schnell was trinken", "Bleibt dran", "Gleich geht's weiter"],
+          msgs: ["Bin gleich wieder da", "RESET FPS BOOSTER", "Mehr FPS. Kein Placebo.", "Gratis für Windows 10/11", "reset-booster.online"] },
+    en: { title: "Be right back", back: "Back in", soon: "Soon",
+          lines: ["Quick break", "Grabbing a drink", "Stay tuned", "Back in a moment"],
+          msgs: ["Be right back", "RESET FPS BOOSTER", "More FPS. No placebo.", "Free for Windows 10/11", "reset-booster.online"] }
+  }[lang];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  $("title").textContent = (q.get("title") || T.title).trim().slice(0, 28);
+
+  // the ticker: messages twice in a row, so the loop has no seam
+  const custom = (q.get("msg") || "").split("|").map(s => s.trim()).filter(Boolean);
+  const ticker = custom.length ? custom : T.msgs;
+  const one = ticker.map(m => `<span>${esc(m)}</span><span class="sep">///</span>`).join("");
+  $("track").innerHTML = one + one;
+
+  // the line under the band: one at a time, in and out
+  const lines = custom.length ? custom : T.lines;
+  $("line").innerHTML = lines.map(l => `<span>${esc(l)}</span>`).join("");
+  const spans = [...$("line").children];
+  let cur = -1;
+  function show() {
+    const next = (cur + 1) % spans.length;
+    if (cur >= 0) {
+      const old = spans[cur];
+      old.classList.remove("on"); old.classList.add("off");          // leaves upwards
+      setTimeout(() => old.classList.remove("off"), 700);            // then waits below again
+    }
+    spans[next].classList.add("on");                                  // the next rises in
+    cur = next;
+  }
+  show(); setInterval(show, 4200);
+
+  // optional: "back in mm:ss"
+  const m = parseFloat(q.get("minutes"));
+  if (isFinite(m) && m > 0) {
+    const end = Date.now() + m * 60000;
+    $("backLabel").textContent = T.back;
+    $("back").classList.add("on");
+    const pad = n => String(n).padStart(2, "0");
+    const tick = () => {
+      const s = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      $("backTime").textContent = s === 0 ? T.soon : pad(Math.floor(s / 60)) + ":" + pad(s % 60);
+    };
+    tick(); setInterval(tick, 250);
+  }
+})();
+</script>
+</body>
+</html>

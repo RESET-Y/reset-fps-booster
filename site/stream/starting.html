@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>RFB Stream: Starting Soon</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<!--
+  RESET FPS BOOSTER - STARTING SOON SCENE for OBS / Streamlabs (Browser Source,
+  1920 x 1080, no custom CSS needed). Everything is set in the address:
+
+    ?minutes=5          countdown length in minutes (default 5)
+    &until=20:30        OR count down to a clock time today (24 h); wins over minutes
+    &lang=en            English (default German)
+    &msg=Text1|Text2    your own ticker messages, separated by |
+    &preview=0          (nothing to set - the scene is always opaque)
+
+  Reload the browser source (right click > Refresh) to restart the countdown.
+  Animation uses transform and opacity only, so it costs OBS next to nothing.
+-->
+<style>
+:root {
+  --red: #e8121f; --red-hot: #ff3242; --ink: #050505;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Segoe UI", sans-serif;
+}
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+body { position: relative; }   /* the stage is measured against the 1920 x 1080 page, not the window */
+.stage { position: absolute; inset: 0; overflow: hidden; background: var(--ink); }
+
+/* the red light rising from the bottom, breathing slowly */
+.glow { position: absolute; left: -10%; right: -10%; bottom: -30%; height: 90%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(232,18,31,.55), rgba(232,18,31,.18) 45%, transparent 70%);
+  animation: breathe 6s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+
+/* the grid floor: lines run towards the viewer */
+.floor { position: absolute; left: -20%; right: -20%; bottom: 0; height: 46%; overflow: hidden;
+  perspective: 620px; perspective-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(transparent, #000 55%); mask-image: linear-gradient(transparent, #000 55%); }
+.floor i { position: absolute; left: 0; right: 0; top: -80px; height: calc(100% + 160px); transform-origin: 50% 100%;
+  background:
+    linear-gradient(rgba(232,18,31,.55) 2px, transparent 2px) 0 0 / 100% 80px,
+    linear-gradient(90deg, rgba(232,18,31,.40) 2px, transparent 2px) 0 0 / 100px 100%;
+  transform: rotateX(62deg);
+  animation: run 1.6s linear infinite; }
+@keyframes run { from { background-position: 0 0, 0 0; } to { background-position: 0 80px, 0 0; } }
+
+/* three white stage lights hanging from the rig */
+.beam { position: absolute; top: -90px; width: 240px; height: 1500px; transform-origin: 50% 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent); }
+.beam.b1 { left: 220px;  animation: swing 7.5s ease-in-out infinite alternate; }
+.beam.b2 { left: 840px;  width: 300px; animation: swing 6.2s ease-in-out -2s infinite alternate-reverse; }
+.beam.b3 { left: 1480px; animation: swing 8.4s ease-in-out -4s infinite alternate; }
+@keyframes swing { from { transform: rotate(-17deg); } to { transform: rotate(16deg); } }
+
+/* brand hatching top and bottom: a skewed strip, the pattern slides one period per loop */
+.stripe { position: absolute; left: 0; right: 0; height: 16px; overflow: hidden; background: var(--ink); }
+.stripe.top { top: 0; } .stripe.bottom { bottom: 0; }
+.stripe i { position: absolute; left: -80px; right: -80px; top: 0; bottom: 0; transform: skewX(-32deg);
+  background: repeating-linear-gradient(90deg, var(--red) 0 14px, var(--ink) 14px 28px);
+  animation: slide 1s linear infinite; }
+@keyframes slide { to { transform: skewX(-32deg) translateX(-28px); } }
+
+.logo { position: absolute; left: 96px; top: 72px; width: 300px; opacity: 0; animation: fade .8s .2s forwards; }
+.url { position: absolute; right: 96px; top: 92px; font: 600 26px/1 var(--display); letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(255,255,255,.7); opacity: 0; animation: fade .8s .4s forwards; }
+@keyframes fade { to { opacity: 1; } }
+
+.center { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-52%); text-align: center; }
+h1 { margin: 0; font: italic 900 168px/0.92 var(--display); text-transform: uppercase; color: #fff; letter-spacing: .005em; white-space: nowrap; }
+h1 .w { display: inline-block; opacity: 0; transform: translateY(70px) skewX(-12deg); animation: wordIn .75s cubic-bezier(.2,.9,.25,1) forwards; }
+h1 .w:nth-child(1) { animation-delay: .35s; } h1 .w:nth-child(2) { animation-delay: .55s; } h1 .w:nth-child(3) { animation-delay: .75s; }
+h1 .red { color: var(--red-hot); text-shadow: 0 0 46px rgba(232,18,31,.6); }
+@keyframes wordIn { to { opacity: 1; transform: translateY(0) skewX(0); } }
+
+/* the countdown: a slanted black plate with a red edge, slams in from the left */
+.plate { display: inline-block; margin-top: 34px; padding: 0 78px; background: rgba(0,0,0,.72);
+  border: 4px solid var(--red); box-shadow: 0 0 60px rgba(232,18,31,.35), inset 0 0 40px rgba(232,18,31,.12);
+  transform: skewX(-12deg) translateX(-2300px); animation: slam .8s 1.15s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes slam { 70% { transform: skewX(-12deg) translateX(24px); } to { transform: skewX(-12deg) translateX(0); } }
+.count { display: flex; justify-content: center; align-items: center; transform: skewX(12deg); font: italic 900 300px/1 var(--display); color: #fff; }
+.count .d { display: inline-block; width: 150px; text-align: center; }
+.count .c { display: inline-block; width: 70px; text-align: center; color: var(--red-hot); animation: blink 1s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.count.tick { animation: tick .35s ease-out; }
+@keyframes tick { 0% { transform: skewX(12deg) scale(1.035); } 100% { transform: skewX(12deg) scale(1); } }
+
+.bar { width: 1180px; height: 8px; margin: 46px auto 0; background: rgba(255,255,255,.14); opacity: 0; animation: fade .6s 1.7s forwards; transform: skewX(-12deg); }
+.bar b { display: block; height: 100%; background: linear-gradient(90deg, var(--red), var(--red-hot)); transform-origin: 0 50%; transform: scaleX(0); box-shadow: 0 0 22px var(--red); }
+
+/* the ticker along the bottom */
+.ticker { position: absolute; left: 0; right: 0; bottom: 16px; height: 76px; overflow: hidden; background: rgba(0,0,0,.82); border-top: 2px solid var(--red); }
+.track { display: flex; width: max-content; height: 100%; align-items: center; animation: scroll 60s linear infinite; }
+.track span { font: 700 34px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: #fff; white-space: nowrap; padding: 0 34px; }
+.track span.sep { color: var(--red-hot); padding: 0; font-style: italic; font-weight: 900; }
+@keyframes scroll { to { transform: translateX(-50%); } }
+
+/* the moment it starts */
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.live .flash { animation: flash .9s ease-out; }
+@keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
+.live .count .c { display: none; }
+.live .count .d { width: auto; padding: 0 20px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="glow"></div>
+  <div class="floor"><i></i></div>
+  <div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>
+  <div class="stripe top"><i></i></div>
+  <div class="stripe bottom"><i></i></div>
+
+  <img class="logo" src="../assets/logo_wide.png" alt="RFB">
+  <div class="url">reset-booster.online</div>
+
+  <div class="center">
+    <h1 id="title"></h1>
+    <div class="plate"><div class="count" id="count"></div></div>
+    <div class="bar"><b id="fill"></b></div>
+  </div>
+
+  <div class="ticker"><div class="track" id="track"></div></div>
+  <div class="flash"></div>
+</div>
+
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const lang = (q.get("lang") || "de").toLowerCase() === "en" ? "en" : "de";
+  const T = {
+    de: { words: ["Stream", "startet", "gleich"], go: ["Los", "geht's"], live: "LIVE",
+          msgs: ["Danke fürs Warten", "RESET FPS BOOSTER", "Mehr FPS. Kein Placebo.", "Gratis für Windows 10/11", "reset-booster.online"] },
+    en: { words: ["Stream", "starts", "soon"], go: ["Here", "we go"], live: "LIVE",
+          msgs: ["Thanks for waiting", "RESET FPS BOOSTER", "More FPS. No placebo.", "Free for Windows 10/11", "reset-booster.online"] }
+  }[lang];
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // title: three words that rise in one after the other, the middle one in red
+  function setTitle(words) {
+    $("title").innerHTML = words.map((w, i) => `<span class="w${words.length === 3 && i === 1 ? " red" : ""}">${esc(w)}</span>`).join(" ");
+  }
+  setTitle(T.words);
+
+  // ticker: the messages twice in a row so the loop has no seam
+  const custom = (q.get("msg") || "").split("|").map(s => s.trim()).filter(Boolean);
+  const msgs = custom.length ? custom : T.msgs;
+  const one = msgs.map(m => `<span>${esc(m)}</span><span class="sep">///</span>`).join("");
+  $("track").innerHTML = one + one;
+
+  // countdown
+  const total = (() => {
+    const until = (q.get("until") || "").match(/^(\d{1,2}):(\d{2})$/);
+    if (until) {
+      const t = new Date(); t.setHours(+until[1], +until[2], 0, 0);
+      if (t.getTime() <= Date.now()) t.setDate(t.getDate() + 1);   // already past today: tomorrow
+      return t.getTime() - Date.now();
+    }
+    const m = parseFloat(q.get("minutes"));
+    return (isFinite(m) && m > 0 ? m : 5) * 60000;
+  })();
+  const startedAt = Date.now(), endAt = startedAt + total;
+  const pad = n => String(n).padStart(2, "0");
+  const render = (mm, ss) => {
+    const digits = (pad(mm) + ":" + pad(ss)).split("");
+    $("count").innerHTML = digits.map(ch => ch === ":" ? `<span class="c">:</span>` : `<span class="d">${ch}</span>`).join("");
+  };
+  let lastSec = -1, live = false;
+  function tick() {
+    const left = Math.max(0, endAt - Date.now());
+    $("fill").style.transform = `scaleX(${Math.min(1, 1 - left / total)})`;
+    if (left <= 0 && !live) {
+      live = true;
+      $("stage").classList.add("live");
+      setTitle(T.go);
+      $("count").innerHTML = `<span class="d">${T.live}</span>`;
+      return;
+    }
+    if (live) return;
+    const s = Math.ceil(left / 1000);
+    if (s !== lastSec) {
+      lastSec = s;
+      render(Math.floor(s / 60), s % 60);
+      const c = $("count"); c.classList.remove("tick"); void c.offsetWidth; c.classList.add("tick");
+    }
+  }
+  tick();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(tick);
+  setInterval(tick, 200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>RFB Stream: Webcam-Rahmen</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<!--
+  RESET FPS BOOSTER - WEBCAM FRAME for OBS / Streamlabs (Browser Source,
+  1920 x 1080, transparent). The middle of the frame is empty on purpose:
+  put your webcam source UNDER this browser source and line it up with the
+  frame. Everything is set in the address:
+
+    ?pos=bl             corner: bl (default), br, tl, tr
+    &msg=Text1|Text2    your own rotating ad lines instead of the default ones, separated by |
+    &title=Text         the big plate (default: RESET FPS BOOSTER)
+    &w=560              width of the camera window in px at 1920 (default 560, height is 16:9)
+    &live=0             hide the little LIVE marker (default: shown)
+    &lang=en            English ad lines (default German)
+    &preview=1          shows a stand-in picture and the outline of the camera area
+
+  The ring of light is a rotating gradient masked to the border, which every current
+  OBS browser source (Chromium) can draw. Animation uses transform and opacity only.
+-->
+<style>
+@property --a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+:root {
+  --red: #e8121f; --red-hot: #ff3242; --ink: #050505;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --w: 560px; --edge: 7px;
+}
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+body { position: relative; }
+
+/* the group: camera window + plate, anchored in a corner */
+.wrap { position: absolute; width: var(--w); }
+.wrap.bl { left: 64px; bottom: 64px; } .wrap.br { right: 64px; bottom: 64px; }
+.wrap.tl { left: 64px; top: 64px; }   .wrap.tr { right: 64px; top: 64px; }
+
+.cam { position: relative; width: 100%; aspect-ratio: 16 / 9; opacity: 0; transform: scale(.94);
+  animation: camIn .8s .1s cubic-bezier(.2,.9,.25,1) forwards; }
+@keyframes camIn { to { opacity: 1; transform: scale(1); } }
+
+/* the frame: a solid red edge with a glow, around an empty middle */
+.edge { position: absolute; inset: calc(var(--edge) * -1); border: var(--edge) solid var(--red);
+  box-shadow: 0 0 34px rgba(232,18,31,.55), inset 0 0 26px rgba(232,18,31,.25); }
+/* the light that runs around the edge: a conic gradient, cut down to the ring */
+.run { position: absolute; inset: calc(var(--edge) * -1); padding: var(--edge);
+  background: conic-gradient(from var(--a), transparent 0deg 300deg, rgba(255,255,255,.9) 338deg, #fff 350deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: spin 4.5s linear infinite; }
+@keyframes spin { to { --a: 360deg; } }
+
+/* white corner brackets, pulsing a little */
+.c { position: absolute; width: 54px; height: 54px; border: 0 solid #fff; animation: pulse 3s ease-in-out infinite; }
+.c.tl { left: -26px; top: -26px; border-top-width: 5px; border-left-width: 5px; }
+.c.tr { right: -26px; top: -26px; border-top-width: 5px; border-right-width: 5px; }
+.c.bl { left: -26px; bottom: -26px; border-bottom-width: 5px; border-left-width: 5px; }
+.c.br { right: -26px; bottom: -26px; border-bottom-width: 5px; border-right-width: 5px; }
+@keyframes pulse { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+
+/* LIVE marker, top left of the camera window */
+.live { position: absolute; left: 0; top: 0; transform: translate(0, -100%); margin-top: -18px; display: flex; align-items: center; gap: 12px;
+  font: 800 30px/1 var(--display); letter-spacing: .22em; color: #fff; text-transform: uppercase; opacity: 0; animation: tagIn .6s 1.1s forwards; }
+.live::before { content: ""; width: 16px; height: 16px; background: var(--red-hot); box-shadow: 0 0 18px var(--red); animation: blink 1.4s ease-in-out infinite; }
+/* in the top corners the plates sit under the camera, so LIVE goes inside its corner as a small dark chip */
+.wrap.tl .live, .wrap.tr .live { top: 14px; left: 14px; transform: none; margin: 0; padding: 8px 14px 6px; background: rgba(5,5,5,.72); }
+@keyframes blink { 50% { opacity: .25; } }
+@keyframes tagIn { to { opacity: 1; } }
+
+/* the name plate: slanted red, slams in from the side, a sheen crosses it now and then */
+.name { position: relative; display: inline-block; margin: 38px 0 0 14px; padding: 6px 34px 4px; background: var(--red); overflow: hidden;
+  transform: skewX(-12deg) translateX(-700px); animation: plateIn .75s .6s cubic-bezier(.16,1,.3,1) forwards; box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 30px rgba(232,18,31,.4); }
+@keyframes plateIn { 70% { transform: skewX(-12deg) translateX(14px); } to { transform: skewX(-12deg) translateX(0); } }
+.name b { display: inline-block; transform: skewX(12deg); font: italic 900 max(22px, calc(var(--w) / 10))/1.05 var(--display); text-transform: uppercase; color: #fff; letter-spacing: .02em; white-space: nowrap; }
+.name::after { content: ""; position: absolute; top: 0; bottom: 0; width: 70px; left: -90px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  animation: sheen 7s 2.5s ease-in-out infinite; }
+@keyframes sheen { 0% { transform: translateX(0); } 22%, 100% { transform: translateX(900px); } }
+.sub { display: inline-block; margin: 0 0 0 52px; padding: 4px 24px 3px; background: rgba(5,5,5,.88); border: 2px solid var(--red);
+  transform: skewX(-12deg) translateX(-700px); animation: plateIn .75s .78s cubic-bezier(.16,1,.3,1) forwards; }
+.sub span { display: inline-block; transform: skewX(12deg); font: 700 max(14px, calc(var(--w) / 20))/1.1 var(--display); text-transform: uppercase; letter-spacing: .16em; color: #fff; white-space: nowrap;
+  transition: opacity .35s, transform .35s cubic-bezier(.2,.9,.25,1); }
+.sub span.out { opacity: 0; transform: skewX(12deg) translateY(10px); }
+/* name and sub sit on separate lines, each plate slanted on its own */
+/* a fixed height for the plates, with or without the second line, so the camera window never moves */
+.plates { display: flex; flex-direction: column; align-items: flex-start; min-height: 160px; }
+.wrap.br .plates { align-items: flex-end; }
+.wrap.br .name { margin: 38px 14px 0 0; } .wrap.br .sub { margin: 0 52px 0 0; }
+.wrap.tl .plates, .wrap.tr .plates { margin-top: 0; }
+
+/* preview only */
+.pv-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 40%, #5b6b7d 0%, #26313d 40%, #0d1218 75%); }
+.pv-cam { position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 14px, transparent 14px 28px); display: flex; align-items: center; justify-content: center;
+  font: 700 26px var(--display); letter-spacing: .2em; color: rgba(255,255,255,.45); text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="pv" hidden><div class="pv-bg"></div></div>
+<div class="wrap bl" id="wrap">
+  <div class="cam">
+    <div class="pv-cam" id="pvCam" hidden>Webcam</div>
+    <div class="edge"></div><div class="run"></div>
+    <div class="c tl"></div><div class="c tr"></div><div class="c bl"></div><div class="c br"></div>
+    <div class="live" id="live"><span id="liveText">LIVE</span></div>
+  </div>
+  <div class="plates">
+    <div class="name"><b id="name"></b></div>
+    <div class="sub"><span id="sub"></span></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const $ = id => document.getElementById(id);
+  const lang = (q.get("lang") || "de").toLowerCase() === "en" ? "en" : "de";
+  const pos = ["bl", "br", "tl", "tr"].includes(q.get("pos")) ? q.get("pos") : "bl";
+  const w = Math.min(1100, Math.max(240, parseInt(q.get("w"), 10) || 560));
+
+  $("wrap").className = "wrap " + pos;
+  document.documentElement.style.setProperty("--w", w + "px");
+  $("name").textContent = (q.get("title") || "RESET FPS BOOSTER").trim().slice(0, 28);
+  if (q.get("live") === "0") $("live").hidden = true;
+
+  // the ad lines under the big plate: one at a time, every few seconds
+  const defaults = {
+    de: ["Mehr FPS. Kein Placebo.", "Gratis für Windows 10/11", "reset-booster.online"],
+    en: ["More FPS. No placebo.", "Free for Windows 10/11", "reset-booster.online"]
+  }[lang];
+  const custom = (q.get("msg") || "").split("|").map(s => s.trim()).filter(Boolean);
+  const lines = custom.length ? custom : defaults;
+
+  let at = 0;
+  const sub = $("sub");
+  sub.textContent = lines[0];
+  if (lines.length > 1) setInterval(() => {
+    sub.classList.add("out");
+    setTimeout(() => { at = (at + 1) % lines.length; sub.textContent = lines[at]; sub.classList.remove("out"); }, 380);
+  }, 5000);
+
+  if (q.get("preview")) { $("pv").hidden = false; $("pvCam").hidden = false; document.body.insertBefore($("pv"), document.body.firstChild); }
+})();
+</script>
+</body>
+</html>
