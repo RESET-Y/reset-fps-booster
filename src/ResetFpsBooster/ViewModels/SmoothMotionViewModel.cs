@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -184,4 +183,3 @@ public sealed partial class SmoothMotionViewModel : ViewModelBase
         SyncFromService();
     }
 }
-#endif

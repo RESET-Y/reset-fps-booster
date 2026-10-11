@@ -76,7 +76,6 @@
     <sys:String x:Key="Auth.RateLimited" xml:space="preserve">Zu viele Versuche. Warte eine Minute und versuch es erneut.</sys:String>
     <sys:String x:Key="Auth.SignUpFailed" xml:space="preserve">Registrierung fehlgeschlagen.</sys:String>
     <sys:String x:Key="Auth.SignInFailed" xml:space="preserve">Anmeldung fehlgeschlagen.</sys:String>
-    <sys:String x:Key="FB.Beta" xml:space="preserve">EXPERIMENTELLE BETA</sys:String>
     <sys:String x:Key="FB.Intro" xml:space="preserve">Bildgenerierung für das Spielfenster, das du auswählst, über die offiziellen Windows-Aufnahme-Schnittstellen. Kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. FrameBoost nimmt nur dieses Fenster auf und zeigt das verdoppelte Bild darüber an. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.</sys:String>
     <sys:String x:Key="FB.FrameGeneration" xml:space="preserve">Bildgenerierung</sys:String>
     <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Wähle das Spielfenster und schalte dann FrameBoost ein.</sys:String>

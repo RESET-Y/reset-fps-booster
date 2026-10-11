@@ -76,7 +76,6 @@
     <sys:String x:Key="Auth.RateLimited" xml:space="preserve">Слишком много попыток. Подождите минуту и попробуйте снова.</sys:String>
     <sys:String x:Key="Auth.SignUpFailed" xml:space="preserve">Не удалось зарегистрироваться.</sys:String>
     <sys:String x:Key="Auth.SignInFailed" xml:space="preserve">Не удалось войти.</sys:String>
-    <sys:String x:Key="FB.Beta" xml:space="preserve">ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА</sys:String>
     <sys:String x:Key="FB.Intro" xml:space="preserve">Генерация кадров для выбранного окна игры через официальные API захвата Windows. Без изменения игры, без инъекций, без доступа к памяти. FrameBoost захватывает только это окно и показывает поверх него удвоенное изображение. Только реальные измеренные значения; если что-то нельзя измерить, показывается N/A вместо догадки.</sys:String>
     <sys:String x:Key="FB.FrameGeneration" xml:space="preserve">Генерация кадров</sys:String>
     <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Выберите окно игры, затем включите FrameBoost.</sys:String>

@@ -31,9 +31,6 @@
         <StackPanel Margin="36,32" MaxWidth="920" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="RESET FRAMEBOOST" Style="{StaticResource Text.Title}"/>
-                <Border Style="{StaticResource Badge}" Margin="16,6,0,0" VerticalAlignment="Top">
-                    <TextBlock Text="{DynamicResource FB.Beta}" Style="{StaticResource BadgeText}"/>
-                </Border>
             </StackPanel>
             <TextBlock Style="{StaticResource Text.Body}" Margin="0,8,0,0" TextWrapping="Wrap"
                        Text="{DynamicResource FB.Intro}"/>

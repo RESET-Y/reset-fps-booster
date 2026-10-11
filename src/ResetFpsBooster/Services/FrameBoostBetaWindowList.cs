@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -76,4 +75,3 @@ public static class FrameBoostBetaWindowList
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
 }
-#endif

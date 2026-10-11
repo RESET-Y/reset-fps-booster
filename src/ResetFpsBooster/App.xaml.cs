@@ -24,12 +24,10 @@ public partial class App : Application
         // right language rather than flashing English and then switching.
         ResetFpsBooster.Core.Localization.Loc.Apply(startupSettings.Language);
 
-#if RFB_BETA
         Resources.MergedDictionaries.Add(new ResourceDictionary
         {
             Source = new Uri("Themes/FrameBoostBetaTemplate.xaml", UriKind.Relative)
         });
-#endif
 
         DispatcherUnhandledException += (_, args) =>
         {
@@ -70,13 +68,11 @@ public partial class App : Application
         // otherwise they'd stay at BelowNormal priority until their own next restart.
         _services?.GameBoost.Stop();
         _services?.Crosshair.Hide();
-#if RFB_BETA
         // The FrameBoost engine is a separate process holding a full-screen
         // overlay. Closing this window used to leave it running, and it has no
         // window of its own to close - the overlay simply stayed on the display
         // with no way left to remove it. Shutting it down is the app's job.
         _services?.FrameBoostBeta.Stop();
-#endif
         base.OnExit(e);
     }
 
@@ -86,12 +82,10 @@ public partial class App : Application
         var mainViewModel = new MainViewModel(_services);
 
         var window = new MainWindow { DataContext = mainViewModel, Opacity = 0, Settings = _services.Settings };
-#if RFB_BETA
         // Closing the window hides it to the tray. The FrameBoost engine draws a full-screen
         // overlay, so it must stop with the window - otherwise it stays over the game with no
         // visible way left to switch it off (one-monitor setups could not get out).
         window.StopOverlays = () => _services?.FrameBoostBeta.Stop();
-#endif
         WindowBackdrop.ApplyDarkModeAndBackdrop(window);
         MainWindow = window;
         // The crosshair is a window of its own; left open it would keep the

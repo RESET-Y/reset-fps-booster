@@ -2,10 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:ResetFpsBooster.ViewModels"
                     xmlns:views="clr-namespace:ResetFpsBooster.Views">
-    <!-- Kept out of App.xaml's own MergedDictionaries and merged in only from
-         App.xaml.cs under #if RFB_BETA - App.xaml itself cannot use #if, and
-         a static reference there to a Beta-only type would break the Stable
-         build once those files are removed from compilation. -->
+    <!-- FrameBoost's page template, merged in from App.xaml.cs at start-up. -->
     <DataTemplate DataType="{x:Type vm:FrameBoostBetaViewModel}">
         <views:FrameBoostBetaView/>
     </DataTemplate>

@@ -370,11 +370,6 @@
     "de": "Anmeldung fehlgeschlagen.",
     "ru": "Не удалось войти."
   },
-  "FB.Beta": {
-    "en": "EXPERIMENTAL BETA",
-    "de": "EXPERIMENTELLE BETA",
-    "ru": "ЭКСПЕРИМЕНТАЛЬНАЯ БЕТА"
-  },
   "FB.Intro": {
     "en": "Frame generation for the game window you pick, through the public Windows capture APIs. No game modification, no injection, no memory access. FrameBoost captures only that window and shows the doubled output over it. Real, measured numbers only; a value shows N/A rather than a guess when it cannot be measured.",
     "de": "Bildgenerierung für das Spielfenster, das du auswählst, über die offiziellen Windows-Aufnahme-Schnittstellen. Kein Eingriff ins Spiel, keine Injection, kein Speicherzugriff. FrameBoost nimmt nur dieses Fenster auf und zeigt das verdoppelte Bild darüber an. Nur echte, gemessene Werte; was sich nicht messen lässt, zeigt N/A statt einer Schätzung.",

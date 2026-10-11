@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Globalization;
 using System.IO;
 
@@ -45,4 +44,3 @@ public static class SmoothMotionScreens
         return 3.0 * Math.Pow(2.0, s < 0 ? s / 25.0 : s / 50.0);
     }
 }
-#endif

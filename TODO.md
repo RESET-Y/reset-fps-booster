@@ -106,4 +106,4 @@ Windows-Entwickler-PC bauen und testen, nicht in der Cloud-Sitzung.
 
 - [ ] Demo-Video: einmal mit FrameBoost 120 FPS aufnehmen (SuperTuxKart),
       Aus-Version = jedes zweite Bild entfernt, Zeitlupe-Knopf für 60-Hz-Bildschirme
-- [ ] AGB: Smooth Motion und Fadenkreuz als Teil von Premium nennen, Beta-Hinweis
+- [ ] AGB: Smooth Motion und Fadenkreuz als Teil von Premium nennen

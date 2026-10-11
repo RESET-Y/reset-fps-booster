@@ -1,4 +1,3 @@
-#if RFB_BETA
 using ResetFpsBooster.Core.Models;
 
 namespace ResetFpsBooster.Services;
@@ -54,4 +53,3 @@ public interface IFrameBoostBetaService
     /// field stays null if the log doesn't report it (e.g. "N/A").
     FrameBoostBetaTelemetry ReadLatestTelemetry();
 }
-#endif

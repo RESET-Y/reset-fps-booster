@@ -18,10 +18,8 @@ public static class IconGeometries
         IconKind.Games => Games(),
         IconKind.Performance => Performance(),
         IconKind.BottleneckEngine => BottleneckEngineIcon(),
-#if RFB_BETA
         IconKind.FrameBoostBeta => FrameBoostBetaIcon(),
         IconKind.SmoothMotion => SmoothMotionIcon(),
-#endif
         IconKind.Crosshair => CrosshairIcon(),
         IconKind.SensFinder => SensFinderIcon(),
         IconKind.ApexConfig => ApexConfigIcon(),
@@ -94,7 +92,6 @@ public static class IconGeometries
         return group;
     }
 
-#if RFB_BETA
     private static Geometry FrameBoostBetaIcon()
     {
         // Two overlapping window frames - the real capture-window relationship.
@@ -116,7 +113,6 @@ public static class IconGeometries
         group.Children.Add(new RectangleGeometry(new Rect(1, 10.4, 6.5, 1.4), 0.7, 0.7));
         return group;
     }
-#endif
 
     // A ring with four ticks and a centre dot.
     private static Geometry CrosshairIcon()

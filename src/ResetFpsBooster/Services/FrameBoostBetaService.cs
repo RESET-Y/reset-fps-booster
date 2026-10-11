@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -314,4 +313,3 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
     public void Dispose() => Stop();
 
 }
-#endif

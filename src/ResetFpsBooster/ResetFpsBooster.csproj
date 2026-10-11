@@ -10,41 +10,14 @@
     <RootNamespace>ResetFpsBooster</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
-    <Configurations>Debug;Release;Beta</Configurations>
+    <Configurations>Debug;Release</Configurations>
     <Company>Lukas Reschke</Company>
     <Product>RESET FPS BOOSTER</Product>
-    <Version>1.4.4-beta</Version>
+    <Version>1.5.0</Version>
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
-
-  <!-- Beta-only configuration: this is the ONLY place RFB_BETA is defined.
-       Debug and Release (what Stable is always built/published from) never
-       see this symbol, so every #if RFB_BETA block below is completely
-       compiled out of the Stable build - not hidden at runtime, genuinely
-       absent from the binary. This is the isolation mechanism requested for
-       RESET FRAMEBOOST. -->
-  <PropertyGroup Condition="'$(Configuration)'=='Beta'">
-    <DefineConstants>$(DefineConstants);RFB_BETA</DefineConstants>
-    <Optimize>true</Optimize>
-  </PropertyGroup>
-
-  <!-- The real isolation mechanism for the Stable build: every RESET
-       FRAMEBOOST BETA file follows the "*FrameBoostBeta*" naming
-       convention, so outside the Beta configuration those files are
-       entirely removed from compilation - not just excluded via #if in the
-       .cs files (which XAML can't use), but genuinely absent from Stable's
-       build graph. -->
-  <ItemGroup Condition="'$(Configuration)' != 'Beta'">
-    <Compile Remove="**\*FrameBoostBeta*.cs" />
-    <Page Remove="**\*FrameBoostBeta*.xaml" />
-    <None Include="**\*FrameBoostBeta*.xaml" />
-    <!-- Smooth Motion runs on the FrameBoost engine, so it is Beta-only too. -->
-    <Compile Remove="**\*SmoothMotion*.cs" />
-    <Page Remove="**\*SmoothMotion*.xaml" />
-    <None Include="**\*SmoothMotion*.xaml" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
@@ -66,28 +39,27 @@
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
-  <!-- Beta-only: ship the native FrameBoost V2 engine (built separately via
-       native/FrameBoostV2/build.ps1 + CMake, not by this csproj) next to
-       the app's own exe, in its own subfolder.
+  <!-- Ship the native FrameBoost V2 engine (built separately via
+       native/FrameBoostV2/build.ps1 + CMake, not by this csproj) next to the
+       app's own exe, in its own subfolder. FrameBoost and Smooth Motion are
+       part of the product in every configuration.
 
-       This pointed at native/FrameBoostBeta until the V1 engine moved to
-       FrameBoostLegacy. An Exists() condition then quietly dropped the engine
-       from every build - nothing failed, the app simply had no FrameBoost to
-       start - and it went unnoticed only because the V2 exe was being copied
-       into bin by hand during development. Hence RequireFrameBoostEngine
-       below: a Beta build without its engine now stops instead of shipping. -->
-  <Target Name="RequireFrameBoostEngine" BeforeTargets="Build" Condition="'$(Configuration)'=='Beta'">
+       Once an Exists() condition quietly dropped the engine from every build:
+       nothing failed, the app simply had no FrameBoost to start. Hence
+       RequireFrameBoostEngine: a Release build without its engine stops
+       instead of shipping. -->
+  <Target Name="RequireFrameBoostEngine" BeforeTargets="Build" Condition="'$(Configuration)'=='Release'">
     <Error Condition="!Exists('..\..\native\FrameBoostV2\build\bin\FrameBoostBeta.exe')"
-           Text="FrameBoost V2 engine not built: run native/FrameBoostV2/build.ps1 first. A Beta build without it would ship an app whose FrameBoost cannot start." />
+           Text="FrameBoost V2 engine not built: run native/FrameBoostV2/build.ps1 first. A Release build without it would ship an app whose FrameBoost cannot start." />
   </Target>
 
-  <ItemGroup Condition="'$(Configuration)'=='Beta'">
+  <!-- Debug builds may run without the engine (the page then says so); Release never does. -->
+  <ItemGroup Condition="'$(Configuration)'=='Release' Or Exists('..\..\native\FrameBoostV2\build\bin\FrameBoostBeta.exe')">
     <Content Include="..\..\native\FrameBoostV2\build\bin\FrameBoostBeta.exe">
       <Link>FrameBoostBeta\FrameBoostBeta.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
-
 
 </Project>

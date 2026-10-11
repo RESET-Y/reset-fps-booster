@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Windows.Controls;
 using ResetFpsBooster.ViewModels;
 
@@ -24,4 +23,3 @@ public partial class FrameBoostBetaView : UserControl
         };
     }
 }
-#endif

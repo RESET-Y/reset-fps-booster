@@ -32,10 +32,8 @@ public sealed partial class MainViewModel : ObservableObject
         // What belongs together sits together: tuning the PC, looking at how it runs, and the
         // tools for playing. Analysis starts folded (see AppSettings.NavCollapsedGroups).
         var gaming = new List<NavigationItem>();
-#if RFB_BETA
         gaming.Add(new(NavigationSection.FrameBoostBeta, "Nav.FrameBoost", IconKind.FrameBoostBeta));
         gaming.Add(new(NavigationSection.SmoothMotion, "Nav.SmoothMotion", IconKind.SmoothMotion));
-#endif
         gaming.Add(new(NavigationSection.Crosshair, "Nav.Crosshair", IconKind.Crosshair));
         gaming.Add(new(NavigationSection.SensFinder, "Nav.SensFinder", IconKind.SensFinder));
         gaming.Add(new(NavigationSection.ApexConfig, "Nav.Apex", IconKind.ApexConfig));
@@ -194,12 +192,10 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.GameProfiles => new GameProfilesViewModel(_services.GameLibrary, _services.GameOptimization, _services.GameAutoexec),
             NavigationSection.Performance => new PerformanceViewModel(),
             NavigationSection.BottleneckEngine => new BottleneckEngineViewModel(_services.GameLibrary),
-#if RFB_BETA
             NavigationSection.SmoothMotion => new SmoothMotionViewModel(_services.FrameBoostBeta, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
             NavigationSection.FrameBoostBeta => new FrameBoostBetaViewModel(_services.FrameBoostBeta, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
-#endif
             NavigationSection.Crosshair => new CrosshairViewModel(_services.Crosshair, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
             NavigationSection.SensFinder => new SensFinderViewModel(_services.Settings),

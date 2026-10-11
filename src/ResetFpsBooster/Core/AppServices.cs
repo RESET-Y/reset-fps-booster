@@ -29,9 +29,7 @@ public sealed class AppServices
     public IUpdateService Update { get; }
     public IAuthService Auth { get; }
     public ICrosshairService Crosshair { get; }
-#if RFB_BETA
     public IFrameBoostBetaService FrameBoostBeta { get; }
-#endif
 
     public AppServices()
     {
@@ -70,8 +68,6 @@ public sealed class AppServices
         Update = new UpdateService(Settings);
         Auth = new AuthService();
         Crosshair = new CrosshairService();
-#if RFB_BETA
         FrameBoostBeta = new FrameBoostBetaService();
-#endif
     }
 }

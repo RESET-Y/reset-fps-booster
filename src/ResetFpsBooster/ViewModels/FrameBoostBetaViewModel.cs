@@ -1,4 +1,3 @@
-#if RFB_BETA
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -264,4 +263,3 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
 
     public void Dispose() => StopCapture();
 }
-#endif

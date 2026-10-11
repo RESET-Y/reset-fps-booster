@@ -1,4 +1,3 @@
-#if RFB_BETA
 namespace ResetFpsBooster.Core.Models;
 
 
@@ -49,4 +48,3 @@ public sealed class FrameBoostBetaTelemetry
     public double? InterpolationGpuMs { get; init; }
     public DateTime? LastUpdatedUtc { get; init; }
 }
-#endif

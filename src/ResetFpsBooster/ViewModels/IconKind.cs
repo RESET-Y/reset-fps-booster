@@ -7,10 +7,8 @@ public enum IconKind
     Games,
     Performance,
     BottleneckEngine,
-#if RFB_BETA
     FrameBoostBeta,
     SmoothMotion,
-#endif
     Crosshair,
     SensFinder,
     ApexConfig,
