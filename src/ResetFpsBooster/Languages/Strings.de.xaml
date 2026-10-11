@@ -677,4 +677,5 @@
     <sys:String x:Key="Apex.StreamNowNone" xml:space="preserve">Noch kein Wert gesetzt.</sys:String>
     <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">Das Textur-Budget steht auf {0}. Das ist weniger als die kleinste Stufe im Spiel: Apex lädt dann kaum scharfe Texturen, alles wirkt verwaschen. Wähl eine Stufe.</sys:String>
     <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Deine autoexec.cfg setzt das Textur-Budget auf {0} und überschreibt die Einstellungsdatei bei jedem Start. Speichere stattdessen in Autoexec.</sys:String>
+    <sys:String x:Key="Apex.ShadowsNoAutoexec" xml:space="preserve">Per Autoexec nicht möglich: Apex schaltet die Schatten nach dem Start wieder ein (so gesehen mit der aktuellen Spielversion). Nimm dafür „Einstellungsdateien“.</sys:String>
 </ResourceDictionary>

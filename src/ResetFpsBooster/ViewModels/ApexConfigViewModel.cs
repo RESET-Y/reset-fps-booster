@@ -30,6 +30,12 @@ public sealed partial class ApexToggleRow : ObservableObject
     /// <summary>Make sure this is off after applying.</summary>
     [ObservableProperty] private bool _isChecked;
 
+    /// <summary>False when the option cannot be set on the chosen target (shadows in autoexec).</summary>
+    [ObservableProperty] private bool _isEnabled = true;
+
+    /// <summary>A line of explanation under the option; null when there is none.</summary>
+    [ObservableProperty] private string? _note;
+
     /// <summary>The file has it off already.</summary>
     [ObservableProperty] private bool _already;
 }
@@ -195,6 +201,12 @@ public sealed partial class ApexConfigViewModel : ViewModelBase
         Set(Ragdolls, s.RagdollsOff, m?.Ragdolls ?? s.RagdollsOff);
         Set(Decals, s.DecalsOff, m?.Decals ?? s.DecalsOff);
 
+        // Apex puts the shadows back after start-up when they come from autoexec, so they are only
+        // offered for the settings files.
+        Shadows.IsEnabled = !IsAutoexec;
+        Shadows.Note = IsAutoexec ? Loc.T("Apex.ShadowsNoAutoexec") : null;
+        if (IsAutoexec) { Shadows.IsChecked = false; Shadows.Already = false; }
+
         LockReadOnly = s.VideoConfigReadOnly;
         FovNow = s.Fov is { } f ? Loc.F("Apex.FovNow", f.ToString("0.#", CultureInfo.CurrentCulture)) : Loc.T("Apex.FovNowNone");
         _fovInFile = s.Fov;
@@ -222,7 +234,7 @@ public sealed partial class ApexConfigViewModel : ViewModelBase
 
         var moved = Math.Round(Fov) != _fovSliderAtLoad;
         var choice = new ApexSettingsChoice(
-            ShadowsOff: Shadows.IsChecked,
+            ShadowsOff: !IsAutoexec && Shadows.IsChecked,
             AmbientOcclusionOff: Ssao.IsChecked,
             VolumetricsOff: Volumetrics.IsChecked,
             RagdollsOff: Ragdolls.IsChecked,

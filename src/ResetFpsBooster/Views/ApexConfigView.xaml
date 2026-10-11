@@ -91,10 +91,12 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox IsChecked="{Binding IsChecked}" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Top" Margin="0,2,16,0"/>
+                                        <CheckBox IsChecked="{Binding IsChecked}" IsEnabled="{Binding IsEnabled}" Style="{StaticResource ToggleSwitch}" VerticalAlignment="Top" Margin="0,2,16,0"/>
                                         <StackPanel Grid.Column="1">
                                             <TextBlock Text="{Binding Label}" Style="{StaticResource RowLabel}" VerticalAlignment="Top"/>
                                             <TextBlock Text="{Binding Hint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding Note}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                                       Foreground="{StaticResource Brush.Warning}" Visibility="{Binding Note, Converter={StaticResource NullToVis}}"/>
                                         </StackPanel>
                                         <Border Grid.Column="2" Style="{StaticResource Badge}" Margin="12,2,0,0" VerticalAlignment="Top"
                                                 Background="{StaticResource Brush.SurfaceElevated}"

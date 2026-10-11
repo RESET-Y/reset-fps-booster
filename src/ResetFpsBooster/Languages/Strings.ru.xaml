@@ -677,4 +677,5 @@
     <sys:String x:Key="Apex.StreamNowNone" xml:space="preserve">Значение пока не задано.</sys:String>
     <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">Бюджет текстур равен {0}. Это меньше самой маленькой ступени в игре: Apex почти не загружает чёткие текстуры, и всё выглядит размытым. Выберите ступень.</sys:String>
     <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Ваш autoexec.cfg задаёт бюджет текстур {0} и при каждом запуске перекрывает файл настроек. Сохраняйте вместо этого в Autoexec.</sys:String>
+    <sys:String x:Key="Apex.ShadowsNoAutoexec" xml:space="preserve">Через autoexec невозможно: Apex снова включает тени после запуска (так видно в текущей версии игры). Для теней используйте «Файлы настроек».</sys:String>
 </ResourceDictionary>

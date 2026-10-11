@@ -3374,5 +3374,10 @@
     "en": "Your autoexec.cfg sets the texture budget to {0} and overrides the settings file at every start. Save to Autoexec instead.",
     "de": "Deine autoexec.cfg setzt das Textur-Budget auf {0} und überschreibt die Einstellungsdatei bei jedem Start. Speichere stattdessen in Autoexec.",
     "ru": "Ваш autoexec.cfg задаёт бюджет текстур {0} и при каждом запуске перекрывает файл настроек. Сохраняйте вместо этого в Autoexec."
+  },
+  "Apex.ShadowsNoAutoexec": {
+    "en": "Not possible with autoexec: Apex switches the shadows back on after start-up (seen with the current game version). Use \"Settings files\" for shadows.",
+    "de": "Per Autoexec nicht möglich: Apex schaltet die Schatten nach dem Start wieder ein (so gesehen mit der aktuellen Spielversion). Nimm dafür „Einstellungsdateien“.",
+    "ru": "Через autoexec невозможно: Apex снова включает тени после запуска (так видно в текущей версии игры). Для теней используйте «Файлы настроек»."
   }
 }

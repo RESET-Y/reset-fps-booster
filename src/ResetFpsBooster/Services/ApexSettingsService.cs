@@ -36,13 +36,17 @@ public sealed class ApexSettingsService : IApexSettingsService
     private readonly IBackupService _backups;
     private readonly Func<string?> _installFolder;
     private readonly string _baseFolder;
+    private readonly Func<bool> _gameRunning;
 
     /// <param name="installFolder">The Apex install folder, as the game library knows it (for autoexec.cfg).</param>
     /// <param name="baseFolder">Where "local" and "profile" live. Only tests pass this; the app
     /// uses the game's own folder.</param>
-    public ApexSettingsService(IBackupService backups, Func<string?>? installFolder = null, string? baseFolder = null)
+    /// <param name="gameRunning">Whether Apex runs. Only tests pass this.</param>
+    public ApexSettingsService(IBackupService backups, Func<string?>? installFolder = null, string? baseFolder = null,
+                               Func<bool>? gameRunning = null)
     {
         _backups = backups;
+        _gameRunning = gameRunning ?? IsGameRunning;
         _installFolder = installFolder ?? (() => null);
         _baseFolder = baseFolder ?? GameFolder();
     }
@@ -83,7 +87,7 @@ public sealed class ApexSettingsService : IApexSettingsService
     {
         var video = VideoPath();
         var profile = ProfilePath();
-        var running = IsGameRunning();
+        var running = _gameRunning();
 
         if (!File.Exists(video))
             return new ApexSettingsState(false, video, profile, false, running, false, false, false, false, false, null);
@@ -98,8 +102,8 @@ public sealed class ApexSettingsService : IApexSettingsService
             ProfilePath: profile,
             VideoConfigReadOnly: new FileInfo(video).IsReadOnly,
             GameRunning: running,
-            ShadowsOff: Off("setting.csm_enabled", "setting.shadow_enable"),
-            AmbientOcclusionOff: Off("setting.ssao_enabled"),
+            ShadowsOff: Off("setting.new_shadow_settings", "setting.csm_enabled", "setting.shadow_enable"),
+            AmbientOcclusionOff: Off("setting.ssao_quality") || Off("setting.ssao_enabled"),
             VolumetricsOff: Off("setting.volumetric_lighting", "setting.volumetric_fog"),
             RagdollsOff: Off("setting.cl_ragdoll_maxcount"),
             DecalsOff: Off("setting.r_decals", "setting.r_createmodeldecals"),
@@ -156,7 +160,7 @@ public sealed class ApexSettingsService : IApexSettingsService
             VideoConfigReadOnly: false,
             GameRunning: false,
             ShadowsOff: Off(ApexAutoexecBlock.Shadows),
-            AmbientOcclusionOff: Off(ApexAutoexecBlock.AmbientOcclusion),
+            AmbientOcclusionOff: ApexAutoexecBlock.AnyOff(text, ApexAutoexecBlock.AmbientOcclusion),
             VolumetricsOff: VolumetricsOff(text),
             RagdollsOff: Off(ApexAutoexecBlock.Ragdolls),
             DecalsOff: Off(ApexAutoexecBlock.Decals),
@@ -167,7 +171,7 @@ public sealed class ApexSettingsService : IApexSettingsService
         {
             Managed = new ApexOptionStates(
                 BlockOff(ApexAutoexecBlock.Shadows),
-                BlockOff(ApexAutoexecBlock.AmbientOcclusion),
+                block.Length > 0 && ApexAutoexecBlock.AnyOff(block, ApexAutoexecBlock.AmbientOcclusion),
                 block.Length > 0 && VolumetricsOff(block),
                 BlockOff(ApexAutoexecBlock.Ragdolls),
                 BlockOff(ApexAutoexecBlock.Decals),
@@ -206,7 +210,7 @@ public sealed class ApexSettingsService : IApexSettingsService
         var video = VideoPath();
         var profile = ProfilePath();
         if (!File.Exists(video)) return new ApexApplyResult(ApexApplyOutcome.NotFound);
-        if (IsGameRunning()) return new ApexApplyResult(ApexApplyOutcome.GameRunning);
+        if (_gameRunning()) return new ApexApplyResult(ApexApplyOutcome.GameRunning);
 
         try
         {
@@ -214,8 +218,14 @@ public sealed class ApexSettingsService : IApexSettingsService
             var videoNew = videoOld;
             void Zero(params string[] keys) { foreach (var k in keys) videoNew = ApexConfigText.SetVideo(videoNew, k, "0"); }
 
-            if (c.ShadowsOff) Zero("setting.csm_enabled", "setting.csm_coverage", "setting.shadow_enable", "setting.shadow_maxdynamic");
-            if (c.AmbientOcclusionOff) Zero("setting.ssao_enabled");
+            if (c.ShadowsOff) Zero("setting.new_shadow_settings", "setting.csm_enabled", "setting.csm_coverage", "setting.shadow_enable", "setting.shadow_maxdynamic");
+            if (c.AmbientOcclusionOff)
+            {
+                // Newer files say ssao_quality, older ones ssao_enabled: set the one the file has, and
+                // ssao_quality either way (the game drops keys it no longer knows).
+                Zero("setting.ssao_quality");
+                if (ApexConfigText.GetVideo(videoNew, "setting.ssao_enabled") is not null) Zero("setting.ssao_enabled");
+            }
             if (c.VolumetricsOff) Zero("setting.volumetric_lighting", "setting.volumetric_fog");
             if (c.RagdollsOff) Zero("setting.cl_ragdoll_maxcount", "setting.cl_ragdoll_self_collision");
             if (c.DecalsOff) Zero("setting.r_decals", "setting.r_createmodeldecals");
@@ -267,6 +277,10 @@ public sealed class ApexSettingsService : IApexSettingsService
             var existed = File.Exists(path);
             var old = existed ? File.ReadAllText(path) : "";
 
+            // Shadows are not written here: Apex puts them back after start-up (seen with the current
+            // game version), so they only hold in the settings files. The page says so.
+            c = c with { ShadowsOff = false };
+
             // The field of view is only set when the slider was moved; otherwise what the block
             // already says stays, and the game's own setting is left alone.
             // A slider put back to what the profile has needs no override: the block drops the line.
@@ -295,7 +309,7 @@ public sealed class ApexSettingsService : IApexSettingsService
     public (bool Success, string Message) Restore(string snapshotId, ApexTarget target)
     {
         // The settings files would be overwritten again by a running game; the autoexec is not.
-        if (target == ApexTarget.SettingsFiles && IsGameRunning()) return (false, "running");
+        if (target == ApexTarget.SettingsFiles && _gameRunning()) return (false, "running");
         return _backups.RestoreSnapshot(snapshotId);
     }
 

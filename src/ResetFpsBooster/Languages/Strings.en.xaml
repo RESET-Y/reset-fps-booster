@@ -677,4 +677,5 @@
     <sys:String x:Key="Apex.StreamNowNone" xml:space="preserve">No value set yet.</sys:String>
     <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">The texture budget is {0}. That is below the smallest step in the game: Apex then loads hardly any sharp textures and everything looks blurry. Pick a step.</sys:String>
     <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Your autoexec.cfg sets the texture budget to {0} and overrides the settings file at every start. Save to Autoexec instead.</sys:String>
+    <sys:String x:Key="Apex.ShadowsNoAutoexec" xml:space="preserve">Not possible with autoexec: Apex switches the shadows back on after start-up (seen with the current game version). Use &quot;Settings files&quot; for shadows.</sys:String>
 </ResourceDictionary>

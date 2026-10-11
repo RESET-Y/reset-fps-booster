@@ -25,8 +25,12 @@ public static class ApexAutoexecBlock
     private const string EndMark = "// <<< RESET FPS BOOSTER: Apex Config";
 
     // The commands behind each option (the part after "setting." in videoconfig.txt).
-    public static readonly string[] Shadows = { "csm_enabled", "csm_coverage", "shadow_enable", "shadow_maxdynamic" };
-    public static readonly string[] AmbientOcclusion = { "ssao_enabled" };
+    // new_shadow_settings first: with it on (the game's own default) Apex runs its newer shadow system and
+    // switches the cascade shadows back on by itself - on a real PC the game wrote csm_enabled 1 and
+    // new_shadow_settings 1 over a block that only said csm_enabled 0. With it off the older switches count.
+    public static readonly string[] Shadows = { "new_shadow_settings", "csm_enabled", "csm_coverage", "shadow_enable", "shadow_maxdynamic" };
+    // The game's settings file changed from ssao_enabled to ssao_quality (config version 10); 0 is off in both.
+    public static readonly string[] AmbientOcclusion = { "ssao_enabled", "ssao_quality" };
     public static readonly string[] Volumetrics = { "volumetric_lighting", "volumetric_fog", "r_volumetric_lighting_enabled" };
     public static readonly string[] Ragdolls = { "cl_ragdoll_maxcount", "cl_ragdoll_self_collision" };
     public static readonly string[] Decals = { "r_decals", "r_createmodeldecals" };
@@ -140,6 +144,9 @@ public static class ApexAutoexecBlock
     /// <summary>True when the file makes this command 0, under either spelling.</summary>
     public static bool IsOff(string text, string key) =>
         (GetEffective(text, "setting." + key) ?? GetEffective(text, key)) == "0";
+
+    /// <summary>True when the file makes at least one of these commands 0 (the same setting under two names).</summary>
+    public static bool AnyOff(string text, string[] keys) => keys.Any(k => IsOff(text, k));
 
     /// <summary>True when the file makes every one of these commands 0.</summary>
     public static bool AllOff(string text, string[] keys) => keys.All(k => IsOff(text, k));
