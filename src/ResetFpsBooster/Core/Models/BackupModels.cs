@@ -24,6 +24,8 @@ public sealed class FileContentBackup
     public string TargetPath { get; set; } = string.Empty;
     public bool FileExisted { get; set; }
     public string? PreviousContentBase64 { get; set; }
+    /// <summary>The file was read-only before; restoring puts that flag back (after writing through it).</summary>
+    public bool WasReadOnly { get; set; }
 }
 
 /// <summary>Captures an NVIDIA driver (DRS) global setting's previous state. Unlike the registry,

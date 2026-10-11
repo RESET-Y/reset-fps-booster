@@ -142,9 +142,16 @@ public sealed class BackupService : IBackupService
         {
             try
             {
+                // A read-only file cannot be written or deleted: lift the flag first, and put it back
+                // after if that is how the file was.
+                if (File.Exists(fileEntry.TargetPath))
+                    File.SetAttributes(fileEntry.TargetPath, File.GetAttributes(fileEntry.TargetPath) & ~FileAttributes.ReadOnly);
+
                 if (fileEntry.FileExisted && fileEntry.PreviousContentBase64 is not null)
                 {
                     File.WriteAllBytes(fileEntry.TargetPath, System.Convert.FromBase64String(fileEntry.PreviousContentBase64));
+                    if (fileEntry.WasReadOnly)
+                        File.SetAttributes(fileEntry.TargetPath, File.GetAttributes(fileEntry.TargetPath) | FileAttributes.ReadOnly);
                 }
                 else if (File.Exists(fileEntry.TargetPath))
                 {
