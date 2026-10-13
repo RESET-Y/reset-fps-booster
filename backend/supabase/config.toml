@@ -25,3 +25,10 @@ verify_jwt = false
 # It mails the owner once per application. See functions/partner-application-notify/index.ts.
 [functions.partner-application-notify]
 verify_jwt = false
+
+# Visitors sign up, confirm and unsubscribe without an account, and mail
+# programs call the one-click unsubscribe without one. Sending and the numbers
+# check the caller's session against user_roles themselves.
+# See functions/newsletter/handler.ts.
+[functions.newsletter]
+verify_jwt = false

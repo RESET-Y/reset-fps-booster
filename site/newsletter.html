@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newsletter · RESET FPS BOOSTER</title>
+<meta name="description" content="Der RESET-Newsletter: Neuigkeiten zu Updates, Funktionen und Angeboten. Anmeldung mit Bestätigung per E-Mail, Abmeldung jederzeit.">
+<meta name="theme-color" content="#050505">
+<link rel="canonical" href="https://reset-booster.online/newsletter.html">
+<link rel="icon" href="assets/favicon.ico">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/legal.css">
+<style>
+main.wrap { max-width: 720px; }
+form { margin-top: 24px; }
+label { display: block; margin-top: 18px; font: 500 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+input[type=email] { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 12px 14px; background: #000; border: 1px solid var(--border); color: var(--text); font: 400 16px var(--body); }
+input[type=email]:focus { outline: none; border-color: var(--accent); }
+.check { display: flex; gap: 12px; align-items: flex-start; margin-top: 22px; font: 400 15px/1.6 var(--body); text-transform: none; letter-spacing: 0; color: var(--text-2); }
+.check input { width: auto; margin: 5px 0 0; flex: none; }
+.btn { display: inline-block; margin-top: 22px; padding: 11px 20px; background: var(--accent); color: #fff; border: 0; cursor: pointer; text-decoration: none;
+  transform: skewX(var(--skew)); font: 900 italic 16px var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.btn > span { display: inline-block; transform: skewX(12deg); }
+.btn:hover { background: var(--accent-bright); }
+.btn:disabled { opacity: .5; cursor: default; }
+.msg { margin-top: 14px; min-height: 1.4em; font-size: 15px; }
+.msg.bad { color: var(--accent-bright); }
+.msg.good { color: #3dd68c; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="RESET FPS BOOSTER"><img src="assets/logo_wide.png" alt="RESET FPS BOOSTER" width="113" height="26"></a>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" aria-pressed="false"><span>EN</span></button>
+      <button type="button" data-lang="de" aria-pressed="true"><span>DE</span></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="eyebrow">Newsletter</div>
+  <h1 data-i="title"></h1>
+
+  <!-- sign up -->
+  <section id="m-signup" hidden>
+    <p data-i="intro"></p>
+    <form id="signup" novalidate>
+      <label for="nl-email" data-i="email"></label>
+      <input id="nl-email" type="email" maxlength="200" autocomplete="email" required>
+      <div class="hp" aria-hidden="true"><label for="nl-website">Website</label><input id="nl-website" type="text" tabindex="-1" autocomplete="off"></div>
+      <label class="check"><input id="nl-consent" type="checkbox"><span data-i="consent"></span></label>
+      <p style="font-size:15px" data-i="privacy" data-html></p>
+      <button class="btn" type="submit" id="nl-send"><span data-i="send"></span></button>
+      <p class="msg" id="nl-msg" role="status"></p>
+    </form>
+  </section>
+
+  <!-- confirm (link from the confirmation mail) -->
+  <section id="m-confirm" hidden>
+    <p data-i="confirmIntro"></p>
+    <button class="btn" type="button" id="cf-btn"><span data-i="confirmBtn"></span></button>
+    <p class="msg" id="cf-msg" role="status"></p>
+  </section>
+
+  <!-- unsubscribe (link from every newsletter) -->
+  <section id="m-unsub" hidden>
+    <p data-i="unsubIntro"></p>
+    <button class="btn" type="button" id="un-btn"><span data-i="unsubBtn"></span></button>
+    <p class="msg" id="un-msg" role="status"></p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/" data-t="Back to start">Zur Startseite</a>
+    <a href="impressum.html" data-t="Legal notice">Impressum</a>
+    <a href="datenschutz.html" data-t="Privacy">Datenschutz</a>
+    <a href="agb.html" data-t="Terms">AGB</a>
+  </div>
+</footer>
+<div class="stripe"></div>
+<script src="assets/legal.js"></script>
+<script>
+// Sign-up, confirmation and unsubscribing all go to the newsletter edge
+// function (backend/supabase/functions/newsletter). The consent sentence must
+// stay word for word the same as CONSENT in handler.ts: the function stores
+// its own copy with every sign-up as the record of what was agreed to.
+(function () {
+  const FN = "https://sjwparnlbtuiyqmagyfg.supabase.co/functions/v1/newsletter";
+  const ANON = "sb_publishable_EP3WkfFmKLBznsC7kRncfA_bIrELJ8g";
+  const T = {
+    de: {
+      titleSignup: "Newsletter abonnieren", titleConfirm: "Anmeldung bestätigen", titleUnsub: "Newsletter abbestellen",
+      intro: "Neuigkeiten zu Updates, neuen Funktionen und Angeboten, ein paar Mal im Monat oder seltener. Nach dem Absenden bekommst du eine Mail mit einem Bestätigungslink. Erst wenn du den anklickst, bist du angemeldet.",
+      email: "E-Mail",
+      consent: "Ja, ich möchte den RESET-Newsletter mit Neuigkeiten zu Updates, Funktionen und Angeboten per E-Mail bekommen. Abmelden kann ich mich jederzeit über den Link in jeder Mail.",
+      privacy: 'Details in der <a href="datenschutz.html#newsletter">Datenschutzerklärung</a>.',
+      send: "Anmelden", sending: "Wird gesendet …",
+      sent: "Fast geschafft: Schau in dein Postfach und klick auf den Link in der Mail. Keine Mail da? Sieh im Spam-Ordner nach.",
+      badEmail: "Bitte gib eine gültige E-Mail-Adresse an.", noConsent: "Bitte setz das Häkchen, damit wir dir schreiben dürfen.",
+      busy: "Gerade melden sich sehr viele an. Bitte versuch es in einer Stunde noch mal.",
+      failed: "Das hat nicht geklappt. Bitte versuch es gleich noch mal.",
+      confirmIntro: "Ein Klick noch, dann bist du dabei.", confirmBtn: "Anmeldung bestätigen",
+      confirmed: "Danke! Deine Anmeldung ist bestätigt.",
+      invalid: "Dieser Link ist ungültig oder wurde schon benutzt.",
+      expired: "Dieser Link ist abgelaufen. Melde dich einfach noch einmal an.",
+      unsubIntro: "Schade, dass du gehst. Mit einem Klick bekommst du keinen Newsletter mehr.", unsubBtn: "Abmelden",
+      unsubbed: "Du bist abgemeldet und bekommst keinen Newsletter mehr.",
+      unsubInvalid: "Dieser Abmeldelink ist ungültig. Schreib uns an lukas.reschke80@gmail.com, dann tragen wir dich aus."
+    },
+    en: {
+      titleSignup: "Get the newsletter", titleConfirm: "Confirm your sign-up", titleUnsub: "Unsubscribe",
+      intro: "News about updates, new features and offers, a few times a month or less. After you send this, you get a mail with a confirmation link. You are only signed up once you click it.",
+      email: "E-mail",
+      consent: "Yes, I want to get the RESET newsletter with news about updates, features and offers by e-mail. I can unsubscribe at any time with the link in every mail.",
+      privacy: 'Details in the <a href="datenschutz.html#newsletter">privacy policy</a>.',
+      send: "Sign up", sending: "Sending …",
+      sent: "Almost done: check your inbox and click the link in the mail. Nothing there? Look in your spam folder.",
+      badEmail: "Please enter a valid e-mail address.", noConsent: "Please tick the box so we may write to you.",
+      busy: "A lot of people are signing up right now. Please try again in an hour.",
+      failed: "That didn't work. Please try again in a moment.",
+      confirmIntro: "One more click and you're in.", confirmBtn: "Confirm sign-up",
+      confirmed: "Thanks! Your sign-up is confirmed.",
+      invalid: "This link is invalid or has already been used.",
+      expired: "This link has expired. Just sign up again.",
+      unsubIntro: "Sorry to see you go. One click and you get no more newsletters.", unsubBtn: "Unsubscribe",
+      unsubbed: "You are unsubscribed and get no more newsletters.",
+      unsubInvalid: "This unsubscribe link is invalid. Write to lukas.reschke80@gmail.com and we'll take you off the list."
+    }
+  };
+  const lang = () => document.documentElement.lang === "en" ? "en" : "de";
+  const t = k => T[lang()][k];
+  const $ = id => document.getElementById(id);
+  const q = new URLSearchParams(location.search);
+  const confirmToken = q.get("confirm"), unsubToken = q.get("u");
+  const mode = confirmToken ? "confirm" : unsubToken ? "unsub" : "signup";
+  $("m-" + mode).hidden = false;
+
+  // Messages are kept as keys, so switching the language translates them too.
+  const msgs = {};
+  function say(id, key, kind) { msgs[id] = { key, kind }; paintMsg(id); }
+  function paintMsg(id) {
+    const m = msgs[id]; if (!m) return;
+    $(id).textContent = m.key ? t(m.key) : ""; $(id).className = "msg" + (m.kind ? " " + m.kind : "");
+  }
+  function paint() {
+    const titles = { signup: "titleSignup", confirm: "titleConfirm", unsub: "titleUnsub" };
+    document.querySelector('[data-i="title"]').textContent = t(titles[mode]);
+    document.title = t(titles[mode]) + " · RESET FPS BOOSTER";
+    document.querySelectorAll("[data-i]:not([data-i=title])").forEach(el => {
+      if (el.hasAttribute("data-html")) el.innerHTML = t(el.dataset.i); else el.textContent = t(el.dataset.i);
+    });
+    Object.keys(msgs).forEach(paintMsg);
+  }
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  paint();
+
+  async function call(body) {
+    const r = await fetch(FN, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    return { ok: r.ok && j.ok === true, error: j.error };
+  }
+
+  // ---- sign up ----
+  if (mode === "signup") {
+    const pre = (q.get("email") || "").trim();
+    if (pre) $("nl-email").value = pre;
+    const source = q.get("source") === "account" ? "account" : q.get("source") === "app" ? "app" : "website";
+    $("signup").addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = $("nl-email").value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return say("nl-msg", "badEmail", "bad");
+      if (!$("nl-consent").checked) return say("nl-msg", "noConsent", "bad");
+      $("nl-send").disabled = true; say("nl-msg", "sending");
+      try {
+        const r = await call({ action: "subscribe", email, lang: lang(), source, consent: true, website: $("nl-website").value });
+        if (r.ok) { say("nl-msg", "sent", "good"); $("nl-email").value = ""; $("nl-consent").checked = false; }
+        else say("nl-msg", r.error === "email" ? "badEmail" : r.error === "busy" ? "busy" : "failed", "bad");
+      } catch { say("nl-msg", "failed", "bad"); }
+      $("nl-send").disabled = false;
+    });
+  }
+
+  // ---- confirm: a button, so a mail scanner that opens the link confirms nothing ----
+  if (mode === "confirm") {
+    $("cf-btn").addEventListener("click", async () => {
+      $("cf-btn").disabled = true;
+      try {
+        const r = await call({ action: "confirm", token: confirmToken });
+        if (r.ok) { say("cf-msg", "confirmed", "good"); $("cf-btn").hidden = true; return; }
+        say("cf-msg", r.error === "expired" ? "expired" : r.error === "invalid" ? "invalid" : "failed", "bad");
+        if (r.error !== "invalid" && r.error !== "expired") $("cf-btn").disabled = false;
+      } catch { say("cf-msg", "failed", "bad"); $("cf-btn").disabled = false; }
+    });
+  }
+
+  // ---- unsubscribe ----
+  if (mode === "unsub") {
+    $("un-btn").addEventListener("click", async () => {
+      $("un-btn").disabled = true;
+      try {
+        const r = await call({ action: "unsubscribe", token: unsubToken });
+        if (r.ok) { say("un-msg", "unsubbed", "good"); $("un-btn").hidden = true; return; }
+        say("un-msg", r.error === "invalid" ? "unsubInvalid" : "failed", "bad");
+        if (r.error !== "invalid") $("un-btn").disabled = false;
+      } catch { say("un-msg", "failed", "bad"); $("un-btn").disabled = false; }
+    });
+  }
+})();
+</script>
+</body>
+</html>

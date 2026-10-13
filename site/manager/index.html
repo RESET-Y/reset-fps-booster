@@ -176,6 +176,7 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
     <button type="button" role="tab" data-view="partners" aria-selected="false">Partner</button>
     <button type="button" role="tab" data-view="codes" aria-selected="false">Premium-Codes</button>
     <button type="button" role="tab" data-view="reviews" aria-selected="false">Bewertungen<span class="count" id="revCount" hidden></span></button>
+    <button type="button" role="tab" data-view="news" aria-selected="false">Newsletter</button>
   </nav>
 
   <main>
@@ -235,6 +236,35 @@ dialog .dhead { display: flex; align-items: center; justify-content: space-betwe
       </div>
       <div class="cards" id="revList"><div class="empty">Lädt…</div></div>
       <p class="hint">Nur freigegebene Bewertungen erscheinen auf der Startseite. Der Kontakt wird nie veröffentlicht.</p>
+    </section>
+
+    <!-- Newsletter -->
+    <section id="v-news" hidden>
+      <div class="viewhead">
+        <h2>Newsletter</h2>
+        <div class="actions-bar"><button class="btn ghost sm" id="nlRefresh" type="button">Neu laden</button></div>
+      </div>
+      <div class="stats" style="max-width:520px">
+        <div><b id="nlConfirmed">–</b><span>Bestätigt</span></div>
+        <div><b id="nlPending">–</b><span>Offen</span></div>
+        <div><b id="nlUnsub">–</b><span>Abgemeldet</span></div>
+      </div>
+      <p class="hint" id="nlSender"></p>
+      <form class="card" id="nlCompose" novalidate style="max-width:720px;margin-top:16px">
+        <label for="nlSubject">Betreff</label>
+        <input id="nlSubject" type="text" maxlength="150" placeholder="z. B. RESET 1.5 ist da">
+        <label for="nlBody">Text</label>
+        <textarea id="nlBody" rows="12" maxlength="20000" placeholder="Hallo,&#10;&#10;…"></textarea>
+        <p class="hint" style="margin:0">Leerzeile = neuer Absatz. Links mit https:// werden klickbar. Abmeldelink und Impressum hängt der Versand selbst an.</p>
+        <div class="two">
+          <button class="btn ghost" type="button" id="nlTest">Testmail an mich</button>
+          <button class="btn" type="button" id="nlSendAll">An alle senden</button>
+        </div>
+        <div class="msg" id="nlMsg"></div>
+      </form>
+      <h3 style="margin-top:24px">Verschickt</h3>
+      <div class="cards" id="nlIssues"><div class="empty">Lädt…</div></div>
+      <p class="hint">Den Newsletter bekommen nur Adressen, die ihre Anmeldung per Mail bestätigt haben. Offene Anmeldungen werden nach 30 Tagen gelöscht. Schick vorher immer eine Testmail an dich.</p>
     </section>
   </main>
 </div>
@@ -388,6 +418,7 @@ async function showApp() {
   $("login").hidden = true; $("app").hidden = false; $("logout").hidden = false;
   $("who").textContent = session.email || "";
   loadArchive().then(() => { loadApps(); loadPartners(); loadCodes(); loadReviews(); });
+  loadNewsletter();
 }
 $("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -400,7 +431,7 @@ $("logout").addEventListener("click", () => { saveSession(null); closeDrawer(); 
 // ---------- areas and shared controls ----------
 function setView(v) {
   document.querySelectorAll(".tabs [data-view]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === v)));
-  ["apps", "partners", "codes", "reviews"].forEach(n => { $("v-" + n).hidden = n !== v; });
+  ["apps", "partners", "codes", "reviews", "news"].forEach(n => { $("v-" + n).hidden = n !== v; });
 }
 document.querySelectorAll(".tabs [data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
 
@@ -938,6 +969,68 @@ $("revList").addEventListener("click", async e => {
   b.disabled = true;
   try { await rpc("set_review_status", { p_id: +b.dataset.id, p_status: b.dataset.rev }); toast("Gespeichert"); loadReviews(); }
   catch { toast("Konnte nicht gespeichert werden"); b.disabled = false; }
+});
+
+// ---------- newsletter: numbers, test mail, sending (edge function "newsletter") ----------
+async function nlFn(body) {
+  let r;
+  try {
+    r = await fetch(SUPABASE + "/functions/v1/newsletter", {
+      method: "POST", headers: { apikey: ANON, Authorization: "Bearer " + await token(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    if (e.message === "expired") throw e;
+    throw new Error("unreachable");
+  }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { data: j });
+  return j;
+}
+const NL_ERR = {
+  subject: "Betreff: 3 bis 150 Zeichen.", body: "Text: mindestens 10 Zeichen.",
+  "no subscribers": "Noch keine bestätigten Adressen.",
+  "count changed": "Die Zahl der Empfänger hat sich gerade geändert. Neu laden und noch mal senden.",
+  "just sent": "Dieser Betreff wurde vor wenigen Minuten schon verschickt.",
+  "not allowed": "Kein Zugriff.", "no manager e-mail": "Dein Account hat keine E-Mail-Adresse.",
+  unreachable: "Funktion „newsletter“ nicht erreichbar. Ist sie deployt?"
+};
+const nlErr = e => e.data && e.data.failed ? "Versand bei Resend fehlgeschlagen, nichts verschickt." : NL_ERR[e.message] || "Fehler: " + e.message;
+let nlCount = null;
+async function loadNewsletter() {
+  try {
+    const s = await nlFn({ action: "stats" });
+    nlCount = s.confirmed;
+    $("nlConfirmed").textContent = s.confirmed; $("nlPending").textContent = s.pending; $("nlUnsub").textContent = s.unsubscribed;
+    $("nlSendAll").textContent = "An alle senden (" + s.confirmed + ")";
+    $("nlSender").textContent = "Absender: " + s.sender + (/resend\.dev/i.test(s.sender)
+      ? " – das ist der Test-Absender von Resend und erreicht nur deine eigene Adresse. Domain bei Resend bestätigen und NEWSLETTER_FROM setzen." : "");
+    $("nlIssues").innerHTML = s.issues.length ? s.issues.map(i => `<div class="card"><b>${esc(i.subject)}</b>
+      <div class="hint" style="margin:0">${esc(new Date(i.sent_at).toLocaleString("de-DE"))} · ${i.recipients} Empfänger${i.failed ? ` · <span style="color:var(--accent-bright)">${i.failed} fehlgeschlagen</span>` : ""}</div></div>`).join("")
+      : '<div class="empty">Noch nichts verschickt.</div>';
+  } catch (e) {
+    if (e.message === "expired") return;
+    $("nlIssues").innerHTML = `<div class="empty">${esc(nlErr(e))}</div>`;
+  }
+}
+const nlDraft = () => ({ subject: $("nlSubject").value.trim(), body: $("nlBody").value.trim() });
+$("nlRefresh").addEventListener("click", loadNewsletter);
+$("nlTest").addEventListener("click", async () => {
+  $("nlMsg").textContent = ""; $("nlTest").disabled = true;
+  try { const r = await nlFn({ action: "send", test: true, ...nlDraft() }); $("nlMsg").textContent = "Testmail an " + r.to + " verschickt."; }
+  catch (e) { $("nlMsg").textContent = nlErr(e); }
+  $("nlTest").disabled = false;
+});
+$("nlSendAll").addEventListener("click", async () => {
+  const d = nlDraft();
+  if (!nlCount) { $("nlMsg").textContent = NL_ERR["no subscribers"]; return; }
+  if (!confirm("„" + d.subject + "“ jetzt an " + nlCount + " Empfänger senden? Verschickt ist verschickt.")) return;
+  $("nlSendAll").disabled = true; $("nlMsg").textContent = "Wird gesendet …";
+  try {
+    const r = await nlFn({ action: "send", test: false, expected: nlCount, ...d });
+    $("nlMsg").textContent = "Verschickt an " + r.sent + (r.failed ? ", " + r.failed + " fehlgeschlagen" : "") + ".";
+    if (!r.failed) { $("nlSubject").value = ""; $("nlBody").value = ""; }
+  } catch (e) { $("nlMsg").textContent = nlErr(e); }
+  $("nlSendAll").disabled = false;
+  loadNewsletter();
 });
 
 // ---------- start ----------

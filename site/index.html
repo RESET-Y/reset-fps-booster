@@ -1128,6 +1128,28 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
     </div>
   </section>
 
+  <!-- ================= NEWSLETTER (double opt-in) ================= -->
+  <section id="newsletter">
+    <div class="wrap">
+      <div class="split">
+        <div class="rv">
+          <div class="eyebrow">Newsletter</div>
+          <h2 style="margin-top:16px" id="nlTitle">New builds, <span class="accent">first in your inbox</span></h2>
+          <p class="lead" id="nlLead">News about updates, new features and offers, a few times a month or less. You confirm by mail, and every mail has an unsubscribe link.</p>
+        </div>
+        <form class="rv-form rv" id="nlForm" novalidate>
+          <label for="nlEmail" id="nlEmailL">E-mail</label>
+          <input id="nlEmail" type="email" maxlength="200" autocomplete="email" required>
+          <div class="rv-hp" aria-hidden="true"><label for="nlWebsite">Website</label><input id="nlWebsite" type="text" tabindex="-1" autocomplete="off"></div>
+          <label class="rv-check"><input id="nlConsent" type="checkbox"><span id="nlConsentT">Yes, I want to get the RESET newsletter with news about updates, features and offers by e-mail. I can unsubscribe at any time with the link in every mail.</span></label>
+          <p style="font-size:14px;margin:10px 0 0" id="nlPrivacy">Details in the <a href="datenschutz.html#newsletter">privacy policy</a>.</p>
+          <button class="btn btn-primary" type="submit" id="nlSend"><span>Sign up</span></button>
+          <p class="rv-msg" id="nlMsg" role="status"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= DISCORD ================= -->
   <section class="band">
     <div class="band-in">
@@ -1151,7 +1173,7 @@ footer { padding: 56px 0 60px; color: var(--text-3); font-size: 14px; border-top
       </div>
       <div><h4>Product</h4><nav aria-label="Product"><a href="#modules">Modules</a><a href="#bottleneck">Bottleneck</a><a href="#frameboost">FrameBoost</a><a href="#premium">Premium</a></nav></div>
       <div><h4>Project</h4><nav aria-label="Project"><a href="https://github.com/RESET-Y/reset-fps-booster">Source</a><a href="https://github.com/RESET-Y/reset-fps-booster/releases">Releases</a><a href="https://github.com/RESET-Y/reset-fps-booster/issues">Report a problem</a></nav></div>
-      <div><h4>Community</h4><nav aria-label="Community"><a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a><a href="#faq">FAQ</a><a href="#partner">Partner</a><a href="mailto:lukas.reschke80@gmail.com">E-mail</a></nav></div>
+      <div><h4>Community</h4><nav aria-label="Community"><a href="https://discord.gg/a2Uz4vdCh9" target="_blank" rel="noopener">Discord</a><a href="#faq">FAQ</a><a href="#partner">Partner</a><a href="newsletter.html">Newsletter</a><a href="mailto:lukas.reschke80@gmail.com">E-mail</a></nav></div>
       <div><h4>Legal</h4><nav aria-label="Legal"><a href="impressum.html">Legal notice</a><a href="datenschutz.html">Privacy</a><a href="agb.html">Terms</a></nav></div>
     </div>
     <div class="foot-base"><span>© 2026 RESET</span><span>No placebo. No fake FPS.</span></div>
@@ -2016,6 +2038,80 @@ else {
   new MutationObserver(paintText).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
   paintText();
   loadList();
+})();
+</script>
+<script>
+// Newsletter sign-up with double opt-in: the newsletter edge function stores
+// the address as pending and mails a confirmation link (newsletter.html).
+// The consent sentence must stay word for word the same as CONSENT in
+// backend/supabase/functions/newsletter/handler.ts.
+(function () {
+  const FN = "https://sjwparnlbtuiyqmagyfg.supabase.co/functions/v1/newsletter";
+  const ANON = "sb_publishable_EP3WkfFmKLBznsC7kRncfA_bIrELJ8g";
+  const TX = {
+    de: {
+      title: 'Neue Builds <span class="accent">zuerst in deinem Postfach</span>',
+      lead: "Neuigkeiten zu Updates, neuen Funktionen und Angeboten, ein paar Mal im Monat oder seltener. Du bestätigst per Mail, und jede Mail hat einen Abmeldelink.",
+      email: "E-Mail",
+      consent: "Ja, ich möchte den RESET-Newsletter mit Neuigkeiten zu Updates, Funktionen und Angeboten per E-Mail bekommen. Abmelden kann ich mich jederzeit über den Link in jeder Mail.",
+      privacy: 'Details in der <a href="datenschutz.html#newsletter">Datenschutzerklärung</a>.',
+      send: "Anmelden", sending: "Wird gesendet …",
+      sent: "Fast geschafft: Schau in dein Postfach und klick auf den Link in der Mail. Keine Mail da? Sieh im Spam-Ordner nach.",
+      badEmail: "Bitte gib eine gültige E-Mail-Adresse an.",
+      noConsent: "Bitte setz das Häkchen, damit wir dir schreiben dürfen.",
+      busy: "Gerade melden sich sehr viele an. Bitte versuch es in einer Stunde noch mal.",
+      failed: "Das hat nicht geklappt. Bitte versuch es gleich noch mal."
+    },
+    en: {
+      title: 'New builds, <span class="accent">first in your inbox</span>',
+      lead: "News about updates, new features and offers, a few times a month or less. You confirm by mail, and every mail has an unsubscribe link.",
+      email: "E-mail",
+      consent: "Yes, I want to get the RESET newsletter with news about updates, features and offers by e-mail. I can unsubscribe at any time with the link in every mail.",
+      privacy: 'Details in the <a href="datenschutz.html#newsletter">privacy policy</a>.',
+      send: "Sign up", sending: "Sending …",
+      sent: "Almost done: check your inbox and click the link in the mail. Nothing there? Look in your spam folder.",
+      badEmail: "Please enter a valid e-mail address.",
+      noConsent: "Please tick the box so we may write to you.",
+      busy: "A lot of people are signing up right now. Please try again in an hour.",
+      failed: "That didn't work. Please try again in a moment."
+    }
+  };
+  const lang = () => document.documentElement.lang === "de" ? "de" : "en";
+  const $ = id => document.getElementById(id);
+  let msgKey = "", msgBad = true, busy = false;
+
+  function paint() {
+    const x = TX[lang()];
+    $("nlTitle").innerHTML = x.title;
+    $("nlLead").textContent = x.lead;
+    $("nlEmailL").textContent = x.email;
+    $("nlConsentT").textContent = x.consent;
+    $("nlPrivacy").innerHTML = x.privacy;
+    $("nlSend").querySelector("span").textContent = busy ? x.sending : x.send;
+    $("nlSend").disabled = busy;
+    $("nlMsg").textContent = msgKey ? x[msgKey] : "";
+    $("nlMsg").style.color = msgBad ? "var(--accent-bright)" : "var(--success)";
+  }
+
+  $("nlForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const email = $("nlEmail").value.trim();
+    msgBad = true;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msgKey = "badEmail"; return paint(); }
+    if (!$("nlConsent").checked) { msgKey = "noConsent"; return paint(); }
+    busy = true; msgKey = ""; paint();
+    try {
+      const r = await fetch(FN, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "subscribe", email, lang: lang(), source: "website", consent: true, website: $("nlWebsite").value }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) { msgKey = "sent"; msgBad = false; $("nlForm").reset(); }
+      else msgKey = j.error === "email" ? "badEmail" : j.error === "busy" ? "busy" : "failed";
+    } catch { msgKey = "failed"; }
+    busy = false; paint();
+  });
+
+  new MutationObserver(paint).observe(document.documentElement, { attributes: true, attributeFilter: ["lang"] });
+  paint();
 })();
 </script>
 <script>
