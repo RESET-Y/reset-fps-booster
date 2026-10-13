@@ -107,3 +107,21 @@ Windows-Entwickler-PC bauen und testen, nicht in der Cloud-Sitzung.
 - [ ] Demo-Video: einmal mit FrameBoost 120 FPS aufnehmen (SuperTuxKart),
       Aus-Version = jedes zweite Bild entfernt, Zeitlupe-Knopf für 60-Hz-Bildschirme
 - [ ] AGB: Smooth Motion und Fadenkreuz als Teil von Premium nennen
+
+## Turnier (Idee, später)
+
+Besprochen am 13. Oktober 2026. Noch nichts entschieden.
+
+**Vorher festlegen:** Spiel, ungefährer Zeitraum, online oder LAN, Anzahl
+Teams/Spieler.
+
+- [ ] Format: z. B. Apex (Trios, Custom Lobbys) oder CS2 (5v5)
+- [ ] Plattform für Anmeldung und Turnierbaum (start.gg, Challengermode
+      oder Battlefy), Organisation über den RESET Discord
+- [ ] Preise: Lifetime-Premium-Codes (im Manager erstellen)
+- [ ] Partner-Streamer übertragen oder kommentieren
+- [ ] Turnierseite auf der Website: Anmeldung, Regeln, Ergebnisse
+- [ ] Rechtliches: Teilnahmebedingungen, Datenschutz für die Anmeldung,
+      Mindestalter (Altersfreigabe des Spiels)
+- [ ] Startgeld oder Geldpreise nur nach rechtlicher Prüfung. Am einfachsten:
+      kostenlose Teilnahme mit Sachpreisen oder Premium-Codes
