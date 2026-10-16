@@ -74,7 +74,7 @@ public sealed partial class GameDetectionService : IGameDetectionService
                     Name = name,
                     Source = GameSource.Steam,
                     InstallPath = fullPath,
-                    ExecutablePath = GuessMainExecutable(fullPath)
+                    ExecutablePath = GameExecutable.PickMain(fullPath, name)
                 };
             }
         }
@@ -126,9 +126,12 @@ public sealed partial class GameDetectionService : IGameDetectionService
                 if (string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(installLocation))
                     continue;
 
-                var exePath = !string.IsNullOrWhiteSpace(launchExecutable)
+                // What the launcher launches is often a starter; the program that really runs is
+                // picked from the folder (see GameExecutable) and the launcher's choice is the fallback.
+                var launcherChoice = !string.IsNullOrWhiteSpace(launchExecutable)
                     ? Path.Combine(installLocation, launchExecutable)
-                    : GuessMainExecutable(installLocation);
+                    : null;
+                var exePath = GameExecutable.PickMain(installLocation, displayName, launcherChoice);
 
                 profile = new GameProfile
                 {
@@ -159,27 +162,6 @@ public sealed partial class GameDetectionService : IGameDetectionService
     {
         var lower = name.ToLowerInvariant();
         return SteamInfrastructureNames.Any(lower.Contains);
-    }
-
-    private static string? GuessMainExecutable(string installDir)
-    {
-        try
-        {
-            var exeFiles = Directory.EnumerateFiles(installDir, "*.exe", SearchOption.AllDirectories)
-                .Where(f => !f.Contains("redist", StringComparison.OrdinalIgnoreCase)
-                         && !f.Contains("unins", StringComparison.OrdinalIgnoreCase)
-                         && !f.Contains("crashhandler", StringComparison.OrdinalIgnoreCase)
-                         && !f.Contains("vcredist", StringComparison.OrdinalIgnoreCase))
-                .Select(f => new FileInfo(f))
-                .OrderByDescending(f => f.Length)
-                .FirstOrDefault();
-
-            return exeFiles?.FullName;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     [GeneratedRegex("\"path\"\\s*\"([^\"]+)\"")]

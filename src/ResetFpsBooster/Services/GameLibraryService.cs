@@ -36,6 +36,21 @@ public sealed class GameLibraryService : IGameLibraryService
                 // Preserve optimization state / manual executable overrides for games we already knew about.
                 existing.Name = found.Name;
                 existing.ExecutablePath ??= found.ExecutablePath;
+
+                // ...but not a program that is plainly wrong: one that is gone from the disk, or one that is an
+                // anti-cheat tool or installer (an older version of the detection picked the biggest file, and
+                // Apex's 278 MB "EAAntiCheat.Installer.exe" beat its 69 MB game). A manual choice of a real
+                // game program is never touched.
+                if (!string.IsNullOrEmpty(found.ExecutablePath)
+                    && !string.Equals(existing.ExecutablePath, found.ExecutablePath, StringComparison.OrdinalIgnoreCase)
+                    && (string.IsNullOrEmpty(existing.ExecutablePath)
+                        || !File.Exists(existing.ExecutablePath)
+                        || ResetFpsBooster.Games.GameExecutable.LooksLikeSupportTool(existing.ExecutablePath)))
+                {
+                    existing.ExecutablePath = found.ExecutablePath;
+                    // The fullscreen-optimization flag was written for the old program, not this one.
+                    existing.IsOptimized = false;
+                }
             }
         }
 

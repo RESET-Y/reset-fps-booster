@@ -113,29 +113,10 @@ public sealed class GameBoostService : IGameBoostService
         }
     }
 
-    /// Does this running process belong to that library entry?
-    ///
-    /// Not an exact name comparison, because games ship variants of the same
-    /// executable: the library entry says r5apex.exe while Apex Legends in DX12
-    /// mode runs as r5apex_dx12.exe. An exact match misses that, and the miss is
-    /// expensive - the boost then treats the game as just another background
-    /// process and drops it to BelowNormal. Found on a live machine: Apex
-    /// running at BelowNormal while the GPU sat at 69% and 87 of 170 watts,
-    /// with the player wondering where their frames were.
-    private static bool IsSameGame(string executablePath, string processName)
-    {
-        var exeName = Path.GetFileNameWithoutExtension(executablePath);
-        if (string.IsNullOrEmpty(exeName) || string.IsNullOrEmpty(processName)) return false;
-        if (string.Equals(exeName, processName, StringComparison.OrdinalIgnoreCase)) return true;
-
-        // "r5apex" vs "r5apex_dx12": one is the other plus a build suffix. Only
-        // a suffix that starts with a separator counts, so "portal" never
-        // matches "portal2".
-        var (shorter, longer) = exeName.Length <= processName.Length ? (exeName, processName) : (processName, exeName);
-        return longer.StartsWith(shorter, StringComparison.OrdinalIgnoreCase)
-            && longer.Length > shorter.Length
-            && (longer[shorter.Length] == '_' || longer[shorter.Length] == '-');
-    }
+    // The rule for "does this process belong to that game" is shared with the Bottleneck Engine; see
+    // GameExecutable.IsSameProcess for why it is not an exact name comparison.
+    private static bool IsSameGame(string executablePath, string processName) =>
+        ResetFpsBooster.Games.GameExecutable.IsSameProcess(executablePath, processName);
 
     private (Process Process, string Name)? FindRunningGame()
     {

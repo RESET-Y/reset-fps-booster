@@ -149,8 +149,9 @@ public sealed class BottleneckEngineService : IBottleneckEngineService
             {
                 try
                 {
+                    // Not an exact name: an Unreal game's starter and its running "-Win64-Shipping" process differ.
                     var match = games.FirstOrDefault(g =>
-                        string.Equals(Path.GetFileNameWithoutExtension(g.ExecutablePath), process.ProcessName, StringComparison.OrdinalIgnoreCase));
+                        ResetFpsBooster.Games.GameExecutable.IsSameProcess(g.ExecutablePath, process.ProcessName));
 
                     if (match is not null)
                     {
