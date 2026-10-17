@@ -12,4 +12,8 @@ public sealed class SensGameProfile
     public int ResHeight { get; set; }
     /// <summary>The picture is stretched to fill the whole monitor (for example 4:3 on a wide screen).</summary>
     public bool Stretch { get; set; }
+
+    /// <summary>Degrees the view turns per mouse count at sensitivity 1, from the player's own measured
+    /// turn. Only for a game without a published value (ARC Raiders). Null until calibrated.</summary>
+    public double? Yaw { get; set; }
 }

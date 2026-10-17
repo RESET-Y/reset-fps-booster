@@ -52,6 +52,7 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         SensGame.CounterStrike2 => 1.0,
         SensGame.Valorant => 0.4,
         SensGame.Fortnite => 6.0,
+        SensGame.ArcRaiders => 50.0,
         _ => 1.0
     };
 
@@ -62,6 +63,7 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         SensGame.CounterStrike2 => 106,
         SensGame.Valorant => 103,
         SensGame.Fortnite => 80,
+        SensGame.ArcRaiders => 70,
         _ => 100
     };
 
@@ -98,6 +100,20 @@ public sealed partial class SensFinderViewModel : ViewModelBase
 
     [ObservableProperty] private string? _usedMessage;
 
+    /// <summary>What the calibration panel says when a measurement is refused.</summary>
+    [ObservableProperty] private string? _calibrationError;
+
+    /// <summary>The distance for one full turn, typed in the calibration panel, in cm.</summary>
+    [ObservableProperty] private string _calibrationCm = "";
+
+    public bool IsArc => SelectedGame?.Game == SensGame.ArcRaiders;
+
+    /// <summary>ARC Raiders has its value only once the player has calibrated it.</summary>
+    public bool IsCalibrated => YawOf(SensGame.ArcRaiders) is not null;
+
+    // The measured turn holds for any DPI and sensitivity, so no number is shown: it would only depend on the scale.
+    public string CalibrationStateText => IsCalibrated ? Loc.T("Sens.Calib.Done") : Loc.T("Sens.Calib.Needed");
+
     // ---- result ----
     [ObservableProperty] private bool _hasResult;
     [ObservableProperty] private string _resultSens = "";
@@ -122,7 +138,8 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         get
         {
             if (SelectedGame is null || !TryReadDpi(out var dpi) || !TryReadSens(out var sens)) return "-";
-            return Loc.F("Sens.Cm360", SensMath.Cm360(SelectedGame.Game, dpi, sens).ToString("0.0", CultureInfo.CurrentCulture));
+            if (YawOf(SelectedGame.Game) is not { } yaw) return Loc.T("Sens.Calib.Needed");
+            return Loc.F("Sens.Cm360", SensMath.Cm360(yaw, dpi, sens).ToString("0.0", CultureInfo.CurrentCulture));
         }
     }
 
@@ -171,6 +188,8 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         _loading = false;
         UsedMessage = null;
         StatusMessage = null;
+        CalibrationError = null;
+        RefreshCalibration();
     }
 
     // ---------------------------------------------------------------- input
@@ -224,6 +243,7 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         if (SelectedGame is null) return;
         if (!TryReadDpi(out var dpi)) { StatusMessage = Loc.T("Sens.InvalidDpi"); return; }
         if (!TryReadSens(out var sens)) { StatusMessage = Loc.T("Sens.InvalidSens"); return; }
+        if (YawOf(SelectedGame.Game) is null) { StatusMessage = Loc.T("Sens.Calib.StartFirst"); return; }
         if (!TryReadFov(out var fov)) { StatusMessage = Loc.T("Sens.InvalidFov"); return; }
         if (!TryReadResolution(out var resW, out var resH)) { StatusMessage = Loc.T("Sens.InvalidRes"); return; }
 
@@ -233,14 +253,15 @@ public sealed partial class SensFinderViewModel : ViewModelBase
         s.SensDpi = (int)Math.Round(dpi);
         s.SensProfiles[game.ToString()] = new SensGameProfile
         {
-            Sens = sens, Fov = fov, ResWidth = resW, ResHeight = resH, Stretch = Stretch
+            Sens = sens, Fov = fov, ResWidth = resW, ResHeight = resH, Stretch = Stretch,
+            Yaw = s.SensProfiles.GetValueOrDefault(game.ToString())?.Yaw
         };
         _settings.Save();
 
         // The rounds come in a random order, so neither tiredness nor warming up favours one speed.
         var rng = new Random();
         var order = Multipliers.OrderBy(_ => rng.Next()).ToList();
-        var centre = SensMath.Cm360(game, dpi, sens);
+        var centre = SensMath.Cm360(YawOf(game)!.Value, dpi, sens);
 
         var window = new SensTestWindow(dpi, centre, order, fov, resW, resH, Stretch);
         window.ShowDialog();
@@ -281,7 +302,8 @@ public sealed partial class SensFinderViewModel : ViewModelBase
 
         var rec = _rec;
         var game = _testGame;
-        var centre = SensMath.Cm360(game, _testDpi, _testSens);
+        if (YawOf(game) is not { } gameYaw) { HasResult = false; return; }
+        var centre = SensMath.Cm360(gameYaw, _testDpi, _testSens);
         var sensNow = _testSens;
         var best = sensNow * rec.Multiplier;
         var cm360 = centre / rec.Multiplier;
@@ -344,10 +366,75 @@ public sealed partial class SensFinderViewModel : ViewModelBase
             OtherGames.Add(new SensGameRow
             {
                 Game = SensMath.Name(other),
-                Value = SensMath.Format(other, SensMath.SensitivityFor(other, _testDpi, cm360))
+                Value = YawOf(other) is { } otherYaw
+                    ? SensMath.Format(other, SensMath.SensitivityFor(otherYaw, _testDpi, cm360))
+                    : Loc.T("Sens.Calib.Needed")
             });
         }
 
         HasResult = true;
+    }
+
+    // ---------------------------------------------------------------- calibration
+
+    /// <summary>
+    /// ARC Raiders does not say how far a mouse turns the view. The player turns once through 360
+    /// degrees in the game and measures how far the mouse travelled; the degrees per mouse count are
+    /// solved from that and kept with the profile. Nothing is read from the game.
+    /// </summary>
+    [RelayCommand]
+    private void Calibrate()
+    {
+        CalibrationError = null;
+        if (SelectedGame?.Game != SensGame.ArcRaiders) return;
+        if (!TryReadDpi(out var dpi)) { CalibrationError = Loc.T("Sens.InvalidDpi"); return; }
+        if (!TryReadSens(out var sens)) { CalibrationError = Loc.T("Sens.InvalidSens"); return; }
+        if (!TryNumber(CalibrationCm, out var cm) || cm < 5 || cm > 300) { CalibrationError = Loc.T("Sens.Calib.InvalidCm"); return; }
+
+        var yaw = SensMath.YawFromCm360(dpi, sens, cm);
+        var s = _settings.Current;
+        var key = SensGame.ArcRaiders.ToString();
+        var existing = s.SensProfiles.GetValueOrDefault(key);
+        var fovOk = TryReadFov(out var fov);
+        var resOk = TryReadResolution(out var resW, out var resH);
+
+        s.SensGame = SensGame.ArcRaiders;
+        s.SensDpi = (int)Math.Round(dpi);
+        s.SensProfiles[key] = new SensGameProfile
+        {
+            Sens = sens,
+            Fov = fovOk ? fov : (existing?.Fov ?? DefaultFov(SensGame.ArcRaiders)),
+            ResWidth = resOk ? resW : (existing?.ResWidth ?? 1920),
+            ResHeight = resOk ? resH : (existing?.ResHeight ?? 1080),
+            Stretch = Stretch,
+            Yaw = yaw
+        };
+        _settings.Save();
+        CalibrationCm = "";
+        RefreshCalibration();
+    }
+
+    [RelayCommand]
+    private void ResetCalibration()
+    {
+        if (_settings.Current.SensProfiles.TryGetValue(SensGame.ArcRaiders.ToString(), out var profile)) profile.Yaw = null;
+        _settings.Save();
+        CalibrationError = null;
+        RefreshCalibration();
+    }
+
+    // Degrees per mouse count at sensitivity 1: published for most games, the player's own measurement for ARC Raiders.
+    private double? YawOf(SensGame game)
+    {
+        if (SensMath.HasPublishedYaw(game)) return SensMath.YawPerCount(game);
+        return _settings.Current.SensProfiles.GetValueOrDefault(game.ToString())?.Yaw;
+    }
+
+    private void RefreshCalibration()
+    {
+        OnPropertyChanged(nameof(IsArc));
+        OnPropertyChanged(nameof(IsCalibrated));
+        OnPropertyChanged(nameof(CalibrationStateText));
+        OnPropertyChanged(nameof(CurrentCm360Text));
     }
 }

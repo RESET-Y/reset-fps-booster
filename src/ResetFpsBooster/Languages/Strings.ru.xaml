@@ -677,4 +677,14 @@
     <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">Бюджет текстур равен {0}. Это меньше самой маленькой ступени в игре: Apex почти не загружает чёткие текстуры, и всё выглядит размытым. Выберите ступень.</sys:String>
     <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Ваш autoexec.cfg задаёт бюджет текстур {0} и при каждом запуске перекрывает файл настроек. Сохраняйте вместо этого в Autoexec.</sys:String>
     <sys:String x:Key="Apex.ShadowsNoAutoexec" xml:space="preserve">Через autoexec невозможно: Apex снова включает тени после запуска (так видно в текущей версии игры). Для теней используйте «Файлы настроек».</sys:String>
+    <sys:String x:Key="Sens.Calib.Title" xml:space="preserve">КАЛИБРОВКА</sys:String>
+    <sys:String x:Key="Sens.Calib.Hint" xml:space="preserve">ARC Raiders не сообщает, на сколько мышь поворачивает обзор. Задайте сенсу выше, сделайте в игре ровно один поворот на 360° и измерьте, сколько сантиметров проходит мышь (линейка на коврике). Игра при этом не меняется.</sys:String>
+    <sys:String x:Key="Sens.Calib.CmLabel" xml:space="preserve">Путь на 360°</sys:String>
+    <sys:String x:Key="Sens.Calib.Button" xml:space="preserve">КАЛИБРОВАТЬ</sys:String>
+    <sys:String x:Key="Sens.Calib.Needed" xml:space="preserve">Сначала откалибруйте</sys:String>
+    <sys:String x:Key="Sens.Calib.Done" xml:space="preserve">Откалибровано. Измеренный поворот сохранён и подходит для любого DPI и сенсы, которые вы введёте.</sys:String>
+    <sys:String x:Key="Sens.Calib.Reset" xml:space="preserve">КАЛИБРОВАТЬ ЗАНОВО</sys:String>
+    <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Введите путь для одного полного поворота в сантиметрах, например 35 (от 5 до 300).</sys:String>
+    <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders сначала нужно откалибровать: введите путь на 360° и калибруйте.</sys:String>
+    <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено.</sys:String>
 </ResourceDictionary>

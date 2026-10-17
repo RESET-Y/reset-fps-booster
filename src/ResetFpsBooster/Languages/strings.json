@@ -3374,5 +3374,55 @@
     "en": "Not possible with autoexec: Apex switches the shadows back on after start-up (seen with the current game version). Use \"Settings files\" for shadows.",
     "de": "Per Autoexec nicht möglich: Apex schaltet die Schatten nach dem Start wieder ein (so gesehen mit der aktuellen Spielversion). Nimm dafür „Einstellungsdateien“.",
     "ru": "Через autoexec невозможно: Apex снова включает тени после запуска (так видно в текущей версии игры). Для теней используйте «Файлы настроек»."
+  },
+  "Sens.Calib.Title": {
+    "en": "CALIBRATE",
+    "de": "KALIBRIEREN",
+    "ru": "КАЛИБРОВКА"
+  },
+  "Sens.Calib.Hint": {
+    "en": "ARC Raiders does not say how far a mouse turns the view. Set your sensitivity above, turn exactly once through 360° in the game and measure how many cm your mouse travels for it (a ruler on the mousepad). The game is not changed.",
+    "de": "ARC Raiders verrät nicht, wie weit die Maus die Ansicht dreht. Stell oben deine Sens ein, dreh dich im Spiel genau einmal um 360° und miss, wie viele cm deine Maus dafür läuft (Lineal auf dem Mauspad). Das Spiel wird dabei nicht verändert.",
+    "ru": "ARC Raiders не сообщает, на сколько мышь поворачивает обзор. Задайте сенсу выше, сделайте в игре ровно один поворот на 360° и измерьте, сколько сантиметров проходит мышь (линейка на коврике). Игра при этом не меняется."
+  },
+  "Sens.Calib.CmLabel": {
+    "en": "Distance for 360°",
+    "de": "Strecke für 360°",
+    "ru": "Путь на 360°"
+  },
+  "Sens.Calib.Button": {
+    "en": "CALIBRATE",
+    "de": "KALIBRIEREN",
+    "ru": "КАЛИБРОВАТЬ"
+  },
+  "Sens.Calib.Needed": {
+    "en": "Calibrate first",
+    "de": "Erst kalibrieren",
+    "ru": "Сначала откалибруйте"
+  },
+  "Sens.Calib.Done": {
+    "en": "Calibrated. The measured turn is stored and holds for any DPI and sensitivity you enter.",
+    "de": "Kalibriert. Die gemessene Drehung ist gespeichert und gilt für jede DPI und Sens, die du eingibst.",
+    "ru": "Откалибровано. Измеренный поворот сохранён и подходит для любого DPI и сенсы, которые вы введёте."
+  },
+  "Sens.Calib.Reset": {
+    "en": "CALIBRATE AGAIN",
+    "de": "NEU KALIBRIEREN",
+    "ru": "КАЛИБРОВАТЬ ЗАНОВО"
+  },
+  "Sens.Calib.InvalidCm": {
+    "en": "Enter the distance for one full turn in cm, for example 35 (between 5 and 300).",
+    "de": "Gib die Strecke für eine volle Drehung in cm ein, zum Beispiel 35 (zwischen 5 und 300).",
+    "ru": "Введите путь для одного полного поворота в сантиметрах, например 35 (от 5 до 300)."
+  },
+  "Sens.Calib.StartFirst": {
+    "en": "ARC Raiders needs calibrating first: enter the distance for 360° and calibrate.",
+    "de": "ARC Raiders muss erst kalibriert werden: Strecke für 360° eintragen und kalibrieren.",
+    "ru": "ARC Raiders сначала нужно откалибровать: введите путь на 360° и калибруйте."
+  },
+  "Sens.FovHint.ArcRaiders": {
+    "en": "The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.",
+    "de": "Der FOV-Wert aus dem Spiel. Ein Umrechner nennt 60 bis 80, bestätigt habe ich das nicht.",
+    "ru": "Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено."
   }
 }

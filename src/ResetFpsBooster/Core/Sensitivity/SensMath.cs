@@ -5,7 +5,8 @@ public enum SensGame
     ApexLegends,
     CounterStrike2,
     Valorant,
-    Fortnite
+    Fortnite,
+    ArcRaiders
 }
 
 /// <summary>
@@ -40,6 +41,8 @@ public static class SensMath
         SensGame.CounterStrike2 => 0.022,
         SensGame.Valorant => 0.07,
         SensGame.Fortnite => 0.005555,
+        SensGame.ArcRaiders => throw new InvalidOperationException(
+            "ARC Raiders has no published yaw: it comes from the player's own calibration (Sens-Finder)."),
         _ => 0.022
     };
 
@@ -49,6 +52,7 @@ public static class SensMath
         SensGame.CounterStrike2 => "Counter-Strike 2",
         SensGame.Valorant => "Valorant",
         SensGame.Fortnite => "Fortnite",
+        SensGame.ArcRaiders => "ARC Raiders",
         _ => game.ToString()
     };
 
@@ -59,6 +63,7 @@ public static class SensMath
         SensGame.CounterStrike2 => 3,
         SensGame.Valorant => 3,
         SensGame.Fortnite => 1,
+        SensGame.ArcRaiders => 1,
         _ => 2
     };
 
@@ -67,11 +72,26 @@ public static class SensMath
 
     /// <summary>Centimetres of mouse travel for a full 360° turn.</summary>
     public static double Cm360(SensGame game, double dpi, double sensitivity) =>
-        360.0 * CmPerInch / (YawPerCount(game) * sensitivity * dpi);
+        Cm360(YawPerCount(game), dpi, sensitivity);
+
+    /// <summary>The same for a yaw that is not published: the player's own calibration.</summary>
+    public static double Cm360(double yaw, double dpi, double sensitivity) =>
+        360.0 * CmPerInch / (yaw * sensitivity * dpi);
 
     /// <summary>The in-game sensitivity that gives this cm/360.</summary>
     public static double SensitivityFor(SensGame game, double dpi, double cm360) =>
-        360.0 * CmPerInch / (YawPerCount(game) * dpi * cm360);
+        SensitivityFor(YawPerCount(game), dpi, cm360);
+
+    public static double SensitivityFor(double yaw, double dpi, double cm360) =>
+        360.0 * CmPerInch / (yaw * dpi * cm360);
+
+    /// <summary>Whether the game's yaw is published. ARC Raiders' is not: each player measures it once.</summary>
+    public static bool HasPublishedYaw(SensGame game) => game != SensGame.ArcRaiders;
+
+    /// <summary>The yaw a measured full turn implies: degrees per mouse count at sensitivity 1. The turn is
+    /// made with the DPI and sensitivity given here; the yaw itself does not depend on them.</summary>
+    public static double YawFromCm360(double dpi, double sensitivity, double cm360) =>
+        360.0 * CmPerInch / (dpi * sensitivity * cm360);
 
     /// <summary>Degrees the view turns for one mouse count at this cm/360 and DPI.</summary>
     public static double DegreesPerCount(double dpi, double cm360) =>

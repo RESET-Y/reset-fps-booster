@@ -677,4 +677,14 @@
     <sys:String x:Key="Apex.StreamWarnLow" xml:space="preserve">The texture budget is {0}. That is below the smallest step in the game: Apex then loads hardly any sharp textures and everything looks blurry. Pick a step.</sys:String>
     <sys:String x:Key="Apex.StreamWarnOverride" xml:space="preserve">Your autoexec.cfg sets the texture budget to {0} and overrides the settings file at every start. Save to Autoexec instead.</sys:String>
     <sys:String x:Key="Apex.ShadowsNoAutoexec" xml:space="preserve">Not possible with autoexec: Apex switches the shadows back on after start-up (seen with the current game version). Use &quot;Settings files&quot; for shadows.</sys:String>
+    <sys:String x:Key="Sens.Calib.Title" xml:space="preserve">CALIBRATE</sys:String>
+    <sys:String x:Key="Sens.Calib.Hint" xml:space="preserve">ARC Raiders does not say how far a mouse turns the view. Set your sensitivity above, turn exactly once through 360° in the game and measure how many cm your mouse travels for it (a ruler on the mousepad). The game is not changed.</sys:String>
+    <sys:String x:Key="Sens.Calib.CmLabel" xml:space="preserve">Distance for 360°</sys:String>
+    <sys:String x:Key="Sens.Calib.Button" xml:space="preserve">CALIBRATE</sys:String>
+    <sys:String x:Key="Sens.Calib.Needed" xml:space="preserve">Calibrate first</sys:String>
+    <sys:String x:Key="Sens.Calib.Done" xml:space="preserve">Calibrated. The measured turn is stored and holds for any DPI and sensitivity you enter.</sys:String>
+    <sys:String x:Key="Sens.Calib.Reset" xml:space="preserve">CALIBRATE AGAIN</sys:String>
+    <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Enter the distance for one full turn in cm, for example 35 (between 5 and 300).</sys:String>
+    <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders needs calibrating first: enter the distance for 360° and calibrate.</sys:String>
+    <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.</sys:String>
 </ResourceDictionary>

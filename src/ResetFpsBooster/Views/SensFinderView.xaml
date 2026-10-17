@@ -147,6 +147,27 @@
                                        Foreground="{DynamicResource Brush.AccentBright}" VerticalAlignment="Center"/>
                         </Grid>
 
+                        <Border Style="{StaticResource Notice}" Margin="0,4,0,0" Visibility="{Binding IsArc, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Sens.Calib.Title}" Style="{StaticResource RowLabel}"/>
+                                <TextBlock Text="{DynamicResource Sens.Calib.Hint}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{DynamicResource Sens.Calib.CmLabel}" Style="{StaticResource RowLabel}"/>
+                                    <TextBox Grid.Column="1" Style="{StaticResource Input.TextBox}" Text="{Binding CalibrationCm, UpdateSourceTrigger=PropertyChanged}" MaxLength="6" FontFamily="Consolas"/>
+                                    <Button Grid.Column="2" Content="{DynamicResource Sens.Calib.Button}" Style="{StaticResource Button.Secondary}" Command="{Binding CalibrateCommand}" Margin="12,0,0,0"/>
+                                </Grid>
+                                <TextBlock Text="{Binding CalibrationStateText}" Style="{StaticResource Text.Telemetry}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding CalibrationError}" Style="{StaticResource Text.Caption}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Foreground="{StaticResource Brush.Warning}" Visibility="{Binding CalibrationError, Converter={StaticResource NullToVis}}"/>
+                                <Button Content="{DynamicResource Sens.Calib.Reset}" Style="{StaticResource Button.Ghost}" Command="{Binding ResetCalibrationCommand}"
+                                        HorizontalAlignment="Left" Margin="0,10,0,0" Visibility="{Binding IsCalibrated, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+                        </Border>
                         <Button Content="{DynamicResource Sens.StartTest}" Style="{StaticResource Button.Primary}" Command="{Binding StartTestCommand}"
                                 HorizontalAlignment="Left" Padding="34,14" FontSize="16" Margin="0,22,0,0"/>
 
