@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFB - Reset FPS Booster</title>
+<meta name="description" content="Windows, NVIDIA und deine Spiele gezielt einstellen. Jede Änderung wird gesichert und lässt sich mit einem Klick zurücksetzen.">
+<!-- Placeholders in [brackets] are still open: keep this page out of search engines until they are filled. -->
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#0a0a0a">
+<meta property="og:title" content="RFB - Reset FPS Booster">
+<meta property="og:description" content="Windows, NVIDIA und deine Spiele gezielt einstellen. Jede Änderung wird gesichert und lässt sich zurücksetzen.">
+<meta property="og:image" content="https://reset-booster.online/assets/og-card.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="/assets/favicon.ico">
+<link rel="preload" href="assets/fonts/barlow-condensed-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/landing.css?v=3">
+<script>document.documentElement.classList.add('js')</script>
+<script src="assets/landing.js?v=2" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Zum Inhalt springen</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="nav-logo" href="#top" aria-label="RFB, zum Seitenanfang">
+      <img src="assets/logo.webp" width="240" height="111" alt="">
+      <span>Reset FPS Booster</span>
+    </a>
+    <button class="nav-menu" type="button" aria-expanded="false" aria-controls="nav-links">Menü</button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#module">Module</a></li>
+      <li><a href="#ablauf">So funktioniert's</a></li>
+      <li><a href="#vergleich">Vergleich</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <a class="btn btn-red btn-sm" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest" rel="noopener">Download</a>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero xhair" id="top" aria-labelledby="hero-h">
+  <div class="wrap">
+    <div>
+      <h1 class="h1" id="hero-h">
+        <span class="sr">Stutter? Reset.</span>
+        <span class="row" aria-hidden="true"><span class="ch" style="--i:0">S</span><span class="ch" style="--i:1">T</span><span class="ch" style="--i:2">U</span><span class="ch" style="--i:3">T</span><span class="ch" style="--i:4">T</span><span class="ch" style="--i:5">E</span><span class="ch" style="--i:6">R</span><span class="ch" style="--i:7">?</span></span>
+        <span class="row red" aria-hidden="true"><span class="ch" style="--i:8">R</span><span class="ch" style="--i:9">E</span><span class="ch" style="--i:10">S</span><span class="ch" style="--i:11">E</span><span class="ch" style="--i:12">T</span><span class="ch" style="--i:13">.</span></span>
+      </h1>
+      <p class="lead">Windows, NVIDIA und deine Spiele gezielt einstellen. Jede Änderung wird gesichert und lässt sich mit einem Klick zurücksetzen.</p>
+      <div class="cta-row">
+        <a class="btn btn-red" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest" rel="noopener">Kostenlos laden</a>
+        <a class="btn btn-line" href="#module">Module ansehen</a>
+      </div>
+      <p class="status mono">Version 1.5.1 · Windows 10/11 · 50,2 MB</p>
+    </div>
+    <figure class="chart">
+      <canvas id="hero-chart" width="700" height="500" role="img" aria-label="Frame-Time-Kurve als Demo: erst unruhig mit roten Spitzen, dann eine ruhige Linie."></canvas>
+      <figcaption class="mono">Demo-Darstellung, keine Live-Messung</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec" id="module" aria-labelledby="mod-h">
+  <div class="wrap">
+    <h2 class="h2 reveal" id="mod-h">Fünf Module.</h2>
+    <p class="sec-lead reveal">Drei laufen neben dem Spiel und brauchen Premium. Zwei stellen Windows und den Treiber ein und sind kostenlos.</p>
+    <ol class="mods">
+      <!-- ENTWURF aus den App-Texten (Smooth.*), bitte prüfen -->
+      <li class="mod">
+        <div class="mod-inner">
+          <div class="mod-num" aria-hidden="true">01</div>
+          <div>
+            <div class="mod-line"><span></span></div>
+            <h3><span class="sr">01 </span>Smooth Motion<span class="tag tag-p">Premium</span></h3>
+            <p class="txt">Motion Blur ohne injizierte DLL. Jedes Bild wird entlang der echten Bewegung verwischt, wie bei einer Kamera mit 1/60 Sekunde Belichtung.</p>
+            <p class="mono">Spielfenster oder ganzer Bildschirm / Stärke-Regler / läuft neben dem Spiel</p>
+          </div>
+        </div>
+      </li>
+      <!-- ENTWURF aus den App-Texten (FB.*), Wirkung ehrlich benannt, bitte prüfen -->
+      <li class="mod">
+        <div class="mod-inner">
+          <div class="mod-num" aria-hidden="true">02</div>
+          <div>
+            <div class="mod-line"><span></span></div>
+            <h3><span class="sr">02 </span>Frame Generation<span class="tag tag-p">Premium</span></h3>
+            <p class="txt">Erzeugt zwischen zwei echten Bildern ein zusätzliches Bild und verdoppelt so die angezeigte Bildrate. Das wirkt flüssiger, macht die Eingabe aber nicht schneller.</p>
+            <p class="mono">Beispiel: Spiel auf 72 FPS begrenzt, 144 Bilder auf 144 Hz / keine Injection, kein Speicherzugriff</p>
+          </div>
+        </div>
+      </li>
+      <!-- ENTWURF aus den App-Texten (Cross.*), bitte prüfen -->
+      <li class="mod">
+        <div class="mod-inner">
+          <div class="mod-num" aria-hidden="true">03</div>
+          <div>
+            <div class="mod-line"><span></span></div>
+            <h3><span class="sr">03 </span>Crosshair-Optimierung<span class="tag tag-p">Premium</span></h3>
+            <p class="txt">Ein eigenes Fadenkreuz über jedem Spiel, als Form oder als eigenes PNG. Es wird nur über das Bild gelegt und greift nie ins Spiel ein.</p>
+            <p class="mono">Form, Farbe, Größe, Dicke, Lücke, Umrandung, Deckkraft</p>
+          </div>
+        </div>
+      </li>
+      <!-- ENTWURF aus den App-Texten (Mod.*, Opt.Intro), bitte prüfen -->
+      <li class="mod">
+        <div class="mod-inner">
+          <div class="mod-num" aria-hidden="true">04</div>
+          <div>
+            <div class="mod-line"><span></span></div>
+            <h3><span class="sr">04 </span>Windows-Optimierung<span class="tag tag-f">Kostenlos</span></h3>
+            <p class="txt">Spielmodus, Energiesparplan, Game DVR, Netzwerkdrosselung, Autostart und mehr. Du siehst vor dem Anwenden genau, was sich ändert.</p>
+            <p class="mono">12 Einzelmodule mit Risikostufe / jede Änderung vorher gesichert</p>
+          </div>
+        </div>
+      </li>
+      <!-- ENTWURF aus dem App-Text (Mod.Nvidia), bitte prüfen -->
+      <li class="mod">
+        <div class="mod-inner">
+          <div class="mod-num" aria-hidden="true">05</div>
+          <div>
+            <div class="mod-line"><span></span></div>
+            <h3><span class="sr">05 </span>Nvidia-Optimierung<span class="tag tag-f">Kostenlos</span></h3>
+            <p class="txt">Setzt das globale NVIDIA-Treiberprofil auf Leistung: Energieverwaltung, Threaded Optimization, Texturfilterung und V-Sync. Dieselben Schalter wie in der NVIDIA-Systemsteuerung.</p>
+            <p class="mono">nur NVIDIA-Grafikkarten / altes Profil wird vorher gesichert</p>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec xhair" id="vergleich" aria-labelledby="cmp-h">
+  <div class="wrap">
+    <h2 class="h2 reveal" id="cmp-h">Aus. An.</h2>
+    <p class="sec-lead reveal">Zieh den Regler über die Kurve: links ohne RFB, rechts mit.</p>
+    <div class="cmp-head" aria-hidden="true"><span>Aus</span><span class="r">An</span></div>
+    <div class="cmp-chart">
+      <canvas id="cmp-chart" width="1280" height="480" role="img" aria-label="Zwei Frame-Time-Kurven nebeneinander. Links aus, mit Spitzen. Rechts an, ruhig. Platzhalter-Werte."></canvas>
+    </div>
+    <label class="sr" for="cmp-range">Trennlinie zwischen aus und an verschieben</label>
+    <input class="range" id="cmp-range" type="range" min="0" max="100" value="50" step="1">
+    <p class="cmp-note mono">Platzhalter-Werte. Messung: [MESSWERT] auf [HARDWARE].</p>
+  </div>
+</section>
+
+<section class="sec" id="ablauf" aria-labelledby="flow-h">
+  <div class="wrap">
+    <h2 class="h2 reveal" id="flow-h">So funktioniert's.</h2>
+    <ol class="steps">
+      <li class="step reveal">
+        <div class="step-n" aria-hidden="true">01</div>
+        <h3>Download</h3>
+        <p>Installer laden, 50,2 MB, für Windows 10 und 11.</p>
+      </li>
+      <li class="step reveal">
+        <div class="step-n" aria-hidden="true">02</div>
+        <h3>Starten</h3>
+        <p>RFB öffnen. Für einige Optimierungen fragt die App nach Administratorrechten.</p>
+      </li>
+      <li class="step reveal">
+        <div class="step-n" aria-hidden="true">03</div>
+        <h3>Reset</h3>
+        <p>Module wählen, Änderungen prüfen, anwenden. Zurücksetzen geht jederzeit über Sicherungen.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" id="aenderungen" aria-labelledby="chg-h">
+  <div class="wrap">
+    <h2 class="h2 reveal" id="chg-h">Was RFB ändert.</h2>
+    <p class="sec-lead reveal">Alles, was der Optimierer anfasst, siehst du vorher. Die bisherigen Werte werden gesichert, bevor etwas geändert wird.</p>
+    <div class="chg">
+      <!-- ENTWURF aus den 13 Optimierer-Modulen (Mod.*.Name/Desc), bitte prüfen -->
+      <div class="reveal">
+        <div class="grp">
+          <h3>Windows</h3>
+          <ul>
+            <li>Windows-Spielmodus</li>
+            <li>Spielaufnahme im Hintergrund<small>Game DVR der Xbox Game Bar</small></li>
+            <li>Energiesparplan Höchstleistung</li>
+            <li>CPU-Energiedrosselung</li>
+            <li>Visuelle Effekte<small>rein optisch, keine Spiele</small></li>
+            <li>Autostart-Helfer<small>z. B. OneDrive, Spotify</small></li>
+            <li>Store-Apps im Hintergrund</li>
+          </ul>
+        </div>
+        <div class="grp">
+          <h3>GPU und NVIDIA</h3>
+          <ul>
+            <li>Hardwarebeschleunigte GPU-Planung<small>wirkt nach Neustart</small></li>
+            <li>Priorität für Spiele im Task-Planer<small>MMCSS-Kategorie Games</small></li>
+            <li>Globales NVIDIA-Treiberprofil</li>
+          </ul>
+        </div>
+        <div class="grp">
+          <h3>Netzwerk und Speicher</h3>
+          <ul>
+            <li>Netzwerkdrosselung</li>
+            <li>RAM-Reiniger<small>gibt nur ungenutzten Speicher frei</small></li>
+            <li>Temp-Dateien bereinigen<small>nicht umkehrbar</small></li>
+          </ul>
+        </div>
+      </div>
+      <div class="undo reveal">
+        <h3>Zurücksetzen</h3>
+        <ol>
+          <li>Vor jeder Änderung <b>sichert RFB die bisherigen Werte</b>.</li>
+          <li>Unter <b>Sicherungen</b> stellst du jeden Eintrag mit „Vorherigen Zustand wiederherstellen“ zurück.</li>
+          <li>Optional: vorher einen kompletten <b>Windows-Wiederherstellungspunkt</b> erstellen.</li>
+          <li>Das <b>Protokoll</b> zeigt jede Änderung mit altem und neuem Wert.</li>
+        </ol>
+        <p class="note">Ausnahme: Gelöschte Temp-Dateien lassen sich nicht wiederherstellen. Smooth Motion, Frame Generation und Crosshair ändern keine Systemeinstellungen, sie laufen nur, solange sie eingeschaltet sind.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="spezifikationen" aria-labelledby="spec-h">
+  <div class="wrap specs">
+    <h2 class="h2 reveal" id="spec-h">Spezifikationen.</h2>
+    <table class="spec-table reveal">
+      <caption class="sr">Technische Anforderungen</caption>
+      <tr><th scope="row">Windows</th><td>Windows 10/11, 64-Bit</td></tr>
+      <tr><th scope="row">Mindest-GPU</th><td>[MINDEST-GPU]</td></tr>
+      <tr><th scope="row">Größe</th><td>50,2 MB (Installer, Version 1.5.1)</td></tr>
+      <tr><th scope="row">Lizenz</th><td>[LIZENZ]</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="sec" id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <h2 class="h2 reveal" id="faq-h">FAQ.</h2>
+    <div class="faq reveal">
+      <details>
+        <summary>Ist das sicher?</summary>
+        <p>[ANTWORT: Sicherheit, zum Beispiel Benutzermodus, keine Injection, Sicherungen vor jeder Änderung]</p>
+      </details>
+      <details>
+        <summary>Warum meldet mein Antivirus etwas?</summary>
+        <p>[ANTWORT: Grund für mögliche Antivirus-Meldungen und wie man den Download prüfen kann]</p>
+      </details>
+      <details>
+        <summary>Kann ich alles rückgängig machen?</summary>
+        <p>[ANTWORT: Sicherungen, Wiederherstellungspunkt, Ausnahme Temp-Dateien]</p>
+      </details>
+      <details>
+        <summary>Was ist kostenlos, was braucht Premium?</summary>
+        <p>[ANTWORT: welche Module kostenlos sind, Preis und Weg zu Premium]</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="closing" aria-labelledby="end-h">
+  <div class="wrap">
+    <h2 id="end-h">Reset.</h2>
+    <p>Laden, ansehen, was sich ändert, anwenden. Zurück geht jederzeit.</p>
+    <a class="btn btn-black" href="https://github.com/RESET-Y/reset-fps-booster/releases/latest" rel="noopener">Kostenlos laden</a>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <img src="assets/logo.webp" width="240" height="111" alt="RFB">
+    <ul>
+      <li><a href="/impressum.html">Impressum</a></li>
+      <li><a href="/datenschutz.html">Datenschutz</a></li>
+      <li><a href="mailto:lukas.reschke80@gmail.com">Kontakt</a></li>
+    </ul>
+    <small>© 2026 Lukas Reschke</small>
+  </div>
+</footer>
+</body>
+</html>

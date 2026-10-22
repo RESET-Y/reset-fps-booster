@@ -1,0 +1,21 @@
+Schriften der Landingpage, selbst gehostet (keine Anfragen an Google)
+
+Barlow Condensed 700 und 800, Subset latin
+  Quelle: Fontsource, npm-Paket @fontsource/barlow-condensed 5.3.0
+  Urheber: Jeremy Tribby
+  Lizenz: SIL Open Font License 1.1 (OFL-1.1)
+
+Inter 400 und 600, Subset latin
+  Quelle: Fontsource, npm-Paket @fontsource/inter 5.3.0
+  Urheber: Rasmus Andersson
+  Lizenz: SIL Open Font License 1.1 (OFL-1.1)
+
+JetBrains Mono 400, Subset latin
+  Quelle: dieselbe Datei wie site/assets/fonts (Google Fonts)
+  Urheber: JetBrains
+  Lizenz: SIL Open Font License 1.1 (OFL-1.1)
+
+Lizenztext: https://openfontlicense.org/open-font-license-official-text/
+
+Alle übrigen Inhalte (HTML, CSS, JavaScript, Kurven-Demo) sind für diese Seite
+selbst geschrieben. Das Logo stammt aus site/assets/logo_wide.png.
