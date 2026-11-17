@@ -701,6 +701,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     struct TuningStats {
         std::vector<double> pipe, gToN, nToG;
         int gaps = 0, under2 = 0, over20 = 0, queueMax = 0;
+        int skipEvents = 0, framesSkipped = 0;
         double holdWaitSum = 0.0; int holdCount = 0;
         double lastShown = -1.0; bool lastWasG = false; double reportAt = 0.0;
         void Present(bool isG, double at) {
@@ -730,12 +731,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             snprintf(line, sizeof(line),
                 "[FrameBoostV2][tuning] hold %.2f | pipeline mean %.2f p95 %.2f ms | hold wait %.2f ms"
                 " | G->N p5 %.2f p50 %.2f p95 %.2f | N->G p5 %.2f p50 %.2f p95 %.2f"
-                " | gaps <2ms %.1f%% >20ms %d of %d | queue max %d",
+                " | gaps <2ms %.1f%% >20ms %d of %d | queue max %d | brake %d skips, %d frames",
                 holdFraction, Mean(pipe), Pct(pipe, 0.95),
                 holdCount ? holdWaitSum / holdCount : 0.0,
                 Pct(gToN, 0.05), Pct(gToN, 0.5), Pct(gToN, 0.95),
                 Pct(nToG, 0.05), Pct(nToG, 0.5), Pct(nToG, 0.95),
-                100.0 * under2 / gaps, over20, gaps, queueMax);
+                100.0 * under2 / gaps, over20, gaps, queueMax, skipEvents, framesSkipped);
             Logger::Log(line);
             // ALSO INTO ITS OWN FILE. The main log is capped at 4 MB with one
             // old generation, and at ~120 fps the per-frame [seq] lines fill
@@ -747,12 +748,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         }
         void Clear() {
             pipe.clear(); gToN.clear(); nToG.clear();
-            gaps = under2 = over20 = queueMax = 0; holdWaitSum = 0.0; holdCount = 0;
+            gaps = under2 = over20 = queueMax = 0; skipEvents = framesSkipped = 0; holdWaitSum = 0.0; holdCount = 0;
         }
     } tuning;
 
     // A red block on generated frames, green on real ones. Diagnostic only.
     const bool markFrames = HasArg(args, L"mark");
+    const bool noBrake = HasArg(args, L"nobrake");
+    // When the brake last fired. While it keeps firing the loop cannot keep up,
+    // and the hold only adds delay: measured in BF1 with the brake on, the hold
+    // waited 14.7 ms per frame, because after skips the pair interval it is
+    // derived from is two source intervals (~28 ms), not one.
+    double lastBrakeMs = -1e9;
 
     // Overlay on the left half only, untouched game on the right.
     const bool halfWidth = HasArg(args, L"half");
@@ -921,6 +928,89 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // pipeline is settled, then keeps running untouched.
     const bool dumpFrames = HasArg(args, L"dump");
     int dumpCountdown = dumpFrames ? 150 : -1;
+    // REPLAY SNAPSHOTS. Reported 2026-11-15: moving things sometimes look
+    // torn, in "many games", with no way to say which pixels or why. A key
+    // that saves the CURRENT frame does not work: pressing it stops the
+    // movement that shows the fault. So every presented frame is copied into a
+    // ring on the GPU, and Ctrl+Shift+F12 writes the last ~60 of them - the
+    // second BEFORE the key - to Logs\snaps\<time>\, oldest first, each named
+    // N (real) or G (generated).
+    //
+    // Diagnostic and costly (~60 full-size textures, ~0.9 GB at 1440p, one
+    // GPU copy per present), so it is OFF unless
+    // %LOCALAPPDATA%\ResetFpsBooster\snaps.on exists when the engine starts.
+    // Only that one key combination is read, at most every 50 ms.
+    std::wstring snapDir;
+    bool snapsOn = false;
+    {
+        wchar_t lad[MAX_PATH] = {};
+        if (GetEnvironmentVariableW(L"LOCALAPPDATA", lad, MAX_PATH)) {
+            const std::wstring root = std::wstring(lad) + L"\\ResetFpsBooster\\";
+            snapDir = root + L"Logs\\snaps\\";
+            snapsOn = GetFileAttributesW((root + L"snaps.on").c_str()) != INVALID_FILE_ATTRIBUTES;
+        }
+    }
+    constexpr int kSnapRing = 60;
+    std::vector<winrt::com_ptr<ID3D11Texture2D>> snapTex(kSnapRing);
+    std::vector<bool> snapIsG(kSnapRing, false);
+    int snapHead = 0, snapFilled = 0;
+    double snapKeyCheckAt = 0.0;
+    bool snapKeyWasDown = false;
+    int snapCount = 0;
+    if (snapsOn) Logger::Log("[FrameBoostV2] Replay snapshots ON (snaps.on): Ctrl+Shift+F12 saves the last "
+                             + std::to_string(kSnapRing) + " presented frames to Logs\\snaps.");
+
+    auto snapRecord = [&](ID3D11Texture2D* src, bool isG) {
+        if (!snapsOn || !src) return;
+        D3D11_TEXTURE2D_DESC sd{};
+        src->GetDesc(&sd);
+        auto& slot = snapTex[snapHead];
+        bool fits = false;
+        if (slot) {
+            D3D11_TEXTURE2D_DESC dd{};
+            slot->GetDesc(&dd);
+            fits = dd.Width == sd.Width && dd.Height == sd.Height && dd.Format == sd.Format;
+        }
+        if (!fits) {
+            slot = nullptr;
+            D3D11_TEXTURE2D_DESC nd{};
+            nd.Width = sd.Width; nd.Height = sd.Height; nd.MipLevels = 1; nd.ArraySize = 1;
+            nd.Format = sd.Format; nd.SampleDesc.Count = 1; nd.Usage = D3D11_USAGE_DEFAULT;
+            if (FAILED(device->CreateTexture2D(&nd, nullptr, slot.put()))) {
+                snapsOn = false;
+                Logger::Log("[FrameBoostV2] Replay snapshots turned off: could not allocate the ring.");
+                return;
+            }
+        }
+        context->CopySubresourceRegion(slot.get(), 0, 0, 0, 0, src, 0, nullptr);
+        snapIsG[snapHead] = isG;
+        snapHead = (snapHead + 1) % kSnapRing;
+        snapFilled = std::min(snapFilled + 1, kSnapRing);
+    };
+
+    auto snapFlush = [&]() {
+        if (!snapsOn || snapFilled == 0 || snapDir.empty()) return;
+        SYSTEMTIME st{};
+        GetLocalTime(&st);
+        wchar_t stamp[64];
+        swprintf_s(stamp, L"%04d%02d%02d_%02d%02d%02d\\",
+                   st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+        CreateDirectoryW(snapDir.c_str(), nullptr);
+        const std::wstring dir = snapDir + stamp;
+        CreateDirectoryW(dir.c_str(), nullptr);
+        const double t0 = NowMs();
+        for (int i = 0; i < snapFilled; ++i) {
+            const int idx = (snapHead - snapFilled + i + kSnapRing) % kSnapRing;
+            wchar_t name[32];
+            swprintf_s(name, L"%02d_%c.bmp", i, snapIsG[idx] ? L'G' : L'N');
+            DumpTexture(device.get(), context.get(), snapTex[idx].get(), dir + name);
+        }
+        ++snapCount;
+        Logger::Log("[FrameBoostV2] Replay snapshot " + std::to_string(snapCount) + ": "
+                    + std::to_string(snapFilled) + " frames written in "
+                    + std::to_string(static_cast<int>(NowMs() - t0)) + " ms.");
+        snapFilled = 0;
+    };
 
     Telemetry telemetry;
     telemetry.Init(displayHz);
@@ -990,8 +1080,35 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     double cadenceMs = 0.0;
 
     bool running = true;
+    // THE GAME WINDOW IS CHECKED ON A CLOCK, NOT ONLY WHEN A FRAME ARRIVES. A minimized or
+    // closed game delivers no frames, and the per-frame TrackTarget further down then never
+    // ran: the overlay stayed on the desktop, as the last frame or as a caption-sized dark
+    // square ("das Viereck wenn ich das game minimiere oder schliesse", 2026-11-17).
+    double targetCheckAt = 0.0;
+
     while (running) {
         presenter.PumpMessages();
+
+        // Every 50 ms the overlay is hidden or shown here as well, frames or not. A game
+        // window that no longer exists ends the engine: that window does not come back,
+        // and nothing should be left running for it.
+        if (NowMs() >= targetCheckAt) {
+            targetCheckAt = NowMs() + 50.0;
+            if (!screenMode && !syntheticMode && target && !IsWindow(target)) {
+                Logger::Log("[FrameBoostV2] The game window is gone - stopping.");
+                break;
+            }
+            if (!measureOnly) presenter.TrackTarget();
+        }
+
+        if (NowMs() >= snapKeyCheckAt) {
+            snapKeyCheckAt = NowMs() + 50.0;
+            const bool down = (GetAsyncKeyState(VK_CONTROL) & 0x8000)
+                           && (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+                           && (GetAsyncKeyState(VK_F12) & 0x8000);
+            if (down && !snapKeyWasDown && snapCount < 5) snapFlush();
+            snapKeyWasDown = down;
+        }
 
         MSG peek;
         if (PeekMessageW(&peek, nullptr, WM_QUIT, WM_QUIT, PM_NOREMOVE)) break;
@@ -1002,6 +1119,20 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // an uncapped game holding the GPU: queue 7-8 deep, frames shown 65 to
         // 150 ms after they arrived, 255 ms at worst. Skip to the newest.
         if (!generate && !syntheticMode) capture.SkipToNewest();
+        // THE EMERGENCY BRAKE for frame generation (latency plan step 3).
+        // Measured in Battlefield 1 (2026-11-15): every Present blocked 13.6 ms,
+        // so two presents per source frame held the loop at 36 of the 72 frames
+        // arriving. The queue sat at 7-8 and frames reached the screen ~225 ms
+        // after they arrived - a backlog the loop could never leave. From three
+        // waiting frames on, jump to the newest. Below that nothing changes, so
+        // the normal paced path is untouched. The pair after a skip spans more
+        // than one interval; pairIntervalMs < 200 already guards that, and the
+        // estimator is still fed in order.
+        // `nobrake` turns it off for A/B comparisons.
+        if (generate && !syntheticMode && !noBrake && capture.QueueDepth() >= 3) {
+            const int n = capture.SkipToNewest();
+            if (n > 0) { ++tuning.skipEvents; tuning.framesSkipped += n; lastBrakeMs = NowMs(); }
+        }
         const bool got = syntheticMode ? synthetic.Produce(context.get(), frame)
                                        : capture.Acquire(frame);
         if (!got) {
@@ -1190,6 +1321,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                             desc.Width, desc.Height, Estimator::BlockSizePixels()))
                         shownG = b;
                 }
+                snapRecord(shownG, true);
                 const bool okG = presenter.Present(context.get(), shownG, &pt,
                                                   markFrames ? Presenter::Marker::Generated
                                                              : Presenter::Marker::None);
@@ -1259,7 +1391,11 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // only released after its present. With > 0 this was always true and
         // the hold never ran - measured as a 6.5 ms pipeline, below the 8.3 ms
         // a hold alone would cost.
-        const bool behind = !syntheticMode && capture.QueueDepth() > 1;
+        // Also behind while the brake fired within the last second (see
+        // lastBrakeMs). One second rather than one frame, so the hold does not
+        // switch on and off between skips.
+        const bool behind = !syntheticMode
+            && (capture.QueueDepth() > 1 || NowMs() - lastBrakeMs < 1000.0);
         if (generate) readHoldFile();
         if (pairUsable && generate && holdFraction > 0.0 && !behind) {
             const double holdFrom = NowMs();
@@ -1302,6 +1438,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                             + ", stale frames skipped so far " + std::to_string(syntheticMode ? 0 : capture.Skipped()));
             }
         }
+        snapRecord(shownN, false);
         const bool okN = presenter.Present(context.get(), shownN, &pt,
                                           markFrames ? Presenter::Marker::Native
                                                      : Presenter::Marker::None);

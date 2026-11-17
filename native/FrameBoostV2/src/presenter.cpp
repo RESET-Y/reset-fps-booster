@@ -199,13 +199,25 @@ bool Presenter::GameIsForeground() const {
     return GetAncestor(fg, GA_ROOT) == GetAncestor(m_target, GA_ROOT);
 }
 
+bool Presenter::TargetIsPresentable() const {
+    if (m_screenMode || !m_target) return true;
+    if (!IsWindow(m_target) || IsIconic(m_target) || !IsWindowVisible(m_target)) return false;
+    RECT client{};
+    if (!GetClientRect(m_target, &client)) return false;
+    return client.right - client.left >= 200 && client.bottom - client.top >= 150;
+}
+
 void Presenter::TrackTarget() {
     // THE OVERLAY IS ONLY ON TOP WHILE THE GAME HAS THE FOCUS. It used to stay topmost
     // all the time, which put it over Discord, the desktop and the taskbar: a player
     // could not get back out to switch the feature off. Now it hides as soon as another
     // window takes the focus, and shows again when the game does.
     if (!m_hwnd) return;
-    const bool show = GameIsForeground();
+    // A minimized game can stay the foreground window. Its client area is then a
+    // caption-sized stub, and the overlay used to shrink onto it and stay on the
+    // desktop as a small dark square ("das Viereck wenn ich das game minimiere oder
+    // schliesse"). Gone, hidden, minimized or too small to be a game: no overlay.
+    const bool show = GameIsForeground() && TargetIsPresentable();
     if (show != (IsWindowVisible(m_hwnd) != FALSE)) {
         ShowWindow(m_hwnd, show ? SW_SHOWNOACTIVATE : SW_HIDE);
         if (show) Logger::Log("[FrameBoostV2] Overlay shown: the game has the focus.");

@@ -58,6 +58,7 @@ public:
     // True when the game (or, in whole-screen mode, a window covering the monitor)
     // has the focus. The overlay is topmost only then.
     bool GameIsForeground() const;
+    bool TargetIsPresentable() const;
     void Resize(UINT width, UINT height);
     void PumpMessages();
 
