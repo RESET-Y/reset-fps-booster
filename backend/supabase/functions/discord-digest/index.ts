@@ -17,6 +17,12 @@
 // call does nothing. For a test run outside that window, send the header
 // x-digest-secret with the value of DIGEST_SECRET.
 //
+// FOR THE FIX ROUTINE (migration 0016): every message it reads is also kept,
+// scrubbed and without author names, in public.discord_reports. The local
+// Claude routine on Lukas's PC (12:30 and 20:30) reads that table, prepares
+// fixes on a branch of their own and reports to Lukas; nothing ships without him.
+// "?collect=1" collects and stores only, no DM, at any hour, at most every 10 minutes.
+//
 // Secrets (Supabase > Edge Functions > Secrets), never in the repo:
 //   DISCORD_BOT_TOKEN, DISCORD_GUILD_ID   already set for discord-sync
 //   DISCORD_OWNER_ID         Lukas's Discord user id: gets the report
@@ -36,6 +42,8 @@ const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_LIST = 15; // per section; the rest is counted, not listed
+const KEEP_MS = 60 * 24 * 60 * 60 * 1000; // discord_reports keeps 60 days
+const COLLECT_EVERY_MS = 10 * 60 * 1000;  // "?collect=1" at most this often
 
 type Kind = "bugs" | "help" | "ideas";
 const KINDS: { kind: Kind; label: string; names: string[] }[] = [
@@ -132,7 +140,7 @@ async function collect(since: number) {
   const kindOf = new Map(channels.map((c) => [c.channel.id, c.kind]));
   const items: Item[] = [];
   const toItem = (m: Msg, kind: Kind, thread: string | null): Item => ({
-    id: m.id, channel_id: m.channel_id, kind, thread, time: Date.parse(m.timestamp),
+    id: m.id, channel_id: m.channel_id, kind, thread: thread === null ? null : scrub(thread), time: Date.parse(m.timestamp),
     author: m.author.global_name || m.author.username,
     fromTeam: m.author.id === ownerId || !!m.author.bot,
     replyTo: m.message_reference?.message_id ?? null,
@@ -270,14 +278,58 @@ function render(r: Report, total: number, day: string, found: string[], missing:
   return lines.join("\n");
 }
 
+// ---------------------------------------------------------------- kept for the fix routine
+/** Upserts the messages into discord_reports. The routine's status and note are never touched here. */
+async function store(items: Item[]): Promise<number> {
+  const rows = items.map((m) => ({
+    id: m.id, channel_id: m.channel_id, kind: m.kind, thread: m.thread,
+    posted_at: new Date(m.time).toISOString(), from_team: m.fromTeam, reply_to: m.replyTo,
+    content: m.text.slice(0, 4000), attachments: m.attachments.length,
+  }));
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await admin.from("discord_reports").upsert(rows.slice(i, i + 500), { onConflict: "id" });
+    if (error) throw new Error(`discord_reports: ${error.message}`);
+  }
+  await admin.from("discord_reports").delete().lt("posted_at", new Date(Date.now() - KEEP_MS).toISOString());
+  return rows.length;
+}
+
+/** "?collect=1": read and store, no DM. The routine calls this right before it looks at the table. */
+async function collectOnly(): Promise<Response> {
+  const { data } = await admin.from("discord_collect_state").select("started_at").eq("id", 1).maybeSingle();
+  const last = Date.parse(data?.started_at ?? "") || 0;
+  if (Date.now() - last < COLLECT_EVERY_MS) return Response.json({ skipped: "collected less than 10 minutes ago" });
+  const startedAt = new Date().toISOString();
+  await admin.from("discord_collect_state").upsert({ id: 1, started_at: startedAt, finished_at: null, stored: null, error: null });
+  const work = (async () => {
+    const { items } = await collect(Date.now() - WINDOW_MS);
+    const stored = await store(items);
+    await admin.from("discord_collect_state").update({ finished_at: new Date().toISOString(), stored }).eq("id", 1);
+  })().catch(async (e) => {
+    console.log("COLLECT FAILED", e);
+    await admin.from("discord_collect_state")
+      .update({ finished_at: new Date().toISOString(), error: String(e?.message ?? e).slice(0, 500) }).eq("id", 1);
+  });
+  // deno-lint-ignore no-explicit-any
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(work); else await work;
+  return Response.json({ collecting: true, started_at: startedAt });
+}
+
 async function run(day: string): Promise<void> {
   const { items, found, missing, blocked } = await collect(Date.now() - WINDOW_MS);
+  // Kept for the routine first; a failure there is named in the DM instead of stopping it.
+  let storeNote = "";
+  try { await store(items); } catch (e) {
+    console.log("DIGEST STORE FAILED", e);
+    storeNote = `⚠️ Für die Fix-Routine nicht gespeichert: ${String((e as Error)?.message ?? e).slice(0, 300)}`;
+  }
   const dm = await dmChannel(ownerId);
-  const text = items.length
+  const text = (items.length
     ? render(analyze(items), items.length, day, found, missing, blocked)
     : [`## RESET Discord · Bericht vom ${day}`,
       `In den letzten 24 Stunden gab es keine neuen Nachrichten in ${found.join(", ") || "den Kanälen"}.`,
-      ...warnings(missing, blocked)].join("\n");
+      ...warnings(missing, blocked)].join("\n")) + (storeNote ? `\n${storeNote}` : "");
   for (const part of chunks(text)) {
     await discord("POST", `/channels/${dm}/messages`, { content: part, flags: 4 /* no link previews */ });
   }
@@ -295,6 +347,8 @@ Deno.serve(async (req) => {
   if (!guildId || !ownerId || !Deno.env.get("DISCORD_BOT_TOKEN")) {
     return Response.json({ error: "DISCORD_BOT_TOKEN, DISCORD_GUILD_ID or DISCORD_OWNER_ID not set" }, { status: 500 });
   }
+  if (new URL(req.url).searchParams.get("collect") === "1") return await collectOnly();
+
   const forced = !!digestSecret && req.headers.get("x-digest-secret") === digestSecret;
   const { day, hour, label } = berlinNow();
 
