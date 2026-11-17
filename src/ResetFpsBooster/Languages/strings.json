@@ -3424,5 +3424,40 @@
     "en": "The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.",
     "de": "Der FOV-Wert aus dem Spiel. Ein Umrechner nennt 60 bis 80, bestätigt habe ich das nicht.",
     "ru": "Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено."
+  },
+  "Common.Yes": {
+    "en": "Yes",
+    "de": "Ja",
+    "ru": "Да"
+  },
+  "Common.No": {
+    "en": "No",
+    "de": "Nein",
+    "ru": "Нет"
+  },
+  "Sys.Laptop": {
+    "en": "Laptop",
+    "de": "Laptop",
+    "ru": "Ноутбук"
+  },
+  "Sys.Desktop": {
+    "en": "Desktop",
+    "de": "Desktop-PC",
+    "ru": "Настольный ПК"
+  },
+  "Dash.Pill.Active": {
+    "en": "Active",
+    "de": "Aktiv",
+    "ru": "Активно"
+  },
+  "Dash.Game.Optimized": {
+    "en": "Optimized",
+    "de": "Optimiert",
+    "ru": "Оптимизировано"
+  },
+  "Dash.Categories": {
+    "en": "categories",
+    "de": "Kategorien",
+    "ru": "категорий"
   }
 }

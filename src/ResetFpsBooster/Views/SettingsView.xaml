@@ -148,7 +148,18 @@
                 <StackPanel>
                     <TextBlock Text="{DynamicResource Settings.AdminAccess}" Style="{StaticResource Text.SectionTitle}"/>
                     <TextBlock Margin="0,10,0,0" Style="{StaticResource Text.Body}">
-                        <Run Text="{DynamicResource Settings.CurrentStatus}"/><Run Text="{Binding IsAdministrator, Mode=OneWay, Converter={StaticResource BoolToYesNo}}" Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold"/>
+                        <Run Text="{DynamicResource Settings.CurrentStatus}"/><Run Foreground="{StaticResource Brush.TextPrimary}" FontFamily="Segoe UI Semibold">
+                            <Run.Style>
+                                <Style TargetType="Run">
+                                    <Setter Property="Text" Value="{DynamicResource Common.No}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAdministrator}" Value="True">
+                                            <Setter Property="Text" Value="{DynamicResource Common.Yes}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Run.Style>
+                        </Run>
                     </TextBlock>
                     <Button Content="{DynamicResource Settings.RestartAsAdmin}" Style="{StaticResource Button.Secondary}" HorizontalAlignment="Left" Margin="0,12,0,0"
                             Command="{Binding RelaunchElevatedCommand}"

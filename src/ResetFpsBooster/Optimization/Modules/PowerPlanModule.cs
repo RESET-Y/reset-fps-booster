@@ -105,7 +105,9 @@ public sealed partial class PowerPlanModule : IOptimizationModule
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                // plan names are localized ("Höchstleistung"), and powercfg writes them in the OEM code page
+                StandardOutputEncoding = ConsoleText.Oem
             };
             using var process = Process.Start(psi);
             if (process is null) return string.Empty;

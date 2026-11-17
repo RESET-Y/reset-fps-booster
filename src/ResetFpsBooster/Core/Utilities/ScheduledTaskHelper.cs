@@ -39,7 +39,10 @@ public static class ScheduledTaskHelper
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                // its messages are localized and shown to the user; schtasks writes them in the OEM code page
+                StandardOutputEncoding = ConsoleText.Oem,
+                StandardErrorEncoding = ConsoleText.Oem
             };
 
             using var process = Process.Start(psi);

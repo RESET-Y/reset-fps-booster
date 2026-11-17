@@ -687,4 +687,11 @@
     <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Введите путь для одного полного поворота в сантиметрах, например 35 (от 5 до 300).</sys:String>
     <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders сначала нужно откалибровать: введите путь на 360° и калибруйте.</sys:String>
     <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено.</sys:String>
+    <sys:String x:Key="Common.Yes" xml:space="preserve">Да</sys:String>
+    <sys:String x:Key="Common.No" xml:space="preserve">Нет</sys:String>
+    <sys:String x:Key="Sys.Laptop" xml:space="preserve">Ноутбук</sys:String>
+    <sys:String x:Key="Sys.Desktop" xml:space="preserve">Настольный ПК</sys:String>
+    <sys:String x:Key="Dash.Pill.Active" xml:space="preserve">Активно</sys:String>
+    <sys:String x:Key="Dash.Game.Optimized" xml:space="preserve">Оптимизировано</sys:String>
+    <sys:String x:Key="Dash.Categories" xml:space="preserve">категорий</sys:String>
 </ResourceDictionary>

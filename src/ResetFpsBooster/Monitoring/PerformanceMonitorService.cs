@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using ResetFpsBooster.Core.Models;
@@ -174,7 +175,8 @@ public sealed class PerformanceMonitorService : IPerformanceMonitorService
             var output = process.StandardOutput.ReadToEnd().Trim();
             process.WaitForExit(2000);
 
-            return double.TryParse(output, out var temp) ? temp : null;
+            // nvidia-smi writes a dot as the decimal mark ("56.62") whatever the Windows language
+            return double.TryParse(output, NumberStyles.Float, CultureInfo.InvariantCulture, out var temp) ? temp : null;
         }
         catch
         {

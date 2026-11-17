@@ -18,9 +18,6 @@
             <conv:EnumEqualsConverter x:Key="EnumEquals"/>
             <conv:RiskLevelToBrushConverter x:Key="RiskToBrush"/>
             <conv:BytesToReadableConverter x:Key="BytesToReadable"/>
-            <conv:BoolToTextConverter x:Key="BoolToYesNo" TrueText="Yes" FalseText="No"/>
-            <conv:BoolToTextConverter x:Key="BoolToLaptopDesktop" TrueText="Laptop" FalseText="Desktop"/>
-            <conv:BoolToTextConverter x:Key="BoolToEnabledDisabled" TrueText="Enabled" FalseText="Disabled"/>
             <conv:BoolToTextConverter x:Key="BoolToCheckmark" TrueText="✓" FalseText="…"/>
             <conv:InverseBoolConverter x:Key="InverseBool"/>
             <conv:ToUpperConverter x:Key="ToUpper"/>

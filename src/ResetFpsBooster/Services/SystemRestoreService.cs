@@ -22,7 +22,10 @@ public sealed class SystemRestoreService : ISystemRestoreService
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                // the error text is shown to the user; PowerShell writes it in the OEM code page
+                StandardOutputEncoding = ConsoleText.Oem,
+                StandardErrorEncoding = ConsoleText.Oem
             };
 
             using var process = Process.Start(psi);

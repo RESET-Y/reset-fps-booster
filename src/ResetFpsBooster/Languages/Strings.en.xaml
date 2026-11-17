@@ -687,4 +687,11 @@
     <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Enter the distance for one full turn in cm, for example 35 (between 5 and 300).</sys:String>
     <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders needs calibrating first: enter the distance for 360° and calibrate.</sys:String>
     <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.</sys:String>
+    <sys:String x:Key="Common.Yes" xml:space="preserve">Yes</sys:String>
+    <sys:String x:Key="Common.No" xml:space="preserve">No</sys:String>
+    <sys:String x:Key="Sys.Laptop" xml:space="preserve">Laptop</sys:String>
+    <sys:String x:Key="Sys.Desktop" xml:space="preserve">Desktop</sys:String>
+    <sys:String x:Key="Dash.Pill.Active" xml:space="preserve">Active</sys:String>
+    <sys:String x:Key="Dash.Game.Optimized" xml:space="preserve">Optimized</sys:String>
+    <sys:String x:Key="Dash.Categories" xml:space="preserve">categories</sys:String>
 </ResourceDictionary>

@@ -58,7 +58,18 @@
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="{DynamicResource Sys.DeviceType}" Style="{StaticResource Text.Caption}" Margin="0,8"/>
                         <TextBlock Grid.Row="6" Grid.Column="1" Style="{StaticResource Text.Body}" Foreground="{StaticResource Brush.TextPrimary}" Margin="0,8">
-                            <Run Text="{Binding Snapshot.IsLaptop, Mode=OneWay, Converter={StaticResource BoolToLaptopDesktop}}"/>
+                            <Run>
+                                <Run.Style>
+                                    <Style TargetType="Run">
+                                        <Setter Property="Text" Value="{DynamicResource Sys.Desktop}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Snapshot.IsLaptop}" Value="True">
+                                                <Setter Property="Text" Value="{DynamicResource Sys.Laptop}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Run.Style>
+                            </Run>
                         </TextBlock>
                     </Grid>
                 </StackPanel>
