@@ -28,9 +28,28 @@ public sealed class HardwareService : IHardwareService
         ct.ThrowIfCancellationRequested();
 
         snapshot.AllGpus = ReadGpus();
-        snapshot.PrimaryGpu = snapshot.AllGpus.FirstOrDefault(g => g.AdapterRamBytes > 0) ?? snapshot.AllGpus.FirstOrDefault();
+        snapshot.PrimaryGpu = PickPrimaryGpu(snapshot.AllGpus);
 
         return snapshot;
+    }
+
+    // AdapterRAM is a 32-bit WMI field: cards with 4 GB or more read 0 or a wrong value, so memory size
+    // alone must not decide which card is the primary one (an APU was picked over an RTX 3060 this way).
+    // A dedicated card comes first: NVIDIA, then AMD or Intel cards whose name is not an integrated
+    // "... Graphics" chip. Only when nothing like that is found does the first card count.
+    private static GpuInfo? PickPrimaryGpu(IEnumerable<GpuInfo> gpus)
+    {
+        var list = gpus.ToList();
+        return list.FirstOrDefault(g => g.Vendor == "NVIDIA")
+            ?? list.FirstOrDefault(g => !IsIntegratedName(g.Name))
+            ?? list.FirstOrDefault();
+    }
+
+    private static bool IsIntegratedName(string name)
+    {
+        var lower = name.ToLowerInvariant();
+        // "Arc" is Intel's discrete line, and its names also end in "Graphics"
+        return lower.Contains("graphics") && !lower.Contains("arc");
     }
 
     private static CpuInfo ReadCpu()
