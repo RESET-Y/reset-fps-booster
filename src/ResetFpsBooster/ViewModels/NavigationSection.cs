@@ -12,6 +12,7 @@ public enum NavigationSection
     Crosshair,
     SensFinder,
     ApexConfig,
+    Picture,
     System,
     Backups,
     Logs,

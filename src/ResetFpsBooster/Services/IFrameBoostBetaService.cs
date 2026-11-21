@@ -20,7 +20,9 @@ public interface IFrameBoostBetaService
     /// <param name="gameWindow">The window handle picked in the list, or 0 for
     /// the engine's own five-second countdown.</param>
     /// <param name="displayHz">The refresh rate picked in the app.</param>
-    string? StartFrameBoost(bool lowLatency, long gameWindow, int displayHz);
+    /// <param name="factor">2 = one generated frame per real frame, 3 = two.
+    /// The engine stays at 2x in low latency mode whatever is asked.</param>
+    string? StartFrameBoost(bool lowLatency, int factor, long gameWindow, int displayHz);
 
     /// Turns frame generation off. The engine keeps running if Smooth Motion
     /// is still on, otherwise it stops.

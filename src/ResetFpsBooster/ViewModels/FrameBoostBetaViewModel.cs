@@ -20,7 +20,26 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
     /// Changing it while FrameBoost runs does nothing until the next start,
     /// which is why the toggle is disabled while it is running rather than
     /// silently ignored.
-    [ObservableProperty] private bool _lowLatency;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CapAdvice))]
+    private bool _lowLatency;
+
+    /// 2x or 3x: one or two generated frames per real frame. Picked before
+    /// starting, like low latency, which keeps the engine at 2x.
+    public IReadOnlyList<int> Factors { get; } = new[] { 2, 3 };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CapAdvice))]
+    private int _factor;
+
+    partial void OnFactorChanged(int value)
+    {
+        _settings.Current.FrameBoostFactor = value;
+        _settings.Save();
+    }
+
+    /// The factor the engine will really run: low latency stays at 2x.
+    private int EffectiveFactor => LowLatency ? 2 : Factor;
 
     /// THE CAP TO RECOMMEND, from the refresh rate the user picks.
     ///
@@ -48,7 +67,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         _settings.Save();
     }
 
-    public string CapAdvice => Loc.F("FB.CapAdvice", DisplayHz / 2, DisplayHz);
+    public string CapAdvice => Loc.F("FB.CapAdvice", DisplayHz / EffectiveFactor, DisplayHz, EffectiveFactor);
 
     /// THE GAME WINDOW, picked from a list like the refresh rate.
     ///
@@ -179,6 +198,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
         };
         _ = CheckPremiumAsync();
         _displayHz = settings.Current.FrameBoostDisplayHz > 0 ? settings.Current.FrameBoostDisplayHz : 144;
+        _factor = settings.Current.FrameBoostFactor == 3 ? 3 : 2;
 
         // Built in code from a format string, so it has to be re-announced
         // when the language changes; the XAML texts follow on their own.
@@ -223,7 +243,7 @@ public sealed partial class FrameBoostBetaViewModel : ViewModelBase, IDisposable
             }
         }
 
-        var error = _service.StartFrameBoost(LowLatency, SelectedGameWindow?.Handle ?? 0, DisplayHz);
+        var error = _service.StartFrameBoost(LowLatency, Factor, SelectedGameWindow?.Handle ?? 0, DisplayHz);
         if (error is not null)
         {
             StatusMessage = error;

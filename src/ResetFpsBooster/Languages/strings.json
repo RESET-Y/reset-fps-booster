@@ -396,9 +396,19 @@
     "ru": "Ваш монитор:"
   },
   "FB.CapAdvice": {
-    "en": "Cap the game at {0} FPS. FrameBoost doubles it to {1}, which is what a {1} Hz monitor can show.",
-    "de": "Begrenze das Spiel auf {0} FPS. FrameBoost verdoppelt das auf {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.",
-    "ru": "Ограничьте игру до {0} FPS. FrameBoost удвоит это до {1} — ровно столько, сколько может показать монитор {1} Гц."
+    "en": "Cap the game at {0} FPS. FrameBoost {2}x turns that into {1}, which is what a {1} Hz monitor can show.",
+    "de": "Begrenze das Spiel auf {0} FPS. FrameBoost {2}x macht daraus {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.",
+    "ru": "Ограничьте игру до {0} FPS. FrameBoost {2}x превратит это в {1} — ровно столько, сколько может показать монитор {1} Гц."
+  },
+  "FB.Factor": {
+    "en": "Mode",
+    "de": "Modus",
+    "ru": "Режим"
+  },
+  "FB.FactorHint": {
+    "en": "2x adds one generated frame per real frame, 3x adds two. 3x is smoother when the game itself runs at a third of your refresh rate, but costs more GPU time and every generated frame is a guess, so mistakes show more often. Low latency mode always runs 2x.",
+    "de": "2x fügt pro echtem Bild ein berechnetes hinzu, 3x zwei. 3x ist flüssiger, wenn das Spiel selbst mit einem Drittel deiner Bildwiederholrate läuft, kostet aber mehr GPU-Zeit, und jedes berechnete Bild ist eine Schätzung – Fehler sieht man also öfter. Der Modus mit geringer Latenz läuft immer mit 2x.",
+    "ru": "2x добавляет один сгенерированный кадр на каждый настоящий, 3x — два. 3x плавнее, когда сама игра работает на трети частоты обновления, но требует больше времени GPU, и каждый сгенерированный кадр — это оценка, поэтому ошибки видны чаще. Режим низкой задержки всегда работает в 2x."
   },
   "FB.GpuRoom": {
     "en": "Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't.",
@@ -3424,6 +3434,156 @@
     "en": "The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.",
     "de": "Der FOV-Wert aus dem Spiel. Ein Umrechner nennt 60 bis 80, bestätigt habe ich das nicht.",
     "ru": "Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено."
+  },
+  "Nav.Picture": {
+    "en": "Picture",
+    "de": "Bildfarbe",
+    "ru": "Изображение"
+  },
+  "Picture.Title": {
+    "en": "PICTURE",
+    "de": "BILDFARBE",
+    "ru": "ИЗОБРАЖЕНИЕ"
+  },
+  "Picture.Intro": {
+    "en": "Saturation, brightness and contrast for your screen, with presets. The NVIDIA driver sets the saturation, Windows the brightness and contrast. Sharpness is not in yet: I am not sure enough of the driver setting for it to set it.",
+    "de": "Sättigung, Helligkeit und Kontrast für deinen Bildschirm, mit Presets. Die Sättigung stellt der NVIDIA-Treiber ein, Helligkeit und Kontrast Windows. Schärfe fehlt noch: Die Einstellung dafür im Treiber kenne ich nicht sicher genug, um sie zu setzen.",
+    "ru": "Насыщенность, яркость и контраст для экрана, с пресетами. Насыщенность задаёт драйвер NVIDIA, яркость и контраст — Windows. Резкость пока не добавлена: настройку драйвера для неё я знаю недостаточно точно, чтобы её задавать."
+  },
+  "Picture.Presets": {
+    "en": "Presets",
+    "de": "Presets",
+    "ru": "Пресеты"
+  },
+  "Picture.OwnPresets": {
+    "en": "Own presets",
+    "de": "Eigene Presets",
+    "ru": "Свои пресеты"
+  },
+  "Picture.Saturation": {
+    "en": "Saturation",
+    "de": "Sättigung",
+    "ru": "Насыщенность"
+  },
+  "Picture.Brightness": {
+    "en": "Brightness",
+    "de": "Helligkeit",
+    "ru": "Яркость"
+  },
+  "Picture.Contrast": {
+    "en": "Contrast",
+    "de": "Kontrast",
+    "ru": "Контраст"
+  },
+  "Picture.SaveAs": {
+    "en": "Save as preset",
+    "de": "Als Preset speichern",
+    "ru": "Сохранить как пресет"
+  },
+  "Picture.NameHint": {
+    "en": "Preset name",
+    "de": "Name des Presets",
+    "ru": "Название пресета"
+  },
+  "Picture.Delete": {
+    "en": "Delete",
+    "de": "Löschen",
+    "ru": "Удалить"
+  },
+  "Picture.Reset": {
+    "en": "BACK TO STANDARD",
+    "de": "ZURÜCK AUF STANDARD",
+    "ru": "ВЕРНУТЬ СТАНДАРТ"
+  },
+  "Picture.AutoOff": {
+    "en": "Off automatically while a game runs",
+    "de": "Automatisch aus, während ein Spiel läuft",
+    "ru": "Выключать автоматически во время игры"
+  },
+  "Picture.AutoOffHint": {
+    "en": "As soon as a game from your library runs, the picture goes back to Windows' own. When it ends, your picture comes back.",
+    "de": "Sobald ein Spiel aus deiner Bibliothek läuft, geht das Bild auf Windows' Standard. Wenn es endet, kommt dein Bild zurück.",
+    "ru": "Как только запускается игра из вашей библиотеки, изображение возвращается к стандартному Windows. Когда игра закрывается, ваше изображение возвращается."
+  },
+  "Picture.GamesTitle": {
+    "en": "These programs pause the picture",
+    "de": "Diese Programme pausieren das Bild",
+    "ru": "Эти программы приостанавливают изображение"
+  },
+  "Picture.NoGames": {
+    "en": "No games in the library yet. Detection is under Game Profiles.",
+    "de": "Noch keine Spiele in der Bibliothek. Die Erkennung findest du unter Spielprofile.",
+    "ru": "В библиотеке пока нет игр. Поиск находится в разделе «Профили игр»."
+  },
+  "Picture.Status.Standard": {
+    "en": "Standard: nothing changed.",
+    "de": "Standard: nichts verändert.",
+    "ru": "Стандарт: ничего не изменено."
+  },
+  "Picture.Status.Active": {
+    "en": "Your picture is active.",
+    "de": "Dein Bild ist aktiv.",
+    "ru": "Ваше изображение активно."
+  },
+  "Picture.Status.Paused": {
+    "en": "Paused while {0} runs.",
+    "de": "Pausiert, weil {0} läuft.",
+    "ru": "Приостановлено, пока работает {0}."
+  },
+  "Picture.Status.NoDriver": {
+    "en": "No NVIDIA driver found: saturation is missing; brightness and contrast still work.",
+    "de": "Kein NVIDIA-Treiber gefunden: Sättigung fehlt, Helligkeit und Kontrast gehen trotzdem.",
+    "ru": "Драйвер NVIDIA не найден: насыщенность недоступна, яркость и контраст работают."
+  },
+  "Picture.NameMissing": {
+    "en": "Give the preset a name.",
+    "de": "Gib dem Preset einen Namen.",
+    "ru": "Дайте пресету название."
+  },
+  "Picture.Refused": {
+    "en": "Windows refused brightness or contrast. Try smaller values.",
+    "de": "Windows hat Helligkeit oder Kontrast abgelehnt. Probier kleinere Werte.",
+    "ru": "Windows отклонила яркость или контраст. Попробуйте меньшие значения."
+  },
+  "Picture.Failed": {
+    "en": "The picture could not be changed.",
+    "de": "Das Bild konnte nicht geändert werden.",
+    "ru": "Не удалось изменить изображение."
+  },
+  "Picture.Preset.Standard": {
+    "en": "Standard",
+    "de": "Standard",
+    "ru": "Стандарт"
+  },
+  "Picture.Preset.Vivid": {
+    "en": "Vivid",
+    "de": "Lebhaft",
+    "ru": "Яркий"
+  },
+  "Picture.Preset.Strong": {
+    "en": "Strong",
+    "de": "Kräftig",
+    "ru": "Сочный"
+  },
+  "Picture.Preset.Max": {
+    "en": "Maximum",
+    "de": "Maximal",
+    "ru": "Максимум"
+  },
+  "Picture.Preset.Clear": {
+    "en": "Clear & bright",
+    "de": "Klar & hell",
+    "ru": "Чистый и светлый"
+  },
+  "Picture.How": {
+    "en": "Saturation is set on the NVIDIA driver for every display. Brightness and contrast use Windows' gamma ramp, the same as the Windows colour calibration. The original values are saved before the first change and come back when the app closes, when a game starts with auto-off, and after a crash at the next start.",
+    "de": "Die Sättigung stellt der NVIDIA-Treiber für jedes Display ein. Helligkeit und Kontrast nutzen die Gammakurve von Windows, wie die Farbkalibrierung in Windows. Die Originalwerte werden vor der ersten Änderung gesichert und kommen zurück, wenn die App schließt, wenn ein Spiel mit automatischem Aus startet und nach einem Absturz beim nächsten Start.",
+    "ru": "Насыщенность задаёт драйвер NVIDIA для каждого дисплея. Яркость и контраст используют гамма-кривую Windows, как калибровка цвета в Windows. Исходные значения сохраняются до первого изменения и возвращаются при закрытии приложения, при запуске игры с автоматическим выключением и после сбоя при следующем запуске."
+  },
+  "Picture.GammaUnavailable": {
+    "en": "Brightness and contrast are not available on this PC: Windows does not allow the gamma curve here. Saturation still works.",
+    "de": "Helligkeit und Kontrast sind auf diesem PC nicht verfügbar: Windows gibt die Gammakurve hier nicht frei. Die Sättigung funktioniert trotzdem.",
+    "ru": "Яркость и контраст на этом ПК недоступны: Windows не разрешает здесь гамма-кривую. Насыщенность работает."
   },
   "Common.Yes": {
     "en": "Yes",

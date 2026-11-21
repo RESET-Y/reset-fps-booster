@@ -81,7 +81,9 @@
     <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Pick the game window, then turn FrameBoost on.</sys:String>
     <sys:String x:Key="FB.BestResult" xml:space="preserve">For the best result</sys:String>
     <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Your monitor:</sys:String>
-    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Cap the game at {0} FPS. FrameBoost doubles it to {1}, which is what a {1} Hz monitor can show.</sys:String>
+    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Cap the game at {0} FPS. FrameBoost {2}x turns that into {1}, which is what a {1} Hz monitor can show.</sys:String>
+    <sys:String x:Key="FB.Factor" xml:space="preserve">Mode</sys:String>
+    <sys:String x:Key="FB.FactorHint" xml:space="preserve">2x adds one generated frame per real frame, 3x adds two. 3x is smoother when the game itself runs at a third of your refresh rate, but costs more GPU time and every generated frame is a guess, so mistakes show more often. Low latency mode always runs 2x.</sys:String>
     <sys:String x:Key="FB.GpuRoom" xml:space="preserve">Leave the GPU some room. FrameBoost needs a few milliseconds of GPU time for every frame it generates. If the game already runs the GPU at 100%, lower the resolution or graphics settings until it doesn't.</sys:String>
     <sys:String x:Key="FB.SteadyCap" xml:space="preserve">A steady, capped frame rate works much better than an uncapped one that jumps around.</sys:String>
     <sys:String x:Key="FB.PremiumFeature" xml:space="preserve">FrameBoost is a Premium feature</sys:String>
@@ -687,6 +689,36 @@
     <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Enter the distance for one full turn in cm, for example 35 (between 5 and 300).</sys:String>
     <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders needs calibrating first: enter the distance for 360° and calibrate.</sys:String>
     <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">The FOV value from the game. One converter lists 60 to 80; I have not confirmed that.</sys:String>
+    <sys:String x:Key="Nav.Picture" xml:space="preserve">Picture</sys:String>
+    <sys:String x:Key="Picture.Title" xml:space="preserve">PICTURE</sys:String>
+    <sys:String x:Key="Picture.Intro" xml:space="preserve">Saturation, brightness and contrast for your screen, with presets. The NVIDIA driver sets the saturation, Windows the brightness and contrast. Sharpness is not in yet: I am not sure enough of the driver setting for it to set it.</sys:String>
+    <sys:String x:Key="Picture.Presets" xml:space="preserve">Presets</sys:String>
+    <sys:String x:Key="Picture.OwnPresets" xml:space="preserve">Own presets</sys:String>
+    <sys:String x:Key="Picture.Saturation" xml:space="preserve">Saturation</sys:String>
+    <sys:String x:Key="Picture.Brightness" xml:space="preserve">Brightness</sys:String>
+    <sys:String x:Key="Picture.Contrast" xml:space="preserve">Contrast</sys:String>
+    <sys:String x:Key="Picture.SaveAs" xml:space="preserve">Save as preset</sys:String>
+    <sys:String x:Key="Picture.NameHint" xml:space="preserve">Preset name</sys:String>
+    <sys:String x:Key="Picture.Delete" xml:space="preserve">Delete</sys:String>
+    <sys:String x:Key="Picture.Reset" xml:space="preserve">BACK TO STANDARD</sys:String>
+    <sys:String x:Key="Picture.AutoOff" xml:space="preserve">Off automatically while a game runs</sys:String>
+    <sys:String x:Key="Picture.AutoOffHint" xml:space="preserve">As soon as a game from your library runs, the picture goes back to Windows' own. When it ends, your picture comes back.</sys:String>
+    <sys:String x:Key="Picture.GamesTitle" xml:space="preserve">These programs pause the picture</sys:String>
+    <sys:String x:Key="Picture.NoGames" xml:space="preserve">No games in the library yet. Detection is under Game Profiles.</sys:String>
+    <sys:String x:Key="Picture.Status.Standard" xml:space="preserve">Standard: nothing changed.</sys:String>
+    <sys:String x:Key="Picture.Status.Active" xml:space="preserve">Your picture is active.</sys:String>
+    <sys:String x:Key="Picture.Status.Paused" xml:space="preserve">Paused while {0} runs.</sys:String>
+    <sys:String x:Key="Picture.Status.NoDriver" xml:space="preserve">No NVIDIA driver found: saturation is missing; brightness and contrast still work.</sys:String>
+    <sys:String x:Key="Picture.NameMissing" xml:space="preserve">Give the preset a name.</sys:String>
+    <sys:String x:Key="Picture.Refused" xml:space="preserve">Windows refused brightness or contrast. Try smaller values.</sys:String>
+    <sys:String x:Key="Picture.Failed" xml:space="preserve">The picture could not be changed.</sys:String>
+    <sys:String x:Key="Picture.Preset.Standard" xml:space="preserve">Standard</sys:String>
+    <sys:String x:Key="Picture.Preset.Vivid" xml:space="preserve">Vivid</sys:String>
+    <sys:String x:Key="Picture.Preset.Strong" xml:space="preserve">Strong</sys:String>
+    <sys:String x:Key="Picture.Preset.Max" xml:space="preserve">Maximum</sys:String>
+    <sys:String x:Key="Picture.Preset.Clear" xml:space="preserve">Clear &amp; bright</sys:String>
+    <sys:String x:Key="Picture.How" xml:space="preserve">Saturation is set on the NVIDIA driver for every display. Brightness and contrast use Windows' gamma ramp, the same as the Windows colour calibration. The original values are saved before the first change and come back when the app closes, when a game starts with auto-off, and after a crash at the next start.</sys:String>
+    <sys:String x:Key="Picture.GammaUnavailable" xml:space="preserve">Brightness and contrast are not available on this PC: Windows does not allow the gamma curve here. Saturation still works.</sys:String>
     <sys:String x:Key="Common.Yes" xml:space="preserve">Yes</sys:String>
     <sys:String x:Key="Common.No" xml:space="preserve">No</sys:String>
     <sys:String x:Key="Sys.Laptop" xml:space="preserve">Laptop</sys:String>

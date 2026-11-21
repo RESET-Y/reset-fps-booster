@@ -73,12 +73,18 @@ public partial class App : Application
         // window of its own to close - the overlay simply stayed on the display
         // with no way left to remove it. Shutting it down is the app's job.
         _services?.FrameBoostBeta.Stop();
+        // The picture goes back to Windows' own, whatever the app had changed.
+        _services?.PictureWatch.Stop();
+        _services?.Picture.Restore();
         base.OnExit(e);
     }
 
     private void ShowMainWindow()
     {
         _services = new AppServices();
+        // A picture left changed by an earlier run (a crash) is put back first; then the player's picture is applied.
+        _services.Picture.Restore();
+        _services.PictureWatch.Start();
         var mainViewModel = new MainViewModel(_services);
 
         var window = new MainWindow { DataContext = mainViewModel, Opacity = 0, Settings = _services.Settings };

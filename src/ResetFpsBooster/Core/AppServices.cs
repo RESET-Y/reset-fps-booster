@@ -30,6 +30,8 @@ public sealed class AppServices
     public IAuthService Auth { get; }
     public ICrosshairService Crosshair { get; }
     public IFrameBoostBetaService FrameBoostBeta { get; }
+    public IPictureService Picture { get; }
+    public PictureWatcher PictureWatch { get; }
 
     public AppServices()
     {
@@ -69,5 +71,7 @@ public sealed class AppServices
         Auth = new AuthService();
         Crosshair = new CrosshairService();
         FrameBoostBeta = new FrameBoostBetaService();
+        Picture = new PictureService(Settings);
+        PictureWatch = new PictureWatcher(Picture, GameLibrary, Settings);
     }
 }

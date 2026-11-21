@@ -81,7 +81,9 @@
     <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Wähle das Spielfenster und schalte dann FrameBoost ein.</sys:String>
     <sys:String x:Key="FB.BestResult" xml:space="preserve">Für das beste Ergebnis</sys:String>
     <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Dein Monitor:</sys:String>
-    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Begrenze das Spiel auf {0} FPS. FrameBoost verdoppelt das auf {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.</sys:String>
+    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Begrenze das Spiel auf {0} FPS. FrameBoost {2}x macht daraus {1} – genau so viel, wie ein {1}-Hz-Monitor anzeigen kann.</sys:String>
+    <sys:String x:Key="FB.Factor" xml:space="preserve">Modus</sys:String>
+    <sys:String x:Key="FB.FactorHint" xml:space="preserve">2x fügt pro echtem Bild ein berechnetes hinzu, 3x zwei. 3x ist flüssiger, wenn das Spiel selbst mit einem Drittel deiner Bildwiederholrate läuft, kostet aber mehr GPU-Zeit, und jedes berechnete Bild ist eine Schätzung – Fehler sieht man also öfter. Der Modus mit geringer Latenz läuft immer mit 2x.</sys:String>
     <sys:String x:Key="FB.GpuRoom" xml:space="preserve">Lass der Grafikkarte etwas Luft. FrameBoost braucht für jedes erzeugte Bild ein paar Millisekunden GPU-Zeit. Läuft die GPU im Spiel schon auf 100 %, senke Auflösung oder Grafikeinstellungen, bis das nicht mehr so ist.</sys:String>
     <sys:String x:Key="FB.SteadyCap" xml:space="preserve">Eine feste, begrenzte Bildrate funktioniert viel besser als eine unbegrenzte, die ständig schwankt.</sys:String>
     <sys:String x:Key="FB.PremiumFeature" xml:space="preserve">FrameBoost ist eine Premium-Funktion</sys:String>
@@ -687,6 +689,36 @@
     <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Gib die Strecke für eine volle Drehung in cm ein, zum Beispiel 35 (zwischen 5 und 300).</sys:String>
     <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders muss erst kalibriert werden: Strecke für 360° eintragen und kalibrieren.</sys:String>
     <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">Der FOV-Wert aus dem Spiel. Ein Umrechner nennt 60 bis 80, bestätigt habe ich das nicht.</sys:String>
+    <sys:String x:Key="Nav.Picture" xml:space="preserve">Bildfarbe</sys:String>
+    <sys:String x:Key="Picture.Title" xml:space="preserve">BILDFARBE</sys:String>
+    <sys:String x:Key="Picture.Intro" xml:space="preserve">Sättigung, Helligkeit und Kontrast für deinen Bildschirm, mit Presets. Die Sättigung stellt der NVIDIA-Treiber ein, Helligkeit und Kontrast Windows. Schärfe fehlt noch: Die Einstellung dafür im Treiber kenne ich nicht sicher genug, um sie zu setzen.</sys:String>
+    <sys:String x:Key="Picture.Presets" xml:space="preserve">Presets</sys:String>
+    <sys:String x:Key="Picture.OwnPresets" xml:space="preserve">Eigene Presets</sys:String>
+    <sys:String x:Key="Picture.Saturation" xml:space="preserve">Sättigung</sys:String>
+    <sys:String x:Key="Picture.Brightness" xml:space="preserve">Helligkeit</sys:String>
+    <sys:String x:Key="Picture.Contrast" xml:space="preserve">Kontrast</sys:String>
+    <sys:String x:Key="Picture.SaveAs" xml:space="preserve">Als Preset speichern</sys:String>
+    <sys:String x:Key="Picture.NameHint" xml:space="preserve">Name des Presets</sys:String>
+    <sys:String x:Key="Picture.Delete" xml:space="preserve">Löschen</sys:String>
+    <sys:String x:Key="Picture.Reset" xml:space="preserve">ZURÜCK AUF STANDARD</sys:String>
+    <sys:String x:Key="Picture.AutoOff" xml:space="preserve">Automatisch aus, während ein Spiel läuft</sys:String>
+    <sys:String x:Key="Picture.AutoOffHint" xml:space="preserve">Sobald ein Spiel aus deiner Bibliothek läuft, geht das Bild auf Windows' Standard. Wenn es endet, kommt dein Bild zurück.</sys:String>
+    <sys:String x:Key="Picture.GamesTitle" xml:space="preserve">Diese Programme pausieren das Bild</sys:String>
+    <sys:String x:Key="Picture.NoGames" xml:space="preserve">Noch keine Spiele in der Bibliothek. Die Erkennung findest du unter Spielprofile.</sys:String>
+    <sys:String x:Key="Picture.Status.Standard" xml:space="preserve">Standard: nichts verändert.</sys:String>
+    <sys:String x:Key="Picture.Status.Active" xml:space="preserve">Dein Bild ist aktiv.</sys:String>
+    <sys:String x:Key="Picture.Status.Paused" xml:space="preserve">Pausiert, weil {0} läuft.</sys:String>
+    <sys:String x:Key="Picture.Status.NoDriver" xml:space="preserve">Kein NVIDIA-Treiber gefunden: Sättigung fehlt, Helligkeit und Kontrast gehen trotzdem.</sys:String>
+    <sys:String x:Key="Picture.NameMissing" xml:space="preserve">Gib dem Preset einen Namen.</sys:String>
+    <sys:String x:Key="Picture.Refused" xml:space="preserve">Windows hat Helligkeit oder Kontrast abgelehnt. Probier kleinere Werte.</sys:String>
+    <sys:String x:Key="Picture.Failed" xml:space="preserve">Das Bild konnte nicht geändert werden.</sys:String>
+    <sys:String x:Key="Picture.Preset.Standard" xml:space="preserve">Standard</sys:String>
+    <sys:String x:Key="Picture.Preset.Vivid" xml:space="preserve">Lebhaft</sys:String>
+    <sys:String x:Key="Picture.Preset.Strong" xml:space="preserve">Kräftig</sys:String>
+    <sys:String x:Key="Picture.Preset.Max" xml:space="preserve">Maximal</sys:String>
+    <sys:String x:Key="Picture.Preset.Clear" xml:space="preserve">Klar &amp; hell</sys:String>
+    <sys:String x:Key="Picture.How" xml:space="preserve">Die Sättigung stellt der NVIDIA-Treiber für jedes Display ein. Helligkeit und Kontrast nutzen die Gammakurve von Windows, wie die Farbkalibrierung in Windows. Die Originalwerte werden vor der ersten Änderung gesichert und kommen zurück, wenn die App schließt, wenn ein Spiel mit automatischem Aus startet und nach einem Absturz beim nächsten Start.</sys:String>
+    <sys:String x:Key="Picture.GammaUnavailable" xml:space="preserve">Helligkeit und Kontrast sind auf diesem PC nicht verfügbar: Windows gibt die Gammakurve hier nicht frei. Die Sättigung funktioniert trotzdem.</sys:String>
     <sys:String x:Key="Common.Yes" xml:space="preserve">Ja</sys:String>
     <sys:String x:Key="Common.No" xml:space="preserve">Nein</sys:String>
     <sys:String x:Key="Sys.Laptop" xml:space="preserve">Laptop</sys:String>

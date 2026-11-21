@@ -191,6 +191,17 @@
                                     Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
                         </Grid>
 
+                        <!-- 2x / 3x, read once at launch like low latency below. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                            <TextBlock Text="{DynamicResource FB.Factor}" FontFamily="Segoe UI Bold" FontStyle="Italic"
+                                       VerticalAlignment="Center" Foreground="{StaticResource Brush.TextPrimary}"/>
+                            <ComboBox ItemsSource="{Binding Factors}" SelectedItem="{Binding Factor}"
+                                      ItemStringFormat="{}{0}x" Width="80" Margin="12,0,0,0"
+                                      IsEnabled="{Binding IsRunning, Converter={StaticResource InverseBool}}"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Text="{DynamicResource FB.FactorHint}"/>
+
                         <!-- Disabled while running, not hidden: the engine reads this
                              once at launch, so toggling it mid-run would look like it
                              did something and change nothing. -->

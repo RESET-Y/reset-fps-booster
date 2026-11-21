@@ -29,6 +29,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
     private bool _frameBoost;
     private bool _smooth;
     private bool _lowLatency;
+    private int _factor = 2;
     private long _window;
     private int _hz;
     private int _screen;
@@ -79,10 +80,11 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
     }
     public event EventHandler? StateChanged;
 
-    public string? StartFrameBoost(bool lowLatency, long gameWindow, int displayHz)
+    public string? StartFrameBoost(bool lowLatency, int factor, long gameWindow, int displayHz)
     {
         _frameBoost = true;
         _lowLatency = lowLatency;
+        _factor = factor == 3 ? 3 : 2;
         _window = gameWindow;
         _hz = displayHz;
         return Relaunch();
@@ -188,6 +190,7 @@ public sealed class FrameBoostBetaService : IFrameBoostBetaService, IDisposable
                           + (gameWindow != 0 ? $" hwnd {gameWindow}" : "")
                           + (smoothMotion ? $" smooth {SmoothMotionScreens.Multiplier(_strength).ToString("0.###", CultureInfo.InvariantCulture)}" : "")
                           + (noGeneration ? " nogen" : "")
+                          + (!noGeneration && _factor == 3 ? " factor 3" : "")
                           + (displayHz > 0 ? $" hz {displayHz}" : ""),
                 UseShellExecute = false,
                 CreateNoWindow = false,

@@ -81,7 +81,9 @@
     <sys:String x:Key="FB.MainDisplay" xml:space="preserve">Выберите окно игры, затем включите FrameBoost.</sys:String>
     <sys:String x:Key="FB.BestResult" xml:space="preserve">Для лучшего результата</sys:String>
     <sys:String x:Key="FB.YourMonitor" xml:space="preserve">Ваш монитор:</sys:String>
-    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Ограничьте игру до {0} FPS. FrameBoost удвоит это до {1} — ровно столько, сколько может показать монитор {1} Гц.</sys:String>
+    <sys:String x:Key="FB.CapAdvice" xml:space="preserve">Ограничьте игру до {0} FPS. FrameBoost {2}x превратит это в {1} — ровно столько, сколько может показать монитор {1} Гц.</sys:String>
+    <sys:String x:Key="FB.Factor" xml:space="preserve">Режим</sys:String>
+    <sys:String x:Key="FB.FactorHint" xml:space="preserve">2x добавляет один сгенерированный кадр на каждый настоящий, 3x — два. 3x плавнее, когда сама игра работает на трети частоты обновления, но требует больше времени GPU, и каждый сгенерированный кадр — это оценка, поэтому ошибки видны чаще. Режим низкой задержки всегда работает в 2x.</sys:String>
     <sys:String x:Key="FB.GpuRoom" xml:space="preserve">Оставьте видеокарте запас. FrameBoost тратит несколько миллисекунд GPU на каждый созданный кадр. Если игра уже загружает GPU на 100 %, снизьте разрешение или настройки графики.</sys:String>
     <sys:String x:Key="FB.SteadyCap" xml:space="preserve">Стабильная ограниченная частота кадров работает гораздо лучше, чем неограниченная и скачущая.</sys:String>
     <sys:String x:Key="FB.PremiumFeature" xml:space="preserve">FrameBoost — премиум-функция</sys:String>
@@ -687,6 +689,36 @@
     <sys:String x:Key="Sens.Calib.InvalidCm" xml:space="preserve">Введите путь для одного полного поворота в сантиметрах, например 35 (от 5 до 300).</sys:String>
     <sys:String x:Key="Sens.Calib.StartFirst" xml:space="preserve">ARC Raiders сначала нужно откалибровать: введите путь на 360° и калибруйте.</sys:String>
     <sys:String x:Key="Sens.FovHint.ArcRaiders" xml:space="preserve">Значение FOV из игры. Один из конвертеров указывает 60–80, это не подтверждено.</sys:String>
+    <sys:String x:Key="Nav.Picture" xml:space="preserve">Изображение</sys:String>
+    <sys:String x:Key="Picture.Title" xml:space="preserve">ИЗОБРАЖЕНИЕ</sys:String>
+    <sys:String x:Key="Picture.Intro" xml:space="preserve">Насыщенность, яркость и контраст для экрана, с пресетами. Насыщенность задаёт драйвер NVIDIA, яркость и контраст — Windows. Резкость пока не добавлена: настройку драйвера для неё я знаю недостаточно точно, чтобы её задавать.</sys:String>
+    <sys:String x:Key="Picture.Presets" xml:space="preserve">Пресеты</sys:String>
+    <sys:String x:Key="Picture.OwnPresets" xml:space="preserve">Свои пресеты</sys:String>
+    <sys:String x:Key="Picture.Saturation" xml:space="preserve">Насыщенность</sys:String>
+    <sys:String x:Key="Picture.Brightness" xml:space="preserve">Яркость</sys:String>
+    <sys:String x:Key="Picture.Contrast" xml:space="preserve">Контраст</sys:String>
+    <sys:String x:Key="Picture.SaveAs" xml:space="preserve">Сохранить как пресет</sys:String>
+    <sys:String x:Key="Picture.NameHint" xml:space="preserve">Название пресета</sys:String>
+    <sys:String x:Key="Picture.Delete" xml:space="preserve">Удалить</sys:String>
+    <sys:String x:Key="Picture.Reset" xml:space="preserve">ВЕРНУТЬ СТАНДАРТ</sys:String>
+    <sys:String x:Key="Picture.AutoOff" xml:space="preserve">Выключать автоматически во время игры</sys:String>
+    <sys:String x:Key="Picture.AutoOffHint" xml:space="preserve">Как только запускается игра из вашей библиотеки, изображение возвращается к стандартному Windows. Когда игра закрывается, ваше изображение возвращается.</sys:String>
+    <sys:String x:Key="Picture.GamesTitle" xml:space="preserve">Эти программы приостанавливают изображение</sys:String>
+    <sys:String x:Key="Picture.NoGames" xml:space="preserve">В библиотеке пока нет игр. Поиск находится в разделе «Профили игр».</sys:String>
+    <sys:String x:Key="Picture.Status.Standard" xml:space="preserve">Стандарт: ничего не изменено.</sys:String>
+    <sys:String x:Key="Picture.Status.Active" xml:space="preserve">Ваше изображение активно.</sys:String>
+    <sys:String x:Key="Picture.Status.Paused" xml:space="preserve">Приостановлено, пока работает {0}.</sys:String>
+    <sys:String x:Key="Picture.Status.NoDriver" xml:space="preserve">Драйвер NVIDIA не найден: насыщенность недоступна, яркость и контраст работают.</sys:String>
+    <sys:String x:Key="Picture.NameMissing" xml:space="preserve">Дайте пресету название.</sys:String>
+    <sys:String x:Key="Picture.Refused" xml:space="preserve">Windows отклонила яркость или контраст. Попробуйте меньшие значения.</sys:String>
+    <sys:String x:Key="Picture.Failed" xml:space="preserve">Не удалось изменить изображение.</sys:String>
+    <sys:String x:Key="Picture.Preset.Standard" xml:space="preserve">Стандарт</sys:String>
+    <sys:String x:Key="Picture.Preset.Vivid" xml:space="preserve">Яркий</sys:String>
+    <sys:String x:Key="Picture.Preset.Strong" xml:space="preserve">Сочный</sys:String>
+    <sys:String x:Key="Picture.Preset.Max" xml:space="preserve">Максимум</sys:String>
+    <sys:String x:Key="Picture.Preset.Clear" xml:space="preserve">Чистый и светлый</sys:String>
+    <sys:String x:Key="Picture.How" xml:space="preserve">Насыщенность задаёт драйвер NVIDIA для каждого дисплея. Яркость и контраст используют гамма-кривую Windows, как калибровка цвета в Windows. Исходные значения сохраняются до первого изменения и возвращаются при закрытии приложения, при запуске игры с автоматическим выключением и после сбоя при следующем запуске.</sys:String>
+    <sys:String x:Key="Picture.GammaUnavailable" xml:space="preserve">Яркость и контраст на этом ПК недоступны: Windows не разрешает здесь гамма-кривую. Насыщенность работает.</sys:String>
     <sys:String x:Key="Common.Yes" xml:space="preserve">Да</sys:String>
     <sys:String x:Key="Common.No" xml:space="preserve">Нет</sys:String>
     <sys:String x:Key="Sys.Laptop" xml:space="preserve">Ноутбук</sys:String>

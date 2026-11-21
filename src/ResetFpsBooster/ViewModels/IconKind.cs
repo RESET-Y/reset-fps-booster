@@ -12,6 +12,7 @@ public enum IconKind
     Crosshair,
     SensFinder,
     ApexConfig,
+    Picture,
     System,
     Backups,
     Logs,

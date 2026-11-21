@@ -60,6 +60,9 @@
             <DataTemplate DataType="{x:Type vm:SensFinderViewModel}">
                 <views:SensFinderView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:PictureViewModel}">
+                <views:PictureView/>
+            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:ApexConfigViewModel}">
                 <views:ApexConfigView/>
             </DataTemplate>

@@ -23,6 +23,7 @@ public static class IconGeometries
         IconKind.Crosshair => CrosshairIcon(),
         IconKind.SensFinder => SensFinderIcon(),
         IconKind.ApexConfig => ApexConfigIcon(),
+        IconKind.Picture => PictureIcon(),
         IconKind.System => SystemIcon(),
         IconKind.Backups => Backups(),
         IconKind.Logs => Logs(),
@@ -233,6 +234,24 @@ public static class IconGeometries
             group.Children.Add(tooth);
         }
 
+        return group;
+    }
+
+    // A half-filled disc in a ring: light and dark, the picture's tone.
+    private static Geometry PictureIcon()
+    {
+        var ring = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        ring.Children.Add(new EllipseGeometry(new Point(8, 8), 6.4, 6.4));
+        ring.Children.Add(new EllipseGeometry(new Point(8, 8), 5.0, 5.0));
+
+        var half = new PathFigure { StartPoint = new Point(8, 3), IsClosed = true, IsFilled = true };
+        half.Segments.Add(new ArcSegment(new Point(8, 13), new Size(5, 5), 0, false, SweepDirection.Counterclockwise, true));
+        var halfGeometry = new PathGeometry();
+        halfGeometry.Figures.Add(half);
+
+        var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+        group.Children.Add(ring);
+        group.Children.Add(halfGeometry);
         return group;
     }
 }

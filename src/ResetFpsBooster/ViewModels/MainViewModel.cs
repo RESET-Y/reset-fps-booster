@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject
         gaming.Add(new(NavigationSection.Crosshair, "Nav.Crosshair", IconKind.Crosshair));
         gaming.Add(new(NavigationSection.SensFinder, "Nav.SensFinder", IconKind.SensFinder));
         gaming.Add(new(NavigationSection.ApexConfig, "Nav.Apex", IconKind.ApexConfig));
+        gaming.Add(new(NavigationSection.Picture, "Nav.Picture", IconKind.Picture));
 
         NavigationGroups = new ObservableCollection<NavigationGroup>
         {
@@ -199,6 +200,7 @@ public sealed partial class MainViewModel : ObservableObject
             NavigationSection.Crosshair => new CrosshairViewModel(_services.Crosshair, _services.Settings, _services.Auth,
                 () => NavigateTo(NavigationSection.Account)),
             NavigationSection.SensFinder => new SensFinderViewModel(_services.Settings),
+            NavigationSection.Picture => new PictureViewModel(_services.Picture, _services.PictureWatch, _services.GameLibrary, _services.Settings),
             NavigationSection.ApexConfig => new ApexConfigViewModel(
                 new ApexSettingsService(_services.Backup, ApexInstallFolder), _services.Settings),
             NavigationSection.System => new SystemViewModel(_services.Hardware, _services.SystemScan),
@@ -255,6 +257,9 @@ public sealed partial class MainViewModel : ObservableObject
                 break;
             case ApexConfigViewModel apex:
                 apex.Refresh();
+                break;
+            case PictureViewModel picture:
+                picture.Refresh();
                 break;
         }
     }

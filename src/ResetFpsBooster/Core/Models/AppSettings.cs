@@ -39,6 +39,10 @@ public sealed class AppSettings
     /// wrong display often enough to be asked to go.</summary>
     public int FrameBoostDisplayHz { get; set; } = 144;
 
+    /// <summary>FrameBoost generation factor: 2 = one generated frame per real
+    /// frame, 3 = two. Read by the engine once at launch.</summary>
+    public int FrameBoostFactor { get; set; } = 2;
+
     /// <summary>The program (e.g. "r5apex_dx12.exe") whose window was last picked
     /// for FrameBoost, so the list preselects the same game next time. The
     /// window handle itself changes on every game start and is not kept.</summary>
@@ -85,6 +89,24 @@ public sealed class AppSettings
     /// <summary>Sidebar groups the user folded, by id. Analysis starts folded: it is looked at
     /// now and then, the tools above it are used every day.</summary>
     public List<string> NavCollapsedGroups { get; set; } = new() { "analysis" };
+
+    /// <summary>The picture the player set on the Picture page: saturation, brightness and contrast, -100..100.</summary>
+    public PicturePreset PictureCurrent { get; set; } = new();
+
+    /// <summary>The player's own presets (the built-in ones are not stored).</summary>
+    public List<PicturePreset> PictureCustomPresets { get; set; } = new();
+
+    /// <summary>The preset the picture came from, for the highlight; null after a slider was moved.</summary>
+    public string? PictureActivePresetId { get; set; }
+
+    /// <summary>Pause the picture while a game from the library runs, back to Windows' own picture.</summary>
+    public bool PictureAutoOff { get; set; } = true;
+
+    /// <summary>Library entries that do not pause the picture (programs that are not games).</summary>
+    public List<string> PictureIgnoredGames { get; set; } = new() { "Wallpaper Engine", "Fab UE Plugin" };
+
+    /// <summary>What the screens had before the app changed them; null when the app has changed nothing.</summary>
+    public PictureOriginals? PictureOriginal { get; set; }
 
     /// <summary>The app language ("en", "de", "ru"). Null until the user picks
     /// one, which means: follow Windows if we offer its language, else English.</summary>
