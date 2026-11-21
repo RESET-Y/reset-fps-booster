@@ -46,6 +46,7 @@ compile_shader(motion_smooth.hlsl               motion_smooth_cs.h              
 compile_shader(frame_interpolation.hlsl         frame_interpolation_cs.h         g_FrameInterpolationCS)
 compile_shader(upscale.hlsl                     upscale_cs.h                     g_UpscaleCS)
 compile_shader(thumbnail.hlsl                   thumbnail_cs.h                   g_ThumbnailCS)
+compile_shader(flick_detect.hlsl               flick_detect_cs.h                g_FlickDetectCS)
 
 # V2's own shader, not part of the shared core: the fingerprint exists to
 # answer a capture question and nothing in the generation path uses it.
@@ -74,6 +75,7 @@ add_custom_target(CompileV2Shaders DEPENDS
     "${GEN_DIR}/frame_interpolation_cs.h"
     "${GEN_DIR}/upscale_cs.h"
     "${GEN_DIR}/thumbnail_cs.h"
+    "${GEN_DIR}/flick_detect_cs.h"
     "${GEN_DIR}/frame_fingerprint_cs.h"
 )
 

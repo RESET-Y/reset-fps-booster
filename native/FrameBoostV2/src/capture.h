@@ -104,6 +104,11 @@ public:
     bool     FingerprintReady() const { return m_fpReady; }
     int      QueueDepth() const;
 
+    // Set (auto-reset) the moment a frame is published to the ring, so the
+    // consumer can wait on it instead of polling with Sleep(1) - latency plan
+    // step 2. Owned by Capture.
+    HANDLE   ArrivalEvent() const { return m_arrivalEvent; }
+
     // NEWEST FRAME ONLY: drop everything waiting except the most recent.
     // For Smooth Motion, where each frame is shown once and a stale one is
     // pure delay; FrameBoost does not use it. Returns how many were dropped.
@@ -173,6 +178,7 @@ private:
     double   m_slotArrivalMs[kSlots]{};
 
     mutable std::mutex m_ringMutex;
+    HANDLE   m_arrivalEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     uint64_t m_head = 0;         // next slot to write
     uint64_t m_tail = 0;         // next slot to read
     int      m_inUseSlot = -1;   // held by the consumer between Acquire/Release

@@ -701,7 +701,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     struct TuningStats {
         std::vector<double> pipe, gToN, nToG;
         int gaps = 0, under2 = 0, over20 = 0, queueMax = 0;
-        int skipEvents = 0, framesSkipped = 0;
+        int skipEvents = 0, framesSkipped = 0, predictAbandoned = 0;
+        int flickPairs = 0, flickSeen = 0; double flickMaxShare = 0.0, flickMaxSpeed = 0.0;
         double holdWaitSum = 0.0; int holdCount = 0;
         double lastShown = -1.0; bool lastWasG = false; double reportAt = 0.0;
         void Present(bool isG, double at) {
@@ -727,16 +728,18 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             const bool first = reportAt == 0.0;
             reportAt = NowMs() + 1000.0;
             if (first || gaps == 0) { Clear(); return; }
-            char line[512];
+            char line[768];
             snprintf(line, sizeof(line),
                 "[FrameBoostV2][tuning] hold %.2f | pipeline mean %.2f p95 %.2f ms | hold wait %.2f ms"
                 " | G->N p5 %.2f p50 %.2f p95 %.2f | N->G p5 %.2f p50 %.2f p95 %.2f"
-                " | gaps <2ms %.1f%% >20ms %d of %d | queue max %d | brake %d skips, %d frames",
+                " | gaps <2ms %.1f%% >20ms %d of %d | queue max %d | brake %d skips, %d frames"
+                " | flick %d of %d pairs, max share %.2f, max speed %.0f px | predictions dropped %d",
                 holdFraction, Mean(pipe), Pct(pipe, 0.95),
                 holdCount ? holdWaitSum / holdCount : 0.0,
                 Pct(gToN, 0.05), Pct(gToN, 0.5), Pct(gToN, 0.95),
                 Pct(nToG, 0.05), Pct(nToG, 0.5), Pct(nToG, 0.95),
-                100.0 * under2 / gaps, over20, gaps, queueMax, skipEvents, framesSkipped);
+                100.0 * under2 / gaps, over20, gaps, queueMax, skipEvents, framesSkipped,
+                flickPairs, flickSeen, flickMaxShare, flickMaxSpeed, predictAbandoned);
             Logger::Log(line);
             // ALSO INTO ITS OWN FILE. The main log is capped at 4 MB with one
             // old generation, and at ~120 fps the per-frame [seq] lines fill
@@ -749,12 +752,16 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         void Clear() {
             pipe.clear(); gToN.clear(); nToG.clear();
             gaps = under2 = over20 = queueMax = 0; skipEvents = framesSkipped = 0; holdWaitSum = 0.0; holdCount = 0;
+            flickPairs = flickSeen = 0; flickMaxShare = flickMaxSpeed = 0.0; predictAbandoned = 0;
         }
     } tuning;
 
     // A red block on generated frames, green on real ones. Diagnostic only.
     const bool markFrames = HasArg(args, L"mark");
     const bool noBrake = HasArg(args, L"nobrake");
+    // `noflick`: never replace generated frames during a flick (A/B only).
+    const bool noFlick = HasArg(args, L"noflick");
+    const bool sleepPoll = HasArg(args, L"sleeppoll");
     // When the brake last fired. While it keeps firing the loop cannot keep up,
     // and the hold only adds delay: measured in BF1 with the brake on, the hold
     // waited 14.7 ms per frame, because after skips the pair interval it is
@@ -820,7 +827,33 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // back, since with nothing to space out there is nothing to wait for.
     const bool generate = !HasArg(args, L"nogen");
     if (!generate) Logger::Log("[FrameBoostV2] Frame generation OFF (nogen): real frames only.");
+    // THE GENERATION FACTOR: 2 = one generated frame per real one (phase 0.5),
+    // 3 = two (phases 1/3 and 2/3), all from the same motion field, estimated
+    // once per pair. Asked for 2026-11-21 as a setting beside 2x, not instead
+    // of it. "factor 3" on the command line.
+    //
+    // Low latency stays at 2: it shows frames the moment they are ready, and
+    // three frames with no spacing between them would land back to back on one
+    // refresh - counted, and never seen.
+    int genFactor = static_cast<int>(std::clamp(ArgValue(args, L"factor", 2.0), 2.0, 3.0) + 0.5);
+    if (genFactor > 2 && lowLatency) {
+        genFactor = 2;
+        Logger::Log("[FrameBoostV2] factor 3 ignored in low latency mode - running 2x.");
+    }
+    if (generate) Logger::Log("[FrameBoostV2] Generation factor " + std::to_string(genFactor)
+                              + "x: " + std::to_string(genFactor - 1) + " generated frame(s) per real frame.");
     const bool blurOn = smoothAuto || HasArg(args, L"blur");
+    // PREDICTION instead of interpolation (see the block after the real
+    // frame is presented). Test mode, "predict" on the command line or
+    // %LOCALAPPDATA%\ResetFpsBooster\predict.on. Not with Smooth Motion,
+    // whose blur on the real frame needs the motion field first.
+    const bool predictMode = generate && !blurOn && (HasArg(args, L"predict") || [] {
+        wchar_t lad[MAX_PATH] = {};
+        if (!GetEnvironmentVariableW(L"LOCALAPPDATA", lad, MAX_PATH)) return false;
+        return GetFileAttributesW((std::wstring(lad) + L"\\ResetFpsBooster\\predict.on").c_str()) != INVALID_FILE_ATTRIBUTES;
+    }());
+    if (predictMode) Logger::Log("[FrameBoostV2] PREDICTION mode: real frame first, " + std::to_string(genFactor - 1)
+                                 + " predicted frame(s) after it, no hold.");
 
     // SMOOTH MOTION ESTIMATES AT HALF SIZE. FrameBoost needs every pixel of
     // precision - its vectors place the generated frame - but a streak only
@@ -932,12 +965,12 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
     // torn, in "many games", with no way to say which pixels or why. A key
     // that saves the CURRENT frame does not work: pressing it stops the
     // movement that shows the fault. So every presented frame is copied into a
-    // ring on the GPU, and Ctrl+Shift+F12 writes the last ~60 of them - the
+    // ring on the GPU, and Ctrl+Shift+F12 writes the last 240 of them, half size - the
     // second BEFORE the key - to Logs\snaps\<time>\, oldest first, each named
     // N (real) or G (generated).
     //
-    // Diagnostic and costly (~60 full-size textures, ~0.9 GB at 1440p, one
-    // GPU copy per present), so it is OFF unless
+    // Diagnostic and costly (240 half-size textures, ~0.9 GB at 1440p, a copy and a mip pass
+    // per present), so it is OFF unless
     // %LOCALAPPDATA%\ResetFpsBooster\snaps.on exists when the engine starts.
     // Only that one key combination is read, at most every 50 ms.
     std::wstring snapDir;
@@ -950,39 +983,71 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             snapsOn = GetFileAttributesW((root + L"snaps.on").c_str()) != INVALID_FILE_ATTRIBUTES;
         }
     }
-    constexpr int kSnapRing = 60;
+    // 240 at HALF size, not 60 at full: the first Destiny capture (3x, ~165
+    // presents/s) held only ~0.35 s, and by the time the key was pressed the
+    // torn moment had already left the ring. 240 half-size frames are ~1.5 s
+    // for the same ~0.9 GB, and a torn edge is still plain at 1280x720.
+    constexpr int kSnapRing = 240;
     std::vector<winrt::com_ptr<ID3D11Texture2D>> snapTex(kSnapRing);
+    // Full-size scratch with one extra mip: copy in, GenerateMips, keep mip 1.
+    winrt::com_ptr<ID3D11Texture2D> snapScratch;
+    winrt::com_ptr<ID3D11ShaderResourceView> snapScratchSrv;
     std::vector<bool> snapIsG(kSnapRing, false);
     int snapHead = 0, snapFilled = 0;
     double snapKeyCheckAt = 0.0;
     bool snapKeyWasDown = false;
     int snapCount = 0;
-    if (snapsOn) Logger::Log("[FrameBoostV2] Replay snapshots ON (snaps.on): Ctrl+Shift+F12 saves the last "
+    if (snapsOn) Logger::Log("[FrameBoostV2] Replay snapshots ON (snaps.on): front mouse side button or Ctrl+Shift+F12 saves the last "
                              + std::to_string(kSnapRing) + " presented frames to Logs\\snaps.");
 
     auto snapRecord = [&](ID3D11Texture2D* src, bool isG) {
         if (!snapsOn || !src) return;
         D3D11_TEXTURE2D_DESC sd{};
         src->GetDesc(&sd);
+        const UINT hw = std::max(1u, sd.Width / 2), hh = std::max(1u, sd.Height / 2);
+        auto fail = [&](const char* what) {
+            snapsOn = false;
+            Logger::Log(std::string("[FrameBoostV2] Replay snapshots turned off: ") + what);
+        };
+        bool scratchFits = false;
+        if (snapScratch) {
+            D3D11_TEXTURE2D_DESC dd{};
+            snapScratch->GetDesc(&dd);
+            scratchFits = dd.Width == sd.Width && dd.Height == sd.Height && dd.Format == sd.Format;
+        }
+        if (!scratchFits) {
+            snapScratch = nullptr; snapScratchSrv = nullptr;
+            D3D11_TEXTURE2D_DESC nd{};
+            nd.Width = sd.Width; nd.Height = sd.Height; nd.MipLevels = 2; nd.ArraySize = 1;
+            nd.Format = sd.Format; nd.SampleDesc.Count = 1; nd.Usage = D3D11_USAGE_DEFAULT;
+            nd.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+            nd.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+            if (FAILED(device->CreateTexture2D(&nd, nullptr, snapScratch.put()))
+                || FAILED(device->CreateShaderResourceView(snapScratch.get(), nullptr, snapScratchSrv.put()))) {
+                fail("could not create the downscale texture.");
+                return;
+            }
+        }
         auto& slot = snapTex[snapHead];
         bool fits = false;
         if (slot) {
             D3D11_TEXTURE2D_DESC dd{};
             slot->GetDesc(&dd);
-            fits = dd.Width == sd.Width && dd.Height == sd.Height && dd.Format == sd.Format;
+            fits = dd.Width == hw && dd.Height == hh && dd.Format == sd.Format;
         }
         if (!fits) {
             slot = nullptr;
             D3D11_TEXTURE2D_DESC nd{};
-            nd.Width = sd.Width; nd.Height = sd.Height; nd.MipLevels = 1; nd.ArraySize = 1;
+            nd.Width = hw; nd.Height = hh; nd.MipLevels = 1; nd.ArraySize = 1;
             nd.Format = sd.Format; nd.SampleDesc.Count = 1; nd.Usage = D3D11_USAGE_DEFAULT;
             if (FAILED(device->CreateTexture2D(&nd, nullptr, slot.put()))) {
-                snapsOn = false;
-                Logger::Log("[FrameBoostV2] Replay snapshots turned off: could not allocate the ring.");
+                fail("could not allocate the ring.");
                 return;
             }
         }
-        context->CopySubresourceRegion(slot.get(), 0, 0, 0, 0, src, 0, nullptr);
+        context->CopySubresourceRegion(snapScratch.get(), 0, 0, 0, 0, src, 0, nullptr);
+        context->GenerateMips(snapScratchSrv.get());
+        context->CopySubresourceRegion(slot.get(), 0, 0, 0, 0, snapScratch.get(), 1, nullptr);
         snapIsG[snapHead] = isG;
         snapHead = (snapHead + 1) % kSnapRing;
         snapFilled = std::min(snapFilled + 1, kSnapRing);
@@ -1002,7 +1067,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         for (int i = 0; i < snapFilled; ++i) {
             const int idx = (snapHead - snapFilled + i + kSnapRing) % kSnapRing;
             wchar_t name[32];
-            swprintf_s(name, L"%02d_%c.bmp", i, snapIsG[idx] ? L'G' : L'N');
+            swprintf_s(name, L"%03d_%c.bmp", i, snapIsG[idx] ? L'G' : L'N');
             DumpTexture(device.get(), context.get(), snapTex[idx].get(), dir + name);
         }
         ++snapCount;
@@ -1101,11 +1166,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             if (!measureOnly) presenter.TrackTarget();
         }
 
-        if (NowMs() >= snapKeyCheckAt) {
+        if (snapsOn && NowMs() >= snapKeyCheckAt) {
             snapKeyCheckAt = NowMs() + 50.0;
-            const bool down = (GetAsyncKeyState(VK_CONTROL) & 0x8000)
-                           && (GetAsyncKeyState(VK_SHIFT) & 0x8000)
-                           && (GetAsyncKeyState(VK_F12) & 0x8000);
+            // The FRONT mouse side button (XBUTTON2) as well: "until I have
+            // pressed the combination it is over" - a thumb press keeps both
+            // hands where they are. Only read while snapshots are on.
+            const bool down = (GetAsyncKeyState(VK_XBUTTON2) & 0x8000)
+                           || ((GetAsyncKeyState(VK_CONTROL) & 0x8000)
+                               && (GetAsyncKeyState(VK_SHIFT) & 0x8000)
+                               && (GetAsyncKeyState(VK_F12) & 0x8000));
             if (down && !snapKeyWasDown && snapCount < 5) snapFlush();
             snapKeyWasDown = down;
         }
@@ -1138,7 +1207,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         if (!got) {
             // Nothing new. Give the core back rather than spin on it - the game
             // needs it more than we do.
-            Sleep(1);
+            //
+            // WOKEN BY THE ARRIVAL, not by the clock (latency plan step 2).
+            // Sleep(1) checked once a millisecond at best: measured in Destiny
+            // 2, 3x, frames sat 0.5-2.3 ms in the ring before this loop took
+            // them. The 1 ms timeout keeps the message pump and WM_QUIT going
+            // when nothing arrives. `sleeppoll` restores the old wait for A/B.
+            if (syntheticMode || sleepPoll || !capture.ArrivalEvent()) Sleep(1);
+            else WaitForSingleObject(capture.ArrivalEvent(), 1);
             telemetry.NoteQueue(syntheticMode ? 0 : capture.QueueDepth(),
                             syntheticMode ? 0 : static_cast<int>(capture.Overflows()));
             if (!syntheticMode)
@@ -1207,6 +1283,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // Push B into the estimator. It keeps prev/curr itself, so frames must
         // be fed strictly in order - which is exactly what the ring hands over.
         const bool haveMotion = feedEstimator(frame.texture);
+        if (haveMotion && generate) {
+            float fl[4];
+            if (estimator.LastFlick(fl)) {
+                ++tuning.flickSeen;
+                if (fl[0] > 0.0f) ++tuning.flickPairs;
+                tuning.flickMaxShare = std::max(tuning.flickMaxShare, static_cast<double>(fl[1]));
+                tuning.flickMaxSpeed = std::max(tuning.flickMaxSpeed, static_cast<double>(fl[2]));
+            }
+        }
 
         const uint64_t currId = frame.frameId;
         const double currContentMs = frame.contentMs;
@@ -1277,10 +1362,29 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             else                     telemetry.NoteValidPair();
         }
 
-        if (pairUsable && generate) {
+        // The spacing between consecutive presents of one source interval:
+        // half an interval at 2x, a third at 3x (with the default hold of 0.5;
+        // the hold fraction scales it the same way at both factors).
+        if (generate) readHoldFile();
+        const double stepFraction = holdFraction * 2.0 / genFactor;
+
+        if (pairUsable && generate && !predictMode) for (int k = 1; k < genFactor; ++k) {
             D3D11_TEXTURE2D_DESC desc{};
             estimator.CurrFrameTexture()->GetDesc(&desc);
 
+            // 3x: the SECOND generated frame waits its turn like the real
+            // frame does below - unless the loop is behind, then nothing waits.
+            if (k > 1 && stepFraction > 0.0) {
+                const bool behindNow = !syntheticMode
+                    && (capture.QueueDepth() > 1 || NowMs() - lastBrakeMs < 1000.0);
+                if (!behindNow)
+                    WaitUntil(NowMs() + (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * stepFraction, timer);
+            }
+
+            const float phase = static_cast<float>(k) / static_cast<float>(genFactor);
+            interpolator.SetFlickSRV(noFlick ? nullptr : estimator.FlickSRV());
+            interpolator.SetPhase(phase);
+            pt = Presenter::PresentTiming{};
             genStartMs = NowMs();
             if (interpolator.GenerateFrame(device.get(), context.get(),
                                            estimator.PrevFrameSRV(),
@@ -1292,7 +1396,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                 // The midpoint lives in the same clock the interval was
                 // measured in. Mixing the two domains here would put the
                 // generated frame's stamp on a timeline nothing else uses.
-                const double genContentMs = prevArrivalMs + pairIntervalMs * 0.5;
+                const double genContentMs = prevArrivalMs + pairIntervalMs * phase;
                 telemetry.NoteGeneratedProduced();
 
                 if (dumpCountdown > 0 && --dumpCountdown == 0) {
@@ -1333,7 +1437,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
                     lastPresentMs = shownAt;
                     telemetry.NoteGenerated(shownAt - frame.arrivalMs);
                     FrameRecord r{ nextOutputId++, true, prevId, currId,
-                                   genContentMs, 0.5, shownAt,
+                                   genContentMs, phase, shownAt,
                                    prevArrivalMs, currArrivalMs };
                     r.acquireMs = acquireMs;
                     r.genStartMs = genStartMs; r.genEndMs = genEndMs;
@@ -1396,10 +1500,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
         // switch on and off between skips.
         const bool behind = !syntheticMode
             && (capture.QueueDepth() > 1 || NowMs() - lastBrakeMs < 1000.0);
-        if (generate) readHoldFile();
-        if (pairUsable && generate && holdFraction > 0.0 && !behind) {
+        if (pairUsable && generate && !predictMode && stepFraction > 0.0 && !behind) {
             const double holdFrom = NowMs();
-            holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * holdFraction;
+            holdRequestedMs = (cadenceMs > 0.0 ? cadenceMs : pairIntervalMs) * stepFraction;
             WaitUntil(holdFrom + holdRequestedMs, timer);
             holdWaitMs = NowMs() - holdFrom;
             tuning.holdWaitSum += holdWaitMs; ++tuning.holdCount;
@@ -1477,6 +1580,96 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, LPWSTR lpCmdLine, int) {
             telemetry.NoteSequence(r);
         } else {
             telemetry.NoteDropped();
+        }
+
+        // PREDICTION MODE: the generated frames come AFTER the real one.
+        //
+        // Asked 2026-11-21: "Kann man in 3 die Lücken wegmachen aber die
+        // Verzögerung behalten?" With interpolation it cannot be done - a
+        // frame between A and B needs B, so B waits behind its generated
+        // frames, and shortening that wait was measured as uneven spacing
+        // (3.6 ms, 3.6 ms, then a 14 ms gap) that felt worse than 8 ms more
+        // delay. Here the real frame went out above without any hold, and
+        // the newest frame is carried FORWARD along the motion it already
+        // had, to 1/3 and 2/3 of an interval (3x) or 1/2 (2x), spaced evenly
+        // behind it. What prediction cannot know: a reversal of direction
+        // (it overshoots for one interval) and what is about to appear from
+        // behind an object.
+        //
+        // A newer real frame always wins: if one arrives while a prediction
+        // is waiting for its slot, the remaining predictions are dropped and
+        // the loop goes straight to the real frame.
+        if (predictMode && pairUsable && okN) {
+            const double nShownAt = presentReturnMs;
+            const double cad = cadenceMs > 0.0 ? cadenceMs : pairIntervalMs;
+            D3D11_TEXTURE2D_DESC desc{};
+            estimator.CurrFrameTexture()->GetDesc(&desc);
+            for (int k = 1; k < genFactor; ++k) {
+                const double due = nShownAt + cad * k / genFactor;
+                bool newer = false;
+                for (;;) {
+                    if (!syntheticMode && capture.QueueDepth() > 1) { newer = true; break; }
+                    const double remaining = due - NowMs();
+                    if (remaining <= 0.0) break;
+                    if (remaining > 1.5 && timer) {
+                        LARGE_INTEGER dueTime{};
+                        dueTime.QuadPart = -static_cast<LONGLONG>((remaining - 0.5) * 10000.0);
+                        SetWaitableTimer(timer, &dueTime, 0, nullptr, nullptr, FALSE);
+                        HANDLE waits[2] = { timer, capture.ArrivalEvent() };
+                        const DWORD n = (!syntheticMode && waits[1]) ? 2u : 1u;
+                        WaitForMultipleObjects(n, waits, FALSE, static_cast<DWORD>(remaining) + 2);
+                    } else if (remaining > 0.3) {
+                        Sleep(0);
+                    }
+                }
+                if (newer) { ++tuning.predictAbandoned; break; }
+
+                const float ahead = static_cast<float>(k) / static_cast<float>(genFactor);
+                interpolator.SetFlickSRV(noFlick ? nullptr : estimator.FlickSRV());
+                interpolator.SetExtrapolateAhead(ahead);
+                pt = Presenter::PresentTiming{};
+                genStartMs = NowMs();
+                if (!interpolator.GenerateFrame(device.get(), context.get(),
+                                                estimator.PrevFrameSRV(), estimator.CurrFrameSRV(),
+                                                estimator.MotionVectorSRV(), desc.Width, desc.Height,
+                                                DXGI_FORMAT_B8G8R8A8_UNORM, nullptr)) {
+                    telemetry.NoteDropped();
+                    break;
+                }
+                genEndMs = NowMs();
+                telemetry.NoteGeneratedProduced();
+                ID3D11Texture2D* shownP = interpolator.GeneratedFrameTexture();
+                snapRecord(shownP, true);
+                presentStartMs = NowMs();
+                queueAtPresent = syntheticMode ? 0 : capture.QueueDepth();
+                const bool okP = presenter.Present(context.get(), shownP, &pt,
+                                                   markFrames ? Presenter::Marker::Generated
+                                                              : Presenter::Marker::None);
+                presentReturnMs = NowMs();
+                if (!okP) { telemetry.NoteDropped(); break; }
+                const double shownAt = presentReturnMs;
+                tuning.Present(true, shownAt);
+                if (lastPresentMs > 0.0) telemetry.NotePresentInterval(shownAt - lastPresentMs);
+                lastPresentMs = shownAt;
+                telemetry.NoteGenerated(shownAt - frame.arrivalMs);
+                FrameRecord r{ nextOutputId++, true, currId, currId,
+                               currArrivalMs + cad * ahead, 1.0 + ahead, shownAt,
+                               prevArrivalMs, currArrivalMs };
+                r.acquireMs = acquireMs;
+                r.genStartMs = genStartMs; r.genEndMs = genEndMs;
+                r.presentStartMs = presentStartMs; r.presentReturnMs = presentReturnMs;
+                r.queueDepth = queueDepthNow;
+                r.copyMs = pt.copyMs; r.presentCallMs = pt.presentMs;
+                r.waitableFree = pt.waitableFree; r.waitableKnown = pt.waitableKnown;
+                r.submitted = pt.submitted; r.displayed = pt.displayed;
+                r.queueAtPresent = queueAtPresent;
+                r.statPresentCount = pt.statPresentCount;
+                r.statPresentRefresh = pt.statPresentRefresh;
+                r.statSyncRefresh = pt.statSyncRefresh;
+                r.statRefreshKnown = pt.statRefreshKnown;
+                telemetry.NoteSequence(r);
+            }
+            interpolator.SetExtrapolateAhead(0.0f);
         }
 
         if (!syntheticMode) capture.Release(frame);

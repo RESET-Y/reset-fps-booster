@@ -80,6 +80,11 @@ public:
     // bit 0 = low-latency mode (amber), bit 1 = transparency mode (cyan).
     void SetStatusFlags(unsigned int flags) { m_statusFlags = flags; }
 
+    // The estimator's flick state (a one-element structured buffer). While it
+    // reports a flick, generated pixels show the nearest real frame instead of
+    // an interpolation that cannot be right. Not set = never.
+    void SetFlickSRV(ID3D11ShaderResourceView* srv) { m_flickSRV = srv; }
+
     ID3D11Texture2D* GeneratedFrameTexture() const { return m_generatedTex; }
     double LastGpuTimeMs() const { return m_lastGpuTimeMs; }
 
@@ -113,6 +118,7 @@ private:
     ID3D11ComputeShader* m_computeShader = nullptr;
     ID3D11SamplerState* m_linearClampSampler = nullptr;
     ID3D11Buffer* m_paramsCB = nullptr;
+    ID3D11ShaderResourceView* m_flickSRV = nullptr;   // not owned
     unsigned int m_debugTint = 0;
     unsigned int m_debugTintInBuffer = 0xFFFFFFFFu;
     float m_phaseT = 0.5f;          // midpoint - the 2x case

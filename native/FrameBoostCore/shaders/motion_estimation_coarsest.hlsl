@@ -46,9 +46,18 @@ static const int kBlockSampleStride = 4;     // 4x4 = 16 samples per candidate
 // under D3D11.s limit of 1024 threads per group where 33 x 33 = 1089 does not.
 // This stage runs on a sixteenth-resolution image, so its cost is the smallest
 // of the three.
-static const int kSearchRadius = 15;         // = 240 full-resolution pixels
-static const int kSearchWindow = kSearchRadius * 2 + 1; // 31
-static const int kCandidateCount = kSearchWindow * kSearchWindow; // 625
+//
+// RADIUS 30 (2026-11-21), each thread now testing a 2x2 cell of candidates.
+// Measured from a replay capture in Destiny 2, 3x: a fast camera turn moved the
+// picture 256-272 px per real frame, past this stage's 240 px plus the ~22 px
+// the two finer stages add. Every generated frame in that stretch came apart
+// into blocks, doubled name tags and torn weapon edges; at 168 px in the same
+// capture the frames were clean. The thread limit stays at 31 x 31; four
+// candidates per thread reach 480 px. The stage runs on 60 blocks at 1440p, so
+// four times its cost is still noise.
+static const int kSearchRadius = 30;         // = 480 full-resolution pixels
+static const int kThreadsPerAxis = 31;       // 31 x 31 = 961 <= 1024
+static const int kThreadCount = kThreadsPerAxis * kThreadsPerAxis;
 
 cbuffer FrameDims : register(b0)
 {
@@ -62,11 +71,18 @@ cbuffer FrameDims : register(b0)
     uint _pad1;
 };
 
-groupshared float g_sad[kCandidateCount];
+groupshared float g_score[kThreadCount];
+groupshared int2  g_offset[kThreadCount];
 
+// Samples whose partner lands outside the picture are LEFT OUT and the sum is
+// scaled back to the full sample count, instead of being compared against a
+// clamped edge texel. At radius 15 that clamp touched few candidates; at 30 a
+// large share of every edge block's offsets reach past the border, and a
+// smeared edge column can out-score the true match on a flat block.
 float BlockSAD(int2 currBlockOrigin, int2 candidateOffset, int2 mipDims)
 {
     float sad = 0.0;
+    float used = 0.0;
     [unroll]
     for (int y = 0; y < kBlockSize; y += kBlockSampleStride)
     {
@@ -77,43 +93,73 @@ float BlockSAD(int2 currBlockOrigin, int2 candidateOffset, int2 mipDims)
             if (currTexel.x >= mipDims.x || currTexel.y >= mipDims.y)
                 continue;
 
-            int2 prevTexel = clamp(currTexel + candidateOffset, int2(0, 0), mipDims - 1);
+            int2 prevTexel = currTexel + candidateOffset;
+            if (any(prevTexel < int2(0, 0)) || any(prevTexel >= mipDims))
+                continue;
 
             float3 currColor = CurrFrame.Load(int3(currTexel, kMipLevel)).rgb;
             float3 prevColor = PrevFrame.Load(int3(prevTexel, kMipLevel)).rgb;
 
             sad += dot(abs(currColor - prevColor), float3(1.0, 1.0, 1.0));
+            used += 1.0;
         }
     }
-    return sad;
+    const float total = (kBlockSize / kBlockSampleStride) * (kBlockSize / kBlockSampleStride);
+    // Fewer than a quarter of the samples inside: not a comparison at all.
+    if (used < total * 0.25) return 1e9;
+    return sad * (total / used);
 }
 
-// One thread group per coarse block, one thread per candidate offset.
-[numthreads(kSearchWindow, kSearchWindow, 1)]
+// A tie on a flat block (sky, a wall) goes to the SHORTER vector. Without it the
+// first candidate in index order won, which is the far corner of the window -
+// harmless at 240 px, a needless 480 px vector now. The weight is far below any
+// real SAD difference.
+float Score(float sad, int2 offset)
+{
+    return sad + 1e-5 * float(dot(offset, offset));
+}
+
+// One thread group per coarsest block; each thread tests a 2x2 cell of
+// candidate offsets, so 31 x 31 threads cover -30..+31 (+31 is skipped).
+[numthreads(kThreadsPerAxis, kThreadsPerAxis, 1)]
 void CSMain(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex)
 {
     int2 mipDims = int2(max(FrameWidth / kMipScale, 1u), max(FrameHeight / kMipScale, 1u));
     int2 blockOrigin = int2(groupId.xy) * kBlockSize;
-    int2 candidateOffset = int2(groupThreadId.xy) - kSearchRadius;
+    int2 cellOrigin = int2(groupThreadId.xy) * 2 - kSearchRadius;
 
-    g_sad[groupIndex] = BlockSAD(blockOrigin, candidateOffset, mipDims);
+    float bestScore = 1e30;
+    int2 bestOffset = int2(0, 0);
+    [unroll]
+    for (int j = 0; j < 2; ++j)
+    {
+        [unroll]
+        for (int i = 0; i < 2; ++i)
+        {
+            int2 offset = cellOrigin + int2(i, j);
+            if (any(offset > int2(kSearchRadius, kSearchRadius)))
+                continue;
+            float s = Score(BlockSAD(blockOrigin, offset, mipDims), offset);
+            if (s < bestScore) { bestScore = s; bestOffset = offset; }
+        }
+    }
+    g_score[groupIndex] = bestScore;
+    g_offset[groupIndex] = bestOffset;
     GroupMemoryBarrierWithGroupSync();
 
     if (groupIndex == 0)
     {
-        float bestSad = g_sad[0];
+        float best = g_score[0];
         int bestIndex = 0;
-        for (int i = 1; i < kCandidateCount; ++i)
+        for (int k = 1; k < kThreadCount; ++k)
         {
-            if (g_sad[i] < bestSad)
+            if (g_score[k] < best)
             {
-                bestSad = g_sad[i];
-                bestIndex = i;
+                best = g_score[k];
+                bestIndex = k;
             }
         }
-
-        int2 bestOffset = int2(bestIndex % kSearchWindow, bestIndex / kSearchWindow) - kSearchRadius;
-        // Stored in mip-2 texels; the fine stage scales it up by kMipScale.
-        CoarsestMotionVectors[groupId.xy] = float4(float2(bestOffset), 0.0, 0.0);
+        // Stored in mip-4 texels; the coarse stage scales it up.
+        CoarsestMotionVectors[groupId.xy] = float4(float2(g_offset[bestIndex]), 0.0, 0.0);
     }
 }

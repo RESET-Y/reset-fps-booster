@@ -21,6 +21,8 @@
 Texture2D<float4> PrevFrame : register(t0);
 Texture2D<float4> CurrFrame : register(t1);
 Texture2D<float4> MotionVectors : register(t2); // block-resolution, from motion estimation
+// x = flick amount 0..1 from flick_detect.hlsl. Unbound reads as 0 = no flick.
+StructuredBuffer<float4> FlickState : register(t3);
 RWTexture2D<float4> GeneratedFrame : register(u0);
 
 SamplerState LinearClamp : register(s0);
@@ -671,7 +673,22 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         // than on the failing ones. That is the price of asking a question
         // whose whole value is that it is asked where nothing looks wrong.
         const float stillResidualEarly = Residual(pixelCenter, dims, float2(0.0, 0.0));
-        const bool pixelIdenticalAtZero = stillResidualEarly < 0.02;
+        bool pixelIdenticalAtZero = stillResidualEarly < 0.02;
+
+        // PREDICTION ONLY: a flat surface is not an overlay.
+        //
+        // A dark, even wall looks identical at zero in both frames while the
+        // camera sweeps it sideways, so it took the still path and stood
+        // still while the sky beside it moved - a staircase along its edge in
+        // every predicted frame (Destiny 2 capture, 2026-11-21). Interpolation
+        // hides this by mixing both frames; a prediction shows it.
+        //
+        // An overlay matches at zero and NOT along the scene's motion, because
+        // the motion carries it onto other content. A flat surface matches
+        // both ways. Where both match, prediction takes the motion.
+        if (ExtrapolateAhead > 0.0 && pixelIdenticalAtZero
+            && Residual(pixelCenter, dims, mv) < 0.04)
+            pixelIdenticalAtZero = false;
 
         // The interpolated vector is the incumbent: it starts as the winner, so
         // a neighbour has to be strictly better to displace it.
@@ -883,16 +900,62 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         float2 aheadPos = pixelCenter + ExtrapolateAhead * mv;
         float4 aheadColor = CurrFrame.SampleLevel(LinearClamp, aheadPos / dims, 0);
 
+        // NOT FROM THE WEAPON OR THE HUD (2026-11-21, prediction mode). Same
+        // reasoning as the interpolation path below: a moving pixel whose
+        // source spot is identical in both real frames is reading something
+        // that stands still - in a turn, the content about to appear here is
+        // still hidden behind the weapon in the newest frame. One interval
+        // earlier it was further along its path and may have been in the
+        // open, so the previous frame is asked first; failing that, the pixel
+        // keeps what the newest frame shows here, which does not smear.
+        if (length(mv) > 8.0)
+        {
+            const float aheadStill = dot(abs(
+                PrevFrame.SampleLevel(LinearClamp, aheadPos / dims, 0).rgb - aheadColor.rgb),
+                float3(1.0, 1.0, 1.0));
+            if (aheadStill < 0.06)
+            {
+                const float2 olderPos = pixelCenter + (1.0 + ExtrapolateAhead) * mv;
+                const float3 older = PrevFrame.SampleLevel(LinearClamp, olderPos / dims, 0).rgb;
+                const float olderStill = dot(abs(
+                    older - CurrFrame.SampleLevel(LinearClamp, olderPos / dims, 0).rgb),
+                    float3(1.0, 1.0, 1.0));
+                aheadColor.rgb = (olderStill >= 0.06)
+                    ? older
+                    : CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb;
+            }
+        }
+
         // No second frame exists at this instant, so the per-pixel agreement
         // test that interpolation uses is not available. The block's own match
         // error is: where the estimator found no real match, the vector is a
         // guess and moving the picture by it would smear.
         float aheadConfidence = saturate(1.0 - blockMatchError * kBlockErrorSensitivity);
-        float4 aheadFallback = CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0);
+
+        // THE FALLBACK MOVES WITH ITS SURROUNDINGS. Holding an unsure pixel
+        // where it was drew everything twice: the pixel stayed at the old
+        // place while its sure neighbours moved on - a glowing beam in Destiny
+        // 2 appeared once where it was and once where it was going. The
+        // smoothed block field is the motion of the area around this pixel;
+        // in a camera turn that is nearly the same everywhere, so the unsure
+        // pixel moves along with the rest. A pixel that chose standing still
+        // (HUD) keeps standing still.
+        const float2 areaMv = all(mv == float2(0.0, 0.0))
+            ? float2(0.0, 0.0)
+            : SampleMotionBilinear(pixelCenter, blockCount).xy;
+        float4 aheadFallback = CurrFrame.SampleLevel(LinearClamp,
+            (pixelCenter + ExtrapolateAhead * areaMv) / dims, 0);
 
         float3 aheadLinear = SrgbToLinear(aheadColor.rgb);
         float3 aheadFallbackLinear = SrgbToLinear(aheadFallback.rgb);
-        float3 aheadResult = lerp(aheadFallbackLinear, aheadLinear, aheadConfidence);
+        // EITHER-OR, NOT A MIX. Interpolation can blend toward the fallback
+        // because both of its samples sit near the same place. Here the
+        // shifted and the unshifted picture are 50-120 px apart in an ordinary
+        // turn, and any blend of the two is a double image - which is what
+        // "alles ist doppelt" was (Destiny 2 capture, 2026-11-21). The same
+        // goes for the flick fallback: below half it predicts, above it holds.
+        const bool trustPrediction = aheadConfidence >= 0.5 && FlickState[0].x < 0.5;
+        float3 aheadResult = trustPrediction ? aheadLinear : aheadFallbackLinear;
 
         float4 outColor = float4(LinearToSrgb(aheadResult), 1.0);
         if (DebugTintGenerated) outColor.r = min(outColor.r + 0.35, 1.0);
@@ -996,6 +1059,42 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     // Confidence in this pixel's motion vector: if the two samples the
     // vector claims are "the same content, half a frame apart" do not
     // actually look alike, the vector is wrong here.
+    // A MOVING PIXEL MUST NOT FETCH ITS COLOUR FROM THE HUD.
+    //
+    // Seen in a Destiny 2 replay capture (2026-11-21, a 264 px camera turn): the
+    // generated frames carried extra copies of the ability icons and the ammo
+    // counter pasted into the landscape above and below the real HUD. The HUD
+    // itself was right - the still-pixel test keeps it in place. The copies came
+    // from the BACKGROUND pixels around it: following their own (correct)
+    // vector, one of their two samples landed on the HUD in that frame, and
+    // whenever the nearer frame's sample was the HUD one, the HUD was painted
+    // there.
+    //
+    // A source position that shows the same thing in both real frames while
+    // this pixel moves by tens of pixels belongs to something standing still -
+    // an overlay - not to the moving world this pixel is part of. When exactly
+    // one of the two samples comes from such a place, the other one is used
+    // for both. Wrong calls are cheap by construction: a flat patch of sky also
+    // looks "still", and taking the other sample there changes nothing
+    // visible. When both or neither look still, nothing changes.
+    //
+    // 0.06 over three channels (2% each), looser than the 0.02 of the
+    // still-pixel test, because Destiny's HUD panels are translucent and the
+    // world sliding behind them changes them a little.
+    if (length(mv) > 8.0)
+    {
+        const float prevSourceStill = dot(abs(
+            PrevFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0).rgb -
+            CurrFrame.SampleLevel(LinearClamp, prevSamplePos / dims, 0).rgb), float3(1.0, 1.0, 1.0));
+        const float currSourceStill = dot(abs(
+            PrevFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0).rgb -
+            CurrFrame.SampleLevel(LinearClamp, currSamplePos / dims, 0).rgb), float3(1.0, 1.0, 1.0));
+        const bool prevFromOverlay = prevSourceStill < 0.06;
+        const bool currFromOverlay = currSourceStill < 0.06;
+        if (prevFromOverlay && !currFromOverlay) prevColor = currColor;
+        else if (currFromOverlay && !prevFromOverlay) currColor = prevColor;
+    }
+
     float mismatch = dot(abs(prevColor.rgb - currColor.rgb), float3(1.0, 1.0, 1.0)) / 3.0;
     float pixelConfidence = saturate(1.0 - mismatch * kMismatchSensitivity);
 
@@ -1273,6 +1372,14 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         const float3 cLin = SrgbToLinear(CurrFrame.SampleLevel(LinearClamp, pixelCenter / dims, 0).rgb);
         warpedLinear = lerp(lerp(pLin, cLin, PhaseT), warpedLinear, vectorTrust);
     }
+
+    // FLICK: the nearest real frame, unwarped, instead of an interpolation
+    // across a jump no estimate can bridge. See flick_detect.hlsl. Pixels that
+    // took the still-pixel path above never reach this, which is right: the
+    // HUD looks the same either way.
+    const float flick = FlickState[0].x;
+    if (flick > 0.0)
+        warpedLinear = lerp(warpedLinear, fallbackLinear, saturate(flick));
 
     float4 result;
     result.rgb = LinearToSrgb(warpedLinear);

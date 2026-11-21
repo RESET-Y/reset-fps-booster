@@ -6,6 +6,7 @@
 #include "motion_smooth_cs.h"
 #include "motion_estimation_coarse_cs.h"
 #include "motion_estimation_coarsest_cs.h"
+#include "flick_detect_cs.h"
 
 namespace FrameBoost::MotionEstimation {
 
@@ -234,6 +235,31 @@ bool Estimator::EnsureResources(ID3D11Device* device, const D3D11_TEXTURE2D_DESC
     D3D11_SUBRESOURCE_DATA gridCbInit{ &gridDims, 0, 0 };
     device->CreateBuffer(&cbDesc, &gridCbInit, &m_blockGridDimsCB);
 
+    // Flick state: one float4, kept across resizes (it carries the decay).
+    if (!m_flickShader) {
+        if (FAILED(device->CreateComputeShader(g_FlickDetectCS, sizeof(g_FlickDetectCS), nullptr, &m_flickShader)))
+            Logger::Log("[FrameBoost] Motion estimation: flick detector unavailable - generated frames are never replaced.");
+    }
+    if (!m_flickBuffer && m_flickShader) {
+        D3D11_BUFFER_DESC fd{};
+        fd.ByteWidth = 16;
+        fd.Usage = D3D11_USAGE_DEFAULT;
+        fd.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        fd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        fd.StructureByteStride = 16;
+        const float zero[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        D3D11_SUBRESOURCE_DATA fi{ zero, 0, 0 };
+        if (SUCCEEDED(device->CreateBuffer(&fd, &fi, &m_flickBuffer))) {
+            device->CreateUnorderedAccessView(m_flickBuffer, nullptr, &m_flickUAV);
+            device->CreateShaderResourceView(m_flickBuffer, nullptr, &m_flickSRV);
+            D3D11_BUFFER_DESC sd{};
+            sd.ByteWidth = 16;
+            sd.Usage = D3D11_USAGE_STAGING;
+            sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            for (auto& s : m_flickStaging) device->CreateBuffer(&sd, nullptr, &s);
+        }
+    }
+
     if (!m_queries[0].disjoint) {
         for (auto& q : m_queries) {
             D3D11_QUERY_DESC disjointDesc{ D3D11_QUERY_TIMESTAMP_DISJOINT, 0 };
@@ -348,6 +374,19 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
 
         context->CSSetShaderResources(0, 2, nullSrvs);
         context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+
+        // Flick detection on the FORWARD coarsest field - here, before the
+        // backward pass below reuses the same texture. One group, 64 threads.
+        if (m_flickShader && m_flickUAV) {
+            context->CSSetShaderResources(0, 1, &m_coarsestMotionSRV);
+            context->CSSetUnorderedAccessViews(0, 1, &m_flickUAV, nullptr);
+            context->CSSetConstantBuffers(0, 1, &m_frameDimsCB);
+            context->CSSetShader(m_flickShader, nullptr, 0);
+            context->Dispatch(1, 1, 1);
+            context->CSSetShaderResources(0, 1, nullSrvs);
+            context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
+            ReadBackFlick(context);
+        }
 
         // Pass 1b: COARSE search on mip 2 (quarter resolution), refining the
         // coarsest result by +-24 px rather than searching from zero.
@@ -483,7 +522,30 @@ bool Estimator::ProcessFrame(ID3D11Device* device, ID3D11DeviceContext* context,
     return computedThisFrame;
 }
 
+// Copies this pair's flick state into a staging ring and reads the oldest
+// copy without waiting: the log gets a value two pairs late, and the GPU is
+// never stalled for it.
+void Estimator::ReadBackFlick(ID3D11DeviceContext* context) {
+    if (!m_flickStaging[0]) return;
+    context->CopyResource(m_flickStaging[m_flickStagingWrite], m_flickBuffer);
+    m_flickStagingWrite = (m_flickStagingWrite + 1) % 3;
+    if (m_flickStagingFilled < 3) { ++m_flickStagingFilled; return; }
+    ID3D11Buffer* oldest = m_flickStaging[m_flickStagingWrite];
+    D3D11_MAPPED_SUBRESOURCE m{};
+    if (SUCCEEDED(context->Map(oldest, 0, D3D11_MAP_READ, D3D11_MAP_FLAG_DO_NOT_WAIT, &m))) {
+        const float* f = static_cast<const float*>(m.pData);
+        for (int i = 0; i < 4; ++i) m_lastFlick[i] = f[i];
+        m_flickKnown = true;
+        context->Unmap(oldest, 0);
+    }
+}
+
 Estimator::~Estimator() {
+    SafeRelease(m_flickShader);
+    SafeRelease(m_flickUAV);
+    SafeRelease(m_flickSRV);
+    SafeRelease(m_flickBuffer);
+    for (auto& s : m_flickStaging) SafeRelease(s);
     SafeRelease(m_prevFrameTex);
     SafeRelease(m_currFrameTex);
     SafeRelease(m_prevFrameSRV);

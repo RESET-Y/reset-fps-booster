@@ -49,6 +49,18 @@ public:
     ID3D11ShaderResourceView* MotionVectorSRV() const { return m_motionVectorSmoothSRV; }
     static constexpr UINT BlockSizePixels() { return 8; }
 
+    // FLICK STATE, one float4 written on the GPU per pair from the coarsest
+    // field (see flick_detect.hlsl): x = flick amount 0..1, y = share of
+    // blocks flicking, z = mean speed px, w = share on the search edge. The
+    // interpolation shader reads the buffer directly. LastFlick() is the same
+    // value read back a frame or two late, for the log only.
+    ID3D11ShaderResourceView* FlickSRV() const { return m_flickSRV; }
+    bool LastFlick(float out[4]) const {
+        if (!m_flickKnown) return false;
+        for (int i = 0; i < 4; ++i) out[i] = m_lastFlick[i];
+        return true;
+    }
+
     ~Estimator();
 
 private:
@@ -97,6 +109,16 @@ private:
     ID3D11ComputeShader* m_smoothShader = nullptr;
     ID3D11ComputeShader* m_coarseShader = nullptr;
     ID3D11ComputeShader* m_coarsestShader = nullptr;
+    ID3D11ComputeShader* m_flickShader = nullptr;
+    ID3D11Buffer* m_flickBuffer = nullptr;
+    ID3D11UnorderedAccessView* m_flickUAV = nullptr;
+    ID3D11ShaderResourceView* m_flickSRV = nullptr;
+    ID3D11Buffer* m_flickStaging[3] = { nullptr, nullptr, nullptr };
+    int m_flickStagingWrite = 0;
+    int m_flickStagingFilled = 0;
+    float m_lastFlick[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    bool m_flickKnown = false;
+    void ReadBackFlick(ID3D11DeviceContext* context);
     // Previous frame`s smoothed field, for temporal damping of the "wiggle".
     ID3D11Texture2D* m_motionVectorHistoryTex = nullptr;
     ID3D11ShaderResourceView* m_motionVectorHistorySRV = nullptr;

@@ -49,7 +49,10 @@ double NowMs() {
                          : 0.0;
 }
 
-Capture::~Capture() { Stop(); }
+Capture::~Capture() {
+    Stop();
+    if (m_arrivalEvent) { CloseHandle(m_arrivalEvent); m_arrivalEvent = nullptr; }
+}
 
 bool Capture::StartMonitor(HMONITOR monitor, ID3D11Device* device, int captureMonitorHz) {
     if (!monitor || !device) {
@@ -515,6 +518,7 @@ void Capture::ProcessArrival(const Direct3D11CaptureFrame& frame) {
         m_slotArrivalMs[slot] = arrivalMs;
         ++m_head;
     }
+    if (m_arrivalEvent) SetEvent(m_arrivalEvent);
 
     m_watchFpSlot = EnsureFingerprint(srcDesc) ? RunFingerprint(slot, srcDesc) : -1;
 

@@ -253,8 +253,9 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
     ID3D11UnorderedAccessView* finalUAV = targetUAV ? targetUAV : m_generatedUAV;
     const bool twoPass = (scale > 1) && EnsureScaledTarget(device, scaledW, scaledH, format);
 
-    ID3D11ShaderResourceView* srvs[3] = { prevSRV, currSRV, motionSRV };
-    context->CSSetShaderResources(0, 3, srvs);
+    // t3: the flick state. Unbound reads as zero, which is "no flick".
+    ID3D11ShaderResourceView* srvs[4] = { prevSRV, currSRV, motionSRV, m_flickSRV };
+    context->CSSetShaderResources(0, 4, srvs);
     ID3D11UnorderedAccessView* outputUAV = twoPass ? m_scaledUAV : finalUAV;
     context->CSSetUnorderedAccessViews(0, 1, &outputUAV, nullptr);
     context->CSSetSamplers(0, 1, &m_linearClampSampler);
@@ -263,8 +264,8 @@ bool Interpolator::GenerateFrame(ID3D11Device* device, ID3D11DeviceContext* cont
 
     context->Dispatch((scaledW + 7) / 8, (scaledH + 7) / 8, 1);
 
-    ID3D11ShaderResourceView* nullSrvs[3] = { nullptr, nullptr, nullptr };
-    context->CSSetShaderResources(0, 3, nullSrvs);
+    ID3D11ShaderResourceView* nullSrvs[4] = { nullptr, nullptr, nullptr, nullptr };
+    context->CSSetShaderResources(0, 4, nullSrvs);
     ID3D11UnorderedAccessView* nullUav = nullptr;
     context->CSSetUnorderedAccessViews(0, 1, &nullUav, nullptr);
 
