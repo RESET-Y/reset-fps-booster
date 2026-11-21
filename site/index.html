@@ -294,6 +294,11 @@ section { padding: clamp(104px, 12vw, 176px) 0; position: relative; }
 .grid { display: grid; gap: 16px; }
 .grid-4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.grid-3m { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.grid-3m .mode .num { font-size: clamp(28px, 2.4vw, 38px); white-space: nowrap; }
+.grid-3m .mode .tags { flex-wrap: wrap; row-gap: 8px; }
+@media (max-width: 1180px) { .grid-3m { grid-template-columns: minmax(0,1fr); } .grid-3m .mode .num { font-size: 46px; } }
+.mode.tri { border-color: var(--accent); box-shadow: 0 0 44px -14px var(--accent-glow); }
 .card { position: relative; background: radial-gradient(420px circle at var(--sx) var(--sy), rgba(232,18,31,.07), transparent 60%), linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0) 45%), var(--surface);
   border: 1px solid var(--border); padding: 30px 28px; transition: border-color .3s, transform .5s var(--ease-out), box-shadow .5s var(--ease-out); }
 .card:hover { border-color: var(--border-2); transform: translateY(-6px); box-shadow: 0 34px 70px -34px rgba(232,18,31,.28); }
@@ -377,7 +382,7 @@ section { padding: clamp(104px, 12vw, 176px) 0; position: relative; }
 .suppr:empty { display: none; }
 
 /* ---------- 60 to 120: the scroll scene ---------- */
-.fps { padding: 0; height: 330vh; }
+.fps { padding: 0; height: 440vh; }
 .fps-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; background: radial-gradient(70% 55% at 50% 58%, rgba(122,10,16,calc(.18 + var(--p, 0) * .4)), transparent 72%), #050505; }
 .fps-stage::before { content: ""; position: absolute; left: 0; right: 0; top: 58%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,45,58,.55), transparent); box-shadow: 0 0 30px 6px rgba(232,18,31,.25); opacity: calc(.3 + var(--p, 0) * .7); }
 .fps-in { position: relative; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0,1fr) auto auto; padding-top: calc(var(--hdr) + 36px); padding-bottom: clamp(28px, 5vh, 56px); }
@@ -388,11 +393,14 @@ section { padding: clamp(104px, 12vw, 176px) 0; position: relative; }
 .fps.hot .fps-num { color: var(--accent-bright); text-shadow: 0 0 120px var(--accent-glow); }
 .fps-unit { font-size: .17em; color: var(--accent); margin: .55em 0 0 .42em; letter-spacing: .04em; transition: color .4s; }
 .fps.hot .fps-unit { color: #fff; }
-.fps-film { --w: clamp(14px, min(2.6vw, calc((100vw - 2 * var(--gutter)) / 17 - 6px)), 42px); display: flex; justify-content: center; align-items: stretch; height: clamp(48px, 7vh, 88px); margin: 0 0 clamp(24px, 4vh, 44px); }
+.fps.tri .fps-num { text-shadow: 0 0 160px var(--accent-glow), 0 0 46px rgba(255,255,255,.28); }
+.fps.tri .fps-stage { background: radial-gradient(70% 55% at 50% 58%, rgba(170,14,24,.7), transparent 72%), #050505; }
+.fps-film { --w: clamp(14px, min(2.6vw, calc((100vw - 2 * var(--gutter)) / 25 - 6px)), 38px); display: flex; justify-content: center; align-items: stretch; height: clamp(48px, 7vh, 88px); margin: 0 0 clamp(24px, 4vh, 44px); }
 .fps-film i { flex: none; width: var(--w); margin: 0 3px; transform: skewX(-10deg); background: #ebe7e6; box-shadow: 0 0 22px rgba(255,255,255,.12); }
 .fps-film i.g { width: calc(var(--w) * var(--g, 1)); margin: 0 calc(3px * var(--g, 1)); opacity: var(--g, 1);
   background: repeating-linear-gradient(-56deg, var(--accent) 0 5px, var(--accent-bright) 5px 10px); box-shadow: 0 0 26px var(--accent-glow); }
-.fps-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 24px; counter-reset: s; }
+.fps-film i.g2 { width: calc(var(--w) * var(--g2, 1)); margin: 0 calc(3px * var(--g2, 1)); opacity: var(--g2, 1); filter: brightness(1.25); }
+.fps-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 24px; counter-reset: s; }
 .fps-steps li { font: 900 italic clamp(19px, 2vw, 30px)/1.05 var(--display); text-transform: uppercase; color: var(--text-3); border-top: 2px solid var(--border-2); padding-top: 16px; transition: color .5s, border-color .5s; }
 .fps-steps li::before { counter-increment: s; content: counter(s, decimal-leading-zero) " "; color: var(--accent); }
 .fps-steps li.on { color: var(--text); border-color: var(--accent); }
@@ -426,6 +434,7 @@ section { padding: clamp(104px, 12vw, 176px) 0; position: relative; }
 .film-row i.dup::after { display: none; }
 .film-row i.gen { background: repeating-linear-gradient(-56deg, var(--accent) 0 4px, var(--accent-bright) 4px 8px); box-shadow: 0 0 14px var(--accent-glow); }
 .film-row i.wide { width: 66px; }
+.film-row i.wide.x3 { width: 102px; }
 .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; font: 400 11px var(--mono); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; }
 .legend span { display: inline-flex; align-items: center; gap: 8px; }
 .legend i { width: 12px; height: 12px; display: inline-block; transform: skewX(-10deg); }
@@ -666,7 +675,7 @@ footer { padding: clamp(72px, 8vw, 110px) 0 0; color: var(--text-3); font-size: 
   .hero { padding-top: calc(var(--hdr) + 44px); min-height: 0; }
   .nav { gap: 12px; }
   .nav .btn-small { display: none; }
-  .grid-4, .grid-2, .steps, .mods { grid-template-columns: minmax(0,1fr); }
+  .grid-4, .grid-2, .grid-3m, .steps, .mods { grid-template-columns: minmax(0,1fr); }
   #new .card { min-height: 0; }
   #new .card h3 { margin-top: 28px; }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
@@ -761,7 +770,7 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
 .hs-head .head { margin-bottom: 0; }
 .hs-more { margin: 0 0 8px; font: 400 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
 .hs-more a { color: var(--accent-bright); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
-.hs-track { max-width: var(--max); margin: clamp(48px, 6vw, 80px) auto 0; padding: 0 var(--gutter); display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+.hs-track { max-width: var(--max); margin: clamp(48px, 6vw, 80px) auto 0; padding: 0 var(--gutter); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
 #new .card { overflow: hidden; }
 .hs-art { position: absolute; right: -16px; top: -16px; width: 50%; height: auto; color: var(--accent); opacity: .14; pointer-events: none; transition: opacity .5s, transform .9s var(--ease-out); }
 #new .card:hover .hs-art { opacity: .3; transform: translate(-8px, -8px) rotate(-4deg) scale(1.04); }
@@ -1000,17 +1009,19 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
     <div class="hs-stage">
       <div class="wrap hs-head">
         <div class="head rv">
-          <div class="eyebrow">Version 1.5</div>
-          <h2 class="wipe">What's new <span class="accent">in 1.5</span></h2>
-          <p>FrameBoost and Smooth Motion are out of beta, and two new free tools help you dial in your aim and your Apex settings.</p>
+          <div class="eyebrow">Version 1.5.3</div>
+          <h2 class="wipe">Three times <span class="accent">the frames.</span></h2>
+          <p>FrameBoost 3x builds two frames between every two real ones, holds together in fast turns and stays clean in flicks. Plus a new Picture page for colour and contrast.</p>
         </div>
-        <p class="hs-more"><a href="https://github.com/RESET-Y/reset-fps-booster/releases/tag/v1.5.0">Read the full release notes</a></p>
+        <p class="hs-more"><a href="https://github.com/RESET-Y/reset-fps-booster/releases/tag/v1.5.3">Read the full release notes</a></p>
       </div>
       <div class="hs-track">
-        <article class="card rv"><div class="tags"><span class="tag"><span>Free</span></span></div><h3>Sens-Finder</h3><p>A short aim test with six sensitivities in random order. You get the one you hit and track best with, converted for Apex, CS2, Valorant and Fortnite.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><circle cx="100" cy="100" r="64"/><circle cx="100" cy="100" r="9" fill="currentColor" stroke="none"/><path d="M100 0v62M100 138v62M0 100h62M138 100h62"/></svg></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>Free</span></span></div><h3>Apex Config</h3><p>Turn off shadows, SSAO, fog, ragdolls and bullet holes, set texture streaming and FOV. A backup is made before every change.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><path d="M14 46h172M14 100h172M14 154h172"/><rect x="44" y="28" width="34" height="36" fill="currentColor" stroke="none" transform="skewX(-12)"/><rect x="128" y="82" width="34" height="36" fill="currentColor" stroke="none" transform="skewX(-12)"/><rect x="92" y="136" width="34" height="36" fill="currentColor" stroke="none" transform="skewX(-12)"/></svg></article>
-        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>No more beta</h3><p>FrameBoost and Smooth Motion are a regular part of the app now. Your custom crosshair stays on top of the Smooth Motion picture.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><text x="96" y="150" text-anchor="middle" font-family="Saira Condensed, Arial Narrow, sans-serif" font-weight="900" font-style="italic" font-size="150" fill="none" stroke-width="4">1.5</text><path d="M12 188L188 12" stroke-width="10"/></svg></article>
-        <article class="card rv"><div class="tags"><span class="tag"><span>App</span></span></div><h3>New look</h3><p>Red, black and white with motion, a start screen that reads your PC, and a tray icon. The sidebar is sorted into Tuning, Analysis and Gaming.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><path d="M30 180L90 20M70 180L130 20M110 180L170 20M150 180L190 74" stroke-width="14"/></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>FrameBoost 3x</h3><p>Two generated frames between every two real ones. Cap at 48 on a 144 Hz screen and it shows 144. Measured in War Thunder: 75 in, 225 out.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><text x="100" y="150" text-anchor="middle" font-family="Saira Condensed, Arial Narrow, sans-serif" font-weight="900" font-style="italic" font-size="150" fill="none" stroke-width="4">3x</text></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>Fast turns hold</h3><p>The motion search reaches twice as far: 480 px per frame instead of 240. Fast camera turns no longer come apart into blocks.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><path d="M20 100h160M140 60l40 40-40 40"/><path d="M20 60h70M20 140h70" stroke-width="4"/></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>Flick guard</h3><p>A flick moves the picture further than any in-between frame can follow. FrameBoost recognises it and shows the real frame instead of blocks.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><circle cx="100" cy="100" r="64"/><path d="M100 100L176 40" stroke-width="10"/><circle cx="100" cy="100" r="9" fill="currentColor" stroke="none"/></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>HUD stays put</h3><p>Ammo counter and ability icons no longer leave copies in the scene behind them when you turn.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><rect x="24" y="120" width="152" height="50"/><path d="M44 145h40M110 145h46" stroke-width="10"/><path d="M24 40h152" stroke-dasharray="10 12"/></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag"><span>App</span></span></div><h3>Picture</h3><p>Saturation, brightness and contrast with presets and your own. Pauses on its own when a game from your library starts.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><path d="M20 170L180 30"/><rect x="20" y="30" width="160" height="140"/><path d="M20 170h160V30z" fill="currentColor" stroke="none" opacity=".35"/></svg></article>
+        <article class="card rv"><div class="tags"><span class="tag red"><span>Premium</span></span></div><h3>0.05 ms pickup</h3><p>A new game frame wakes FrameBoost the moment it arrives. It used to wait for the next check, up to 2.3 ms later.</p><svg class="hs-art" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="7" aria-hidden="true"><circle cx="100" cy="110" r="66"/><path d="M100 110V62M100 28v16M84 28h32" stroke-width="10"/></svg></article>
       </div>
       <div class="wrap"><div class="hs-prog" aria-hidden="true"><i></i></div></div>
     </div>
@@ -1085,15 +1096,16 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
       <div class="wrap fps-in">
         <div class="fps-top">
           <div class="eyebrow">Frame generation</div>
-          <p class="fps-note">Example: a game capped at 60 on a 120 Hz screen.</p>
+          <p class="fps-note">Example: a game running at 60. 2x shows 120, 3x shows 180.</p>
         </div>
-        <h2 class="sr-only" id="fpsTitle">60 FPS in, 120 FPS out</h2>
+        <h2 class="sr-only" id="fpsTitle">60 FPS in, 120 or 180 FPS out</h2>
         <div class="fps-count" aria-hidden="true"><span class="fps-num" id="fpsNum">120</span><span class="fps-unit">FPS</span></div>
-        <div class="fps-film" aria-hidden="true"><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i><i class="g"></i><i></i></div>
+        <div class="fps-film" aria-hidden="true"><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i><i class="g"></i><i class="g g2"></i><i></i></div>
         <ol class="fps-steps">
           <li class="on">Your game renders 60 frames a second.</li>
           <li class="on">FrameBoost builds one more between every two.</li>
           <li class="on">Your screen shows 120. Nothing injected.</li>
+          <li class="on">3x builds two. 180.</li>
         </ol>
       </div>
     </div>
@@ -1105,16 +1117,20 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
       <div class="head rv">
         <div class="eyebrow">See the difference</div>
         <h2 class="wipe">60 or 120. <span class="accent">See it yourself.</span></h2>
-        <p>Left of the line, every second frame is missing: that is 60 FPS. Right of it, all 120 are there. Drag the line, or switch to slow motion.</p>
+        <p>Left of the line, the game alone. Right of it, FrameBoost: twice the frames with 2x, three times with 3x. Drag the line, or switch to slow motion.</p>
       </div>
       <div class="cmp-stage rv" id="cmpStage" data-clip="">
         <canvas id="cmpGl" aria-hidden="true"></canvas>
-        <div class="cmp-tag l" aria-hidden="true"><b>60</b>FPS</div>
-        <div class="cmp-tag r" aria-hidden="true"><b>120</b>FPS</div>
+        <div class="cmp-tag l" aria-hidden="true"><b id="cmpTagL">60</b>FPS</div>
+        <div class="cmp-tag r" aria-hidden="true"><b id="cmpTagR">120</b>FPS</div>
         <div class="cmp-line" aria-hidden="true"><i></i></div>
         <input class="cmp-range" type="range" min="4" max="96" value="50" aria-label="Divider between 60 and 120 FPS">
       </div>
       <div class="cmp-bar">
+        <div class="chips" id="cmpMode" role="group" aria-label="Mode">
+          <button type="button" class="chip" data-x="2" aria-pressed="true"><span>60 // 120</span></button>
+          <button type="button" class="chip" data-x="3" aria-pressed="false"><span>3x: 48 // 144</span></button>
+        </div>
         <div class="chips" id="cmpRate" role="group" aria-label="Speed">
           <button type="button" class="chip" data-rate="1" aria-pressed="true"><span>Real time</span></button>
           <button type="button" class="chip" data-rate="0.25" aria-pressed="false"><span>Slow motion</span></button>
@@ -1130,12 +1146,13 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
     <div class="wrap fb-grid">
       <div class="rv">
         <div class="eyebrow">RESET FrameBoost</div>
-        <h2 class="wipe" style="margin-top:16px">Twice the frames.<br><span class="accent">Nothing injected.</span></h2>
-        <p class="lead">FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.</p>
+        <h2 class="wipe" style="margin-top:16px">Two or three times the frames.<br><span class="accent">Nothing injected.</span></h2>
+        <p class="lead">FrameBoost captures your game window, estimates motion between two real frames and shows one generated frame in between, or two with 3x. It runs next to the game, never inside it.</p>
         <dl class="facts">
           <div class="fact"><dt>No injection</dt><dd>No DLL, no hooks, no game memory or files touched. It reads the game window the way screen capture does.</dd></div>
           <div class="fact"><dt>Honest count</dt><dd>A picture shown twice is one frame. Output FPS only counts frames that are actually new.</dd></div>
           <div class="fact"><dt>Steps aside</dt><dd>If the game already uses the whole GPU, generating frames would slow it down. FrameBoost passes the game through untouched and starts again when there is room.</dd></div>
+          <div class="fact"><dt>Flick guard</dt><dd>When a flick moves the picture further than an in-between frame can follow, the real frame is shown instead of blocks.</dd></div>
           <div class="fact"><dt>Failsafe</dt><dd>If something goes wrong, it stops on its own and leaves nothing running.</dd></div>
         </dl>
       </div>
@@ -1143,13 +1160,17 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
         <div class="strip-box rv">
           <div class="strip-top">
             <div class="lbl">What reaches your screen</div>
+            <div class="chips" id="fbMode" role="group" aria-label="Mode">
+              <button type="button" class="chip" data-x="2" aria-pressed="true"><span>2x</span></button>
+              <button type="button" class="chip" data-x="3" aria-pressed="false"><span>3x</span></button>
+            </div>
             <div class="chips" id="fbToggle" role="group" aria-label="FrameBoost">
               <button type="button" class="chip" data-fb="off" aria-pressed="false"><span>Off</span></button>
               <button type="button" class="chip" data-fb="on" aria-pressed="true"><span>On</span></button>
             </div>
           </div>
           <div class="lane">
-            <div class="lane-head"><span>Game renders</span><b>60 FPS</b></div>
+            <div class="lane-head"><span>Game renders</span><b class="dyn" id="laneGameNum">60 FPS</b></div>
             <div class="film" aria-hidden="true"><div class="film-row" id="laneGame"></div></div>
           </div>
           <div class="lane">
@@ -1172,17 +1193,23 @@ html { scrollbar-color: var(--accent) #0a0808; scrollbar-width: thin; }
             <p id="capTxt"></p>
           </div>
         </div>
-        <div class="grid grid-2">
+        <div class="grid grid-3m">
           <div class="card mode rv">
-            <div class="tags"><span class="tag red"><span>Quality</span></span><span class="risk">Default</span></div>
+            <div class="tags"><span class="tag red"><span>2x</span></span><span class="risk">Default</span></div>
             <div class="num">60 <span class="accent">//</span> 120</div>
-            <p>Full-resolution motion estimation for the cleanest in-between frames, at the cost of a little extra latency.</p>
+            <p>One generated frame between every two real ones, at full resolution. The cleanest in-between frames.</p>
+          </div>
+          <div class="card mode tri rv">
+            <div class="tags"><span class="tag red"><span>3x</span></span><span class="risk">New</span></div>
+            <div class="num">48 <span class="accent">//</span> 144</div>
+            <p>Two generated frames between every two real ones. The smoothest picture, a few milliseconds more delay than 2x.</p>
           </div>
           <div class="card mode alt rv">
             <div class="tags"><span class="tag"><span>Low latency</span></span><span class="risk">One switch</span></div>
             <div class="num">LOW <span class="accent">LAT</span></div>
             <p>Shows frames as soon as they're ready and estimates motion at lower resolution. Less delay, slightly softer generated frames.</p>
           </div>
+        </div>
         </div>
       </div>
     </div>
@@ -1599,6 +1626,28 @@ const DE = {
  "Only causes with real confidence are shown, at most three, each with the numbers behind it.": "Gezeigt werden nur Ursachen mit echter Sicherheit, höchstens drei, jede mit den Zahlen dahinter.",
  "Example": "Beispiel",
  "Twice the frames.": "Doppelte Frames.",
+ "Two or three times the frames.": "Doppelte oder dreifache Frames.",
+ "FrameBoost captures your game window, estimates motion between two real frames and shows one generated frame in between, or two with 3x. It runs next to the game, never inside it.": "FrameBoost nimmt dein Spielfenster auf, schätzt die Bewegung zwischen zwei echten Frames und zeigt dazwischen einen erzeugten Frame, mit 3x zwei. Es läuft neben dem Spiel, nie darin.",
+ "Flick guard": "Flick-Schutz",
+ "When a flick moves the picture further than an in-between frame can follow, the real frame is shown instead of blocks.": "Wenn ein Flick das Bild weiter bewegt, als ein Zwischenbild folgen kann, wird statt Blöcken das echte Bild gezeigt.",
+ "One generated frame between every two real ones, at full resolution. The cleanest in-between frames.": "Ein erzeugter Frame zwischen je zwei echten, in voller Auflösung. Die saubersten Zwischenbilder.",
+ "Two generated frames between every two real ones. The smoothest picture, a few milliseconds more delay than 2x.": "Zwei erzeugte Frames zwischen je zwei echten. Das flüssigste Bild, ein paar Millisekunden mehr Verzögerung als 2x.",
+ "Three times": "Dreimal so viele",
+ "the frames.": "Frames.",
+ "FrameBoost 3x builds two frames between every two real ones, holds together in fast turns and stays clean in flicks. Plus a new Picture page for colour and contrast.": "FrameBoost 3x baut zwei Frames zwischen je zwei echte, hält bei schnellen Drehungen zusammen und bleibt bei Flicks sauber. Dazu die neue Seite Bildfarbe für Farbe und Kontrast.",
+ "Two generated frames between every two real ones. Cap at 48 on a 144 Hz screen and it shows 144. Measured in War Thunder: 75 in, 225 out.": "Zwei erzeugte Frames zwischen je zwei echten. Begrenze auf 48 an einem 144-Hz-Bildschirm, und er zeigt 144. Gemessen in War Thunder: 75 rein, 225 raus.",
+ "Fast turns hold": "Schnelle Drehungen halten",
+ "The motion search reaches twice as far: 480 px per frame instead of 240. Fast camera turns no longer come apart into blocks.": "Die Bewegungssuche reicht doppelt so weit: 480 px pro Frame statt 240. Schnelle Kameradrehungen zerfallen nicht mehr in Blöcke.",
+ "A flick moves the picture further than any in-between frame can follow. FrameBoost recognises it and shows the real frame instead of blocks.": "Ein Flick bewegt das Bild weiter, als ein Zwischenbild folgen kann. FrameBoost erkennt ihn und zeigt statt Blöcken das echte Bild.",
+ "HUD stays put": "HUD bleibt stehen",
+ "Ammo counter and ability icons no longer leave copies in the scene behind them when you turn.": "Munitionsanzeige und Fähigkeiten-Symbole hinterlassen beim Drehen keine Kopien mehr in der Szene dahinter.",
+ "Picture": "Bildfarbe",
+ "Saturation, brightness and contrast with presets and your own. Pauses on its own when a game from your library starts.": "Sättigung, Helligkeit und Kontrast mit Voreinstellungen und eigenen Presets. Pausiert von selbst, sobald ein Spiel aus deiner Bibliothek startet.",
+ "0.05 ms pickup": "0,05 ms Abholzeit",
+ "A new game frame wakes FrameBoost the moment it arrives. It used to wait for the next check, up to 2.3 ms later.": "Ein neuer Spiel-Frame weckt FrameBoost in dem Moment, in dem er ankommt. Früher wartete er auf die nächste Prüfung, bis zu 2,3 ms später.",
+ "Example: a game running at 60. 2x shows 120, 3x shows 180.": "Beispiel: ein Spiel mit 60 FPS. 2x zeigt 120, 3x zeigt 180.",
+ "3x builds two. 180.": "3x baut zwei. 180.",
+ "Left of the line, the game alone. Right of it, FrameBoost: twice the frames with 2x, three times with 3x. Drag the line, or switch to slow motion.": "Links der Linie das Spiel allein. Rechts davon FrameBoost: doppelt so viele Frames mit 2x, dreimal so viele mit 3x. Zieh die Linie oder schalte auf Zeitlupe.",
  "Nothing injected.": "Nichts injiziert.",
  "FrameBoost captures your game window, estimates motion between two real frames and shows a generated frame in between. It runs next to the game, never inside it.": "FrameBoost nimmt dein Spielfenster auf, schätzt die Bewegung zwischen zwei echten Frames und zeigt dazwischen einen erzeugten Frame. Es läuft neben dem Spiel, nie darin.",
  "No injection": "Kein Injecting",
@@ -2097,27 +2146,36 @@ document.getElementById("bTabs").addEventListener("click", e => {
 });
 
 // ================= FRAMEBOOST =================
-let fbOn = true, hz = 144;
+let fbOn = true, hz = 144, fbX = 2;
 const HZ = [120, 144, 165, 240];
 function renderFilm() {
   const game = document.getElementById("laneGame"), out = document.getElementById("laneOut");
-  game.innerHTML = Array.from({ length: 24 }, () => '<i class="wide"></i>').join("");
-  out.innerHTML = Array.from({ length: 24 }, () => `<i></i><i class="${fbOn ? "gen" : "dup"}"></i>`).join("");
-  document.getElementById("laneOutNum").textContent = (fbOn ? 120 : 60) + " FPS";
+  const base = fbX === 3 ? 48 : 60;
+  game.innerHTML = Array.from({ length: 24 }, () => `<i class="wide${fbX === 3 ? " x3" : ""}"></i>`).join("");
+  const gens = fbOn ? Array.from({ length: fbX - 1 }, () => '<i class="gen"></i>').join("")
+                    : Array.from({ length: fbX - 1 }, () => '<i class="dup"></i>').join("");
+  out.innerHTML = Array.from({ length: 24 }, () => `<i></i>${gens}`).join("");
+  document.getElementById("laneGameNum").textContent = base + " FPS";
+  document.getElementById("laneOutNum").textContent = (fbOn ? base * fbX : base) + " FPS";
   document.querySelectorAll("#fbToggle .chip").forEach(c => c.setAttribute("aria-pressed", String((c.dataset.fb === "on") === fbOn)));
+  document.querySelectorAll("#fbMode .chip").forEach(c => c.setAttribute("aria-pressed", String(+c.dataset.x === fbX)));
 }
 document.getElementById("fbToggle").addEventListener("click", e => {
   const b = e.target.closest("[data-fb]"); if (!b) return;
   fbOn = b.dataset.fb === "on"; renderFilm();
 });
+document.getElementById("fbMode").addEventListener("click", e => {
+  const b = e.target.closest("[data-x]"); if (!b) return;
+  fbX = +b.dataset.x; fbOn = true; renderFilm(); renderCap();
+});
 const capTxt = {
-  en: (a, b) => `Cap the game at ${a} FPS. FrameBoost doubles it to ${b}, which your ${hz} Hz monitor can show.`,
-  de: (a, b) => `Begrenze das Spiel auf ${a} FPS. FrameBoost verdoppelt das auf ${b}, und das kann dein ${hz}-Hz-Monitor anzeigen.`
+  en: (a, b) => `Cap the game at ${a} FPS. FrameBoost ${fbX}x turns that into ${b}, which your ${hz} Hz monitor can show.`,
+  de: (a, b) => `Begrenze das Spiel auf ${a} FPS. FrameBoost ${fbX}x macht daraus ${b}, und das kann dein ${hz}-Hz-Monitor anzeigen.`
 };
 function renderCap() {
   const pick = document.getElementById("hzPick");
   pick.innerHTML = HZ.map(h => `<button type="button" class="chip" data-hz="${h}" aria-pressed="${h === hz}"><span>${h} Hz</span></button>`).join("");
-  const a = Math.floor(hz / 2), b = a * 2;
+  const a = Math.floor(hz / fbX), b = a * fbX;
   document.getElementById("capIn").textContent = a;
   document.getElementById("capOut").textContent = b;
   document.getElementById("capTxt").textContent = capTxt[LANG](a, b);
@@ -2130,6 +2188,7 @@ document.getElementById("hzPick").addEventListener("click", e => {
 // ================= RELEASES (live from GitHub, static fallback in the markup) =================
 let releases = null;
 const RELNOTES = {
+  "v1.5.3": { en: "FrameBoost 3x, flick guard, Picture page", de: "FrameBoost 3x, Flick-Schutz, Bildfarbe" },
   "v1.3.4": { en: "Buy Premium in the app", de: "Premium direkt in der App kaufen" },
   "v1.3.3": { en: "Full German and Russian translation, Discord link", de: "Komplett auf Deutsch und Russisch, Discord-Link" },
   "v1.3.2": { en: "The app knows its own version", de: "Die App kennt ihre eigene Version" },
@@ -2458,6 +2517,6 @@ else {
   load();
 })();
 </script>
-<script src="assets/motion.js?v=4"></script>
+<script src="assets/motion.js?v=5"></script>
 </body>
 </html>

@@ -485,24 +485,38 @@ void main() {
       if (video) video.playbackRate = r;
     }
     rates.forEach(b => b.addEventListener("click", () => setRate(+b.dataset.rate, true)));
+    // 2x: the game at 60 against 120. 3x: the game at 48 against 144.
+    let base = 60, full = 120;
+    const modes = [...document.querySelectorAll("#cmpMode [data-x]")];
+    function setMode(x) {
+      base = x === 3 ? 48 : 60; full = base * x;
+      modes.forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.x === x)));
+      const l = $("cmpTagL"), r = $("cmpTagR");
+      if (l) l.textContent = base;
+      if (r) r.textContent = full;
+      range.setAttribute("aria-label", `Divider between ${base} and ${full} FPS`);
+      words();
+    }
+    modes.forEach(b => b.addEventListener("click", () => setMode(+b.dataset.x)));
     // the words under it follow the language and what was measured
     const TXH = {
       en: { fast: hz => `Your display runs at ${hz} Hz: both sides play at their real speed.`,
             slow: hz => `Your display shows at most ${hz} pictures a second, so in real time both sides look alike here. Slow motion shows the extra frames.`,
             none: "Slow motion shows the extra frames on any display.",
-            demo: "Shown: our own track, rendered live in your browser. Left 60, right 120 pictures a second.",
+            demo: (a, b) => `Shown: our own track, rendered live in your browser. Left ${a}, right ${b} pictures a second.`,
             clip: "Shown: a real FrameBoost recording from Apex Legends at 120 FPS. Left, every second frame is left out." },
       de: { fast: hz => `Dein Display läuft mit ${hz} Hz: Beide Seiten laufen in echter Geschwindigkeit.`,
             slow: hz => `Dein Display zeigt höchstens ${hz} Bilder pro Sekunde, in Echtzeit sehen beide Seiten hier gleich aus. In Zeitlupe siehst du die zusätzlichen Frames.`,
             none: "In Zeitlupe siehst du die zusätzlichen Frames auf jedem Display.",
-            demo: "Zu sehen: unsere eigene Strecke, live in deinem Browser gerendert. Links 60, rechts 120 Bilder pro Sekunde.",
+            demo: (a, b) => `Zu sehen: unsere eigene Strecke, live in deinem Browser gerendert. Links ${a}, rechts ${b} Bilder pro Sekunde.`,
             clip: "Zu sehen: eine echte FrameBoost-Aufnahme aus Apex Legends mit 120 FPS. Links fehlt jedes zweite Bild." }
     };
     let shownHz = -1;
     function words() {
       const x = TXH[lang()];
-      hint.textContent = displayHz ? (displayHz >= 110 ? x.fast(displayHz) : x.slow(displayHz)) : x.none;
-      src.textContent = video ? x.clip : x.demo;
+      // fast enough for the right side only if the display can show every one of its frames
+      hint.textContent = displayHz ? (displayHz >= full - 10 ? x.fast(displayHz) : x.slow(displayHz)) : x.none;
+      src.textContent = video ? x.clip : x.demo(base, full);
     }
     new MutationObserver(words).observe(doc, { attributes: true, attributeFilter: ["lang"] });
     tasks.add(() => {
@@ -558,10 +572,10 @@ void main() {
       if (!visible || document.hidden) return;
       t += dt * rate;
       // quick lateral sway as well as speed, so missing frames are easy to see
-      s.travel = Math.floor(t * 120) / 120 * 3.2;
-      s.travelL = Math.floor(t * 60) / 60 * 3.2;
-      s.mx = Math.sin(Math.floor(t * 120) / 120 * 2.6) * 0.9;
-      s.mxL = Math.sin(Math.floor(t * 60) / 60 * 2.6) * 0.9;
+      s.travel = Math.floor(t * full) / full * 3.2;
+      s.travelL = Math.floor(t * base) / base * 3.2;
+      s.mx = Math.sin(Math.floor(t * full) / full * 2.6) * 0.9;
+      s.mxL = Math.sin(Math.floor(t * base) / base * 2.6) * 0.9;
       s.split = split;
       s.time = t;
       track.draw(s, dt);
@@ -666,21 +680,25 @@ void main() {
     const sec = $("fps");
     if (!sec) return;
     const num = $("fpsNum"), film = sec.querySelector(".fps-film"), steps = [...sec.querySelectorAll(".fps-steps li")];
-    if (reduce) { num.textContent = "120"; sec.classList.add("hot"); steps.forEach(s => s.classList.add("on")); return; }
+    if (reduce) { num.textContent = "180"; sec.classList.add("hot"); steps.forEach(s => s.classList.add("on")); return; }
     sec.classList.add("fps-live");
     let shown = -1;
+    // two stages: 60 -> 120 (one frame in between, 2x), then 120 -> 180 (a second one, 3x)
     tasks.add(() => {
       const r = sec.getBoundingClientRect();
       const span = sec.offsetHeight - innerHeight;
       if (r.bottom < -50 || r.top > innerHeight + 50) return;
       const p = clamp(-r.top / span, 0, 1);
       sec.style.setProperty("--p", p.toFixed(4));
-      const g = ease(clamp((p - 0.3) / 0.42, 0, 1));
+      const g = ease(clamp((p - 0.2) / 0.3, 0, 1));
+      const g2 = ease(clamp((p - 0.62) / 0.26, 0, 1));
       film.style.setProperty("--g", g.toFixed(4));
-      const n = Math.round(60 + 60 * g);
+      film.style.setProperty("--g2", g2.toFixed(4));
+      const n = Math.round(60 + 60 * g + 60 * g2);
       if (n !== shown) { num.textContent = n; shown = n; }
       sec.classList.toggle("hot", g > 0.985);
-      const step = p < 0.28 ? 0 : p < 0.74 ? 1 : 2;
+      sec.classList.toggle("tri", g2 > 0.985);
+      const step = p < 0.18 ? 0 : p < 0.46 ? 1 : p < 0.6 ? 2 : 3;
       steps.forEach((s, i) => s.classList.toggle("on", i === step));
     });
   }
